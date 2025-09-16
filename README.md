@@ -27,7 +27,7 @@ daycare-app/
 │ │ ├─ models/ # Database schemas (ORM or raw SQL
 │ │ ├─ routes/ # Define routes & map to controllers
 │ │ ├─ services/ # Business logic
-│ │ └─ index.ts # App entry point
+│ │ └─ server.ts # App entry point
 │ ├─ package.json
 │ └─ tsconfig.json
 │

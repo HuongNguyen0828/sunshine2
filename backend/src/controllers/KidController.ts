@@ -1,59 +1,61 @@
-// Controller functions for handling Kid-related requests
+// Controller functions for handling child-related requests
 import { Request, Response } from 'express';
-import * as kidsService from '../services/kidsService';
+import * as ChildsService from "./../services/childsService";
 
 
 
 // Get all kids
-export const getAllKids = async (req: Request, res: Response) => {
+export const getAllChilds = async (req: Request, res: Response) => {
   try {
-    const kids = await kidsService.getAllKids();
-    res.json(kids);
+    const childs = await ChildsService.getAllChilds();
+    res.json(childs);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching kids' });
+    res.status(500).json({ message: 'Error fetching childs' });
   }
 };
 
-// Get a single kid by ID
-export const getKidById = async (req: Request, res: Response) => {
+// Get a single child by ID
+export const getChildById = async (req: Request, res: Response) => {
   try {
-    const kid = await kidsService.getKidById(req.params.id);
-    if (!kid) return res.status(404).json({ message: 'Kid not found' });
-    res.json(kid);
+    // if id not found return undefined
+    const child = await ChildsService.getChildById?(req.params.id) : undefined; 
+    if (!child) return res.status(404).json({ message: 'child not found' });
+    // if found return the child
+    res.json(child);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching kid' });
+    res.status(500).json({ message: 'Error fetching child' });
   }
 };
 
-// Create a new kid
-export const createKid = async (req: Request, res: Response) => {
+// Create a new child
+export const addChild = async (req: Request, res: Response) => {
   try {
-    const newKid = await kidsService.createKid(req.body);
-    res.status(201).json(newKid);
+    const newchild = await ChildsService.addChild(req.body);
+    res.status(201).json(newchild);
   } catch (error) {
-    res.status(500).json({ message: 'Error creating kid' });
+    res.status(500).json({ message: 'Error creating child' });
   }
 };
 
-// Update an existing kid
-export const updateKid = async (req: Request, res: Response) => {
+// Update an existing child
+export const updateChild = async (req: Request, res: Response) => {
   try {
-    const updatedKid = await kidsService.updateKid(req.params.id, req.body);
-    if (!updatedKid) return res.status(404).json({ message: 'Kid not found' });
-    res.json(updatedKid);
+    const updatedchild = await ChildsService.updateChild?(req.params.id, req.body) : undefined;
+    if (!updatedchild) return res.status(404).json({ message: 'child not found' });
+    res.json(updatedchild);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating kid' });
+    res.status(500).json({ message: 'Error updating child' });
   }
 };
 
 
-// Delete a kid
-export const deleteKid = async (req: Request, res: Response) => {
+// Delete a child
+export const deleteChild = async (req: Request, res: Response) => {
   try {
-    const success = await kidsService.deleteKid(req.params.id);
-    if (!success) return res.status(404).json({ message: 'Kid not found' });
-    res.json({ message: 'Kid deleted successfully' });
+    const success = await ChildsService.deleteChild?(req.params.id) : false;
+    if (!success) return res.status(404).json({ message: 'child not found' });
+    res.json({ message: 'child deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting kid' });
+    res.status(500).json({ message: 'Error deleting child' });
   }
 };
