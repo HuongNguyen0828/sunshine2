@@ -9,7 +9,12 @@ import {
   Platform,
 } from "react-native";
 import { Link, router } from "expo-router";
-import { registerParent } from "@/lib/auth";
+import axios from "axios";
+
+export const registerParentAPI = async (data: { name: string; email: string }) => {
+  const res = await axios.post("http://localhost:4000/parents/register", data);
+  return res.data;
+};
 
 export default function Register() {
   const [name, setName] = useState("");

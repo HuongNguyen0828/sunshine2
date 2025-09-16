@@ -9,9 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  Image,
-  SafeAreaViewBased,
-  ImageBackgroundComponent
+  Image,,
 } from "react-native";
 import { router, Link } from "expo-router";
 import { signIn } from "@/lib/auth";
@@ -49,7 +47,7 @@ export default function SignIn() {
   };
 
   return (
-    <SafeAreaViewBased
+    <View
       style={styles.container}
     >
       <View
@@ -140,7 +138,7 @@ export default function SignIn() {
       </View>
 
       </View>
-    </SafeAreaViewBased>
+    </View>
   );
 }
 
@@ -151,7 +149,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background, 
     justifyContent: "center",
     alignItems: "center",
-    padding: Platform.OS === "ios" ?  : 0
+    padding: Platform.OS === "ios" ? 20 : 0
   }, 
 
 });
