@@ -49,12 +49,11 @@ export default function SignIn() {
     <View
       style={styles.container}
     >
-      <View> 
-        <Image source={require('../../assets/images/log.svg')} alt="Sunshine" width={20} height={20} /> 
+      <View style={{ alignItems: "center" }}> 
+        <Image source={require('../../assets/images/logo.png')} alt="Sunshine" style={styles.logo} /> 
       </View>
-      <View
-        style={styles.loginContainer}
-      >
+
+      <View style={styles.loginContainer}>
         <Text style={{ fontSize: 28, fontWeight: "700", marginBottom: 4, textAlign: 'center', color: colors.heading}}>
           Sign in Sunshine
         </Text>
@@ -122,6 +121,7 @@ export default function SignIn() {
         </View>
      
       </View>
+
       <View style={{ alignItems: "center"}}> 
         <Image 
           source={require('../../assets/images/welcome.jpg')} 
@@ -129,7 +129,7 @@ export default function SignIn() {
           style={{
           width: 500,
           height: 300,
-          resizeMode: 'contain',
+          resizeMode: 'cover',
         }}
         />
       </View>
@@ -150,10 +150,16 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     maxWidth: 400,
-    padding: 24,
     gap: 16,
+    paddingHorizontal: 24,
     justifyContent: "center",
     backgroundColor: "#fff",
+  },
+  logo: {
+    width: 10,
+    height: 10,
+    resizeMode: "contain",
+    margin: 20,
   }
 
 });
