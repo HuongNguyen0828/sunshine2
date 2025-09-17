@@ -11,9 +11,14 @@ import {
 import { Link, router } from "expo-router";
 import axios from "axios";
 
-export const registerParentAPI = async (data: { name: string; email: string }) => {
-  const res = await axios.post("http://localhost:4000/parents/register", data);
-  return res.data;
+// Function to register a new parent
+export const registerParent = async (data: { name: string; email: string; pw: string }) => {
+  try {
+    const res = await axios.post("http://10.187.181.50:4000/parents/register", data); // replace with your LAN IP
+    return res.data;
+  } catch (err: any) {
+    throw err.response?.data || err;
+  }
 };
 
 export default function Register() {
@@ -36,7 +41,7 @@ export default function Register() {
     try {
       setErr(null);
       setLoading(true);
-      await registerParent(name, email, pw);
+      await registerParent({name, email, pw});
       router.replace("/");
     } catch (e: any) {
       const m =

@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  Image,,
+  Image,
 } from "react-native";
 import { router, Link } from "expo-router";
 import { signIn } from "@/lib/auth";
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background, 
     justifyContent: "center",
     alignItems: "center",
-    padding: Platform.OS === "ios" ? 20 : 0
+    // paddingTop: Platform.OS === "ios" ? 10 : 0
   }, 
 
 });
