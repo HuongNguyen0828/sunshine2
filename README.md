@@ -62,7 +62,7 @@ daycare-app/
 │ └─ tsconfig.json
 │
 └─ mobile-app/ # Mobile App (React Native / Expo)
-├─ screens/
+├─ app/ # Screens
 │ ├─ parent/ # Parent UI
 │ │ ├─ ParentHomeScreen.tsx
 │ │ ├─ ChildProgressScreen.tsx
