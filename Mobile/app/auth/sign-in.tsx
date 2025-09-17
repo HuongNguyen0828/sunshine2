@@ -51,13 +51,7 @@ export default function SignIn() {
       style={styles.container}
     >
       <View
-        style={{
-          flex: 1,
-          padding: 24,
-          gap: 16,
-          justifyContent: "center",
-          backgroundColor: "#fff",
-        }}
+        style={styles.loginContainer}
       >
         <Text style={{ fontSize: 28, fontWeight: "700", marginBottom: 4, textAlign: 'center', color: colors.heading}}>
           Sign in Sunshine
@@ -124,7 +118,8 @@ export default function SignIn() {
             </TouchableOpacity>
           </Link>
         </View>
-
+     
+      </View>
       <View style={{ alignItems: "center"}}> 
         <Image 
           source={require('../../assets/images/welcome.jpg')} 
@@ -135,8 +130,6 @@ export default function SignIn() {
           resizeMode: 'contain',
         }}
         />
-      </View>
-
       </View>
     </View>
   );
@@ -149,7 +142,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background, 
     justifyContent: "center",
     alignItems: "center",
-    // paddingTop: Platform.OS === "ios" ? 10 : 0
+    paddingTop: Platform.OS === "ios" ? 10 : 0
   }, 
+  loginContainer: {
+    flex: 1,
+    width: "100%",
+    maxWidth: 400,
+    padding: 24,
+    gap: 16,
+    justifyContent: "center",
+    backgroundColor: "#fff",
+  }
 
 });

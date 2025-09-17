@@ -13,7 +13,7 @@ export default function RoleGate({ allow, children }: { allow: string[]; childre
       const snap = await getDoc(doc(db, "users", u.uid));
       const role = (snap.data()?.role as string) || "parent";
       if (!allow.includes(role)) {
-        if (role === "staff" || role === "admin") router.replace("/(staff)/(tabs)/dashboard");
+        if (role === "staff" || role === "admin") router.replace("/(teacher)/(tabs)/dashboard");
         else router.replace("/(parent)/(tabs)/dashboard");
         return;
       }

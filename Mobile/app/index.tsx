@@ -17,7 +17,7 @@ export default function Index() {
       }
       const snap = await getDoc(doc(db, "users", u.uid));
       const role = (snap.data()?.role as string) || "parent";
-      if (role === "staff" || role === "admin") router.replace("/(staff)/(tabs)/dashboard");
+      if (role === "staff" || role === "admin") router.replace("/(teacher)/(tabs)/dashboard");
       else router.replace("/(parent)/(tabs)/dashboard");
       setReady(true);
     });
