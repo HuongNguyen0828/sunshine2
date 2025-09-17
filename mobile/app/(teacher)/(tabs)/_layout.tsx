@@ -26,7 +26,7 @@ export default function StaffTabs() {
           ),
         }}
       >
-        <Tabs.Screen name="dashboard" options={{ title: "Dashboard", headerTitle: "Dashboard", tabBarIcon: p => <Ionicons name="home-outline" {...p} /> }} />
+        <Tabs.Screen name="dashboard" options={{ title: "Dashboard", headerTitle: "Teacher Dashboard", tabBarIcon: p => <Ionicons name="home-outline" {...p} /> }} />
         <Tabs.Screen name="messages"  options={{ title: "Messages", headerTitle: "Messages", tabBarIcon: p => <Ionicons name="chatbubble-ellipses-outline" {...p} /> }} />
         <Tabs.Screen name="reports"   options={{ title: "Reports",  headerTitle: "Reports", tabBarIcon: p => <Ionicons name="document-text-outline" {...p} /> }} />
         <Tabs.Screen name="calendar"  options={{ title: "Calendar", headerTitle: "Calendar", tabBarIcon: p => <Ionicons name="calendar-outline" {...p} /> }} />

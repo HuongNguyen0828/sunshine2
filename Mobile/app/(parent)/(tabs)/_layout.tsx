@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable } from "react-native";
 import RoleGate from "@/navigation/RootNavigator";
-import ParentHeaderTitle from "@/components/ParentHeaderTitle";
+import ParentHeaderTitle from "@/components/ParentLeftHeaderTitle";
 import { signOutUser } from "@/lib/auth";
 import { router } from "expo-router";
 import { colors } from "@/constants/color";
@@ -12,7 +12,7 @@ export default function ParentTabs() {
     <RoleGate allow={["parent"]}>
       <Tabs
         screenOptions={{
-          headerTitle: () => <ParentHeaderTitle />,
+          headerLeft: () => <ParentHeaderTitle />,
           headerShadowVisible: false,
           tabBarActiveTintColor: colors.tint,
           headerRight: () => (
