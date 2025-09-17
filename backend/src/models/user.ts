@@ -3,3 +3,9 @@ export enum UserRole {
     Teacher = 'teacher',
     Parent = 'parent',
 }
+
+export interface UserClaims {
+    role: UserRole;
+    daycareId?: string; // Optional for multi-tenancy
+    classroomId?: string; // Optional for teachers
+}

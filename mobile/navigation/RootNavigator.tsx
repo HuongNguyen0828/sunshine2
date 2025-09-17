@@ -12,13 +12,17 @@ export default function RoleGate({ allow, children }: { allow: string[]; childre
       if (!u) return router.replace("/auth/sign-in");  // not logged in → sign-in page
 
       const snap = await getDoc(doc(db, "users", u.uid)); // get user data
-      const role = (snap.data()?.role as string) || "parent";
+      const role = (snap.data()?.role as string);
       if (!allow.includes(role)) { 
+        // role is teacher
         if (role === "teacher") router.replace("/(teacher)/(tabs)/dashboard");
-        else router.replace("/(parent)/(tabs)/dashboard"); 
+        // role is parent
+        if (role === "parent") router.replace("/(parent)/(tabs)/dashboard"); 
+        
+        // else if (role === "admin"), not allowred, but no other role for now
         return; // role not allowed → redirect to their main page
       }
-      setOk(true); // role allowed → render this page
+      setOk(true); // role allowed
     });
     return () => off();  // unsubscribe on unmount
   }, [allow]);
