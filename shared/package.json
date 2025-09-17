@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "expo": "^54.0.8",
+    "expo-constants": "~18.0.9",
+    "firebase": "^12.2.1"
+  },
+  "devDependencies": {
+    "@types/firebase": "^3.2.3"
+  }
+}

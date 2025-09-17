@@ -4,6 +4,7 @@
 
 mkdir backend && cd backend
 npm init -y
+npm install firebase-admin
 npm install express cors body-parser dotenv
 npm install --save-dev typescript ts-node @types/node @types/express nodemon
 npx tsc --init
@@ -142,3 +143,12 @@ Firebase returns a token → Frontend sends that token in API requests to backen
 Backend verifies token with Firebase Admin SDK → then performs daycare logic (saving parent, child, etc.).
 
 Frontend shows data returned by backend.
+
+## Note: Clear cached route types
+
+Stop Metro bundler (Ctrl+C).
+
+Run:
+
+rm -rf .expo
+yarn start

@@ -3,15 +3,18 @@
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "firebase-admin": "^13.5.0",
+    "install": "^0.13.0",
+    "npm": "^11.6.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
-    "@types/node": "^24.5.0",
+    "@types/node": "^24.5.1",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
-  }, 
+  },
   "scripts": {
     "dev": "nodemon src/server.ts",
     "start": "ts-node src/server.ts",

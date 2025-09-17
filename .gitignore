@@ -35,6 +35,8 @@ yarn-error.*
 .env*.local
 # environment variable
 .env
+# Service account keys
+serviceAccountKey.json
 
 # typescript
 *.tsbuildinfo

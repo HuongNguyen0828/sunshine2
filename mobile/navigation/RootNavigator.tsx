@@ -9,18 +9,20 @@ export default function RoleGate({ allow, children }: { allow: string[]; childre
   const [ok, setOk] = useState(false);
   useEffect(() => {
     const off = onUserChanged(async (u) => {
-      if (!u) return router.replace("/auth/sign-in");
-      const snap = await getDoc(doc(db, "users", u.uid));
+      if (!u) return router.replace("/auth/sign-in");  // not logged in → sign-in page
+
+      const snap = await getDoc(doc(db, "users", u.uid)); // get user data
       const role = (snap.data()?.role as string) || "parent";
-      if (!allow.includes(role)) {
-        if (role === "staff" || role === "admin") router.replace("/(staff)/(tabs)/dashboard");
-        else router.replace("/(parent)/(tabs)/dashboard");
-        return;
+      if (!allow.includes(role)) { 
+        if (role === "staff") router.replace("/(teacher)/(tabs)/dashboard");
+        else router.replace("/(parent)/(tabs)/dashboard"); 
+        return; // role not allowed → redirect to their main page
       }
-      setOk(true);
+      setOk(true); // role allowed → render this page
     });
-    return () => off();
-  }, []);
+    return () => off();  // unsubscribe on unmount
+  }, [allow]);
+  // Show loading indicator while checking role
   if (!ok) return <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><ActivityIndicator /></View>;
   return <>{children}</>;
 }
