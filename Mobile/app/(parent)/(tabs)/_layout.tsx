@@ -28,11 +28,11 @@ export default function ParentTabs() {
           ),
         }}
       >
-        <Tabs.Screen name="dashboard" options={{ title: "Dashboard", tabBarIcon: p => <Ionicons name="home-outline" {...p} /> }} />
-        <Tabs.Screen name="messages"  options={{ title: "Messages",  tabBarIcon: p => <Ionicons name="chatbubble-ellipses-outline" {...p} /> }} />
-        <Tabs.Screen name="reports"   options={{ title: "Reports",   tabBarIcon: p => <Ionicons name="document-text-outline" {...p} /> }} />
-        <Tabs.Screen name="calendar"  options={{ title: "Calendar",  tabBarIcon: p => <Ionicons name="calendar-outline" {...p} /> }} />
-        <Tabs.Screen name="more"      options={{ title: "More",      tabBarIcon: p => <Ionicons name="ellipsis-horizontal-circle-outline" {...p} /> }} />
+        <Tabs.Screen name="dashboard" options={{ title: "Dashboard", headerTitle: "Parent Dashboard", tabBarIcon: p => <Ionicons name="home-outline" {...p} /> }} />
+        <Tabs.Screen name="messages"  options={{ title: "Messages", headerTitle: " Messages", tabBarIcon: p => <Ionicons name="chatbubble-ellipses-outline" {...p} /> }} />
+        <Tabs.Screen name="reports"   options={{ title: "Reports",  headerTitle: "Reports", tabBarIcon: p => <Ionicons name="document-text-outline" {...p} /> }} />
+        <Tabs.Screen name="calendar"  options={{ title: "Calendar", headerTitle: "Calender", tabBarIcon: p => <Ionicons name="calendar-outline" {...p} /> }} />
+        <Tabs.Screen name="more"      options={{ title: "More", headerTitle: "More", tabBarIcon: p => <Ionicons name="ellipsis-horizontal-circle-outline" {...p} /> }} />
       </Tabs>
     </RoleGate>
   );
