@@ -126,3 +126,5 @@ export type Photo = {
   uploadedAt: string; // ISO date string  
   
 }
+
+

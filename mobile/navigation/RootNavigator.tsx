@@ -14,7 +14,7 @@ export default function RoleGate({ allow, children }: { allow: string[]; childre
       const snap = await getDoc(doc(db, "users", u.uid)); // get user data
       const role = (snap.data()?.role as string) || "parent";
       if (!allow.includes(role)) { 
-        if (role === "staff") router.replace("/(teacher)/(tabs)/dashboard");
+        if (role === "teacher") router.replace("/(teacher)/(tabs)/dashboard");
         else router.replace("/(parent)/(tabs)/dashboard"); 
         return; // role not allowed → redirect to their main page
       }
