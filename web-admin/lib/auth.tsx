@@ -1,7 +1,8 @@
 // src/lib/auth.tsx
+'use client';
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
-import { app } from "./firebase"; // your firebase web config
+import app  from "./firebase"; // your firebase web config
 
 
 interface AuthContextType {
