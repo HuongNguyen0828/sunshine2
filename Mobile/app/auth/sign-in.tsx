@@ -49,6 +49,9 @@ export default function SignIn() {
     <View
       style={styles.container}
     >
+      <View> 
+        <Image source={require('../../assets/images/log.svg')} alt="Sunshine" width={20} height={20} /> 
+      </View>
       <View
         style={styles.loginContainer}
       >

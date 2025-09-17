@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/lib/auth";
+import AppHeader from "@/components/AppHeader";
+import App from "next/app";
 
 // Type definitions
 interface Teacher {
@@ -112,7 +114,8 @@ export default function AdminDashboard() {
     <div style={styles.container}>
       {/* Header */}
       <header style={styles.header}>
-        <h1 style={styles.headerTitle}>Sunshine School Admin Dashboard</h1>
+        <AppHeader />
+        <h1 style={styles.headerTitle}>Admin Dashboard</h1>
         <div style={styles.headerActions}>
           <span style={styles.welcome}>Welcome, Admin</span>
           <button onClick={signOutUser} style={styles.logoutButton}>
