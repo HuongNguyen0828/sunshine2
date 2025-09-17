@@ -36,7 +36,7 @@ interface Class {
 }
 
 export default function AdminDashboard() {
-  const { userLoggedIn, signOutUser } = useAuth();
+  const { signOutUser } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   
   // Sample data - in a real app, this would come from your backend
