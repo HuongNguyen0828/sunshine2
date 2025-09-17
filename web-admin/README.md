@@ -41,7 +41,7 @@ npx create-next-app@latest web-admin --typescript
 
 # Install dependencies
 
-yarn add firebase
+yarn add firebase dotenv react-router-dom
 
 # Start the app
 
