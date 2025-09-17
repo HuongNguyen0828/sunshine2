@@ -1,10 +1,19 @@
 // Controller functions for handling child-related requests
 import { Request, Response } from 'express';
-import * as ChildsService from "./../services/childsService";
+import * as ChildsService from "../services/childsService";
 
 
+// Create a new child
+export const addChild = async (req: Request, res: Response) => {
+  try {
+    const newchild = await ChildsService.addChild(req.body);
+    res.status(201).json(newchild);
+  } catch (error) {
+    res.status(500).json({ message: 'Error creating child' });
+  }
+};
 
-// Get all kids
+// Get all childs
 export const getAllChilds = async (req: Request, res: Response) => {
   try {
     const childs = await ChildsService.getAllChilds();
@@ -27,15 +36,7 @@ export const getChildById = async (req: Request, res: Response) => {
   }
 };
 
-// Create a new child
-export const addChild = async (req: Request, res: Response) => {
-  try {
-    const newchild = await ChildsService.addChild(req.body);
-    res.status(201).json(newchild);
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating child' });
-  }
-};
+
 
 // Update an existing child
 export const updateChild = async (req: Request, res: Response) => {

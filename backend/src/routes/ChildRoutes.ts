@@ -1,13 +1,27 @@
 // src/routes/kidsRoutes.ts
 import { Router } from "express";
-import { getAllChilds, addChild } from "../controllers/KidController";
+import { getAllChilds, addChild, getChildById, updateChild, deleteChild } from "../controllers/ChildController";
 
-const router = Router();
 
-// GET /kids
-router.get("/", getAllChilds);
+const childRoutes = Router();
 
-// POST /kids
-router.post("/", addChild);
 
-export default router;
+// POST /childs
+childRoutes.post("/", addChild);
+
+
+// GET /childs
+childRoutes.get("/", getAllChilds);
+
+// GET /childs/:id
+childRoutes.get("/:id", getChildById);
+
+// Update child
+childRoutes.put("/:id", updateChild);
+
+// DELETE /childs/:id
+childRoutes.delete("/:id", deleteChild);
+
+
+
+export default childRoutes;

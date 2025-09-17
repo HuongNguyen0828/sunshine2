@@ -7,9 +7,9 @@ export const getAllChilds = async (): Promise<Child[]> => {
   return childs;
 };
 
-export const addChild = async (kid: Child): Promise<Child> => {
-  childs.push(kid);
-  return kid;
+export const addChild = async (child: Child): Promise<Child> => {
+  childs.push(child);
+  return child;
 };
 
 export const getChildById = async (id: string): Promise<Child | undefined> => {
