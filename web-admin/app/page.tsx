@@ -1,4 +1,3 @@
-// This is to ofr@ -1,138 +1 @@
 // app/layout.tsx
 
 'use client';
@@ -8,7 +7,7 @@ import Link from "next/link"; // Use Next.js Link for navigation
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation"; // redirects / programmatic navigation
 import Image from "next/image"; // Use Next.js Image for optimized images
-
+import theme from "@/styles/color"
 
 export default function SignIn() {
   const { signIn } = useAuth(); // Correctly use the hook to get the signIn function
@@ -22,7 +21,7 @@ export default function SignIn() {
 
   const valid = useMemo(() => {
     const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    return okEmail && pw.length >= 6;
+    return okEmail && pw.length >= 6 && pw.length <= 50 && pw.trim() === pw;
   }, [email, pw]);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -34,10 +33,7 @@ export default function SignIn() {
       await signIn(email, pw); // Use the signIn function from the hook
       router.push("/dashboard"); // Redirect to dashboard on success
     } catch (e: any) {
-      const msg =
-        e?.code === "auth/invalid-credential"
-          ? "Email or password is incorrect."
-          : e?.message || "Failed to sign in";
+      const msg = e?.message;
       setErr(msg);
     } finally {
       setLoading(false);
@@ -47,8 +43,10 @@ export default function SignIn() {
   return (
     <div style={styles.container}>
       <div style={styles.formContainer}>
-        <h2 style={styles.heading}>Sign in Sunshine</h2>
-
+        {/* Logo */}
+        <Image src="/logo.svg" alt="Sunshine" width={120} height={120} style={{ alignSelf: "center" }} />
+        <h2 style={styles.heading}>Sign in</h2>
+        {/* Login Form */}
         <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <input
             type="email"
@@ -71,12 +69,10 @@ export default function SignIn() {
         </form>
 
         <p style={{ marginTop: 12 }}>
-          Don't have account? <Link href="/" style={{ color: "#1e90ff" }}>Create account</Link>
+          Don't have account? <Link href="/signup" style={{ color: "#1e90ff" }}>Create account</Link>
         </p>
       </div>
-      <div style={styles.imageContainer}>
-        <Image src="/images/welcome.jpg" alt="Welcome" height={40} width={40} />
-      </div>
+
     </div>
   );
 }
@@ -97,7 +93,9 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #ddd",
     borderRadius: 12,
     gap: 16,
+    backgroundImage: theme.colors.backgroundAlt // Light gradient background
   },
+
   heading: {
     textAlign: "center",
     fontSize: 28,

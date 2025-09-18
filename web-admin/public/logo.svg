@@ -32,5 +32,5 @@
   <path d="M80 115 Q100 130 120 115" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round" />
   
   <!-- App name text -->
-  <text x="100" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#333">Sunshine Daycare</text>
+  <text x="100" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#333">Sunshine</text>
 </svg>

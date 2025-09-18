@@ -33,7 +33,7 @@ export default function SignIn() {
       await signIn(email, pw); // Use the signIn function from the hook
       router.push("/dashboard"); // Redirect to dashboard on success
     } catch (e: any) {
-      const msg = e?.message || "Other error occurred: out of credentials and access previleges";
+      const msg = e?.message;
       setErr(msg);
     } finally {
       setLoading(false);
@@ -45,7 +45,7 @@ export default function SignIn() {
       <div style={styles.formContainer}>
         {/* Logo */}
         <Image src="/logo.svg" alt="Sunshine" width={120} height={120} style={{ alignSelf: "center" }} />
-        <h2 style={styles.heading}>Sign in</h2>
+        <h2 style={styles.heading}>Creat new account</h2>
         {/* Login Form */}
         <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <input
@@ -69,7 +69,7 @@ export default function SignIn() {
         </form>
 
         <p style={{ marginTop: 12 }}>
-          Don't have account? <Link href="/signup" style={{ color: "#1e90ff" }}>Create account</Link>
+          Already have account? <Link href="/signup" style={{ color: "#1e90ff" }}> Log in </Link>
         </p>
       </div>
 
