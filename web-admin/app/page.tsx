@@ -68,7 +68,7 @@ export default function SignIn() {
           </button>
         </form>
 
-        <p style={{ marginTop: 12 }}>
+        <p style={{ marginTop: 12, textAlign: "center"   }}>
           Don't have account? <Link href="/signup" style={{ color: "#1e90ff" }}>Create account</Link>
         </p>
       </div>
