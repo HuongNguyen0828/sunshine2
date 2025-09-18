@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"; // redirects / programmatic navigat
 import Image from "next/image"; // Use Next.js Image for optimized images
 import theme from "@/styles/color"
 
+
 export default function SignIn() {
   const { signIn } = useAuth(); // Correctly use the hook to get the signIn function
   const [email, setEmail] = useState("");
@@ -21,7 +22,7 @@ export default function SignIn() {
 
   const valid = useMemo(() => {
     const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    return okEmail && pw.length >= 6 && pw.length <= 50 && pw.trim() === pw;
+    return okEmail && pw.length >= 6;
   }, [email, pw]);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -75,7 +76,9 @@ export default function SignIn() {
           Don't have account? <Link href="/signup" style={{ color: "#1e90ff" }}>Create account</Link>
         </p>
       </div>
-
+      <div style={styles.imageContainer}>
+        <Image src="/images/welcome.jpg" alt="Welcome" height={40} width={40} />
+      </div>
     </div>
   );
 }
@@ -96,7 +99,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #ddd",
     borderRadius: 12,
     gap: 16,
-    backgroundImage: theme.colors.backgroundAlt // Light gradient background
+    backgroundImage: theme.color.backgroundAlt // Light gradient background// Light gradient background
   },
 
   heading: {
