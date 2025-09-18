@@ -8,7 +8,7 @@ import Link from "next/link"; // Use Next.js Link for navigation
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation"; // redirects / programmatic navigation
 import Image from "next/image"; // Use Next.js Image for optimized images
-import theme from "@/styles/color"
+
 
 export default function SignIn() {
   const { signIn } = useAuth(); // Correctly use the hook to get the signIn function
@@ -22,7 +22,7 @@ export default function SignIn() {
 
   const valid = useMemo(() => {
     const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    return okEmail && pw.length >= 6 && pw.length <= 50 && pw.trim() === pw;
+    return okEmail && pw.length >= 6;
   }, [email, pw]);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -47,10 +47,8 @@ export default function SignIn() {
   return (
     <div style={styles.container}>
       <div style={styles.formContainer}>
-        {/* Logo */}
-        <Image src="/logo.svg" alt="Sunshine" width={120} height={120} style={{ alignSelf: "center" }} />
-        <h2 style={styles.heading}>Sign in</h2>
-        {/* Login Form */}
+        <h2 style={styles.heading}>Sign in Sunshine</h2>
+
         <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <input
             type="email"
@@ -72,11 +70,13 @@ export default function SignIn() {
           </button>
         </form>
 
-        <p style={{ marginTop: 12, textAlign: "center" }}>
-          Don't have account? <Link href="/signup" style={{ color: "#1e90ff" }}>Create account</Link>
+        <p style={{ marginTop: 12 }}>
+          Don't have account? <Link href="/" style={{ color: "#1e90ff" }}>Create account</Link>
         </p>
       </div>
-
+      <div style={styles.imageContainer}>
+        <Image src="/images/welcome.jpg" alt="Welcome" height={40} width={40} />
+      </div>
     </div>
   );
 }
@@ -97,9 +97,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #ddd",
     borderRadius: 12,
     gap: 16,
-    backgroundImage: theme.colors.backgroundAlt // Light gradient background
   },
-
   heading: {
     textAlign: "center",
     fontSize: 28,
