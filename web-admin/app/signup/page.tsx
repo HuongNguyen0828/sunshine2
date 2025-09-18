@@ -11,13 +11,11 @@ import theme from "@/styles/color"
 
 
 export default function SignIn() {
-  const { signUp } = useAuth(); // Correctly use the hook to get the signIn function
+  const { signIn } = useAuth(); // Correctly use the hook to get the signIn function
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
-  const [pw2, setPw2] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [name, setName] = useState("")
 
   // Next.js router for navigation
   const router = useRouter();
@@ -28,18 +26,19 @@ export default function SignIn() {
   }, [email, pw]);
 
   const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent default form submission
+    e.preventDefault();
     if (!valid || loading) return;
     try {
       setErr(null);
       setLoading(true);
-      await signUp(name, email, pw); // Use the signUp function from the hook
-      router.push("/"); // Redirect to signIn on success
-
+      await signIn(email, pw); // Use the signIn function from the hook
+      router.push("/dashboard"); // Redirect to dashboard on success
     } catch (e: any) {
-      const msg = e?.message || "Other error occurred: out of credentials and access previleges";
+      const msg =
+        e?.code === "auth/invalid-credential"
+          ? "Email or password is incorrect."
+          : e?.message || "Failed to sign in";
       setErr(msg);
-
     } finally {
       setLoading(false);
     }
@@ -50,18 +49,9 @@ export default function SignIn() {
       <div style={styles.formContainer}>
         {/* Logo */}
         <Image src="/logo.svg" alt="Sunshine" width={120} height={120} style={{ alignSelf: "center" }} />
-        <h2 style={styles.heading}>Creat new account</h2>
+        <h2 style={styles.heading}>Sign in</h2>
         {/* Login Form */}
         <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* Input FullName */}
-          <input
-          type="name"
-          placeholder="Full Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={styles.input}
-          />
-
           <input
             type="email"
             placeholder="Email"
@@ -76,25 +66,19 @@ export default function SignIn() {
             onChange={(e) => setPw(e.target.value)}
             style={styles.input}
           />
-          <input
-          type="password"
-          placeholder="Confirm Password"
-          value={pw2}
-          onChange={(e) => setPw2(e.target.value)}
-          style={styles.input}
-          />
           {err && <p style={{ color: "#d00" }}>{err}</p>}
-
           <button type="submit" disabled={!valid || loading} style={valid && !loading ? styles.button : styles.buttonDisabled}>
             {loading ? "Loading..." : "Sign in"}
           </button>
         </form>
 
-        <p style={{ marginTop: 12, textAlign: "center" }}>
-          Already have account? <Link href="/" style={{ color: "#1e90ff" }}>Sign in</Link>
+        <p style={{ marginTop: 12 }}>
+          Don't have account? <Link href="/signup" style={{ color: "#1e90ff" }}>Create account</Link>
         </p>
       </div>
-
+      <div style={styles.imageContainer}>
+        <Image src="/images/welcome.jpg" alt="Welcome" height={40} width={40} />
+      </div>
     </div>
   );
 }
@@ -115,7 +99,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #ddd",
     borderRadius: 12,
     gap: 16,
-    backgroundImage: theme.colors.backgroundAlt // Light gradient background// Light gradient background
+    backgroundImage: theme.color.backgroundAlt // Light gradient background// Light gradient background
   },
 
   heading: {
