@@ -41,6 +41,56 @@ export default function ParentDashboard() {
           detail: "Nap from 1:00 PM to 2:15 PM",
           createdAt: '3:10',
         },
+      {
+        id: "4",
+        type: "Toilet",
+        staffId: "104",
+        childId: "201",
+        detail: "Toilet break at 10:20 AM",
+        createdAt: "10:20",
+      },
+      {
+        id: "5",
+        type: "Photo",
+        staffId: "101",
+        childId: "201",
+        detail: "Playing with blocks",
+        createdAt: "11:45",
+        photoUrl: "https://picsum.photos/200/300",
+      },
+      {
+        id: "6",
+        type: "Schedule_note",
+        staffId: "105",
+        childId: "201",
+        detail: "Reminder: Field trip tomorrow",
+        createdAt: "15:30",
+      },
+      {
+        id: "7",
+        type: "Supply Request",
+        staffId: "106",
+        childId: "201",
+        detail: "Please bring extra diapers",
+        createdAt: "16:00",
+      },
+      {
+        id: "8",
+        type: "Food",
+        staffId: "102",
+        childId: "201",
+        detail: "Lunch - Rice, chicken, vegetables",
+        createdAt: "12:05",
+      },
+      {
+        id: "9",
+        type: "Attendance",
+        staffId: "101",
+        childId: "201",
+        detail: "Checked out at 5:15 PM",
+        createdAt: "17:15",
+      },
+
       ]
 
       // Set demoData to entries
