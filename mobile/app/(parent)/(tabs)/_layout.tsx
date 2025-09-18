@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable } from "react-native";
-import RoleGate from "@/components/RoleGate";
+import RoleGate from "navigation/RootNavigator";
 import ParentHeaderTitle from "@/components/ParentHeaderTitle";
 import { signOutUser } from "@/lib/auth";
 import { router } from "expo-router";
