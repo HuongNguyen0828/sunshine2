@@ -33,10 +33,7 @@ export default function SignIn() {
       await signIn(email, pw); // Use the signIn function from the hook
       router.push("/dashboard"); // Redirect to dashboard on success
     } catch (e: any) {
-      const msg =
-        e?.code === "auth/invalid-credential"
-          ? "Email or password is incorrect."
-          : e?.message || "Failed to sign in";
+      const msg = e?.message || "Other error occurred: out of credentials and access previleges";
       setErr(msg);
     } finally {
       setLoading(false);
