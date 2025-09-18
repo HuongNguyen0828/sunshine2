@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const idTokenResult: IdTokenResult = await user.getIdTokenResult();
+      const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
       const role = idTokenResult.claims.role as string | undefined;
       setUserRole(role || null);
       setIsAdmin(role === "admin");
@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
-  // Listen for auth state changes
+  // Listen for auth state changes: depends on Firebase auth state and user change
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
@@ -75,28 +75,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const isAdminStatus = await checkUserRole(userCredential.user);
       // Check if user has admin role AFTER successful sign-in
-        // If not admin, sign them out and show error
-        if (!isAdminStatus) {
-          await signOut(auth);
+      // If not admin, sign them out and show error
+      if (!isAdminStatus) {
+        await signOut(auth);
 
-          // Register error to be caught in the signIn function
-          const accessError = new Error("Access denied. Admin privileges required.");
-          accessError.name = "AccessDeniedError"; // custom error type
-          throw accessError;
-        }
+        // Register error to be caught in the signIn function
+        const accessError = new Error("Access denied. Admin privileges required.");
+        accessError.name = "AccessDeniedError"; // custom error type
+        throw accessError;
+      }
 
     } catch (error: any) {
       // Handle specific Firebase auth errors
-        if (error.code === "auth/invalid-credential") {
-          throw new Error("Email or password is incorrect.");
+      if (error.code === "auth/invalid-credential") {
+        throw new Error("Email or password is incorrect.");
 
-        // Handle custom access denied error
-        } else if (error.name === "AccessDeniedError") {
-          throw error; // re-throw access denied error
-        } else {
-          console.error("Sign in error:", error);
-          throw new Error(error.message);
-        }
+      // Handle custom access denied error
+      } else if (error.name === "AccessDeniedError") {
+        throw error; // re-throw access denied error
+      } else {
+        console.error("Sign in error:", error);
+        throw new Error(error.message);
+      }
     } finally {
       setLoading(false);
     }

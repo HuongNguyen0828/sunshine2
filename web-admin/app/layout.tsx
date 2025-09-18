@@ -5,6 +5,8 @@ import { AuthProvider } from "@/lib/auth";
 
 // Wrap the entire app with AuthProvider
 export default function RootLayout({ children }: { children: ReactNode }) {
+  // Protecting the entire app with AuthProvider and Admin check4
+  
   return (
     <html lang="en">
       <body>

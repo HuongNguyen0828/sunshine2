@@ -1,4 +1,3 @@
-// This is to ofr@ -1,138 +1 @@
 // app/layout.tsx
 
 'use client';
@@ -69,7 +68,7 @@ export default function SignIn() {
           </button>
         </form>
 
-        <p style={{ marginTop: 12, textAlign: "center" }}>
+        <p style={{ marginTop: 12 }}>
           Don't have account? <Link href="/signup" style={{ color: "#1e90ff" }}>Create account</Link>
         </p>
       </div>
