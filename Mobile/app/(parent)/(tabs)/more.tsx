@@ -8,7 +8,5 @@ export default function ParentMore() {
         <Text> Check box: Supply Request</Text>
         <Text> Check box: Holiday</Text>
         <Text> Check box: Report</Text>
-
-
   </View>;
 }
