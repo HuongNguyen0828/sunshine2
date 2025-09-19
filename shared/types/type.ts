@@ -56,7 +56,7 @@ export type Schedule = {
   morningAfernoon: "Morning" | "Afternoon" | "Full day";
 }
 
-export type Staff = {
+export type Teacher = {
   id: string;
   firstName: string;
   lastName: string;

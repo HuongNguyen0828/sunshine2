@@ -6,6 +6,7 @@ import childRoutes from "./routes/ChildRoutes";
 import admin from "firebase-admin";
 import dotenv from "dotenv";
 
+
 // Must be on top
 dotenv.config(); 
 
@@ -24,8 +25,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());  // parse JSON body
 
-// Routes
-app.use("/kids", childRoutes);
+
 
 // ------------------ Assign role endpoint ------------------
 app.post("/set-role", async (req, res) => {
@@ -46,11 +46,31 @@ app.post("/set-role", async (req, res) => {
 // -----------------------------------------------------------
 
 
+// Fetch all teachers
+app.get("/teachers", async (req, res) => {
+  try {
+    const snapshot = await admin.firestore().collection("teachers").get();
+    const teachers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return res.status(200).json(teachers);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Failed to fetch teachers" });
+  }
+});
 
-const PORT = process.env.PORT || 4000;
+
+
+app.get("/", (req, res) => {
+  console.log("GET / request received");
+  res.send("Backend server is running!");
+});
+
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
+
 
 export default app;

@@ -16,3 +16,7 @@ yarn add --dev ts-node-dev
 
 yarn add dotenv
 yarn add --dev @types/dotenv
+
+## To run server
+
+yarn dev
