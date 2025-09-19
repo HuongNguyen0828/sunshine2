@@ -13,11 +13,14 @@ export default function Index() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const off = onUserChanged(async (u) => {
+      // if no user, redirect to sign-in
       if (!u) {
         router.replace("/auth/sign-in");
         setReady(true);
         return;
       }
+
+      // Case with current user already sign-in
       try {
 
         const snap = await getDoc(doc(db, "users", u.uid));
@@ -33,7 +36,7 @@ export default function Index() {
         }
         // Redirect based on role: wether parent or teacher
         if (role === "teacher") router.replace("/(teacher)/(tabs)/dashboard");
-        else router.replace("/(parent)/(tabs)/dashboard");
+        if(role == "parent") router.replace("/(parent)/(tabs)/dashboard");
         setReady(true);
       }
       catch (error: any) {

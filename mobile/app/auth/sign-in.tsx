@@ -29,16 +29,15 @@ export default function SignIn() {
 
   const onSubmit = async () => {
     if (!valid || loading) return;
+
+    // Login in try-catch blog
     try {
       setErr(null);
       setLoading(true);
       await signIn(email, pw);
-      router.replace("/");
+      router.replace("/"); // got to index
     } catch (e: any) {
-      const msg =
-        e?.code === "auth/invalid-credential"
-          ? "Email or password is incorrect."
-          : e?.message || "Failed to sign in";
+      const msg = e.message;
       setErr(msg);
     } finally {
       setLoading(false);
