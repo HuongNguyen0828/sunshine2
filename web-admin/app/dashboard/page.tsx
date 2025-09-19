@@ -1,61 +1,59 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useState, useEffect} from "react";
 import { useAuth } from "@/lib/auth";
 import AppHeader from "@/components/AppHeader";
 import App from "next/app";
+import { assignRoleToUser } from "../helpers"; // assigning role
 
-// Type definitions
-interface Teacher {
-  id: string;
-  name: string;
-  email: string;
-  subject: string;
-}
 
-interface Child {
-  id: string;
-  name: string;
-  age: number;
-  parentId: string;
-  classId: string;
-}
 
-interface Parent {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-}
+import * as Types from "@shared/types/type"; // Type definitions
 
-interface Class {
-  id: string;
-  name: string;
-  grade: string;
-  teacherId: string;
-}
 
 export default function AdminDashboard() {
   const { signOutUser } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+
+
+  // Fetching teacher from database
+  const [teachers, setTeachers] = useState<Types.Teacher[]>([])
+
+  useEffect(() => {
+    const fetchTeachers = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/teachers");
+        if (!res.ok) throw new Error("Failed to fetch teachers ")
+
+        const data: Types.Teacher[] = await res.json();
+        setTeachers(data)
+      } catch (err: any) {
+        console.error(err)
+        alert("Error fetching teachers")
+      }
+    }
+    // call fetchTeacher
+    fetchTeachers();
+  }, [])
   
   // Sample data - in a real app, this would come from your backend
-  const [teachers, setTeachers] = useState<Teacher[]>([
-    { id: "1", name: "Sarah Johnson", email: "sarah@school.com", subject: "Mathematics" },
-    { id: "2", name: "Michael Brown", email: "michael@school.com", subject: "Science" },
-  ]);
   
-  const [children, setChildren] = useState<Child[]>([
+  // const [teachers, setTeachers] = useState<Types.Teacher[]>([
+  //   { id: "1", name: "Sarah Johnson", email: "sarah@school.com", subject: "Mathematics" },
+  //   { id: "2", name: "Michael Brown", email: "michael@school.com", subject: "Science" },
+  // ]);
+  
+  const [children, setChildren] = useState<Types.Child[]>([
     { id: "1", name: "Emma Wilson", age: 8, parentId: "1", classId: "1" },
     { id: "2", name: "Noah Smith", age: 9, parentId: "2", classId: "1" },
   ]);
   
-  const [parents, setParents] = useState<Parent[]>([
+  const [parents, setParents] = useState<Types.Parent[]>([
     { id: "1", name: "Jennifer Wilson", email: "jennifer@email.com", phone: "555-1234" },
     { id: "2", name: "Robert Smith", email: "robert@email.com", phone: "555-5678" },
   ]);
   
-  const [classes, setClasses] = useState<Class[]>([
+  const [classes, setClasses] = useState<Types.Class[]>([
     { id: "1", name: "Class 3A", grade: "3rd Grade", teacherId: "1" },
     { id: "2", name: "Class 4B", grade: "4th Grade", teacherId: "2" },
   ]);
@@ -69,7 +67,7 @@ export default function AdminDashboard() {
   // Handle form submissions
   const addTeacher = (e: React.FormEvent) => {
     e.preventDefault();
-    const teacher: Teacher = {
+    const teacher: Types.Teacher = {
       id: String(teachers.length + 1),
       ...newTeacher
     };
@@ -79,7 +77,7 @@ export default function AdminDashboard() {
 
   const addChild = (e: React.FormEvent) => {
     e.preventDefault();
-    const child: Child = {
+    const child: Types.Child = {
       id: String(children.length + 1),
       name: newChild.name,
       age: Number(newChild.age),
@@ -92,7 +90,7 @@ export default function AdminDashboard() {
 
   const addParent = (e: React.FormEvent) => {
     e.preventDefault();
-    const parent: Parent = {
+    const parent: Types.Parent = {
       id: String(parents.length + 1),
       ...newParent
     };
@@ -102,7 +100,7 @@ export default function AdminDashboard() {
 
   const addClass = (e: React.FormEvent) => {
     e.preventDefault();
-    const cls: Class = {
+    const cls: Types.Class = {
       id: String(classes.length + 1),
       ...newClass
     };
@@ -229,7 +227,16 @@ export default function AdminDashboard() {
                       <strong>{teacher.name}</strong> - {teacher.subject}
                     </div>
                     <div>{teacher.email}</div>
+                    {/* Add role for teacher */}
+
+                    <button
+                      style={{ ...styles.button, marginTop: "0.5rem" }}
+                      onClick={() => assignRoleToUser(teacher.id, "admin", true)}
+                    >
+                      Make Admin
+                    </button>
                   </div>
+
                 ))}
               </div>
             </div>

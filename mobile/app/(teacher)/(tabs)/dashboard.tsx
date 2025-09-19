@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from "react-native";
-export default function StaffDashboard() {
+export default function TeacherDashboard() {
   return (
     <View></View>
   );

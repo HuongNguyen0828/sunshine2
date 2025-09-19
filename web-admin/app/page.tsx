@@ -1,4 +1,3 @@
-// This is to ofr@ -1,138 +1 @@
 // app/layout.tsx
 
 'use client';
@@ -34,7 +33,7 @@ export default function SignIn() {
       await signIn(email, pw); // Use the signIn function from the hook
       router.push("/dashboard"); // Redirect to dashboard on success
     } catch (e: any) {
-      const msg = e?.message || "Other error occurred: out of credentials and access previleges";
+      const msg = e?.message;
       setErr(msg);
     } finally {
       setLoading(false);
@@ -69,7 +68,7 @@ export default function SignIn() {
           </button>
         </form>
 
-        <p style={{ marginTop: 12, textAlign: "center" }}>
+        <p style={{ marginTop: 12, textAlign: "center"   }}>
           Don't have account? <Link href="/signup" style={{ color: "#1e90ff" }}>Create account</Link>
         </p>
       </div>

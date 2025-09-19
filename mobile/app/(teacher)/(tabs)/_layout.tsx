@@ -5,9 +5,9 @@ import RoleGate from "@/navigation/RootNavigator";
 import { signOutUser } from "@/lib/auth";
 import { router } from "expo-router";
 
-export default function StaffTabs() {
+export default function TeacherTabs() {
   return (
-    <RoleGate allow={["staff","teacher"]}>
+    <RoleGate allow={["teacher"]}>
       <Tabs
         screenOptions={{
           headerTitle: "Teacher",

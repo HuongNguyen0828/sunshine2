@@ -1,5 +1,5 @@
 import { View, Text } from "react-native";
-export default function StaffMessages() {
+export default function TeacherMessages() {
   return (
     <View></View>
   );

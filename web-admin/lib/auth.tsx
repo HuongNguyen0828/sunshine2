@@ -1,7 +1,7 @@
 // src/lib/auth.tsx
 'use client';
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signOut, User, IdTokenResult} from "firebase/auth";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User, IdTokenResult} from "firebase/auth";
 import app  from "./firebase"; // your firebase web config
 
 
@@ -11,7 +11,6 @@ interface AuthContextType {
   loading: boolean;
   userLoggedIn: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (name: string, email: string, password: string) => Promise<void>;
   isAdmin: boolean;
   userRole: string | null;
   signOutUser: () => Promise<void>;
@@ -31,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   
 
-  // check user role from Firebase custom claims: currently only "admin" role is used
+  // check user role from Firebase custom claims
   const checkUserRole = async (user: User) => {
     // if no user, reset role and admin status
     if (!user) {
@@ -74,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const isAdminStatus = await checkUserRole(userCredential.user);
+      
       // Check if user has admin role AFTER successful sign-in
       // If not admin, sign them out and show error
       if (!isAdminStatus) {
@@ -102,25 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-
-  // Sign up with name, email & password
-  const signUp = async (name: string, email: string, password: string) => {
-    try {
-      setLoading(true);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      if (userCredential.user) {
-        // Update display name
-        await updateProfile(userCredential.user, { displayName: name });
-        // Optionally, set custom claims via a backend function here
-      }
-    } catch (error: any) {
-      console.error("Sign up error:", error);
-      throw new Error(error.message || "Failed to sign up");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   // Sign out
   const signOutUser = async () => {
     await signOut(auth);
@@ -130,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading, userLoggedIn, signIn, isAdmin, userRole, signOutUser, signUp }}>
+    <AuthContext.Provider value={{ currentUser, loading, userLoggedIn, signIn, isAdmin, userRole, signOutUser }}>
       {children}
     </AuthContext.Provider>
   );
