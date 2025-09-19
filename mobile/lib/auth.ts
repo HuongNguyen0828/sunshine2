@@ -10,7 +10,7 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth } from "./firebase";
 import { db } from "./firebase";
 
-export async function registerParent(name: string, email: string, password: string) {
+export async function registerUser(name: string, email: string, password: string) {
   const cred = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
   if (name.trim()) {
     try { await updateProfile(cred.user, { displayName: name.trim() }); } catch {}
@@ -18,9 +18,9 @@ export async function registerParent(name: string, email: string, password: stri
   await setDoc(
     doc(db, "users", cred.user.uid),
     {
-      role: "parent",
+      role: null, // role is set after by admin for testing and being default to null. After web-admin working with add parent and teacher, role is signed by admin UI
       name: name.trim(),
-      email: cred.user.email,
+      email: cred.user.email, // just for testing. Later, we must check if email is exist inside of userDetail collection, created by admin
       createdAt: serverTimestamp(),
     },
     { merge: true }

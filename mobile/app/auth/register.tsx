@@ -9,17 +9,8 @@ import {
   Platform,
 } from "react-native";
 import { Link, router } from "expo-router";
-import axios from "axios";
+import { registerUser } from "@/lib/auth";
 
-// Function to register a new parent
-export const registerParent = async (data: { name: string; email: string; pw: string }) => {
-  try {
-    const res = await axios.post("http://10.187.181.50:4000/parents/register", data); // replace with your LAN IP
-    return res.data;
-  } catch (err: any) {
-    throw err.response?.data || err;
-  }
-};
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -41,13 +32,10 @@ export default function Register() {
     try {
       setErr(null);
       setLoading(true);
-      await registerParent({name, email, pw});
+      await registerUser(name, email, pw);
       router.replace("/");
     } catch (e: any) {
-      const m =
-        e?.code === "auth/email-already-in-use"
-          ? "This email is already in use."
-          : e?.message || "Failed to create account.";
+      const m = e?.message || "Something is not catched";
       setErr(m);
     } finally {
       setLoading(false);
