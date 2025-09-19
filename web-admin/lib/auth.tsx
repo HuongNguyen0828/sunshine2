@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User, IdTokenResult} from "firebase/auth";
 import app  from "./firebase"; // your firebase web config
+import { FirebaseError } from "firebase/app";
 
 
 
@@ -85,18 +86,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw accessError;
       }
 
-    } catch (error: any) {
-      // Handle specific Firebase auth errors
-      if (error.code === "auth/invalid-credential") {
-        throw new Error("Email or password is incorrect.");
-
-      // Handle custom access denied error
-      } else if (error.name === "AccessDeniedError") {
-        throw error; // re-throw access denied error
-      } else {
-        console.error("Sign in error:", error);
-        throw new Error(error.message);
+    } catch (err: unknown) {
+      if (err instanceof FirebaseError) {
+        if (err.code === "auth/invalid-credential") {
+          throw new Error("Email or password is incorrect.");
+        }
+        throw err;
       }
+
+      if (err instanceof Error && err.name === "AccessDeniedError") {
+        throw err;
+      }
+
+      if (err instanceof Error) {
+        console.error("Sign in error:", err);
+        throw new Error(err.message);
+      }
+
+      console.error("Sign in error:", err);
+      throw new Error("An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
