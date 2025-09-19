@@ -1,8 +1,56 @@
 // src/server.ts
-import app from "./app";
+// src/app.ts
+import express from "express";
+import cors from "cors";
+import childRoutes from "./routes/ChildRoutes";
+import admin from "firebase-admin";
+import dotenv from "dotenv";
+
+// Must be on top
+dotenv.config(); 
+
+
+// Initialize Firebase Admin SDK for have custom clain assign to custom user roles
+admin.initializeApp({
+  credential: admin.credential.cert(require("../serviceAccountKey.json")),
+});   
+
+
+// Firestore reference
+const db = admin.firestore();
+
+
+const app = express();
+app.use(cors());
+app.use(express.json());  // parse JSON body
+
+// Routes
+app.use("/kids", childRoutes);
+
+// ------------------ Assign role endpoint ------------------
+app.post("/set-role", async (req, res) => {
+  const { uid, role } = req.body;
+
+  if (!uid || !role) {
+    return res.status(400).json({ message: "uid and role are required" });
+  }
+
+  try {
+    await admin.auth().setCustomUserClaims(uid, { role });
+    return res.status(200).json({ message: `Role ${role} assigned to user ${uid}` });
+  } catch (error: any) {
+    console.error("Error setting role:", error);
+    return res.status(500).json({ message: error.message });
+  }
+});
+// -----------------------------------------------------------
+
+
 
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
+export default app;
