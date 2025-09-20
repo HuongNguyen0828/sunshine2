@@ -10,7 +10,7 @@ import { collection, onSnapshot, query, where, orderBy } from "firebase/firestor
 // Firestore entry shape used in UI
 type Entry = {
   id: string;
-  type: "Attendance" | "Food" | "Sleep" | "Toilet" | "Note" | "Photo" | string;
+  type: "Attendance" | "Food" | "Sleep" | "Toilet" | "Note" | string;
   subtype?: string;
   detail?: any;
   childId: string;
@@ -25,12 +25,14 @@ export default function ParentDashboard() {
   const [entriesByChild, setEntriesByChild] = useState<Record<string, Entry[]>>({});
   const [loading, setLoading] = useState(true);
 
-  // Compute "today" local start/end
-  const { startTs, endTs } = useMemo(() => {
+  // Compute "today" local start/end and a human label
+  const { startTs, endTs, todayLabel } = useMemo(() => {
+    // Build local day window and a short readable label (e.g., Sep 20, 2025)
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    return { startTs: start, endTs: end };
+    const label = now.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    return { startTs: start, endTs: end, todayLabel: label };
   }, []);
 
   // Subscribe to children and per-child today's entries
@@ -122,8 +124,18 @@ export default function ParentDashboard() {
 
           return (
             <View key={k.id} style={s.card}>
-              {/* Child name */}
-              <Text style={s.childName}>{k.name}</Text>
+              {/* Child header with today label */}
+              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
+                {/* Child name (keeps existing style) */}
+                <Text style={s.childName}>{k.name}</Text>
+                {/* Today label next to the name */}
+                <Text
+                  // subtle date text next to the name
+                  style={{ color: colors.textDim, fontSize: fontSize.md }}
+                >
+                  {todayLabel}
+                </Text>
+              </View>
 
               {/* Today entries as pills (newest -> oldest) */}
               <View style={s.pillRow}>
