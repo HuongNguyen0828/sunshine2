@@ -226,9 +226,9 @@ export default function AdminDashboard() {
                     <div>
                       <strong>{teacher.firstName} {teacher.lastName}</strong> - {teacher.classId}
                     </div>
-                    <div>{teacher.email} -  {teacher.phone}</div>
+                    <div><strong>Email:</strong> {teacher.email} <strong>Phone:</strong> {teacher.phone}</div>
                 
-                    <div>{teacher.startDate} - {teacher.endDate}</div>
+                    <div><strong>Start date:</strong> {teacher.startDate} - {teacher.endDate}</div>
                     {/* Add role for teacher */}
 
                     <button
