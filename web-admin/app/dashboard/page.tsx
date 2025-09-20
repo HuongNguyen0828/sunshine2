@@ -15,10 +15,9 @@ export default function AdminDashboard() {
   const { signOutUser } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
 
-
-  // Fetching teacher from database
   const [teachers, setTeachers] = useState<Types.Teacher[]>([])
 
+  // Fetching teacher from database: backend domain
   useEffect(() => {
     const fetchTeachers = async () => {
       try {
@@ -34,6 +33,7 @@ export default function AdminDashboard() {
     }
     // call fetchTeacher
     fetchTeachers();
+    console.log(teachers)
   }, [])
   
   // Sample data - in a real app, this would come from your backend
@@ -224,9 +224,11 @@ export default function AdminDashboard() {
                 {teachers.map(teacher => (
                   <div key={teacher.id} style={styles.listItem}>
                     <div>
-                      <strong>{teacher.firstname} {teacher.lastname}</strong> - {teacher.classId}
+                      <strong>{teacher.firstName} {teacher.lastName}</strong> - {teacher.classId}
                     </div>
-                    <div>{teacher.email}</div>
+                    <div>{teacher.email} -  {teacher.phone}</div>
+                
+                    <div>{teacher.startDate} - {teacher.endDate}</div>
                     {/* Add role for teacher */}
 
                     <button

@@ -64,6 +64,7 @@ export const syncRoleToClaims = onDocumentWritten("users/{uid}", async (event) =
   // Firestore document snapshot
   const afterData = event.data?.after?.data();
   if (!afterData) return;
+
   const role = afterData.role;
 
   // Sync role into custom claims
@@ -77,7 +78,16 @@ export const syncRoleToClaims = onDocumentWritten("users/{uid}", async (event) =
 app.get("/teachers", async (req, res) => {
   try {
     const snapshot = await admin.firestore().collection("teachers").get();
-    const teachers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const teachers = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        // Convert Firestore Timestamp to ISO string for frontend
+        startDate: data.start ? data.start.toDate().toISOString() : null,
+        endDate: data.end? data.end.toDate().toISOString() : null
+      };
+    });
     return res.status(200).json(teachers);
   } catch (err) {
     console.error(err);

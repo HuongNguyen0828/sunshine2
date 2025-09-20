@@ -1,6 +1,9 @@
-export type EntryType = "Attendance" | "Schedule_note" |  "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
-export type AttendanceSubtype = "Check in" | "Check out";
-export type FoodSubtype = "Breakfast" | "Lunch" | "Snack"
+
+
+
+type EntryType = "Attendance" | "Schedule_note" |  "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
+type AttendanceSubtype = "Check in" | "Check out";
+type FoodSubtype = "Breakfast" | "Lunch" | "Snack"
 
 export type Entry = {
   id: string;
@@ -65,9 +68,8 @@ export type Teacher = {
   role: "teacher"; // Teacher is same as staff
   classIds: string[]; // Classes assigned to this staff
   locationId: string; // Location assigned to this staff
-  passwordHash: string; // For simplicity, storing hash directly
-  startDate: Date;
-  endDate?: Date; // Optional end date for staff
+  startDate: string;
+  endDate?: string; // Optional end date for staff
 }
 export type monthlyReport = {
   id: string;
