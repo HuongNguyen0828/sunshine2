@@ -224,7 +224,7 @@ export default function AdminDashboard() {
                 {teachers.map(teacher => (
                   <div key={teacher.id} style={styles.listItem}>
                     <div>
-                      <strong>{teacher.name}</strong> - {teacher.subject}
+                      <strong>{teacher.firstname} {teacher.lastname}</strong> - {teacher.classId}
                     </div>
                     <div>{teacher.email}</div>
                     {/* Add role for teacher */}
