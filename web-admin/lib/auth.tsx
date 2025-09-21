@@ -1,10 +1,10 @@
 // src/lib/auth.tsx
 'use client';
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User, IdTokenResult} from "firebase/auth";
-import app  from "./firebase"; // your firebase web config
 
-
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User, IdTokenResult } from 'firebase/auth';
+import { FirebaseError } from 'firebase/app';
+import app from './firebase';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -16,96 +16,88 @@ interface AuthContextType {
   signOutUser: () => Promise<void>;
 }
 
+interface AccessDeniedError extends Error {
+  name: 'AccessDeniedError';
+}
+
+const hasName = (x: unknown): x is { name: unknown } =>
+  typeof x === 'object' && x !== null && 'name' in x;
+
+const isAccessDeniedError = (e: unknown): e is AccessDeniedError =>
+  hasName(e) && e.name === 'AccessDeniedError';
+
+const isFirebaseError = (e: unknown): e is FirebaseError => e instanceof FirebaseError;
+
+const makeAccessDeniedError = (): AccessDeniedError => {
+  const err = new Error('Access denied. Admin privileges required.');
+  (err as AccessDeniedError).name = 'AccessDeniedError';
+  return err as AccessDeniedError;
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-
   const auth = getAuth(app);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userLoggedIn, setUserLoggedIn] =  useState(false);
-  // Checking admin status to authorize admin routes
+  const [userLoggedIn, setUserLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  
-
-  // check user role from Firebase custom claims
-  const checkUserRole = async (user: User) => {
-    // if no user, reset role and admin status
+  const checkUserRole = async (user: User | null): Promise<boolean> => {
     if (!user) {
       setUserRole(null);
       setIsAdmin(false);
       return false;
     }
-
     try {
       const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
       const role = idTokenResult.claims.role as string | undefined;
-      setUserRole(role || null);
-      setIsAdmin(role === "admin");
-      return role === "admin";
-    } catch (error) {
-      console.error("Error fetching user role:", error);
+      setUserRole(role ?? null);
+      const admin = role === 'admin';
+      setIsAdmin(admin);
+      return admin;
+    } catch {
       setUserRole(null);
       setIsAdmin(false);
       return false;
     }
-  }
+  };
 
-  // Listen for auth state changes: depends on Firebase auth state and user change
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setUserLoggedIn(!!user);
-
-      // Check user role when auth state changes
-      checkUserRole(user as User);
-      // set loading to false after auth state is determined
+      void checkUserRole(user);
       setLoading(false);
     });
     return () => unsubscribe();
   }, [auth]);
 
-  // Sign in with email & password
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const isAdminStatus = await checkUserRole(userCredential.user);
-      
-      // Check if user has admin role AFTER successful sign-in
-      // If not admin, sign them out and show error
-      if (!isAdminStatus) {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const ok = await checkUserRole(cred.user);
+      if (!ok) {
         await signOut(auth);
-
-        // Register error to be caught in the signIn function
-        const accessError = new Error("Access denied. Admin privileges required.");
-        accessError.name = "AccessDeniedError"; // custom error type
-        throw accessError;
+        throw makeAccessDeniedError();
       }
-
-    } catch (error: any) {
-      // Handle specific Firebase auth errors
-      if (error.code === "auth/invalid-credential") {
-        throw new Error("Email or password is incorrect.");
-
-      // Handle custom access denied error
-      } else if (error.name === "AccessDeniedError") {
-        throw error; // re-throw access denied error
-      } else {
-        console.error("Sign in error:", error);
-        throw new Error(error.message);
+    } catch (err: unknown) {
+      if (isFirebaseError(err)) {
+        if (err.code === 'auth/invalid-credential') throw new Error('Email or password is incorrect.');
+        throw new Error(err.message);
       }
+      if (isAccessDeniedError(err)) throw err;
+      if (err instanceof Error) throw new Error(err.message || 'Sign-in failed.');
+      throw new Error('Sign-in failed.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Sign out
   const signOutUser = async () => {
     await signOut(auth);
-    // Reset state on sign out
     setUserRole(null);
     setIsAdmin(false);
   };
@@ -117,11 +109,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-// Hook to use auth
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };

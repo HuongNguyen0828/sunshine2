@@ -1,7 +1,9 @@
 
+
 type EntryType = "Attendance" | "Schedule_note" |  "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
 type AttendanceSubtype = "Check in" | "Check out";
 type FoodSubtype = "Breakfast" | "Lunch" | "Snack"
+
 
 export type Entry = {
   id: string;
@@ -68,6 +70,7 @@ export type Teacher = {
   locationId: string; // Location assigned to this staff
   startDate: string;
   endDate?: string; // Optional end date for staff
+
 }
 export type monthlyReport = {
   id: string;
