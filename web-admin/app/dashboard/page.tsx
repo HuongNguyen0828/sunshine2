@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import AppHeader from "@/components/AppHeader";
 import App from "next/app";
 import { assignRoleToUser } from "../helpers"; // assigning role
+import Teachers from "@/components/Teachers"
 
 
 
@@ -186,62 +187,7 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === "teachers" && (
-            <div>
-              <h2>Manage Teachers</h2>
-              <form onSubmit={addTeacher} style={styles.form}>
-                <h3>Add New Teacher</h3>
-                <input
-                  type="text"
-                  placeholder="Name"
-                  value={newTeacher.name}
-                  onChange={(e) => setNewTeacher({...newTeacher, name: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={newTeacher.email}
-                  onChange={(e) => setNewTeacher({...newTeacher, email: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <input
-                  type="text"
-                  placeholder="Subject"
-                  value={newTeacher.subject}
-                  onChange={(e) => setNewTeacher({...newTeacher, subject: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <button type="submit" style={styles.button}>
-                  Add Teacher
-                </button>
-              </form>
-
-              <div style={styles.list}>
-                <h3>All Teachers</h3>
-                {teachers.map(teacher => (
-                  <div key={teacher.id} style={styles.listItem}>
-                    <div>
-                      <strong>{teacher.firstName} {teacher.lastName}</strong> - {teacher.classId}
-                    </div>
-                    <div><strong>Email:</strong> {teacher.email} <strong>Phone:</strong> {teacher.phone}</div>
-                
-                    <div><strong>Start date:</strong> {teacher.startDate} - {teacher.endDate}</div>
-                    {/* Add role for teacher */}
-
-                    <button
-                      style={{ ...styles.button, marginTop: "0.5rem" }}
-                      onClick={() => assignRoleToUser(teacher.id, "admin", true)}
-                    >
-                      Make Admin
-                    </button>
-                  </div>
-
-                ))}
-              </div>
-            </div>
+            <Teachers/>
           )}
 
           {activeTab === "children" && (

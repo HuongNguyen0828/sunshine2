@@ -1,6 +1,4 @@
 
-
-
 type EntryType = "Attendance" | "Schedule_note" |  "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
 type AttendanceSubtype = "Check in" | "Check out";
 type FoodSubtype = "Breakfast" | "Lunch" | "Snack"
@@ -65,7 +63,7 @@ export type Teacher = {
   lastName: string;
   email: string; // username for login
   phone: string;
-  role: "teacher"; // Teacher is same as staff
+  role: "teacher"; // Teacher role
   classIds: string[]; // Classes assigned to this staff
   locationId: string; // Location assigned to this staff
   startDate: string;
