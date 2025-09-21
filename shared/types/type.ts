@@ -65,7 +65,6 @@ export type Teacher = {
   lastName: string;
   email: string; // username for login
   phone: string;
-
   role: "teacher"; // Teacher role
   classIds: string[]; // Classes assigned to this staff
   locationId: string; // Location assigned to this staff
