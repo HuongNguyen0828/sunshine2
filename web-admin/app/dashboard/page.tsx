@@ -1,534 +1,339 @@
 'use client';
 
-import React, { useState } from "react";
-import { useAuth } from "@/lib/auth";
-import AppHeader from "@/components/AppHeader";
-import App from "next/app";
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/auth';
+import AppHeader from '@/components/AppHeader';
+import SidebarNav from '@/components/dashboard/SidebarNav';
+import Overview from '@/components/dashboard/Overview';
+import TeachersTab from '@/components/dashboard/TeachersTab';
+import ChildrenTab from '@/components/dashboard/ChildrenTab';
+import ParentsTab from '@/components/dashboard/ParentsTab';
+import ClassesTab from '@/components/dashboard/ClassesTab';
+import { dash } from '@/styles/dashboard';
+import * as Types from '../../../shared/types/type';
+import type {
+  Tab,
+  NewTeacherInput,
+  NewChildInput,
+  NewParentInput,
+  NewClassInput,
+} from '@/types/forms';
 
-// Type definitions
-interface Teacher {
-  id: string;
-  name: string;
-  email: string;
-  subject: string;
-}
-
-interface Child {
-  id: string;
-  name: string;
-  age: number;
-  parentId: string;
-  classId: string;
-}
-
-interface Parent {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-}
-
-interface Class {
-  id: string;
-  name: string;
-  grade: string;
-  teacherId: string;
-}
+// Firestore (client SDK)
+import { db } from '@/lib/firebase';
+import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 export default function AdminDashboard() {
   const { signOutUser } = useAuth();
-  const [activeTab, setActiveTab] = useState("overview");
-  
-  // Sample data - in a real app, this would come from your backend
-  const [teachers, setTeachers] = useState<Teacher[]>([
-    { id: "1", name: "Sarah Johnson", email: "sarah@school.com", subject: "Mathematics" },
-    { id: "2", name: "Michael Brown", email: "michael@school.com", subject: "Science" },
-  ]);
-  
-  const [children, setChildren] = useState<Child[]>([
-    { id: "1", name: "Emma Wilson", age: 8, parentId: "1", classId: "1" },
-    { id: "2", name: "Noah Smith", age: 9, parentId: "2", classId: "1" },
-  ]);
-  
-  const [parents, setParents] = useState<Parent[]>([
-    { id: "1", name: "Jennifer Wilson", email: "jennifer@email.com", phone: "555-1234" },
-    { id: "2", name: "Robert Smith", email: "robert@email.com", phone: "555-5678" },
-  ]);
-  
-  const [classes, setClasses] = useState<Class[]>([
-    { id: "1", name: "Class 3A", grade: "3rd Grade", teacherId: "1" },
-    { id: "2", name: "Class 4B", grade: "4th Grade", teacherId: "2" },
-  ]);
-  
-  // Form states
-  const [newTeacher, setNewTeacher] = useState({ name: "", email: "", subject: "" });
-  const [newChild, setNewChild] = useState({ name: "", age: "", parentId: "", classId: "" });
-  const [newParent, setNewParent] = useState({ name: "", email: "", phone: "" });
-  const [newClass, setNewClass] = useState({ name: "", grade: "", teacherId: "" });
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
 
-  // Handle form submissions
-  const addTeacher = (e: React.FormEvent) => {
-    e.preventDefault();
-    const teacher: Teacher = {
-      id: String(teachers.length + 1),
-      ...newTeacher
-    };
-    setTeachers([...teachers, teacher]);
-    setNewTeacher({ name: "", email: "", subject: "" });
+  // --- Entity states (Teachers from Firestore; others local for now)
+  const [teachers, setTeachers] = useState<Types.Teacher[]>([]);
+  const [children, setChildren] = useState<Types.Child[]>([
+    {
+      id: '1',
+      firstName: 'Emma',
+      lastName: 'Wilson',
+      birthDate: '2017-03-12',
+      parentId: ['1'],
+      classId: '1',
+      enrollmentDate: '2024-09-01',
+      enrollmentStatus: 'Active',
+    },
+    {
+      id: '2',
+      firstName: 'Noah',
+      lastName: 'Smith',
+      birthDate: '2016-11-05',
+      parentId: ['2'],
+      classId: '1',
+      enrollmentDate: '2024-09-01',
+      enrollmentStatus: 'Active',
+    },
+  ]);
+  const [parents, setParents] = useState<Types.Parent[]>([
+    {
+      id: '1',
+      firstName: 'Jennifer',
+      lastName: 'Wilson',
+      email: 'jennifer@email.com',
+      role: 'parent',
+      phone: '555-1234',
+      passwordHash: '****',
+      childIds: ['1'],
+      street: '123 Main St',
+      city: 'Calgary',
+      province: 'AB',
+      country: 'CA',
+      createdAt: '2025-09-01',
+    },
+    {
+      id: '2',
+      firstName: 'Robert',
+      lastName: 'Smith',
+      email: 'robert@email.com',
+      role: 'parent',
+      phone: '555-5678',
+      passwordHash: '****',
+      childIds: ['2'],
+      street: '45 Oak Ave',
+      city: 'Calgary',
+      province: 'AB',
+      country: 'CA',
+      createdAt: '2025-09-01',
+    },
+  ]);
+  const [classes, setClasses] = useState<Types.Class[]>([
+    { id: '1', name: 'Class 3A', locationId: 'loc-1', capcity: 20, volume: 20, ageStart: 7, ageEnd: 9 },
+    { id: '2', name: 'Class 4B', locationId: 'loc-1', capcity: 20, volume: 18, ageStart: 8, ageEnd: 10 },
+  ]);
+
+  // --- Controlled form states (type-safe; no `any`)
+  const [newTeacher, setNewTeacher] = useState<NewTeacherInput>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    classIds: [],
+    locationId: '',
+    startDate: '',
+    endDate: undefined,
+  });
+
+  const [newChild, setNewChild] = useState<NewChildInput>({
+    firstName: '',
+    lastName: '',
+    birthDate: '',
+    parentIdsCsv: '',
+    classId: '',
+    allergies: '',
+    specialNeeds: '',
+    subsidyStatus: '',
+    enrollmentDate: '',
+    enrollmentStatus: 'New',
+    endDate: '',
+  });
+
+  const [newParent, setNewParent] = useState<NewParentInput>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    passwordHash: '',
+    childIds: [],
+    street: '',
+    city: '',
+    province: '',
+    country: '',
+    emergencyContact: '',
+    updatedAt: '',
+    preferredLanguage: '',
+  });
+
+  const [newClass, setNewClass] = useState<NewClassInput>({
+    name: '',
+    locationId: '',
+    capcity: 0,
+    volume: 0,
+    ageStart: 0,
+    ageEnd: 0,
+  });
+
+  // --- Firestore subscription: Teachers
+  useEffect(() => {
+    // Build a query for stable ordering (optional)
+    const q = query(collection(db, 'teachers'), orderBy('firstName'));
+
+    // Subscribe to Firestore in real-time
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const rows: Types.Teacher[] = snap.docs.map((doc) => {
+        const d = doc.data() as Omit<Types.Teacher, 'id'>;
+        return {
+          id: doc.id, // use doc id as primary key
+          role: 'teacher',
+          firstName: d.firstName ?? '',
+          lastName: d.lastName ?? '',
+          email: d.email ?? '',
+          phone: d.phone ?? '',
+          classIds: Array.isArray(d.classIds) ? (d.classIds as string[]) : [],
+          locationId: d.locationId ?? '',
+          startDate: d.startDate ?? '',
+          endDate: d.endDate ?? undefined,
+        };
+      });
+      setTeachers(rows);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
+
+  // --- Actions
+  const addTeacher = async () => {
+    try {
+      // Persist to Firestore; id is generated by server
+      await addDoc(collection(db, 'teachers'), {
+        role: 'teacher',
+        ...newTeacher,
+      });
+
+      // Reset form; list updates automatically via onSnapshot
+      setNewTeacher({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        classIds: [],
+        locationId: '',
+        startDate: '',
+        endDate: undefined,
+      });
+    } catch (e) {
+      console.error(e);
+      alert('Failed to add teacher. Please try again.');
+    }
   };
 
-  const addChild = (e: React.FormEvent) => {
-    e.preventDefault();
-    const child: Child = {
+  const addChild = () => {
+    // Local-only example; can be migrated to Firestore with same pattern
+    const child: Types.Child = {
       id: String(children.length + 1),
-      name: newChild.name,
-      age: Number(newChild.age),
-      parentId: newChild.parentId,
-      classId: newChild.classId
+      firstName: newChild.firstName,
+      lastName: newChild.lastName,
+      birthDate: newChild.birthDate,
+      parentId: newChild.parentIdsCsv
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      classId: newChild.classId,
+      allergies: newChild.allergies || undefined,
+      specialNeeds: newChild.specialNeeds || undefined,
+      subsidyStatus: newChild.subsidyStatus || undefined,
+      enrollmentDate: newChild.enrollmentDate,
+      enrollmentStatus: newChild.enrollmentStatus,
+      endDate: newChild.endDate || undefined,
     };
-    setChildren([...children, child]);
-    setNewChild({ name: "", age: "", parentId: "", classId: "" });
+    setChildren((p) => [...p, child]);
+    setNewChild({
+      firstName: '',
+      lastName: '',
+      birthDate: '',
+      parentIdsCsv: '',
+      classId: '',
+      allergies: '',
+      specialNeeds: '',
+      subsidyStatus: '',
+      enrollmentDate: '',
+      enrollmentStatus: 'New',
+      endDate: '',
+    });
   };
 
-  const addParent = (e: React.FormEvent) => {
-    e.preventDefault();
-    const parent: Parent = {
+  const addParent = () => {
+    // Local-only example; can be migrated to Firestore
+    const parent: Types.Parent = {
       id: String(parents.length + 1),
-      ...newParent
+      role: 'parent',
+      createdAt: new Date().toISOString(),
+      ...newParent,
     };
-    setParents([...parents, parent]);
-    setNewParent({ name: "", email: "", phone: "" });
+    setParents((p) => [...p, parent]);
+    setNewParent({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      passwordHash: '',
+      childIds: [],
+      street: '',
+      city: '',
+      province: '',
+      country: '',
+      emergencyContact: '',
+      updatedAt: '',
+      preferredLanguage: '',
+    });
   };
 
-  const addClass = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cls: Class = {
-      id: String(classes.length + 1),
-      ...newClass
-    };
-    setClasses([...classes, cls]);
-    setNewClass({ name: "", grade: "", teacherId: "" });
+  const addClass = () => {
+    // Local-only example; can be migrated to Firestore
+    const cls: Types.Class = { id: String(classes.length + 1), ...newClass };
+    setClasses((p) => [...p, cls]);
+    setNewClass({
+      name: '',
+      locationId: '',
+      capcity: 0,
+      volume: 0,
+      ageStart: 0,
+      ageEnd: 0,
+    });
   };
 
   return (
-    <div style={styles.container}>
-      {/* Header */}
-      <header style={styles.header}>
+    <div style={dash.container}>
+      <header style={dash.header}>
         <AppHeader />
-        <h1 style={styles.headerTitle}>Admin Dashboard</h1>
-        <div style={styles.headerActions}>
-          <span style={styles.welcome}>Welcome, Admin</span>
-          <button onClick={signOutUser} style={styles.logoutButton}>
+        <h1 style={dash.headerTitle}>Admin Dashboard</h1>
+        <div style={dash.headerActions}>
+          <span style={dash.welcome}>Welcome, Admin</span>
+          <button onClick={signOutUser} style={dash.logoutButton}>
             Logout
           </button>
         </div>
       </header>
 
-      <div style={styles.content}>
-        {/* Sidebar */}
-        <aside style={styles.sidebar}>
-          <nav style={styles.nav}>
-            <button 
-              style={activeTab === "overview" ? {...styles.navButton, ...styles.navButtonActive} : styles.navButton}
-              onClick={() => setActiveTab("overview")}
-            >
-              Overview
-            </button>
-            <button 
-              style={activeTab === "teachers" ? {...styles.navButton, ...styles.navButtonActive} : styles.navButton}
-              onClick={() => setActiveTab("teachers")}
-            >
-              Teachers
-            </button>
-            <button 
-              style={activeTab === "children" ? {...styles.navButton, ...styles.navButtonActive} : styles.navButton}
-              onClick={() => setActiveTab("children")}
-            >
-              Children
-            </button>
-            <button 
-              style={activeTab === "parents" ? {...styles.navButton, ...styles.navButtonActive} : styles.navButton}
-              onClick={() => setActiveTab("parents")}
-            >
-              Parents
-            </button>
-            <button 
-              style={activeTab === "classes" ? {...styles.navButton, ...styles.navButtonActive} : styles.navButton}
-              onClick={() => setActiveTab("classes")}
-            >
-              Classes
-            </button>
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main style={styles.main}>
-          {activeTab === "overview" && (
-            <div style={styles.overview}>
-              <h2>Dashboard Overview</h2>
-              <div style={styles.stats}>
-                <div style={styles.statCard}>
-                  <h3>Teachers</h3>
-                  <p style={styles.statNumber}>{teachers.length}</p>
-                </div>
-                <div style={styles.statCard}>
-                  <h3>Children</h3>
-                  <p style={styles.statNumber}>{children.length}</p>
-                </div>
-                <div style={styles.statCard}>
-                  <h3>Parents</h3>
-                  <p style={styles.statNumber}>{parents.length}</p>
-                </div>
-                <div style={styles.statCard}>
-                  <h3>Classes</h3>
-                  <p style={styles.statNumber}>{classes.length}</p>
-                </div>
-              </div>
-            </div>
+      <div style={dash.content}>
+        <SidebarNav active={activeTab} onChange={setActiveTab} />
+        <main style={dash.main}>
+          {activeTab === 'overview' && (
+            <Overview
+              teacherCount={teachers.length}
+              childCount={children.length}
+              parentCount={parents.length}
+              classCount={classes.length}
+            />
           )}
 
-          {activeTab === "teachers" && (
-            <div>
-              <h2>Manage Teachers</h2>
-              <form onSubmit={addTeacher} style={styles.form}>
-                <h3>Add New Teacher</h3>
-                <input
-                  type="text"
-                  placeholder="Name"
-                  value={newTeacher.name}
-                  onChange={(e) => setNewTeacher({...newTeacher, name: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={newTeacher.email}
-                  onChange={(e) => setNewTeacher({...newTeacher, email: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <input
-                  type="text"
-                  placeholder="Subject"
-                  value={newTeacher.subject}
-                  onChange={(e) => setNewTeacher({...newTeacher, subject: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <button type="submit" style={styles.button}>
-                  Add Teacher
-                </button>
-              </form>
-
-              <div style={styles.list}>
-                <h3>All Teachers</h3>
-                {teachers.map(teacher => (
-                  <div key={teacher.id} style={styles.listItem}>
-                    <div>
-                      <strong>{teacher.name}</strong> - {teacher.subject}
-                    </div>
-                    <div>{teacher.email}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {activeTab === 'teachers' && (
+            <TeachersTab
+              teachers={teachers}
+              newTeacher={newTeacher}
+              setNewTeacher={setNewTeacher}
+              onAdd={addTeacher}
+            />
           )}
 
-          {activeTab === "children" && (
-            <div>
-              <h2>Manage Children</h2>
-              <form onSubmit={addChild} style={styles.form}>
-                <h3>Add New Child</h3>
-                <input
-                  type="text"
-                  placeholder="Name"
-                  value={newChild.name}
-                  onChange={(e) => setNewChild({...newChild, name: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <input
-                  type="number"
-                  placeholder="Age"
-                  value={newChild.age}
-                  onChange={(e) => setNewChild({...newChild, age: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <select
-                  value={newChild.parentId}
-                  onChange={(e) => setNewChild({...newChild, parentId: e.target.value})}
-                  style={styles.input}
-                  required
-                >
-                  <option value="">Select Parent</option>
-                  {parents.map(parent => (
-                    <option key={parent.id} value={parent.id}>{parent.name}</option>
-                  ))}
-                </select>
-                <select
-                  value={newChild.classId}
-                  onChange={(e) => setNewChild({...newChild, classId: e.target.value})}
-                  style={styles.input}
-                  required
-                >
-                  <option value="">Select Class</option>
-                  {classes.map(cls => (
-                    <option key={cls.id} value={cls.id}>{cls.name}</option>
-                  ))}
-                </select>
-                <button type="submit" style={styles.button}>
-                  Add Child
-                </button>
-              </form>
-
-              <div style={styles.list}>
-                <h3>All Children</h3>
-                {children.map(child => {
-                  const parent = parents.find(p => p.id === child.parentId);
-                  const cls = classes.find(c => c.id === child.classId);
-                  return (
-                    <div key={child.id} style={styles.listItem}>
-                      <div>
-                        <strong>{child.name}</strong> (Age: {child.age})
-                      </div>
-                      <div>Parent: {parent?.name || "Unknown"}</div>
-                      <div>Class: {cls?.name || "Unknown"}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+          {activeTab === 'children' && (
+            <ChildrenTab
+              classes={classes}
+              parents={parents}
+              childList={children} // avoid reserved prop "children"
+              newChild={newChild}
+              setNewChild={setNewChild}
+              onAdd={addChild}
+            />
           )}
 
-          {activeTab === "parents" && (
-            <div>
-              <h2>Manage Parents</h2>
-              <form onSubmit={addParent} style={styles.form}>
-                <h3>Add New Parent</h3>
-                <input
-                  type="text"
-                  placeholder="Name"
-                  value={newParent.name}
-                  onChange={(e) => setNewParent({...newParent, name: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={newParent.email}
-                  onChange={(e) => setNewParent({...newParent, email: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <input
-                  type="tel"
-                  placeholder="Phone"
-                  value={newParent.phone}
-                  onChange={(e) => setNewParent({...newParent, phone: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <button type="submit" style={styles.button}>
-                  Add Parent
-                </button>
-              </form>
-
-              <div style={styles.list}>
-                <h3>All Parents</h3>
-                {parents.map(parent => (
-                  <div key={parent.id} style={styles.listItem}>
-                    <div>
-                      <strong>{parent.name}</strong>
-                    </div>
-                    <div>{parent.email}</div>
-                    <div>{parent.phone}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {activeTab === 'parents' && (
+            <ParentsTab
+              parents={parents}
+              newParent={newParent}
+              setNewParent={setNewParent}
+              onAdd={addParent}
+            />
           )}
 
-          {activeTab === "classes" && (
-            <div>
-              <h2>Manage Classes</h2>
-              <form onSubmit={addClass} style={styles.form}>
-                <h3>Add New Class</h3>
-                <input
-                  type="text"
-                  placeholder="Class Name"
-                  value={newClass.name}
-                  onChange={(e) => setNewClass({...newClass, name: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <input
-                  type="text"
-                  placeholder="Grade"
-                  value={newClass.grade}
-                  onChange={(e) => setNewClass({...newClass, grade: e.target.value})}
-                  style={styles.input}
-                  required
-                />
-                <select
-                  value={newClass.teacherId}
-                  onChange={(e) => setNewClass({...newClass, teacherId: e.target.value})}
-                  style={styles.input}
-                  required
-                >
-                  <option value="">Select Teacher</option>
-                  {teachers.map(teacher => (
-                    <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
-                  ))}
-                </select>
-                <button type="submit" style={styles.button}>
-                  Add Class
-                </button>
-              </form>
-
-              <div style={styles.list}>
-                <h3>All Classes</h3>
-                {classes.map(cls => {
-                  const teacher = teachers.find(t => t.id === cls.teacherId);
-                  return (
-                    <div key={cls.id} style={styles.listItem}>
-                      <div>
-                        <strong>{cls.name}</strong> - {cls.grade}
-                      </div>
-                      <div>Teacher: {teacher?.name || "Unassigned"}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+          {activeTab === 'classes' && (
+            <ClassesTab
+              classes={classes}
+              teachers={teachers}
+              newClass={newClass}
+              setNewClass={setNewClass}
+              onAdd={addClass}
+            />
           )}
         </main>
       </div>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    minHeight: "100vh",
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
-    backgroundColor: "#1e90ff",
-    color: "white",
-    padding: "1rem 2rem",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerTitle: {
-    margin: 0,
-    fontSize: "1.5rem",
-  },
-  headerActions: {
-    display: "flex",
-    alignItems: "center",
-    gap: "1rem",
-  },
-  welcome: {
-    fontSize: "1rem",
-  },
-  logoutButton: {
-    backgroundColor: "transparent",
-    border: "1px solid white",
-    color: "white",
-    padding: "0.5rem 1rem",
-    borderRadius: "4px",
-    cursor: "pointer",
-  },
-  content: {
-    display: "flex",
-    minHeight: "calc(100vh - 80px)",
-  },
-  sidebar: {
-    width: "250px",
-    backgroundColor: "#2c3e50",
-    color: "white",
-  },
-  nav: {
-    display: "flex",
-    flexDirection: "column",
-    padding: "1rem 0",
-  },
-  navButton: {
-    backgroundColor: "transparent",
-    border: "none",
-    color: "white",
-    textAlign: "left",
-    padding: "1rem 2rem",
-    cursor: "pointer",
-    fontSize: "1rem",
-  },
-  navButtonActive: {
-    backgroundColor: "#1e90ff",
-  },
-  main: {
-    flex: 1,
-    padding: "2rem",
-    overflowY: "auto",
-  },
-  overview: {
-    marginBottom: "2rem",
-  },
-  stats: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "1rem",
-    marginTop: "1rem",
-  },
-  statCard: {
-    backgroundColor: "white",
-    borderRadius: "8px",
-    padding: "1.5rem",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-    textAlign: "center",
-  },
-  statNumber: {
-    fontSize: "2rem",
-    fontWeight: "bold",
-    margin: "0.5rem 0 0 0",
-    color: "#1e90ff",
-  },
-  form: {
-    backgroundColor: "white",
-    padding: "1.5rem",
-    borderRadius: "8px",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-    marginBottom: "2rem",
-  },
-  input: {
-    display: "block",
-    width: "100%",
-    padding: "0.75rem",
-    marginBottom: "1rem",
-    border: "1px solid #ddd",
-    borderRadius: "4px",
-    fontSize: "1rem",
-  },
-  button: {
-    backgroundColor: "#1e90ff",
-    color: "white",
-    border: "none",
-    padding: "0.75rem 1.5rem",
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontSize: "1rem",
-  },
-  list: {
-    backgroundColor: "white",
-    padding: "1.5rem",
-    borderRadius: "8px",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-  },
-  listItem: {
-    padding: "1rem",
-    borderBottom: "1px solid #eee",
-  },
-};
