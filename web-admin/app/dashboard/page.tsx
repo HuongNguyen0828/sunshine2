@@ -1,7 +1,6 @@
 'use client';
 
 
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import AppHeader from '@/components/AppHeader';
@@ -25,16 +24,12 @@ import type {
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 
-
-}
-export default function AdminDashboard( {teacherLen}: Dashboard) {
+export default function AdminDashboard() {
   const { signOutUser } = useAuth();
-
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
   // --- Entity states (Teachers from Firestore; others local for now)
   const [teachers, setTeachers] = useState<Types.Teacher[]>([]);
-
   const [children, setChildren] = useState<Types.Child[]>([
     {
       id: '1',
@@ -94,7 +89,6 @@ export default function AdminDashboard( {teacherLen}: Dashboard) {
     { id: '2', name: 'Class 4B', locationId: 'loc-1', capcity: 20, volume: 18, ageStart: 8, ageEnd: 10 },
 
   ]);
-
 
 
   // --- Controlled form states (type-safe; no `any`)
@@ -203,7 +197,6 @@ export default function AdminDashboard( {teacherLen}: Dashboard) {
     }
   };
 
-
   const addChild = () => {
     // Local-only example; can be migrated to Firestore with same pattern
 
@@ -309,7 +302,6 @@ export default function AdminDashboard( {teacherLen}: Dashboard) {
             />
           )}
 
-
           {activeTab === 'teachers' && (
             <TeachersTab
               teachers={teachers}
@@ -318,6 +310,7 @@ export default function AdminDashboard( {teacherLen}: Dashboard) {
               onAdd={addTeacher}
             />
 
+         
           )}
 
           {activeTab === 'children' && (
