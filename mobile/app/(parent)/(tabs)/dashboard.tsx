@@ -25,9 +25,8 @@ export default function ParentDashboard() {
   const [entriesByChild, setEntriesByChild] = useState<Record<string, Entry[]>>({});
   const [loading, setLoading] = useState(true);
 
-  // Compute "today" local start/end and a human label
+  // Build today's window (local) + formatted label (e.g. "Sep 20, 2025")
   const { startTs, endTs, todayLabel } = useMemo(() => {
-    // Build local day window and a short readable label (e.g., Sep 20, 2025)
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
@@ -35,7 +34,7 @@ export default function ParentDashboard() {
     return { startTs: start, endTs: end, todayLabel: label };
   }, []);
 
-  // Subscribe to children and per-child today's entries
+  // Subscribe to children and then to each child's entries for today
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) {
@@ -57,13 +56,13 @@ export default function ParentDashboard() {
 
         setChildren(kids);
 
-        // Reset previous listeners and data
+        // Reset previous listeners & data
         entryUnsubs.forEach((u) => u());
         entryUnsubs = [];
         setEntriesByChild({});
         setLoading(true);
 
-        // For each child, listen today's entries ordered by createdAt desc
+        // Per-child live query for today's entries (newest -> oldest)
         kids.forEach((k) => {
           const qEnt = query(
             collection(db, "entries"),
@@ -103,69 +102,66 @@ export default function ParentDashboard() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={colors.activityIndicator} />
-        <Text style={{ marginTop: 8, color: colors.textDim, fontSize: fontSize.md, lineHeight: 22 }}>
-          Loading...
-        </Text>
+        <Text style={{ marginTop: 8, color: colors.textDim, fontSize: fontSize.md, lineHeight: 22 }}>Loading...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={s.container}>
-      {children.length === 0 ? (
-        <View style={{ alignItems: "center", marginTop: 28 }}>
-          <Text style={{ color: colors.textDim, fontSize: fontSize.md, lineHeight: 22 }}>No children</Text>
-        </View>
-      ) : (
-        children.map((k) => {
-          const list = entriesByChild[k.id] ?? [];
+    // Root background stretches behind the tab bar
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        contentContainerStyle={s.container}
+      >
+        {children.length === 0 ? (
+          <View style={{ alignItems: "center", marginTop: 28 }}>
+            <Text style={{ color: colors.textDim, fontSize: fontSize.md, lineHeight: 22 }}>No children</Text>
+          </View>
+        ) : (
+          children.map((k) => {
+            const list = entriesByChild[k.id] ?? [];
 
-          return (
-            <View key={k.id} style={s.card}>
-              {/* Child header with today label */}
-              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
-                {/* Child name (keeps existing style) */}
-                <Text style={s.childName}>{k.name}</Text>
-                {/* Today label next to the name */}
-                <Text
-                  // subtle date text next to the name
-                  style={{ color: colors.textDim, fontSize: fontSize.md }}
-                >
-                  {todayLabel}
-                </Text>
+            return (
+              <View key={k.id} style={s.card}>
+                {/* Child header with date */}
+                <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
+                  <Text style={s.childName}>{k.name}</Text>
+                  <Text style={{ color: colors.textDim, fontSize: fontSize.md }}>{todayLabel}</Text>
+                </View>
+
+                {/* Today entries as pills (newest -> oldest) */}
+                <View style={s.pillRow}>
+                  {list.length === 0 ? (
+                    <View style={[p.container, p.placeholder]}>
+                      <Text style={p.meta}>No entries today</Text>
+                    </View>
+                  ) : (
+                    list.map((e) => {
+                      const emoji = iconFor(e);
+                      const title = titleFor(e);
+                      const detail = detailFor(e);
+                      const time = toHM(e.createdAt);
+
+                      return (
+                        <View key={e.id} style={p.container}>
+                          <Text style={p.emoji}>{emoji}</Text>
+                          <Text style={p.title}>{title}</Text>
+                          {!!detail && <Text style={p.meta}>{` • ${detail}`}</Text>}
+                          {!!time && <Text style={p.meta}>{` • ${time}`}</Text>}
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
               </View>
-
-              {/* Today entries as pills (newest -> oldest) */}
-              <View style={s.pillRow}>
-                {list.length === 0 ? (
-                  <View style={[p.container, p.placeholder]}>
-                    <Text style={p.meta}>No entries today</Text>
-                  </View>
-                ) : (
-                  list.map((e) => {
-                    const emoji = iconFor(e);
-                    const title = titleFor(e);
-                    const detail = detailFor(e);
-                    const time = toHM(e.createdAt);
-
-                    return (
-                      <View key={e.id} style={p.container}>
-                        <Text style={p.emoji}>{emoji}</Text>
-                        <Text style={p.title}>{title}</Text>
-                        {!!detail && <Text style={p.meta}>{` • ${detail}`}</Text>}
-                        {!!time && <Text style={p.meta}>{` • ${time}`}</Text>}
-                      </View>
-                    );
-                  })
-                )}
-              </View>
-            </View>
-          );
-        })
-      )}
-    </ScrollView>
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
