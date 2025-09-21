@@ -30,13 +30,18 @@ export default function SignIn() {
 
   const onSubmit = async () => {
     if (!valid || loading) return;
+
+    // Login in try-catch blog
     try {
       setErr(null);
       setLoading(true);
       await signIn(email, pw);
-      router.replace("/");
+      router.replace("/"); // got to index
     } catch (e: any) {
-      setErr(e?.message ?? "Sign-in failed");
+
+      const msg = e.message;
+      setErr(msg);
+
     } finally {
       setLoading(false);
     }

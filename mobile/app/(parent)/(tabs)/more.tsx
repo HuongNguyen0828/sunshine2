@@ -1,3 +1,4 @@
+
 // app/(parent)/(tabs)/more.tsx
 import { View, Text, Pressable, Alert } from "react-native";
 import { parentMoreStyles as s } from "@/styles/screens/parentMore";
@@ -30,3 +31,4 @@ export default function More() {
     </View>
   );
 }
+

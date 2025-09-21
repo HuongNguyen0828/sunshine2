@@ -4,6 +4,7 @@ import { teacherMoreStyles as s } from "@/styles/screens/teacherMore";
 import { signOutUser } from "@/lib/auth";
 import { router } from "expo-router";
 
+
 export default function TeacherMore() {
   // Handle logout with confirmation dialog
   const onLogout = () => {
@@ -19,6 +20,7 @@ export default function TeacherMore() {
       },
     ]);
   };
+
 
   return (
     <View style={s.container}>

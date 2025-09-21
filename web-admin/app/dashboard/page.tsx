@@ -1,5 +1,6 @@
 'use client';
 
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import AppHeader from '@/components/AppHeader';
@@ -86,7 +87,9 @@ export default function AdminDashboard() {
   const [classes, setClasses] = useState<Types.Class[]>([
     { id: '1', name: 'Class 3A', locationId: 'loc-1', capcity: 20, volume: 20, ageStart: 7, ageEnd: 9 },
     { id: '2', name: 'Class 4B', locationId: 'loc-1', capcity: 20, volume: 18, ageStart: 8, ageEnd: 10 },
+
   ]);
+
 
   // --- Controlled form states (type-safe; no `any`)
   const [newTeacher, setNewTeacher] = useState<NewTeacherInput>({
@@ -196,6 +199,7 @@ export default function AdminDashboard() {
 
   const addChild = () => {
     // Local-only example; can be migrated to Firestore with same pattern
+
     const child: Types.Child = {
       id: String(children.length + 1),
       firstName: newChild.firstName,
@@ -229,8 +233,10 @@ export default function AdminDashboard() {
     });
   };
 
+
   const addParent = () => {
     // Local-only example; can be migrated to Firestore
+
     const parent: Types.Parent = {
       id: String(parents.length + 1),
       role: 'parent',
@@ -255,6 +261,7 @@ export default function AdminDashboard() {
     });
   };
 
+
   const addClass = () => {
     // Local-only example; can be migrated to Firestore
     const cls: Types.Class = { id: String(classes.length + 1), ...newClass };
@@ -267,6 +274,7 @@ export default function AdminDashboard() {
       ageStart: 0,
       ageEnd: 0,
     });
+
   };
 
   return (
@@ -301,6 +309,8 @@ export default function AdminDashboard() {
               setNewTeacher={setNewTeacher}
               onAdd={addTeacher}
             />
+
+         
           )}
 
           {activeTab === 'children' && (
