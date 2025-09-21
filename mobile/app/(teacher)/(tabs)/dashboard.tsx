@@ -19,7 +19,7 @@ export default function TeacherReports() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Live subscription to "children" collection (enrolled only)
+  // Live subscription to `children` (enrolled only)
   useEffect(() => {
     const q = query(collection(db, "children"), where("status", "==", "enrolled"));
     const unsub = onSnapshot(
@@ -46,7 +46,7 @@ export default function TeacherReports() {
     return () => unsub();
   }, []);
 
-  // Group by classroomId (Unassigned if missing)
+  // Group by classroom id
   const grouped = useMemo(() => {
     const map = new Map<string, Child[]>();
     for (const c of children) {
@@ -61,7 +61,7 @@ export default function TeacherReports() {
 
   if (loading) {
     return (
-      <View style={s.loadingWrap}>
+      <View style={[s.loadingWrap, { flex: 1, backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.activityIndicator} />
         <Text style={s.loadingText}>Loading children...</Text>
       </View>
@@ -69,37 +69,43 @@ export default function TeacherReports() {
   }
 
   return (
-    <ScrollView contentContainerStyle={s.container}>
-      <Text style={s.title}>Dashboard</Text>
+    // Root background fills behind the tab bar as well
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        contentContainerStyle={s.container}
+      >
+        <Text style={s.title}>Dashboard</Text>
 
-      {grouped.map(([classId, kids]) => (
-        <View key={classId} style={s.group}>
-          <View style={s.groupHeader}>
-            <Text style={s.groupHeaderText}>
-              {classId === "Unassigned" ? "Unassigned" : `Class ${classId}`}
-            </Text>
+        {grouped.map(([classId, kids]) => (
+          <View key={classId} style={s.group}>
+            <View style={s.groupHeader}>
+              <Text style={s.groupHeaderText}>
+                {classId === "Unassigned" ? "Unassigned" : `Class ${classId}`}
+              </Text>
+            </View>
+
+            {kids.map((child) => (
+              <Pressable
+                key={child.id}
+                onPress={() => router.push(`/(teacher)/report/${child.id}`)}
+                style={s.card}
+              >
+                <View style={s.row}>
+                  <Text style={s.name}>{child.name}</Text>
+                  {!!child.classroomId && <Text style={s.classBadge}>{/* reserved */}</Text>}
+                </View>
+              </Pressable>
+            ))}
           </View>
+        ))}
 
-          {kids.map((child) => (
-            <Pressable
-              key={child.id}
-              onPress={() => router.push(`/(teacher)/report/${child.id}`)}
-              style={s.card}
-            >
-              <View style={s.row}>
-                <Text style={s.name}>{child.name}</Text>
-                {!!child.classroomId && <Text style={s.classBadge}>{/* intentionally empty */}</Text>}
-              </View>
-            </Pressable>
-          ))}
-        </View>
-      ))}
-
-      {children.length === 0 && (
-        <View style={s.emptyWrap}>
-          <Text style={s.emptyText}>No children</Text>
-        </View>
-      )}
-    </ScrollView>
+        {children.length === 0 && (
+          <View style={s.emptyWrap}>
+            <Text style={s.emptyText}>No children</Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
