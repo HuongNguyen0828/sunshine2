@@ -22,16 +22,19 @@ export const signInStyles = StyleSheet.create({
     marginBottom: 10,
   },
   logo: {
-    width: 72,
-    height: 72,
+    width: 150,
+    height: 150,
     resizeMode: "contain",
     marginBottom: 8,
+    marginHorizontal: "auto",
+    marginVertical: 20
   },
   title: {
-    fontSize: 32,
+    fontSize: 25,
     fontWeight: "800",
     color: colors.heading,
-    marginTop: 150,
+    marginVertical: 10,
+    textAlign: "center"
   },
 
 
@@ -77,8 +80,8 @@ export const signInStyles = StyleSheet.create({
     marginTop: 8,
   },
   linkText: {
-    color: colors.tint,
-    fontWeight: "600",
+    color: "#1e90ff" ,
+    textDecorationLine: "underline"
   },
 
   // Bottom hero image (sits near the bottom with safe spacing)
@@ -88,7 +91,6 @@ export const signInStyles = StyleSheet.create({
     resizeMode: "cover",
     borderRadius: 5,
     alignSelf: "center",
-    marginTop: 12,
     marginBottom: 100, // Not flush with bottom thanks to paddingBottom + this margin
   },
 });

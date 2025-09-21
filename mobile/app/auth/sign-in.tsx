@@ -62,7 +62,7 @@ export default function SignIn() {
                 source={require("../../assets/images/logo.png")}
                 style={s.logo}
               />
-              <Text style={s.title}>Sign in Sunshine</Text>
+              <Text style={s.title}>Sign in</Text>
             </View>
 
             {/* Form block */}
@@ -103,7 +103,7 @@ export default function SignIn() {
 
               <Link href="/auth/register" asChild>
                 <TouchableOpacity style={s.linkWrap}>
-                  <Text style={s.linkText}>New parent? Create account</Text>
+                  <Text>New parent? <Text style={s.linkText}>Create account</Text></Text>
                 </TouchableOpacity>
               </Link>
             </View>
