@@ -7,8 +7,7 @@ import admin from "firebase-admin";
 import dotenv from "dotenv";
 // using Firebase Functions for automatic Sync role => clustom claims
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-
-
+import router from "./routes/AuthRoutes"
 // Must be on top
 dotenv.config(); 
 
@@ -73,6 +72,9 @@ export const syncRoleToClaims = onDocumentWritten("users/{uid}", async (event) =
   console.log(`Custom claims updated for ${uid}: ${role}`);
 });
 
+// Set user role
+app.use("/user", router);
+
 
 // Fetch all teachers
 app.get("/teachers", async (req, res) => {
@@ -97,10 +99,10 @@ app.get("/teachers", async (req, res) => {
 
 
 
-app.get("/", (req, res) => {
-  console.log("GET / request received");
-  res.send("Backend server is running!");
-});
+
+
+
+
 
 const PORT = process.env.PORT || 5000;
 

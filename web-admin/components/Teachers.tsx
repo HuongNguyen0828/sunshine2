@@ -4,31 +4,15 @@ import * as Types from "@shared/types/type"; // Type definitions
 import { sharedStyles } from "@/styles/sharedStyle"; // import styles sharing 
 import { assignRoleToUser } from "@/app/helpers"; // assigning role
 
+interface TeachersProps {
+  teachers: Types.Teacher;
+}
 
-export default function Teachers() {
+export default function Teachers( {teachers}: TeachersProps) {
 
-    const [teachers, setTeachers] = useState<Types.Teacher[]>([])
     const [newTeacher, setNewTeacher] = useState<Types.Teacher>({});
     
-    
-    // Fetching teacher from database: backend domain
-    useEffect(() => {
-    const fetchTeachers = async () => {
-        try {
-        const res = await fetch("http://localhost:5000/teachers");
-        if (!res.ok) throw new Error("Failed to fetch teachers ")
-
-        const data: Types.Teacher[] = await res.json();
-        setTeachers(data)
-        } catch (err: any) {
-        console.error(err)
-        alert("Error fetching teachers")
-        }
-    }
-    // call fetchTeacher
-    fetchTeachers();
-    console.log(teachers)
-    }, [])
+   
 
     // Handle form submissions add teacher
     const addTeacher = (e: React.FormEvent) => {
@@ -37,8 +21,7 @@ export default function Teachers() {
         id: String(teachers.length + 1),
         ...newTeacher
     };
-    setTeachers([...teachers, teacher]);
-    setNewTeacher({ name: "", email: "", subject: "" });
+    setNewTeacher({ firstName: "", lastName: "",  email: "", phone: "" });
     };
 
     
@@ -49,9 +32,17 @@ export default function Teachers() {
             <h3>Add New Teacher</h3>
             <input
                 type="text"
-                placeholder="Name"
-                value={newTeacher.name}
-                onChange={(e) => setNewTeacher({...newTeacher, name: e.target.value})}
+                placeholder="First Name"
+                value={newTeacher.firstName}
+                onChange={(e) => setNewTeacher({...newTeacher, firstName: e.target.value})}
+                style={sharedStyles.input}
+                required
+            />
+            <input
+                type="text"
+                placeholder="Last Name"
+                value={newTeacher.lastName}
+                onChange={(e) => setNewTeacher({...newTeacher, firstName: e.target.value})}
                 style={sharedStyles.input}
                 required
             />
@@ -65,12 +56,14 @@ export default function Teachers() {
             />
             <input
                 type="text"
-                placeholder="Subject"
-                value={newTeacher.subject}
-                onChange={(e) => setNewTeacher({...newTeacher, subject: e.target.value})}
+                placeholder="Phonet"
+                value={newTeacher.phone}
+                onChange={(e) => setNewTeacher({...newTeacher, phone: e.target.value})}
                 style={sharedStyles.input}
                 required
             />
+
+
             <button type="submit" style={sharedStyles.button}>
                 Add Teacher
             </button>

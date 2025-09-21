@@ -152,3 +152,14 @@ Run:
 
 rm -rf .expo
 yarn start
+
+# Logic Flow
+
+admin create collection of teacher and and parent
+when teacher / parent register (for their choosen password), backend checking for matching email in collections,
+
+- only matching email will be registed
+- after matching: if in parent collection => set custom claim role is parent. Same check with admin and teacher
+- Update data doc of each user with UID
+
+- when they login: check against custom claim role with UID
