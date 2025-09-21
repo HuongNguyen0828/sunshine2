@@ -6,10 +6,13 @@ import {
   Pressable,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Image,
   Platform,
 } from "react-native";
 import { Link, router } from "expo-router";
 import { registerUser } from "@/lib/auth";
+import { signInStyles as s } from "@/styles/screens/signIn";
+
 
 
 export default function Register() {
@@ -47,6 +50,7 @@ export default function Register() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1 }}
     >
+      
       <View
         style={{
           flex: 1,
@@ -56,9 +60,13 @@ export default function Register() {
           backgroundColor: "#fff",
         }}
       >
-        <Text style={{ fontSize: 28, fontWeight: "700", marginBottom: 4 }}>
-          Create account
-        </Text>
+        <View style={s.header}>
+          <Image
+            source={require("../../assets/images/logo.png")}
+            style={s.logo}
+          />
+          <Text style={s.title}>Create new Account</Text>
+        </View>
 
         <View style={{ gap: 10 }}>
           <TextInput
@@ -138,10 +146,12 @@ export default function Register() {
         <View style={{ alignItems: "center", marginTop: 8, gap: 6 }}>
           <Link href="/auth/sign-in" asChild>
             <Pressable>
-              <Text style={{ color: "#1e90ff" }}>Already have an account? Sign in</Text>
+              <Text >Already have an account? <Text style={s.linkText}>Sign in</Text></Text>
             </Pressable>
           </Link>
         </View>
+
+      
       </View>
     </KeyboardAvoidingView>
   );

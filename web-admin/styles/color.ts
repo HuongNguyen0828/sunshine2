@@ -1,4 +1,4 @@
-// lib/theme.ts
+// styles/color.ts
 const theme = {
   colors: {
     primary: "#1e90ff", // sky blue
