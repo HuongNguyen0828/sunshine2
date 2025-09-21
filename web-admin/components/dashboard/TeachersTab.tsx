@@ -27,21 +27,31 @@ export default function TeachersTab({
         style={sharedStyles.form}
       >
         <h3>Add New Teacher</h3>
-        <input
+        <label>
+          First name: 
+          <input
           style={sharedStyles.input}
           placeholder="First Name"
           value={newTeacher.firstName}
           onChange={(e) => setNewTeacher({ ...newTeacher, firstName: e.target.value })}
           required
         />
-        <input
-          style={sharedStyles.input}
-          placeholder="Last Name"
-          value={newTeacher.lastName}
-          onChange={(e) => setNewTeacher({ ...newTeacher, lastName: e.target.value })}
-          required
-        />
-        <input
+        </label>
+        
+        <label>
+          Last name
+            <input
+            style={sharedStyles.input}
+            placeholder="Last Name"
+            value={newTeacher.lastName}
+            onChange={(e) => setNewTeacher({ ...newTeacher, lastName: e.target.value })}
+            required
+          />
+        </label>
+        
+        <label>
+          Email: 
+          <input
           type="email"
           style={sharedStyles.input}
           placeholder="Email"
@@ -49,21 +59,32 @@ export default function TeachersTab({
           onChange={(e) => setNewTeacher({ ...newTeacher, email: e.target.value })}
           required
         />
-        <input
+        </label>
+        
+        <label>
+          Phone Number: 
+          <input
           style={sharedStyles.input}
-          placeholder="Phone"
+          placeholder="Phone: e.g. 403 111 2284"
           value={newTeacher.phone}
           onChange={(e) => setNewTeacher({ ...newTeacher, phone: e.target.value })}
           required
         />
-        <input
+        </label>
+        
+        <label>
+          Location: 
+          <input
           style={sharedStyles.input}
           placeholder="Location ID"
           value={newTeacher.locationId}
           onChange={(e) => setNewTeacher({ ...newTeacher, locationId: e.target.value })}
-          required
-        />
-        <input
+          />
+        </label>
+        
+        <label>
+          Teaching class: 
+          <input
           style={sharedStyles.input}
           placeholder="Class IDs (comma separated)"
           onChange={(e) =>
@@ -73,21 +94,31 @@ export default function TeachersTab({
             })
           }
         />
-        <input
-          type="date"
-          style={sharedStyles.input}
-          placeholder="Start Date"
-          value={newTeacher.startDate}
-          onChange={(e) => setNewTeacher({ ...newTeacher, startDate: e.target.value })}
-          required
-        />
-        <input
-          type="date"
-          style={sharedStyles.input}
-          placeholder="End Date (optional)"
-          value={newTeacher.endDate || ''}
-          onChange={(e) => setNewTeacher({ ...newTeacher, endDate: e.target.value || undefined })}
-        />
+        </label>
+        
+        <label>
+          Start Date: 
+          <input
+            type="date"
+            style={sharedStyles.input}
+            value={newTeacher.startDate}
+            onChange={(e) =>
+              setNewTeacher({ ...newTeacher, startDate: e.target.value })
+            }
+            required
+          />
+        </label>
+
+        <label>
+          End Date: 
+          <input
+            type="date"
+            style={sharedStyles.input}
+            placeholder="End Date (optional)"
+            value={newTeacher.endDate || "" }
+            onChange={(e) => setNewTeacher({ ...newTeacher, endDate: e.target.value || undefined })}
+          />
+        </label>
         <button type="submit" style={sharedStyles.button}>Add Teacher</button>
       </form>
 
