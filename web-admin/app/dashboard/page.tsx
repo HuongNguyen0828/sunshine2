@@ -23,8 +23,12 @@ import type {
 // Firestore (client SDK)
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import swal from 'sweetalert2' // for alert library
+import { isContext } from 'vm';
+
 
 export default function AdminDashboard() {
+  
   const { signOutUser } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
@@ -97,6 +101,10 @@ export default function AdminDashboard() {
     lastName: '',
     email: '',
     phone: '',
+    street: "",
+    city: "",
+    province: "",
+    country: "CA",
     classIds: [],
     locationId: '',
     startDate: '',
@@ -211,13 +219,24 @@ export default function AdminDashboard() {
         lastName: '',
         email: '',
         phone: '',
+        street: "",
+        city: "",
+        province: "",
+        country: "CA",
         classIds: [],
         locationId: '',
         startDate: '',
         endDate: undefined,
       });
       // Success Alert
-      alert(`New teacher added: ${newTeacher.firstName} ${newTeacher.lastName}`);
+      // alert(`New teacher added: ${newTeacher.firstName} ${newTeacher.lastName}`);
+      swal.fire({
+        icon: "success",
+        title: "New Teacher",
+        text: `Succefull adding new teacher: ${newTeacher.firstName} ${newTeacher.lastName}`,
+        allowOutsideClick: false,
+        showConfirmButton: true,
+      })
     } catch (e) {
       console.error(e);
       alert('Failed to add teacher. Please try again.');

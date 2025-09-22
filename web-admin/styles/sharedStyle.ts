@@ -26,6 +26,20 @@ export const sharedStyles: Record<string, CSSProperties> = {
     borderRadius: "4px",
     cursor: "pointer",
     fontSize: "1rem",
+    marginTop: "0.5rem"
+  },
+  secondaryButton: {
+    color: "white",
+    border: "none",
+    padding: "0.5rem 0.8rem",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: "1rem",
+    marginTop: "0.5rem"
+  },
+  secondaryButtonSection: {
+    display: "flex",
+    gap: "0.5rem"
   },
   list: {
     backgroundColor: "white",
@@ -38,4 +52,17 @@ export const sharedStyles: Record<string, CSSProperties> = {
     borderBottom: "1px solid #eee",
     // display: "flex"
   },
+  addressSection: {
+    display: "flex",
+    padding: "1.5rem 0",
+    gap: "1rem"
+  },
+  address: {
+    display: 'flex',
+    gap: "0.5rem"
+  },
+  dropDown: {
+    padding: "1rem",
+
+  }
 }

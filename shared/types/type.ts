@@ -3,6 +3,11 @@
 type EntryType = "Attendance" | "Schedule_note" |  "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
 type AttendanceSubtype = "Check in" | "Check out";
 type FoodSubtype = "Breakfast" | "Lunch" | "Snack"
+export type CountryType = "CA" | "US"
+export type ProvinceType = {
+    CA: string [],
+    US: string []
+  };
 
 
 export type Entry = {
@@ -63,11 +68,15 @@ export type Teacher = {
   id: string;
   firstName: string;
   lastName: string;
+  role: "teacher"; // Teacher role
   email: string; // username for login
   phone: string;
-  role: "teacher"; // Teacher role
-  classIds: string[]; // Classes assigned to this staff
-  locationId: string; // Location assigned to this staff
+  street: string;
+  city: string;
+  province: string;
+  country: CountryType;
+  classIds?: string[]; // Classes assigned to this staff
+  locationId?: string; // Location assigned to this staff
   startDate: string;
   endDate?: string; // Optional end date for staff
 
