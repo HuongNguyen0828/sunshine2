@@ -55,7 +55,6 @@ app.get("/teachers", async (req, res) => {
       return {
         id: doc.id,
         ...data,
-
       };
     });
     return res.status(200).json(teachers);

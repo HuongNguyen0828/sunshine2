@@ -33,6 +33,7 @@ router.post("/register", async (req, res) => {
 
 
         // Else, if found
+        // Check if email is unique inside 
 
         // 2. Create Auth user
         const userRecord = await admin.auth().createUser({

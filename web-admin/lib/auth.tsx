@@ -10,6 +10,7 @@ interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
   userLoggedIn: boolean;
+  signUp: (name: string, email: string, passowrd: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   isAdmin: boolean;
   userRole: string | null;
@@ -64,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Check current user
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
@@ -74,6 +76,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, [auth]);
 
+  // Sign up
+  const signUp = async (name: string, email: string, password: string ) => {
+
+    try {
+      const res = await fetch("http://localhost:5000/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({name, email, password}),
+      });
+
+      // Respond not ok
+      if (!res.ok) {
+        // Handle backend errors (including email not recognied, ...)
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to register")
+      }
+
+      // Else
+      const data = await res.json();
+      console.log(" Signup success", data.message);
+      return data;
+
+    } catch (error: any) {
+      console.log(error.message)
+    }
+  }
+
+
+
+  // Sign in
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
@@ -103,7 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading, userLoggedIn, signIn, isAdmin, userRole, signOutUser }}>
+    <AuthContext.Provider value={{ currentUser, loading, userLoggedIn, signIn, signUp, isAdmin, userRole, signOutUser }}>
       {children}
     </AuthContext.Provider>
   );

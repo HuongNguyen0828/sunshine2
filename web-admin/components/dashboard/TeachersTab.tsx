@@ -3,6 +3,7 @@
 import * as Types from '../../../shared/types/type';
 import { sharedStyles } from '@/styles/sharedStyle';
 import type { NewTeacherInput } from '@/types/forms';
+import { assignRoleToUser } from '@/app/helpers';
 
 export default function TeachersTab({
   teachers,
@@ -127,12 +128,24 @@ export default function TeachersTab({
         <h3>All Teachers</h3>
         {teachers.map((t) => (
           <div key={t.id} style={sharedStyles.listItem}>
-            <div><strong>{t.firstName} {t.lastName}</strong> ({t.email})</div>
-            <div>Phone: {t.phone}</div>
-            <div>Location: {t.locationId}</div>
-            <div>Classes: {t.classIds?.length ? t.classIds.join(', ') : 'None'}</div>
-            <div>Tenure: {String(t.startDate)}{t.endDate ? ` → ${String(t.endDate)}` : ''}</div>
+            <div >
+              <div><strong>{t.firstName} {t.lastName}</strong> ({t.email})</div>
+              <div>Phone: {t.phone}</div>
+              <div>Location: {t.locationId}</div>
+              <div>Classes: {t.classIds?.length ? t.classIds.join(', ') : 'None'}</div>
+              <div>Tenure: {String(t.startDate)}{t.endDate ? ` → ${String(t.endDate)}` : ''}</div>
+            </div>
+            
+            {/*  */}
+            <button
+              style={{ ...sharedStyles.button, marginTop: "0.5rem" }}
+              onClick={() => assignRoleToUser(t.id, "admin", true)}
+            >
+              Make Admin
+            </button>
+          
           </div>
+            
         ))}
       </div>
     </div>

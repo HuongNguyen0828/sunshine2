@@ -36,5 +36,6 @@ export const sharedStyles: Record<string, CSSProperties> = {
   listItem: {
     padding: "1rem",
     borderBottom: "1px solid #eee",
+    // display: "flex"
   },
 }
