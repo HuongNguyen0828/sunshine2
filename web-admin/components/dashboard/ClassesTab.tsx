@@ -38,7 +38,7 @@ export default function ClassesTab({
       <div style={sharedStyles.list}>
         <h3>All Classes</h3>
         {classes.map((cls) => {
-          const assignedTeachers = teachers.filter((t) => t.classIds.includes(cls.id));
+          const assignedTeachers = teachers.filter((t) => t.classIds?.includes(cls.id));
           return (
             <div key={cls.id} style={sharedStyles.listItem}>
               <div><strong>{cls.name}</strong> (Location: {cls.locationId})</div>
