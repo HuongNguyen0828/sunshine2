@@ -89,7 +89,7 @@ export const signInStyles = StyleSheet.create({
     width: "100%",
     height: 200,
     resizeMode: "cover",
-    borderRadius: 5,
+    borderRadius: 15,
     alignSelf: "center",
     marginBottom: 100, // Not flush with bottom thanks to paddingBottom + this margin
   },
