@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { WeeklyCalendar } from "./WeeklyCalendar";
-import { ActivityLibrary } from "./ActivityLibrary"; 
+import { ActivityLibrary } from "./ActivityLibrary";
 import { ActivityForm } from "./ActivityForm";
 import { MockSchedulerAPI } from "@/lib/scheduler-mock-data";
 import type { Activity, Schedule } from "@/types/scheduler";
@@ -16,7 +16,7 @@ export function WeeklyScheduler() {
     monday.setDate(today.getDate() - today.getDay() + 1);
     return monday.toISOString().split('T')[0];
   });
-  
+
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [showActivityLibrary, setShowActivityLibrary] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -54,7 +54,7 @@ export function WeeklyScheduler() {
     const start = new Date(weekStart);
     const end = new Date(start);
     end.setDate(start.getDate() + 4);
-    
+
     return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
   };
 
@@ -90,7 +90,7 @@ export function WeeklyScheduler() {
       });
       setSchedules(prev => {
         // Remove existing schedule for this slot, add new one
-        const filtered = prev.filter(s => 
+        const filtered = prev.filter(s =>
           !(s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot)
         );
         return [...filtered, newSchedule];
@@ -109,7 +109,7 @@ export function WeeklyScheduler() {
         weekStart: currentWeek,
         ...params
       });
-      setSchedules(prev => prev.filter(s => 
+      setSchedules(prev => prev.filter(s =>
         !(s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot)
       ));
     } catch (error) {
@@ -132,7 +132,7 @@ export function WeeklyScheduler() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              🧪 Scheduler Labs
+              Scheduler Labs
             </h2>
             <p className="text-gray-600 text-sm">
               Experimental scheduler interface - decoupled from original backend for design exploration
@@ -160,7 +160,7 @@ export function WeeklyScheduler() {
               →
             </button>
           </div>
-          
+
           <div className="flex gap-3">
             <button
               onClick={() => setShowActivityLibrary(true)}

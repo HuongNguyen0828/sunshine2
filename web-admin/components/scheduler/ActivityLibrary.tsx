@@ -26,7 +26,7 @@ export function ActivityLibrary({ activities, onClose, onActivityDeleted }: Acti
     }
 
     setDeletingId(activityId);
-    
+
     try {
       await onActivityDeleted(activityId);
       // Success handled by parent component
@@ -53,7 +53,7 @@ export function ActivityLibrary({ activities, onClose, onActivityDeleted }: Acti
               ×
             </button>
           </div>
-          
+
           <div className="relative">
             <input
               type="text"

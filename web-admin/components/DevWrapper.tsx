@@ -20,7 +20,6 @@ export default function DevWrapper({ children }: DevWrapperProps) {
   }, [userLoggedIn, loading, bypassAuth, router]);
 
   if (bypassAuth) {
-    router.push('/dashboard');
     return <div>Redirecting to dashboard...</div>;
   }
 
