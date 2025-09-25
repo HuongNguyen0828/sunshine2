@@ -2,7 +2,7 @@
 // src/app.ts
 import express from "express";
 import cors from "cors";
-import childRoutes from "./routes/ChildRoutes";
+import childRoutes from "./routes/web-admin/ChildRoutes";
 import admin from "firebase-admin";
 import dotenv from "dotenv";
 import route from "./routes/AuthRoutes"

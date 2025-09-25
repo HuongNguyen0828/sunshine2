@@ -1,6 +1,6 @@
 // src/routes/kidsRoutes.ts
 import { Router } from "express";
-import { getAllChilds, addChild, getChildById, updateChild, deleteChild } from "../controllers/ChildController";
+import { getAllChilds, addChild, getChildById, updateChild, deleteChild } from "../../controllers/web-admin/ChildController";
 
 
 const childRoutes = Router();
