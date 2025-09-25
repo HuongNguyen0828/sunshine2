@@ -6,7 +6,7 @@ export async function SignUpController(req: Request, res: Response) {
 
     try {
         // Extract role from service
-        const result = await signUp(email, name, password);
+        const result = await signUp(email, password, name);
         return res.status(201).json({ message: `${result.role} registered successfully` });
     } catch (error: any) {
         // Case cannot found any match of user record

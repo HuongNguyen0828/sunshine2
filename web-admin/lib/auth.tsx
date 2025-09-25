@@ -5,12 +5,15 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User, IdTokenResult } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
 import app from './firebase';
+import swal from "sweetalert2"
+import { title } from 'process';
 
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
   userLoggedIn: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<void>;
   isAdmin: boolean;
   userRole: string | null;
   signOutUser: () => Promise<void>;
@@ -78,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (name: string, email: string, password: string ) => {
 
     try {
-      const res = await fetch("http://localhost:5000/auth/signup", {
+      const res = await fetch("http://localhost:5000/auth/signUp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -96,10 +99,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Else
       const data = await res.json();
       console.log(" Signup success", data.message);
+
+      // Success message
+      swal.fire({
+        icon: "success",     
+        title: "Create new account",
+        text: "Account created successfully!", // optional
+        showConfirmButton: true,              // optional
+        timer: 2000                           // optional auto-close after 2s
+        });
       return data;
 
     } catch (error: any) {
       console.log(error.message)
+      throw error; // Important: re-throw error
     }
   }
 
@@ -135,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading, userLoggedIn, signIn, isAdmin, userRole, signOutUser }}>
+    <AuthContext.Provider value={{ currentUser, loading, userLoggedIn, signIn, signUp, isAdmin, userRole, signOutUser }}>
       {children}
     </AuthContext.Provider>
   );

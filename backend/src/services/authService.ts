@@ -22,7 +22,7 @@ export async function signUp(email: string, password: string, name: string) {
 
   // If cannot find
   if (teachersSnapShot.empty && parentsSnapShot.empty && adminsSnapShot.empty) {
-    throw new Error("Email not recognized in our system");
+    throw new Error("Email not recognized in our system. \n Your daycare need to have contract with Sunshine.");
   }
 
   // Else, if found
