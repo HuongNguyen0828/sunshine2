@@ -3,6 +3,7 @@
 import * as Types from '../../../shared/types/type';
 import { sharedStyles } from '@/styles/sharedStyle';
 import type { NewTeacherInput } from '@/types/forms';
+import {useState} from "react";
 
 export default function TeachersTab({
   teachers,

@@ -39,7 +39,7 @@ export async function signIn(email: string, password: string) {
 
   // check user role from Firebase custom claims
   const checkUserRole = async (user: User) => {
-    // if no user, reset role and admin status
+    // if no user, 
     if (!user) {
       return null;
     }
@@ -59,13 +59,13 @@ export async function signIn(email: string, password: string) {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);  
     
     const role = await checkUserRole(userCredential.user);
-    //  Check the role here
-    // if (role == null) {
-    //   await signOutUser();
-    //   const accessError = new Error("Wait to assign role.");
-    //   accessError.name = "AccessDeniedError"; // custom error type
-    //   throw accessError;
-    // }
+    //Check the role here
+    if (role == null) {
+      await signOutUser();
+      const accessError = new Error("Wait to assign role.");
+      accessError.name = "AccessDeniedError"; // custom error type
+      throw accessError;
+    }
     
   } catch (error: any) {
     // Handle specific Firebase auth errors

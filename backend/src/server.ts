@@ -32,25 +32,6 @@ app.use("/child", childRoutes);
 
 
 
-// ------------------ Assign role endpoint ------------------
-// app.post("/set-role", async (req, res) => {
-//   const { uid, role } = req.body;
-
-//   if (!uid || !role) {
-//     return res.status(400).json({ message: "uid and role are required" });
-//   }
-
-//   try {
-//     await admin.auth().setCustomUserClaims(uid, { role });
-//     return res.status(200).json({ message: `Role ${role} assigned to user ${uid}` });
-//   } catch (error: any) {
-//     console.error("Error setting role:", error);
-//     return res.status(500).json({ message: error.message });
-//   }
-// });
-// // -----------------------------------------------------------
-
-
 // Fetch all teachers
 app.get("/teachers", async (req, res) => {
   try {
