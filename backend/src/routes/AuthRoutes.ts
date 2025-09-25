@@ -26,9 +26,9 @@ router.post("/register", async (req, res) => {
             .where("email", "==", email)
             .get();
 
-        // Check if cannot find
+        // Check if cannot find in any record of parent, teacher or admin
         if (teachersSnapShot.empty && parentsSnapShot.empty && adminSnapShot.empty) {
-            return res.status(400).json({message: "Email not recognized"})
+            return res.status(400).json({message: "Email not recognized in our system"})
         }
 
 

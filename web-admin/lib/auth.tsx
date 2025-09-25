@@ -74,6 +74,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, [auth]);
 
+  // Sign up
+  const signUp = async (name: string, email: string, password: string ) => {
+
+    try {
+      const res = await fetch("http://localhost:5000/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({name, email, password}),
+      });
+
+      // Respond not ok
+      if (!res.ok) {
+        // Handle backend errors (including email not recognied, ...)
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to register")
+      }
+
+      // Else
+      const data = await res.json();
+      console.log(" Signup success", data.message);
+      return data;
+
+    } catch (error: any) {
+      console.log(error.message)
+    }
+  }
+
+
+
+  // Sign in
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);

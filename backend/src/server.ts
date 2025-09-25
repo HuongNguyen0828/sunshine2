@@ -5,9 +5,8 @@ import cors from "cors";
 import childRoutes from "./routes/ChildRoutes";
 import admin from "firebase-admin";
 import dotenv from "dotenv";
-// using Firebase Functions for automatic Sync role => clustom claims
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import router from "./routes/AuthRoutes"
+import route from "./routes/AuthRoutes"
+
 // Must be on top
 dotenv.config(); 
 
@@ -26,25 +25,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());  // parse JSON body
 
+//Signup
+app.use("/auth", route)
+// Child 
+app.use("/child", childRoutes);
 
 
-// ------------------ Assign role endpoint: With AUTOMATIC sync with Cloud Function ------------------
-  // Whenever you assign/change a user’s role:
 
-  // Update Firestore (users/{uid}/role).
-
-  // Set the same role in custom claims.
-
-  // Keep them consistent.
-
+// ------------------ Assign role endpoint ------------------
 // app.post("/set-role", async (req, res) => {
 //   const { uid, role } = req.body;
-//    // If doesn't provide enough input
+
 //   if (!uid || !role) {
 //     return res.status(400).json({ message: "uid and role are required" });
 //   }
 
-//   // Update Firestore
 //   try {
 //     await admin.auth().setCustomUserClaims(uid, { role });
 //     return res.status(200).json({ message: `Role ${role} assigned to user ${uid}` });
@@ -53,27 +48,7 @@ app.use(express.json());  // parse JSON body
 //     return res.status(500).json({ message: error.message });
 //   }
 // });
-
-// When the event provider generates an event that matches the function's conditions, the code is invoked. 
-// Trigger when a user's role field changes
-export const syncRoleToClaims = onDocumentWritten("users/{uid}", async (event) => {
-  
-  // Get uid
-  const uid = event.params.uid;
-  // Firestore document snapshot
-  const afterData = event.data?.after?.data();
-  if (!afterData) return;
-
-  const role = afterData.role;
-
-  // Sync role into custom claims
-  await admin.auth().setCustomUserClaims(uid, { role });
-
-  console.log(`Custom claims updated for ${uid}: ${role}`);
-});
-
-// Set user role
-app.use("/user", router);
+// // -----------------------------------------------------------
 
 
 // Fetch all teachers

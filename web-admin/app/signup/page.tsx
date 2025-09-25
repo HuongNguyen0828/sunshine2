@@ -13,6 +13,7 @@ export default function SignIn() {
   const { signIn } = useAuth(); // Correctly use the hook to get the signIn function
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -30,8 +31,8 @@ export default function SignIn() {
     try {
       setErr(null);
       setLoading(true);
-      await signIn(email, pw); // Use the signIn function from the hook
-      router.push("/dashboard"); // Redirect to dashboard on success
+      await signUp(name, email, pw); // Use the signUp function from the hook
+      router.push("/"); // Redirect to Login screen to assess the role
     } catch (e: any) {
       const msg = e?.message;
       setErr(msg);
@@ -60,6 +61,14 @@ export default function SignIn() {
             placeholder="Password"
             value={pw}
             onChange={(e) => setPw(e.target.value)}
+            style={styles.input}
+          />
+
+          <input
+            type="password"
+            placeholder="Confirm Password"
+            value={pw2}
+            onChange={(e) => setPw2(e.target.value)}
             style={styles.input}
           />
           {err && <p style={{ color: "#d00" }}>{err}</p>}

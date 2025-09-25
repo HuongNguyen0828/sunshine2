@@ -4,6 +4,15 @@ type EntryType = "Attendance" | "Schedule_note" |  "Food" | "Photo" | "Sleep" | 
 type AttendanceSubtype = "Check in" | "Check out";
 type FoodSubtype = "Breakfast" | "Lunch" | "Snack"
 
+export type Admin = {
+  daycareId: string, // referencing Daycare Provider 
+  firstName: string,
+  lastName: string, 
+  email: string,
+  phone: string,
+  address: string,
+  postalCode: string,
+}
 
 export type Entry = {
   id: string;
@@ -26,19 +35,21 @@ export type DaycareProvider = {
   contactName: string;
 }
 
-export type Location = {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  providerId: string;
-  street: string;
-  city: string;
-  provine: string;
-  zip: string;
-  country: string;
-  creditCardInfo?: string; 
-}
+
+ /////// Remove Location for now for purpose of simplicity
+// export type Location = { 
+//   id: string;
+//   name: string;
+//   phone: string;
+//   email: string;
+//   providerId: string;
+//   street: string;
+//   city: string;
+//   provine: string;
+//   zip: string;
+//   country: string;
+//   creditCardInfo?: string; 
+// }
 
 export type Class = {
   id: string;
@@ -48,6 +59,7 @@ export type Class = {
   volume: number;
   ageStart: number;
   ageEnd: number;
+  classroom: string; 
 }
 
 export type Schedule = {
@@ -65,9 +77,9 @@ export type Teacher = {
   lastName: string;
   email: string; // username for login
   phone: string;
-  role: "teacher"; // Teacher role
-  classIds: string[]; // Classes assigned to this staff
-  locationId: string; // Location assigned to this staff
+  address: string;
+  classIds?: string[]; // Classes assigned to this staff
+  locationId?: string; // Location assigned to this staff
   startDate: string;
   endDate?: string; // Optional end date for staff
 
