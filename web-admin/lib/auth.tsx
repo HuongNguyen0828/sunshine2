@@ -44,6 +44,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userLoggedIn, setUserLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Development bypass
+  const bypassAuth = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
 
   const checkUserRole = async (user: User | null): Promise<boolean> => {
     if (!user) {
@@ -67,6 +70,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check current user
   useEffect(() => {
+    if (bypassAuth) {
+      // In bypass mode, simulate logged in admin user
+      setCurrentUser({ uid: 'dev-user' } as User);
+      setUserLoggedIn(true);
+      setUserRole('admin');
+      setIsAdmin(true);
+      setLoading(false);
+      return;
+    }
+    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setUserLoggedIn(!!user);
@@ -74,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [auth]);
+  }, [auth, bypassAuth]);
 
   // Sign up
   const signUp = async (name: string, email: string, password: string ) => {
