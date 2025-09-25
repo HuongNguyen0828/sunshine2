@@ -22,6 +22,9 @@ export default function SidebarNav({
         <button style={btn('children')} onClick={() => onChange('children')}>Children</button>
         <button style={btn('parents')} onClick={() => onChange('parents')}>Parents</button>
         <button style={btn('classes')} onClick={() => onChange('classes')}>Classes</button>
+        <button style={btn('scheduler-labs')} onClick={() => onChange('scheduler-labs')}>
+          🧪 Scheduler Labs
+        </button>
       </nav>
     </aside>
   );

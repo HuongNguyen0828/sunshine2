@@ -10,6 +10,7 @@ import TeachersTab from '@/components/dashboard/TeachersTab';
 import ChildrenTab from '@/components/dashboard/ChildrenTab';
 import ParentsTab from '@/components/dashboard/ParentsTab';
 import ClassesTab from '@/components/dashboard/ClassesTab';
+import SchedulerLabsTab from '@/components/dashboard/SchedulerLabsTab';
 import { dash } from '@/styles/dashboard';
 import * as Types from '../../../shared/types/type';
 import type {
@@ -388,6 +389,10 @@ export default function AdminDashboard() {
               setNewClass={setNewClass}
               onAdd={addClass}
             />
+          )}
+
+          {activeTab === 'scheduler-labs' && (
+            <SchedulerLabsTab />
           )}
         </main>
       </div>
