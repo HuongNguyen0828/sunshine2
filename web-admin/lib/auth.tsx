@@ -6,7 +6,6 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User,
 import { FirebaseError } from 'firebase/app';
 import app from './firebase';
 import swal from "sweetalert2"
-import { title } from 'process';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -19,6 +18,41 @@ interface AuthContextType {
   signOutUser: () => Promise<void>;
 }
 
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Sign up
+const signUp = async (name: string, email: string, password: string ) => {
+
+  try {
+    const res = await fetch("http://localhost:5000/auth/signUp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({name, email, password}),
+    });
+
+    // Respond not ok
+    if (!res.ok) {
+      // Handle backend errors (including email not recognied, ...)
+      const errorData = await res.json();
+      throw new Error(errorData.message || "Failed to register")
+    }
+
+    // Else
+    const data = await res.json();
+    console.log(" Signup success", data.message);
+
+    return data;
+
+  } catch (error: any) {
+    console.log(error.message)
+    throw error; // Important: re-throw error
+  }
+}
+
+// Access Error with admin
 interface AccessDeniedError extends Error {
   name: 'AccessDeniedError';
 }
@@ -37,7 +71,6 @@ const makeAccessDeniedError = (): AccessDeniedError => {
   return err as AccessDeniedError;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const auth = getAuth(app);
@@ -77,46 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, [auth]);
 
-  // Sign up
-  const signUp = async (name: string, email: string, password: string ) => {
-
-    try {
-      const res = await fetch("http://localhost:5000/auth/signUp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({name, email, password}),
-      });
-
-      // Respond not ok
-      if (!res.ok) {
-        // Handle backend errors (including email not recognied, ...)
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to register")
-      }
-
-      // Else
-      const data = await res.json();
-      console.log(" Signup success", data.message);
-
-      // Success message
-      swal.fire({
-        icon: "success",     
-        title: "Create new account",
-        text: "Account created successfully!", // optional
-        showConfirmButton: true,              // optional
-        timer: 2000                           // optional auto-close after 2s
-        });
-      return data;
-
-    } catch (error: any) {
-      console.log(error.message)
-      throw error; // Important: re-throw error
-    }
-  }
-
-
+  
 
   // Sign in
   const signIn = async (email: string, password: string) => {
