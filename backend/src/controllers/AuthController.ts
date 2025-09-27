@@ -91,7 +91,7 @@ export async function getParentOrTeacher(req: Request, res: Response) {
       return res
         .status(403)
         .send({
-          message: `Access denied. As ${req.user.role}, please login in web app`,
+          message: `Access denied. As ${req.user.role}, please login via web app`,
         });
     // else, Case Teacher or Parent return user is Admin\
     res.status(200).send({ user: req.user });
