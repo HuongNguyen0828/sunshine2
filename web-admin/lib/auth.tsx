@@ -66,31 +66,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Sign up
   const signUp = async (name: string, email: string, password: string) => {
-    // Step 1: check email
-    const res = await fetch("http://localhost:5000/auth/check-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    // Only respond ok is valid email
-    if (!res.ok) throw new Error("Email not authorized");
-    const { role } = await res.json(); // get the role: example: role: "parent"
+    try {
+        // Step 1: check email
+      const res = await fetch("http://localhost:5000/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      // Only respond ok is valid email
+      if (!res.ok) throw new Error("Email not authorized. Your daycare need register with Sunshine");
+      const { role } = await res.json(); // get the role: example: role: "parent"
 
-    // Step 2: create Firebase Authentication user
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
-    await updateProfile(userCredential.user, { displayName: name });
+      // Step 2: create Firebase Authentication user
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      await updateProfile(userCredential.user, { displayName: name });
 
-    // Step 3: Verify role in backend, and create users collection with same uid
-    const idToken = await userCredential.user.getIdToken();
-    await fetch("http://localhost:5000/auth/verify-role", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken, name }),
-    });
+      // Step 3: Verify role in backend, and create users collection with same uid
+      const idToken = await userCredential.user.getIdToken();
+      await fetch("http://localhost:5000/auth/verify-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, name }),
+      });
+    } catch (error: any) {
+      if(error.code == "auth/email-already-in-use") throw new Error("Already existing email. Please login or use other email");
+      throw error;
+
+    }
+    
   };
 
   // Sign in:
@@ -131,8 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.setItem("userRole", data.user.role);
     } catch (error: any) {
       // Error from Frontend: Firebase Auth errors with signInWithEmailAndPassword
-      if (error.code === "auth/invalid-credential")
-        throw new Error("Invalid Email or Password");
+      if (error.code === "auth/invalid-credential")  throw new Error("Invalid Email or Password");
       // else, error from role-base
       throw error;
     }
