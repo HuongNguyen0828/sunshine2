@@ -4,6 +4,8 @@ type EntryType = "Attendance" | "Schedule_note" |  "Food" | "Photo" | "Sleep" | 
 type AttendanceSubtype = "Check in" | "Check out";
 type FoodSubtype = "Breakfast" | "Lunch" | "Snack"
 
+
+
 export type Admin = {
   daycareId: string, // referencing Daycare Provider 
   firstName: string,

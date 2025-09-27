@@ -56,6 +56,7 @@ export default function SignIn() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={styles.input}
+            required
           />
           <input
             type="email"
@@ -63,6 +64,7 @@ export default function SignIn() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={styles.input}
+            required
           />
           <input
             type="password"
@@ -70,6 +72,7 @@ export default function SignIn() {
             value={pw}
             onChange={(e) => setPw(e.target.value)}
             style={styles.input}
+            required
           />
 
           <input
@@ -78,10 +81,11 @@ export default function SignIn() {
             value={pw2}
             onChange={(e) => setPw2(e.target.value)}
             style={styles.input}
+            required
           />
           {err && <p style={{ color: "#d00" }}>{err}</p>}
           <button type="submit" disabled={!valid || loading} style={valid && !loading ? styles.button : styles.buttonDisabled}>
-            {loading ? "Loading..." : "Sign in"}
+            {loading ? "Loading..." : "Sign up"}
           </button>
         </form>
 

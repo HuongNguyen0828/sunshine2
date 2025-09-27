@@ -1,10 +1,12 @@
 //src/routes/AdminRoutes
 import {Router } from "express"
-import { SignUpController} from "../controllers/AuthController"
+import {checkEmail, verifyRole, getAdmin } from "../controllers/AuthController"
 
 
 const router = Router();
 
-router.post("/signUp", SignUpController);
+router.post("/check-email", checkEmail );
+router.post("/verify-role", verifyRole);
+router.get("/get-admin", getAdmin);
 
 export default router;

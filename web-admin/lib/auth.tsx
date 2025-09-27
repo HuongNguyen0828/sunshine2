@@ -2,10 +2,9 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User, IdTokenResult } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User, IdTokenResult, createUserWithEmailAndPassword, updateProfile} from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
 import app from './firebase';
-import swal from "sweetalert2"
 
 interface AuthContextType {
   currentUser: User | null;
@@ -21,36 +20,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Sign up
-const signUp = async (name: string, email: string, password: string ) => {
-
-  try {
-    const res = await fetch("http://localhost:5000/auth/signUp", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({name, email, password}),
-    });
-
-    // Respond not ok
-    if (!res.ok) {
-      // Handle backend errors (including email not recognied, ...)
-      const errorData = await res.json();
-      throw new Error(errorData.message || "Failed to register")
-    }
-
-    // Else
-    const data = await res.json();
-    console.log(" Signup success", data.message);
-
-    return data;
-
-  } catch (error: any) {
-    console.log(error.message)
-    throw error; // Important: re-throw error
-  }
-}
 
 // Access Error with admin
 interface AccessDeniedError extends Error {
@@ -65,11 +34,7 @@ const isAccessDeniedError = (e: unknown): e is AccessDeniedError =>
 
 const isFirebaseError = (e: unknown): e is FirebaseError => e instanceof FirebaseError;
 
-const makeAccessDeniedError = (): AccessDeniedError => {
-  const err = new Error('Access denied. Admin privileges required.');
-  (err as AccessDeniedError).name = 'AccessDeniedError';
-  return err as AccessDeniedError;
-};
+
 
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -80,23 +45,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const checkUserRole = async (user: User | null): Promise<boolean> => {
-    if (!user) {
-      setUserRole(null);
-      setIsAdmin(false);
-      return false;
-    }
+  const checkUserRole = async (user: User | null): Promise<string | null> => {
+    if (!user) return null;
     try {
       const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
       const role = idTokenResult.claims.role as string | undefined;
       setUserRole(role ?? null);
-      const admin = role === 'admin';
-      setIsAdmin(admin);
-      return admin;
+      setIsAdmin(role === "admin");
+      return role ?? null;
     } catch {
       setUserRole(null);
       setIsAdmin(false);
-      return false;
+      return null;
     }
   };
 
@@ -110,36 +70,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, [auth]);
 
-  
+  // Produce custom-role error message: parameter is role
+  const makeAccessDeniedError = (role: string | null): AccessDeniedError => {
+    let err = null;
+    // case role is null: external user
+    if (role == null) err = new Error(`Unrecognized email. Admins only. Please register your daycare with Sunshine.`);
+    // else: parent or teacher
+    else err = new Error(`Access denied for ${role}. Admins only. Please use Sunshine mobile app`);
+    (err as AccessDeniedError).name = 'AccessDeniedError';
+    return err as AccessDeniedError;
+  };
 
-  // Sign in
-  const signIn = async (email: string, password: string) => {
-    try {
-      setLoading(true);
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const ok = await checkUserRole(cred.user);
-      if (!ok) {
-        await signOut(auth);
-        throw makeAccessDeniedError();
-      }
-    } catch (err: unknown) {
-      if (isFirebaseError(err)) {
-        if (err.code === 'auth/invalid-credential') throw new Error('Email or password is incorrect.');
-        throw new Error(err.message);
-      }
-      if (isAccessDeniedError(err)) throw err;
-      if (err instanceof Error) throw new Error(err.message || 'Sign-in failed.');
-      throw new Error('Sign-in failed.');
-    } finally {
-      setLoading(false);
-    }
+ 
+  // Sign up
+  const signUp = async (name: string, email: string, password: string) => {
+    // Step 1: check email
+    const res = await fetch("http://localhost:5000/auth/check-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    // Only respond ok is valid email
+    if (!res.ok) throw new Error("Email not authorized");
+    const { role } = await res.json(); // get the role: example: role: "parent"
+
+    // Step 2: create Firebase Authentication user
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(userCredential.user, { displayName: name });
+
+    // Step 3: Verify role in backend, and create users collection with same uid
+    const idToken = await userCredential.user.getIdToken();
+    await fetch("http://localhost:5000/auth/verify-role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken, name }),
+    });
+  };
+
+    // Sign in: 
+  // 4 cases:
+    // Case 1: user is extenal of our system: email doesn't exist-> throw error: Unrecognized email.  Your daycare registered with Sunshine to signUp and login
+    // Case 2: user is parent or teacher: throw error: Hello, parent (teacher), please login in Sunshine mobile app
+    // Case 3. user is admin, entering wrong password: throw error: Hello admin, Invalid passowrd
+    // Case 4. Success: user is admin and all correct: redirect into dashboard.
+  const signIn = async (email: string, password: string): Promise<void> => {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const idToken = await userCredential.user.getIdToken();
+
+    const res = await fetch("http://localhost:5000/auth/get-admin", {
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+
+    if (!res.ok) throw new Error("Admins only can sign in.");
+    const data = await res.json();
+
+    localStorage.setItem("userRole", data.user.role);
   };
 
   const signOutUser = async () => {
-    await signOut(auth);
-    setUserRole(null);
-    setIsAdmin(false);
-  };
+      await signOut(auth);
+      setUserRole(null);
+      setIsAdmin(false);
+    };
 
   return (
     <AuthContext.Provider value={{ currentUser, loading, userLoggedIn, signIn, signUp, isAdmin, userRole, signOutUser }}>
