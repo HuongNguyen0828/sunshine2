@@ -20,6 +20,6 @@ router.post("/verify-role", verifyRole);
 router.get("/get-admin", authMiddleware, getAdmin); 
 
 // Router to get Parent or Teacher info
-router.get("get-mobile", authMiddleware, getParentOrTeacher)
+router.get("/get-mobile", authMiddleware, getParentOrTeacher)
 
 export default router;
