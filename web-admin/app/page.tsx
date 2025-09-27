@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation"; // redirects / programmatic navigation
 import Image from "next/image"; // Use Next.js Image for optimized images
 import theme from "@/styles/color"
+import DevWrapper from "@/components/DevWrapper";
 
 export default function SignIn() {
   const { signIn } = useAuth(); // Correctly use the hook to get the signIn function
@@ -41,39 +42,41 @@ export default function SignIn() {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.formContainer}>
-        {/* Logo */}
-        <Image src="/logo.svg" alt="Sunshine" width={120} height={120} style={{ alignSelf: "center" }} />
-        <h2 style={styles.heading}>Sign in</h2>
-        {/* Login Form */}
-        <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={styles.input}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            style={styles.input}
-          />
-          {err && <p style={{ color: "#d00" }}>{err}</p>}
-          <button type="submit" disabled={!valid || loading} style={valid && !loading ? styles.button : styles.buttonDisabled}>
-            {loading ? "Loading..." : "Sign in"}
-          </button>
-        </form>
+    <DevWrapper>
+      <div style={styles.container}>
+        <div style={styles.formContainer}>
+          {/* Logo */}
+          <Image src="/logo.svg" alt="Sunshine" width={120} height={120} style={{ alignSelf: "center" }} />
+          <h2 style={styles.heading}>Sign in</h2>
+          {/* Login Form */}
+          <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={styles.input}
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              style={styles.input}
+            />
+            {err && <p style={{ color: "#d00" }}>{err}</p>}
+            <button type="submit" disabled={!valid || loading} style={valid && !loading ? styles.button : styles.buttonDisabled}>
+              {loading ? "Loading..." : "Sign in"}
+            </button>
+          </form>
 
-        <p style={{ marginTop: 12, textAlign: "center"   }}>
-          Don't have account? <Link href="/signup" style={{ color: "#1e90ff" }}>Create account</Link>
-        </p>
+          <p style={{ marginTop: 12, textAlign: "center"   }}>
+            Don't have account? <Link href="/signup" style={{ color: "#1e90ff" }}>Create account</Link>
+          </p>
+        </div>
+
       </div>
-
-    </div>
+    </DevWrapper>
   );
 }
 
