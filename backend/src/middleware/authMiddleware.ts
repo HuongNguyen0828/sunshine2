@@ -14,7 +14,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const adminAuthMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
 
   // If no input header
@@ -43,3 +43,4 @@ export const adminAuthMiddleware = async (req: AuthRequest, res: Response, next:
     return res.status(401).send({ message: "Invalid token" });
   }
 };
+

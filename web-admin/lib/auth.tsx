@@ -122,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const idToken = await userCredential.user.getIdToken();
       
       // 3. Call backend to get role
-      const res = await fetch("http://localhost:5000/auth/get-role", {
+      const res = await fetch("http://localhost:5000/auth/get-admin", {
         method: "GET",
         // Input Header autherization inside Request extended
         headers: { Authorization: `Bearer ${idToken}` },

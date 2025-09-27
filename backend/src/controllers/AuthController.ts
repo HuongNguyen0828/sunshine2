@@ -60,7 +60,7 @@ declare module "express-serve-static-core" {
   }
 }
 
-// Only admin can get in
+// Only admin can get in web-admin
 export async function getAdmin(req: Request, res: Response) {
   try {
     // if no user return from middleware
@@ -74,6 +74,26 @@ export async function getAdmin(req: Request, res: Response) {
           message: `Access denied. Admins only. As ${req.user.role}, please use Sunshine mobile app`,
         });
     // else, Case admin return user is Admin\
+    res.status(200).send({ user: req.user });
+  } catch (err: any) {
+    res.status(500).send({ message: err.message });
+  }
+}
+
+// Only Teacher or Parent can get in Mobile
+export async function getParentOrTeacher(req: Request, res: Response) {
+  try {
+    // if no user return from middleware
+    if (!req.user)
+      return res.status(403).send({ message: "No user logged in." });
+    // Case user is not Parent or not Teacher, but Admin
+    if (req.user.role === UserRole.Admin )
+      return res
+        .status(403)
+        .send({
+          message: `Access denied. As ${req.user.role}, please login in web app`,
+        });
+    // else, Case Teacher or Parent return user is Admin\
     res.status(200).send({ user: req.user });
   } catch (err: any) {
     res.status(500).send({ message: err.message });
