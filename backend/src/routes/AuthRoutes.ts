@@ -16,6 +16,6 @@ router.post("/verify-role", verifyRole);
 // Route to get admin info, protected by middleware
     // 1. adminAuthMiddleware verifies the Firebase ID token and attaches req.user
     // 2. getAdmin checks req.user.role and allows access only if the role is "admin"
-router.get("/get-admin", adminAuthMiddleware, getAdmin); 
+router.get("/get-role", adminAuthMiddleware, getAdmin); 
 
 export default router;

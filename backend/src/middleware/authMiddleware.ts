@@ -37,6 +37,7 @@ export const adminAuthMiddleware = async (req: AuthRequest, res: Response, next:
     if (!role) return res.status(403).send({ message: "Unauthorized email!" });
 
     req.user = { uid: decoded.uid, email: email!, role };
+    // Room for call next function as getRoele from controller
     next();
   } catch (err) {
     return res.status(401).send({ message: "Invalid token" });

@@ -114,18 +114,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Case 3. user is admin, entering wrong password: throw error: Hello admin, Invalid passowrd
     // Case 4. Success: user is admin and all correct: redirect into dashboard.
   const signIn = async (email: string, password: string): Promise<void> => {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const idToken = await userCredential.user.getIdToken();
+    try {
+      // 1. Firebase Auth login
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-    const res = await fetch("http://localhost:5000/auth/get-admin", {
-      // Input Header autherization inside Request extended
-      headers: { Authorization: `Bearer ${idToken}` },
-    });
+      // 2. Get ID token
+      const idToken = await userCredential.user.getIdToken();
+      
+      // 3. Call backend to get role
+      const res = await fetch("http://localhost:5000/auth/get-role", {
+        method: "GET",
+        // Input Header autherization inside Request extended
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
 
-    if (!res.ok) throw new Error("Admins only can sign in.");
-    const data = await res.json();
+      // Case not Admin
+      if (!res.ok) {
+        // Extract message from respond: custome with role-based or general message
+        const errData = await res.json();
+        throw new Error(errData.message || "Access denied");
+      }
+      // else, Case: Admin 
+      const data = await res.json();
 
-    localStorage.setItem("userRole", data.user.role);
+      // 4. Store role in cache/localStorage (for reduce fetching check-role and user once they login)
+      localStorage.setItem("userRole", data.user.role);
+
+    } catch (error: any) {
+      // Error from Frontend: Firebase Auth errors with signInWithEmailAndPassword
+      if (error.code === "auth/invalid-credential") throw new Error("Invalid Email or Password");
+      // else, error from role-base
+      throw error;
+    }
+    
   };
 
   const signOutUser = async () => {

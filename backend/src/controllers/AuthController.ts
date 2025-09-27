@@ -1,8 +1,11 @@
 import admin from "firebase-admin";
-import {Response, Request} from "express"
-import { findRoleByEmail, createUser, getUserByUid } from "../services/authService";
+import { Response, Request } from "express";
+import {
+  findRoleByEmail,
+  createUser,
+  getUserByUid,
+} from "../services/authService";
 import { UserRole } from "../models/user";
-
 
 // Check email before let user Signin
 export async function checkEmail(req: Request, res: Response) {
@@ -12,7 +15,13 @@ export async function checkEmail(req: Request, res: Response) {
     // calling serive
     const role = await findRoleByEmail(email);
     // If not email
-    if (!role) return res.status(403).send({ message: "Email not authorized. You need register your daycare with Sunshine" });
+    if (!role)
+      return res
+        .status(403)
+        .send({
+          message:
+            "Email not authorized. You need register your daycare with Sunshine",
+        });
 
     res.send({ role });
   } catch (err: any) {
@@ -20,15 +29,13 @@ export async function checkEmail(req: Request, res: Response) {
   }
 }
 
-
-// Create user by Verify userRole: link the user uid of 
+// Create user by Verify userRole: link the user uid of
 export async function verifyRole(req: Request, res: Response) {
-    
   try {
     const { idToken, name } = req.body;
     const decoded = await admin.auth().verifyIdToken(idToken);
     // return email or null
-    const email = decoded.email ?? null; 
+    const email = decoded.email ?? null;
     // Extract role from email
     const role = await findRoleByEmail(email);
 
@@ -37,7 +44,6 @@ export async function verifyRole(req: Request, res: Response) {
     // if role is defined, create users collection in Firestore with same uid with uid in Firebase Auth
     await createUser(decoded.uid, email, role, name);
     res.send({ message: "User verified", role });
-
   } catch (err: any) {
     res.status(500).send({ message: err.message });
   }
@@ -57,10 +63,17 @@ declare module "express-serve-static-core" {
 // Only admin can get in
 export async function getAdmin(req: Request, res: Response) {
   try {
-    if (req.user?.role !== "admin") {
-      return res.status(403).send({ message: "Access denied. Admins only." });
-    }
-    // return user is Admin\
+    // if no user return from middleware
+    if (!req.user)
+      return res.status(403).send({ message: "No user logged in." });
+    // Case user is not Admin
+    if (req.user.role !== UserRole.Admin)
+      return res
+        .status(403)
+        .send({
+          message: `Access denied. Admins only. As ${req.user.role}, please use Sunshine mobile app`,
+        });
+    // else, Case admin return user is Admin\
     res.status(200).send({ user: req.user });
   } catch (err: any) {
     res.status(500).send({ message: err.message });
