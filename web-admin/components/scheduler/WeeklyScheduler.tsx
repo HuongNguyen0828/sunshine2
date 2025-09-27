@@ -1,3 +1,9 @@
+/**
+ * Generated with Claude Code (claude.ai/code)
+ * Prompt: "think harder the current code base tells when CSS seems not working. Help me understand what are the possible reasons."
+ * 
+ * Main weekly scheduler component that combines calendar and activity management
+ */
 'use client';
 
 import { useState, useEffect } from "react";

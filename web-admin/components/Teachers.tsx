@@ -1,16 +1,16 @@
 
 import {useState, useEffect } from "react"
-import * as Types from "@shared/types/type"; // Type definitions
+import * as Types from "../../shared/types/type"; // Type definitions
 import { sharedStyles } from "@/styles/sharedStyle"; // import styles sharing 
 import { assignRoleToUser } from "@/app/helpers"; // assigning role
 
 interface TeachersProps {
-  teachers: Types.Teacher;
+  teachers: Types.Teacher[];
 }
 
 export default function Teachers( {teachers}: TeachersProps) {
 
-    const [newTeacher, setNewTeacher] = useState<Types.Teacher>({});
+    const [newTeacher, setNewTeacher] = useState<Partial<Types.Teacher>>({});
     
    
 
@@ -19,7 +19,18 @@ export default function Teachers( {teachers}: TeachersProps) {
     e.preventDefault();
     const teacher: Types.Teacher = {
         id: String(teachers.length + 1),
-        ...newTeacher
+        firstName: newTeacher.firstName || "",
+        lastName: newTeacher.lastName || "",
+        role: "teacher",
+        email: newTeacher.email || "",
+        phone: newTeacher.phone || "",
+        street: newTeacher.street || "",
+        city: newTeacher.city || "",
+        province: newTeacher.province || "",
+        country: newTeacher.country || "CA",
+        startDate: new Date().toISOString(),
+        classIds: newTeacher.classIds || [],
+        locationId: newTeacher.locationId || "",
     };
     setNewTeacher({ firstName: "", lastName: "",  email: "", phone: "" });
     };
@@ -42,7 +53,7 @@ export default function Teachers( {teachers}: TeachersProps) {
                 type="text"
                 placeholder="Last Name"
                 value={newTeacher.lastName}
-                onChange={(e) => setNewTeacher({...newTeacher, firstName: e.target.value})}
+                onChange={(e) => setNewTeacher({...newTeacher, lastName: e.target.value})}
                 style={sharedStyles.input}
                 required
             />
@@ -74,7 +85,7 @@ export default function Teachers( {teachers}: TeachersProps) {
             {teachers.map(teacher => (
                 <div key={teacher.id} style={sharedStyles.listItem}>
                 <div>
-                    <strong>{teacher.firstName} {teacher.lastName}</strong> - {teacher.classId}
+                    <strong>{teacher.firstName} {teacher.lastName}</strong> - {teacher.classIds?.join(", ") || "No classes assigned"}
                 </div>
                 <div><strong>Email:</strong> {teacher.email} <strong>Phone:</strong> {teacher.phone}</div>
             

@@ -1,3 +1,9 @@
+/**
+ * Generated with Claude Code (claude.ai/code)
+ * Prompt: "think harder the current code base tells when CSS seems not working. Help me understand what are the possible reasons."
+ * 
+ * Activity library component for managing available activities
+ */
 'use client';
 
 import { useState } from "react";

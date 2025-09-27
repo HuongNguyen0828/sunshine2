@@ -1,3 +1,9 @@
+/**
+ * Generated with Claude Code (claude.ai/code)
+ * Prompt: "think harder the current code base tells when CSS seems not working. Help me understand what are the possible reasons."
+ * 
+ * Activity selector component for choosing activities in schedule slots
+ */
 'use client';
 
 import type { Activity, SlotInfo } from "@/types/scheduler";

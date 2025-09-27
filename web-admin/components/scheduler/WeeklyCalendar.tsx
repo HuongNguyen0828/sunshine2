@@ -1,3 +1,9 @@
+/**
+ * Generated with Claude Code (claude.ai/code)
+ * Prompt: "think harder the current code base tells when CSS seems not working. Help me understand what are the possible reasons."
+ * 
+ * Weekly calendar component for daycare activity scheduling
+ */
 'use client';
 
 import { useState } from "react";
