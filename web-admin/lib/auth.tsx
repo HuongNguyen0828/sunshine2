@@ -17,7 +17,6 @@ import app from "./firebase";
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
-  userLoggedIn: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   isAdmin: boolean;
@@ -33,31 +32,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const auth = getAuth(app);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userLoggedIn, setUserLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const checkUserRole = async (user: User | null): Promise<string | null> => {
-    if (!user) return null;
-    try {
-      const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
-      const role = idTokenResult.claims.role as string | undefined;
-      setUserRole(role ?? null);
-      setIsAdmin(role === "admin");
-      return role ?? null;
-    } catch {
-      setUserRole(null);
-      setIsAdmin(false);
-      return null;
-    }
-  };
-
+ 
+  // Detect curent user
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
-      setUserLoggedIn(!!user);
-      void checkUserRole(user);
       setLoading(false);
+
+      // If user not login, clean up authContext and local storage
+      if (!user) {
+      setUserRole(null);
+      setIsAdmin(false);
+      localStorage.removeItem("userRole");
+    }
     });
     return () => unsubscribe();
   }, [auth]);
@@ -136,6 +126,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // 4. Store role in cache/localStorage (for reduce fetching check-role and user once they login)
       localStorage.setItem("userRole", data.user.role);
+
+      // Updating AuthContext: On reload, rehydrate from localStorage.
+      setUserRole(data.user.role);
+      setIsAdmin(data.user.role === "admin");   
+
     } catch (error: any) {
       // Error from Frontend: Firebase Auth errors with signInWithEmailAndPassword
       if (error.code === "auth/invalid-credential")  throw new Error("Invalid Email or Password");
@@ -155,7 +150,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       value={{
         currentUser,
         loading,
-        userLoggedIn,
         signIn,
         signUp,
         isAdmin,
