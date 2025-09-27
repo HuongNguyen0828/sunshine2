@@ -4,11 +4,10 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
-  IdTokenResult,
   type User,
 } from "firebase/auth";
 import { auth } from "./firebase";
-
+import AsyncStorage from "@react-native-async-storage/async-storage"; // equivenlent to local storage in web-admin
 import { Platform } from "react-native";
 
 // Remove Firestore access to shift login into backend
@@ -65,56 +64,52 @@ export async function registerUser(
 
 // Need to be in try-catch block: handle specific error
 export async function signIn(email: string, password: string) {
-  // return await signInWithEmailAndPassword(auth, email, password);
-
-  // check user role from Firebase custom claims
-  const checkUserRole = async (user: User) => {
-    // if no user,
-    if (!user) {
-      return null;
-    }
-
-    try {
-      const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
-      const role = idTokenResult.claims.role as string | undefined;
-      return role || null;
-    } catch (error) {
-      console.error("Error fetching user role:", error);
-      return null;
-    }
-  };
-
   try {
+    // 1. Firebase Auth login
     const userCredential = await signInWithEmailAndPassword(
       auth,
       email,
       password
     );
 
-    const role = await checkUserRole(userCredential.user);
-    //Check the role here
-    if (role == null) {
-      await signOutUser();
-      const accessError = new Error("Wait to assign role.");
-      accessError.name = "AccessDeniedError"; // custom error type
-      throw accessError;
+    // 2. Get ID token
+    const idToken = await userCredential.user.getIdToken();
+
+    // 3. Call backend to get role
+    const res = await fetch(`${BASE_URL}/auth/get-mobile`, {
+      method: "GET",
+      // Input Header autherization inside Request extended
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+
+    // Case not Admin
+    if (!res.ok) {
+      // Extract message from respond: custome with role-based or general message
+      const errData = await res.json();
+      throw new Error(errData.message || "Access denied");
     }
+    // else, Case: Admin
+    const data = await res.json();
+
+    // 4. Store role in cache/localStorage (for reduce fetching check-role and user once they login)
+    await AsyncStorage.setItem("userRole", data.user.role);
+    // const role = await AsyncStorage.getItem("userRole");
+
   } catch (error: any) {
-    // Handle specific Firebase auth errors
-    if (error.code === "auth/invalid-credential") {
-      throw new Error("Email or password is incorrect.");
-      // } else if (error.name == "AccessDeniedError") throw error;
-    } else {
-      console.error("Sign in error:", error);
-      throw new Error(error.message);
-    }
+    // Error from Frontend: Firebase Auth errors with signInWithEmailAndPassword
+    if (error.code === "auth/invalid-credential")  throw new Error("Invalid Email or Password");
+    // else, error from role-base
+    throw error;
   }
 }
 
 export async function signOutUser() {
   await signOut(auth);
+  // Clear user from AsyncStorage
+  await AsyncStorage.removeItem("userRole");
 }
 
+// Listener when user changed instead of using AuthContext
 export function onUserChanged(cb: (user: User | null) => void) {
   return onAuthStateChanged(auth, cb);
 }

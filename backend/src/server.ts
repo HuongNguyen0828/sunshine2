@@ -18,9 +18,24 @@ admin.initializeApp({
 // Firestore reference
 export const db = admin.firestore();
 
+
+// Enforce security network domain in Cors
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000', // Web admin frontend (runs on port 3000)
+    'http://10.0.2.2:8081',  // React Native Metro bundler (default port 8081)
+    'http://localhost:8081', // React Native Metro bundler alternative
+    // Add production domains later
+  ],
+  credentials: true
+}));
+
 app.use(express.json()); // parse JSON body
+// For testing backend server is reachable
+app.get('/', (req, res) => {
+  res.send('Server is running!');
+});
 
 //Signup and autherization
 app.use("/auth", route);
@@ -48,9 +63,12 @@ app.get("/teachers", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+// Adding "0.0.0.0" for listing all networking, including localhost (web), and emulator and physically machine (phone)
+// Then must enforce security in CORS network (domain) access above
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+
+app.listen(PORT,'0.0.0.0', () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
 
