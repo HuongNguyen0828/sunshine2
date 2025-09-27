@@ -118,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const idToken = await userCredential.user.getIdToken();
 
     const res = await fetch("http://localhost:5000/auth/get-admin", {
+      // Input Header autherization inside Request extended
       headers: { Authorization: `Bearer ${idToken}` },
     });
 
