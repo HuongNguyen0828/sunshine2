@@ -150,11 +150,8 @@ export default function Register() {
             </Pressable>
           </Link>
         </View>
-        {/* Bottom hero image: not flush with the edge */}
-          <Image
-            source={require("../../assets/images/welcome.jpg")}
-            style={s.heroBottom}
-          />
+
+      
       </View>
     </KeyboardAvoidingView>
   );

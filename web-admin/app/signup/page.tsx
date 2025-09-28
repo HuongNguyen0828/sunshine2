@@ -9,13 +9,14 @@ import { useRouter } from "next/navigation"; // redirects / programmatic navigat
 import Image from "next/image"; // Use Next.js Image for optimized images
 import theme from "@/styles/color"
 
-export default function SignUp() {
+export default function SignIn() {
   const { signUp } = useAuth(); // Correctly use the hook to get the signIn function
-  const [ name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [name, setName] = useState("");
 
   // Next.js router for navigation
   const router = useRouter();
@@ -31,10 +32,10 @@ export default function SignUp() {
     try {
       setErr(null);
       setLoading(true);
-      await signUp(name, email, pw); // Use the signIn function from the hook
-      router.push("/"); // Redirect to Login screen to assess the role
-    } catch (e: any) {
-      const msg = e?.message;
+      await signUp(name, email, pw);
+      router.push("/");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
       setErr(msg);
     } finally {
       setLoading(false);
@@ -49,20 +50,21 @@ export default function SignUp() {
         <h2 style={styles.heading}>Creat new account</h2>
         {/* Login Form */}
         <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-           <input
+          <input
             type="text"
-            placeholder="Name"
+            placeholder="Full Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={styles.input}
+            required
           />
-
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={styles.input}
+            required
           />
           <input
             type="password"
@@ -70,10 +72,20 @@ export default function SignUp() {
             value={pw}
             onChange={(e) => setPw(e.target.value)}
             style={styles.input}
+            required
+          />
+
+          <input
+            type="password"
+            placeholder="Confirm Password"
+            value={pw2}
+            onChange={(e) => setPw2(e.target.value)}
+            style={styles.input}
+            required
           />
           {err && <p style={{ color: "#d00" }}>{err}</p>}
           <button type="submit" disabled={!valid || loading} style={valid && !loading ? styles.button : styles.buttonDisabled}>
-            {loading ? "Loading..." : "Sign in"}
+            {loading ? "Loading..." : "Sign up"}
           </button>
         </form>
 

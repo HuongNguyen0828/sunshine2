@@ -1,14 +1,9 @@
-"use client";
+'use client';
 
-import * as Types from "../../../shared/types/type";
-import { sharedStyles } from "@/styles/sharedStyle";
-
-import type { NewTeacherInput } from "@/types/forms";
-import { assignRoleToUser } from "@/app/helpers";
-import { useState } from "react";
-import { LoadScript, Autocomplete } from "@react-google-maps/api"; // for auto-completion of adress using Google Places API (part of Google Maps Platform
-
-const libraries: "places"[] = ["places"];
+import * as Types from '../../../shared/types/type';
+import { sharedStyles } from '@/styles/sharedStyle';
+import type { NewTeacherInput } from '@/types/forms';
+import {useState} from "react";
 
 export default function TeachersTab({
   teachers,
@@ -24,40 +19,66 @@ export default function TeachersTab({
   const [country, setCountry] = useState<Types.CountryType>("CA");
   const [province, setProvince] = useState("");
   const [city, setCity] = useState("");
-  const [street, setStreet] = useState("");
+  const [address, setAddress] = useState("");
 
-  
-
-  const provinces: Types.ProvinceType= {
-    CA: ["Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador", "Nova Scotia", "Ontario", "Prince Edward Island", "Quebec", "Saskatchewan"],
-    US: ["Alabama", "Alaska", "Arizona", "California", "Colorado", "Florida", "New York", "Texas", "Washington" /* ... need add all states */],
+  const provinces: Types.ProvinceType = {
+    CA: [
+      "Alberta",
+      "British Columbia",
+      "Manitoba",
+      "New Brunswick",
+      "Newfoundland and Labrador",
+      "Nova Scotia",
+      "Ontario",
+      "Prince Edward Island",
+      "Quebec",
+      "Saskatchewan",
+    ],
+    US: [
+      "Alabama",
+      "Alaska",
+      "Arizona",
+      "California",
+      "Colorado",
+      "Florida",
+      "New York",
+      "Texas",
+      "Washington" /* ... need add all states */,
+    ],
   };
-
 
   let cityAutocomplete: google.maps.places.Autocomplete | null = null;
   let streetAutocomplete: google.maps.places.Autocomplete | null = null;
 
-
-
   const onCityLoad = (ref: google.maps.places.Autocomplete) => {
     cityAutocomplete = ref;
+    
+  // Set options to restrict to cities
+  if (cityAutocomplete) {
+    cityAutocomplete.setOptions({
+      types: ['(cities)'] // This restricts to cities only
+    });
+  }
   };
 
   const onCityChanged = () => {
     const place = cityAutocomplete?.getPlace();
-    if (place?.address_components) {
-      setCity(place.formatted_address || "");
+    if (place) {
+      console.log(place);
+    // With cities restriction, the place name should be the city
+    setCity(place.name || "");
     }
   };
 
-  const onStreetLoad = (ref: google.maps.places.Autocomplete) => {
+  const onAddressLoad = (ref: google.maps.places.Autocomplete) => {
     streetAutocomplete = ref;
   };
 
-  const onStreetChanged = () => {
+  const onAdressChanged = () => {
     const place = streetAutocomplete?.getPlace();
+    console.log(place);
     if (place?.formatted_address) {
-      setStreet(place.formatted_address);
+      setAddress(place.formatted_address);
     }
   };
 
@@ -127,12 +148,18 @@ export default function TeachersTab({
         </label>
 
         {/* Address */}
-        <div style={sharedStyles.addressSection}>
-          <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string} libraries={libraries}>
+        {/* <div style={sharedStyles.addressSection}> */}
+          <LoadScript
+            googleMapsApiKey={
+              process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string
+            }
+            libraries={libraries}
+          >
             {/* Country Dropdown */}
-            <label style={sharedStyles.address}>
+            {/* <label style={sharedStyles.address}>
               Country:
-              <select style={sharedStyles.dropdown}
+              <select
+                style={sharedStyles.dropDown}
                 value={country}
                 onChange={(e) => {
                   setCountry(e.target.value as Types.CountryType);
@@ -146,7 +173,8 @@ export default function TeachersTab({
 
             <label style={sharedStyles.address}>
               Province/State:
-              <select style={sharedStyles.dropdown}
+              <select
+                style={sharedStyles.dropdown}
                 value={province}
                 onChange={(e) => setProvince(e.target.value)}
               >
@@ -157,10 +185,10 @@ export default function TeachersTab({
                   </option>
                 ))}
               </select>
-            </label>
+            </label> */}
 
             {/* City Autocomplete */}
-            <label style={sharedStyles.address}>
+            {/* <label style={sharedStyles.address}>
               City:
               <Autocomplete
                 onLoad={onCityLoad}
@@ -171,35 +199,37 @@ export default function TeachersTab({
                 }}
               >
                 <input
+                  style={sharedStyles.dropdown}
                   type="text"
                   placeholder="Enter city"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                 />
               </Autocomplete>
-            </label>
+            </label> */}
 
             {/* Street Autocomplete */}
-            <label style={sharedStyles.address}>
-              Street:
+            <label>
+              Address:
               <Autocomplete
-                onLoad={onStreetLoad}
-                onPlaceChanged={onStreetChanged}
+                onLoad={onAddressLoad}
+                onPlaceChanged={onAdressChanged}
                 options={{
                   types: ["address"],
                   componentRestrictions: { country },
                 }}
               >
                 <input
+                  style={sharedStyles.input}
                   type="text"
-                  placeholder="Enter street"
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
+                  placeholder="e.g. 231 16 Ave"
+                  value={address}
+                  onChange={(e) => {setAddress(e.target.value);}}
                 />
               </Autocomplete>
             </label>
           </LoadScript>
-        </div>
+        {/* </div> */}
 
         <label>
           Start Date:
@@ -236,7 +266,7 @@ export default function TeachersTab({
 
       {/* Teacher list */}
       <div style={sharedStyles.list}>
-        <h3>All Teachers ({teachers.length})</h3>
+        <h3>All Teachers</h3>
         {teachers.map((t) => (
           <div key={t.id} style={sharedStyles.listItem}>
             <div>
@@ -247,7 +277,7 @@ export default function TeachersTab({
                 ({t.email})
               </div>
               <div>Phone: {t.phone}</div>
-              <div>Location: {t.locationId}</div>
+              <div>Address: {t.address}</div>
               <div>
                 Classes: {t.classIds?.length ? t.classIds.join(", ") : "None"}
               </div>

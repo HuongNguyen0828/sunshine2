@@ -2,7 +2,7 @@
 import * as Types from '../../shared/types/type';
 
 // Tabs used in the dashboard
-export type Tab = 'overview' | 'teachers' | 'children' | 'parents' | 'classes';
+export type Tab = 'overview' | 'teachers' | 'children' | 'parents' | 'classes' | 'schedule' | 'report';
 
 // New item input shapes for controlled forms (no `any`)
 export type NewTeacherInput = Omit<Types.Teacher, 'id' | 'role'>;

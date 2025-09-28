@@ -10,6 +10,7 @@ import TeachersTab from '@/components/dashboard/TeachersTab';
 import ChildrenTab from '@/components/dashboard/ChildrenTab';
 import ParentsTab from '@/components/dashboard/ParentsTab';
 import ClassesTab from '@/components/dashboard/ClassesTab';
+import Schedule from "@/components/dashboard/SchedulerLabsTab";
 import { dash } from '@/styles/dashboard';
 import * as Types from '../../../shared/types/type';
 import type {
@@ -89,8 +90,14 @@ export default function AdminDashboard() {
     },
   ]);
   const [classes, setClasses] = useState<Types.Class[]>([
-    { id: '1', name: 'Class 3A', locationId: 'loc-1', capcity: 20, volume: 20, ageStart: 7, ageEnd: 9 },
-    { id: '2', name: 'Class 4B', locationId: 'loc-1', capcity: 20, volume: 18, ageStart: 8, ageEnd: 10 },
+    {
+      id: '1', name: 'Class 3A', locationId: 'loc-1', capcity: 20, volume: 20, ageStart: 7, ageEnd: 9,
+      classroom: ''
+    },
+    {
+      id: '2', name: 'Class 4B', locationId: 'loc-1', capcity: 20, volume: 18, ageStart: 8, ageEnd: 10,
+      classroom: ''
+    },
 
   ]);
 
@@ -101,10 +108,10 @@ export default function AdminDashboard() {
     lastName: '',
     email: '',
     phone: '',
-    street: "",
-    city: "",
-    province: "",
-    country: "CA",
+    address: "",
+    // city: "",
+    // province: "",
+    // country: "CA",
     classIds: [],
     locationId: '',
     startDate: '',
@@ -181,23 +188,25 @@ export default function AdminDashboard() {
 
    // Fetching teacher from database: backend domain
   useEffect(() => {
-  const fetchTeachers = async () => {
-      try {
+  const fetchTeachers = async (): Promise<void> => {
+    try {
       const res = await fetch("http://localhost:5000/teachers");
-      if (!res.ok) throw new Error("Failed to fetch teachers ")
-
-      const data: Types.Teacher[] = await res.json();
-      setTeachers(data)
-
-      // get teachers length
-      length = teachers.length;
-
-      } catch (err: any) {
-      console.error(err)
-      alert("Error fetching teachers")
+      if (!res.ok) {
+        throw new Error(`Failed to fetch teachers (status: ${res.status})`);
       }
+
+      const data = (await res.json()) as Types.Teacher[];
+      setTeachers(data);
+
+      // compute from the fresh payload, not from state
+      length = data.length;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      console.error(err);
+      alert(`Error fetching teachers: ${msg}`);
+    }
   }
-  // call fetchTeacher
+  // call fetch
   fetchTeachers();
   console.log(teachers)
   }, [newTeacher]) // changes depend on newTeacher
@@ -219,10 +228,10 @@ export default function AdminDashboard() {
         lastName: '',
         email: '',
         phone: '',
-        street: "",
-        city: "",
-        province: "",
-        country: "CA",
+        address: "",
+        // city: "",
+        // province: "",
+        // country: "CA",
         classIds: [],
         locationId: '',
         startDate: '',
@@ -311,7 +320,10 @@ export default function AdminDashboard() {
 
   const addClass = () => {
     // Local-only example; can be migrated to Firestore
-    const cls: Types.Class = { id: String(classes.length + 1), ...newClass };
+    const cls: Types.Class = {
+      id: String(classes.length + 1), ...newClass,
+      classroom: ''
+    };
     setClasses((p) => [...p, cls]);
     setNewClass({
       name: '',
@@ -381,6 +393,26 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === 'classes' && (
+            <ClassesTab
+              classes={classes}
+              teachers={teachers}
+              newClass={newClass}
+              setNewClass={setNewClass}
+              onAdd={addClass}
+            />
+          )}
+
+          {activeTab === 'schedule' && (
+             <ClassesTab
+              classes={classes}
+              teachers={teachers}
+              newClass={newClass}
+              setNewClass={setNewClass}
+              onAdd={addClass}
+            />
+          )}
+
+          {activeTab === 'report' && (
             <ClassesTab
               classes={classes}
               teachers={teachers}

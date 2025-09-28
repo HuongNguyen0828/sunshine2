@@ -1,87 +1,25 @@
-//src/routes/AdminRoutes
+//src/routes/AuthRoutes
 import {Router } from "express"
-import admin from "firebase-admin"
+import {checkEmail, verifyRole, getAdmin, getParentOrTeacher } from "../controllers/AuthController"
+import { authMiddleware } from "../middleware/authMiddleware";
 
 
 
 const router = Router();
 
-router.post("/register", async (req, res) => {
-    const { email, password, name } = req.body;
+// In Express, req.user only exists if having a middleware that:
+    // Verifies the ID token (from Firebase Auth)
+    // Attaches the user info (like UID, email, role) to req.user
 
-    try {
-        // 1. Check if email exists in teachers, admin, parents collections
-        const teachersSnapShot = await admin.firestore()
-            .collection("teachers")
-            .where("email", "==", email)
-            .get();
-        
-        const parentsSnapShot =  await admin.firestore()
-            .collection("parents")
-            .where("email", "==", email)
-            .get();
+router.post("/check-email", checkEmail );
+router.post("/verify-role", verifyRole);
 
-        const adminSnapShot = await admin.firestore()
-            .collection("admin")
-            .where("email", "==", email)
-            .get();
+// Route to get admin info, protected by middleware
+    // 1. adminAuthMiddleware verifies the Firebase ID token and attaches req.user
+    // 2. getAdmin checks req.user.role and allows access only if the role is "admin"
+router.get("/get-admin", authMiddleware, getAdmin); 
 
-        // Check if cannot find
-        if (teachersSnapShot.empty && parentsSnapShot.empty && adminSnapShot.empty) {
-            return res.status(400).json({message: "Email not recognized"})
-        }
-
-
-        // Else, if found
-        // Check if email is unique inside 
-
-        // 2. Create Auth user
-        const userRecord = await admin.auth().createUser({
-            email,
-            password,
-            displayName: `${name}`,
-        });
-
-        // 3. Set custom claims to be parent
-        if (!parentsSnapShot.empty) {
-            // Take the matching doc from collection
-            const parentsDoc = parentsSnapShot.docs[0];
-            // 3. Set custom claims to be teacher
-            await admin.auth().setCustomUserClaims(userRecord.uid, {role: "parent"});
-            // 4. Updating Firebase doc with UID of Auth
-            await parentsDoc?.ref.update({id: userRecord.uid});
-            return res.status(201).json({message: "Parent registered successfully"})
-        }
-
-        if (!adminSnapShot.empty) {
-            // Take the matching doc from collection
-            const adminDoc = adminSnapShot.docs[0];
-            // 3. Set custom claims to be teacher
-            await admin.auth().setCustomUserClaims(userRecord.uid, {role: "admin"});
-            // 4. Updating Firebase doc with UID of Auth
-            await adminDoc?.ref.update({id: userRecord.uid});
-            return res.status(201).json({message: "Admin registered successfully"})
-        }
-
-    
-        if (!teachersSnapShot.empty) {
-            // Take the matching doc from collection
-            const teacherDoc = teachersSnapShot.docs[0];
-            // 3. Set custom claims to be teacher
-            await admin.auth().setCustomUserClaims(userRecord.uid, {role: "teacher"});
-            // 4. Updating Firebase doc with UID of Auth
-            await teacherDoc?.ref.update({id: userRecord.uid});
-            return res.status(201).json({message: "Teacher registered successfully"})
-        }
-
-        
-    } catch (error: any) {
-        console.error(error);
-        return res.status(500).json({message: error.message})
-    }
-})
-
-
-
+// Router to get Parent or Teacher info
+router.get("/get-mobile", authMiddleware, getParentOrTeacher)
 
 export default router;
