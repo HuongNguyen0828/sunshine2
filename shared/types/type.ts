@@ -57,7 +57,7 @@ export type Class = {
   id: string;
   name: string;
   locationId: string; 
-  capcity: number;
+  capacity: number;
   volume: number;
   ageStart: number;
   ageEnd: number;
@@ -79,7 +79,12 @@ export type Teacher = {
   lastName: string;
   email: string; // username for login
   phone: string;
-  address?: string;
+  address1: string;
+  address2?: string;
+  city: string;
+  province: string;
+  country: string;
+  postalcode?: string;
   classIds?: string[]; // Classes assigned to this staff
   locationId?: string; // Location assigned to this staff
   startDate: string;

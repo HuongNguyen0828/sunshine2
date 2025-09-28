@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import * as Types from '../../../shared/types/type';
-import { sharedStyles } from '@/styles/sharedStyle';
-import type { NewTeacherInput } from '@/types/forms';
-import {useState} from "react";
-import { CountryType } from '@/utils/autoCompleteAddress';
-import { Autocomplete } from "@react-google-maps/api"
+import * as Types from "../../../shared/types/type";
+import { useCallback } from "react";
+import { sharedStyles } from "@/styles/sharedStyle";
+import type { NewTeacherInput } from "@/types/forms";
+import AutoCompleteAdress from "@/components/AutoCompleteAddress";
+import {Address} from "@/components/AutoCompleteAddress"
 
 export default function TeachersTab({
   teachers,
@@ -18,7 +18,20 @@ export default function TeachersTab({
   setNewTeacher: React.Dispatch<React.SetStateAction<NewTeacherInput>>;
   onAdd: () => void;
 }) {
-  
+
+  const handleAddressChange = useCallback((a: Address) => {
+    setNewTeacher((prev) => ({
+        ...prev, 
+        address1: a.address1, 
+        address2: a.address2, 
+        city: a.city, 
+        province: a.province, 
+        country: a.country, 
+        postalcode: a.postalcode
+    }));
+}, []);
+
+
   return (
     <div>
       <h2>Manage Teachers</h2>
@@ -83,8 +96,10 @@ export default function TeachersTab({
             required
           />
         </label>
+          
+        {/* Adding Teacher's */}
+        <AutoCompleteAdress onAddressChanged={handleAddressChange} />
 
-        
 
         <label>
           Start Date:
@@ -121,7 +136,7 @@ export default function TeachersTab({
 
       {/* Teacher list */}
       <div style={sharedStyles.list}>
-        <h3>All Teachers</h3>
+        <h3>All Teachers - {teachers.length}</h3>
         {teachers.map((t) => (
           <div key={t.id} style={sharedStyles.listItem}>
             <div>
@@ -132,7 +147,7 @@ export default function TeachersTab({
                 ({t.email})
               </div>
               <div>Phone: {t.phone}</div>
-              <div>Address: {t.address}</div>
+              <div>Address: {t.address2} {t.address1} {t.city} {t.province} {t.country} {t.postalcode} </div>
               <div>
                 {/* Classes: {t.classIds?.length ? t.classIds.join(", ") : "None"} */}
               </div>
@@ -146,16 +161,9 @@ export default function TeachersTab({
             <div style={sharedStyles.secondaryButtonSection}>
               <button
                 style={{ ...sharedStyles.button }}
-                // onClick={() => assignRoleToUser(t.id, "admin", true)}
+              // onClick={() => assignRoleToUser(t.id, "admin", true)}
               >
                 Assign Class
-              </button>
-
-              <button
-                style={{ ...sharedStyles.button }}
-                // onClick={() => assignRoleToUser(t.id, "admin", true)}
-              >
-                Make Admin
               </button>
 
               <button
@@ -163,7 +171,7 @@ export default function TeachersTab({
                   ...sharedStyles.secondaryButton,
                   backgroundColor: "grey",
                 }}
-                // onClick={() => assignRoleToUser(t.id, "admin", true)}
+              // onClick={() => assignRoleToUser(t.id, "admin", true)}
               >
                 Edit
               </button>
@@ -173,7 +181,7 @@ export default function TeachersTab({
                   ...sharedStyles.secondaryButton,
                   backgroundColor: "red",
                 }}
-                // onClick={() => assignRoleToUser(t.id, "admin", true)}
+              // onClick={() => assignRoleToUser(t.id, "admin", true)}
               >
                 Delete
               </button>

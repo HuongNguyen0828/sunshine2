@@ -27,8 +27,9 @@ export type NewParentInput = Omit<Types.Parent, 'id' | 'role' | 'createdAt'>;
 export interface NewClassInput {
   name: string;
   locationId: string;
-  capcity: number;
+  capacity: number;
   volume: number;
   ageStart: number;
   ageEnd: number;
+  classroom: string,
 }

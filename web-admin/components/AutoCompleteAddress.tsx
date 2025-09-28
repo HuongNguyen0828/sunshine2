@@ -1,45 +1,61 @@
 "use client"
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import { CountryType } from '@/utils/autoCompleteAddress';
 import { Autocomplete } from "@react-google-maps/api"
 import { sharedStyles } from '@/styles/sharedStyle';
+import { Teacher as type} from "../../shared/types/type"
 
 
+export interface Address {
+  address1: string;
+  address2: string;
+  city: string;
+  province: string;
+  country: string;
+  postalcode: string;
+}
+interface AutoCompleteAddressProps {
+  onAddressChanged: (address: Address) => void;
+}
 
 
-export default function AutoCompleteAddress() {
+export default function AutoCompleteAddress( {onAddressChanged = () => {}} :AutoCompleteAddressProps ) {
     const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
         
-        const [address1, setAddress1] = useState<string>("");
-        const [address2, setAddress2] = useState<string>(""); // Apartment, unit, suite, or floor #
-        const [city, setCity] = useState<string>("");
-        const [province, setProvince] = useState<string>("");
-        const [country, setCountry] = useState<string>(""); // Only Canada or US is stricted inside componentRestrictions: { country },
-        const [postalcode, setPostalCode] = useState<string>(""); // Postalcode
-        
+    const [address1, setAddress1] = useState<string>("");
+    const [address2, setAddress2] = useState<string>(""); // Apartment, unit, suite, or floor #
+    const [city, setCity] = useState<string>("");
+    const [province, setProvince] = useState<string>("");
+    const [country, setCountry] = useState<string>(""); // Only Canada or US is stricted inside componentRestrictions: { country },
+    const [postalcode, setPostalCode] = useState<string>(""); // Postalcode
+    const [loading, setLoading] = useState<boolean>(true);
 
-        // On loading
-        const  onAddressLoad = (ac: google.maps.places.Autocomplete) => {
+     // Fix: Use useCallback to prevent unnecessary re-renders
+    const onAddressLoad = useCallback((ac: google.maps.places.Autocomplete) => {
         setAutocomplete(ac);
-        };
+    }, []);
 
-        // On Change
-        const onAdressChanged = () => {
+    // On Change
+    const handleAddress = useCallback(() => {
+        setLoading(true);
+
         let place = null;
+        if (!autocomplete) return;
 
         // After Autocomplete loaded
-        if (autocomplete) {
-            place = autocomplete.getPlace();
+        place = autocomplete.getPlace();
 
-            // Extracting each component
-            let streetNumber = "";
-            let route = "";
-            let postalCodeV = "";
+        if (!place.address_components) return;
 
-            for (const component of place.address_components as google.maps.GeocoderAddressComponent[]) {
-            //@ts-ignore remove once typing fixed
+        // Extracting each component
+        let streetNumber = "";
+        let route = "";
+        let postalCodeV = "";
+
+        for (const component of place.address_components as google.maps.GeocoderAddressComponent[]) {
+        //@ts-ignore remove once typing fixed
             const componentType = component.types[0];
 
             // Extracting each component, depends on what input user put in
@@ -75,18 +91,31 @@ export default function AutoCompleteAddress() {
                 break;  
                 }
             }
-            }
-            // set address 1, set Postal code: as they have varied in value
-            setAddress1(`${streetNumber} ${route}`.trim());
-            setPostalCode(postalCodeV);
         }
+        // set address 1, set Postal code: as they have varied in value
+        setAddress1(`${streetNumber} ${route}`.trim());
+        setPostalCode(postalCodeV);
+        setLoading(false);
+    }, [autocomplete]);
+
+    // Also call parent whenever manual input changes, 
+    // update after HandleAddress already set state of address components
+    useEffect(() => {
+        // Only when autoComplete loaded
+        const addressData = { address1, address2, city, province, country, postalcode };
+        
+        // Only call if we have meaningful data
+        if (address1 || address2 || city || province || country || postalcode) {
+            onAddressChanged(addressData);
         }
+    }, [address1, address2, city, province, country, postalcode, onAddressChanged]);
+
 
     return (
         <div style={sharedStyles.container}>
             <Autocomplete
                 onLoad={onAddressLoad}
-                onPlaceChanged={onAdressChanged}
+                onPlaceChanged={handleAddress}
                 options={{
                 types: ["address"],
                 // Only Canada or USA -- bill charging limit
@@ -101,7 +130,7 @@ export default function AutoCompleteAddress() {
                 placeholder="e.g. 231 16 Ave"
                 value={address1}
                 onChange={(e) => setAddress1(e.target.value)}
-                autoFocus
+                
                 />
                 </label>
             </Autocomplete>
@@ -114,7 +143,6 @@ export default function AutoCompleteAddress() {
                 placeholder="e.g. #37"
                 value={address2}
                 onChange={(e) => {setAddress2(e.target.value);}}
-                // autoFocus
                 />
                 </label>
                 
