@@ -79,7 +79,7 @@ export type Teacher = {
   lastName: string;
   email: string; // username for login
   phone: string;
-  address: string;
+  address?: string;
   classIds?: string[]; // Classes assigned to this staff
   locationId?: string; // Location assigned to this staff
   startDate: string;

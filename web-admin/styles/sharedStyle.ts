@@ -2,7 +2,7 @@
 import { CSSProperties } from "react";
 
 export const sharedStyles: Record<string, CSSProperties> = {
-    form: {
+  form: {
     backgroundColor: "white",
     padding: "1.5rem",
     borderRadius: "8px",
@@ -37,16 +37,5 @@ export const sharedStyles: Record<string, CSSProperties> = {
     padding: "1rem",
     borderBottom: "1px solid #eee",
   },
-  addressSection: {
-    display: "flex",
-    padding: "1.5rem 0",
-    gap: "1rem",
-  },
-  address: {
-    display: 'flex',
-    gap: "0.5rem"
-  },
-  dropdown: {
-    padding: "0.5rem",
-  }
+
 }
