@@ -16,8 +16,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {/* Wrap web-admin app with AuthContext, and then LoadScript */}
           {/* Only load once, otherwise, error */}
           <LoadScript 
-          googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
-          libraries={["places"]}
+            googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
+            libraries={["places"]}
           >
             {children}
           </LoadScript>
