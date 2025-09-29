@@ -24,3 +24,4 @@ childRoutes.put("/child/:id", updateChild);
 childRoutes.delete("/child/:id", deleteChild);
 
 
+export default childRoutes;

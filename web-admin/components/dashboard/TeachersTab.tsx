@@ -137,7 +137,7 @@ export default function TeachersTab({
       {/* Teacher list */}
       <div style={sharedStyles.list}>
         <h3>All Teachers - {teachers.length}</h3>
-        {teachers.length === 0 ? (
+        {teachers.length !== 0 ? (
           teachers.map((t) => (
           <div key={t.id} style={sharedStyles.listItem}>
             <div>

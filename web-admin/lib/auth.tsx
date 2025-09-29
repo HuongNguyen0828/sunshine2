@@ -19,7 +19,7 @@ interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
+  signUp: ( name: string, email: string, password: string) => Promise<void>;
   isAdmin: boolean;
   userRole: string | null;
   signOutUser: () => Promise<void>;
@@ -72,18 +72,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
    *  2) Create Firebase user
    *  3) Tell backend to verify/set role and create profile
    */
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (name: string, email: string, password: string ) => {
     try {
       // 1) Email check against backend policy
       const res = await fetch("http://localhost:5000/auth/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
+        credentials: "include", // 👈 add this
       });
-      // Only respond ok is valid email
-      if (!res.ok) throw new Error("Email not authorized. Your daycare need register with Sunshine");
-      const { role } = await res.json(); // get the role: example: role: "parent"
+      
 
+      // Only respond ok is valid email
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message)
+      }
+      const { role } = await res.json(); // get the role: example: role: "parent"
+      console.log(role);
       // Step 2: create Firebase Authentication user
       const userCredential = await createUserWithEmailAndPassword(
         auth,
