@@ -44,5 +44,17 @@ export async function createUser(uid: string, email: string | null, role: string
 export async function getUserByUid(uid: string) {
   const userDoc = await db.collection("users").doc(uid).get();
   if (!userDoc.exists) throw new Error("User not found");
-  return userDoc.data();
+  return userDoc.data
+  ();
 }
+
+
+// Other services like: 
+
+
+// User updating email
+
+// Reset Password
+
+
+// Change role

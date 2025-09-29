@@ -4,7 +4,6 @@ import admin from "firebase-admin";
 import { findRoleByEmail } from "../services/authService";
 import { UserRole } from "../models/user";
 
-
 // Extend Resquest for including user
 export interface AuthRequest extends Request {
   user?: {
@@ -14,19 +13,26 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
   const authHeader = req.headers.authorization;
 
   // If no input header
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).send({ message: "Missing or invalid Authorization header" });
+    return res
+      .status(401)
+      .send({ message: "Missing or invalid Authorization header" });
   }
-  
 
-  // Else, if have header starting with "Bearer ", extract the token at index [1], 
+  // Else, if have header starting with "Bearer ", extract the token at index [1],
   const idToken = authHeader.split("Bearer ")[1];
-  if (!idToken) return res.status(401).send({ message: "Missing or invalid idToken in Authorization header" });
-
+  if (!idToken)
+    return res
+      .status(401)
+      .send({ message: "Missing or invalid idToken in Authorization header" });
 
   // Else if idToken is string
   try {
@@ -37,10 +43,9 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
     if (!role) return res.status(403).send({ message: "Unauthorized email!" });
 
     req.user = { uid: decoded.uid, email: email!, role };
-    // Room for call next function as getRoele from controller
+    // Room for call next function as getRole from controller
     next();
   } catch (err) {
     return res.status(401).send({ message: "Invalid token" });
   }
 };
-

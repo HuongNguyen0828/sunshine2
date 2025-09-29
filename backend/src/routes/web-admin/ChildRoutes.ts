@@ -7,20 +7,20 @@ const childRoutes = Router();
 
 
 // POST /childs
-childRoutes.post("/child", addChild);
+childRoutes.post("/", addChild);
 
 
 // GET /childs
-childRoutes.get("/child", getAllChilds);
+childRoutes.get("/", getAllChilds);
 
 // GET /childs/:id
-childRoutes.get("/child/:id", getChildById);
+childRoutes.get("/:id", getChildById);
 
 // Update child
-childRoutes.put("/child/:id", updateChild);
+childRoutes.put("/:id", updateChild);
 
 // DELETE /childs/:id
-childRoutes.delete("/child/:id", deleteChild);
+childRoutes.delete("/:id", deleteChild);
 
 
 
