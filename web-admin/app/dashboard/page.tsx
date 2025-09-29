@@ -1,5 +1,5 @@
 'use client';
-
+import ProtectedRoute from "@/components/ProtectRoute";
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
@@ -308,9 +308,12 @@ export default function AdminDashboard() {
   };
 
 
-  if (loading) return <div> Loading </div>
+  if (loading) return <ProtectedRoute><div> Loading </div></ProtectedRoute>
   else {
     return (
+    // Protected route for admin
+    <ProtectedRoute>
+
     <div style={dash.container}>
       <header style={dash.header}>
         <AppHeader />
@@ -398,6 +401,7 @@ export default function AdminDashboard() {
         </main>
       </div>
     </div>
+    </ProtectedRoute>
   );
   }
 }
