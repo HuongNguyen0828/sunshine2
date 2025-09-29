@@ -191,6 +191,7 @@ export default function AutoCompleteAddress( {onAddressChanged = () => {}} :Auto
                 placeholder="e.g. T2K-1K5"
                 value={postalcode}
                 onChange={(e) => {setPostalCode(e.target.value);}}
+                required
                 />
             </label> 
         </div>

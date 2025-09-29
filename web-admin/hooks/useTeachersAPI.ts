@@ -10,9 +10,7 @@ export async function fetchTeachers(): Promise<Types.Teacher[] | null> {
         const teachers = await res.json();
         
         // Ensure the response data isn't frozen/read-only
-        return Array.isArray(teachers) 
-            ? teachers.map(teacher => ({ ...teacher })) // Create new objects
-            : null;
+        return teachers
     } catch (err: any) {
         console.error(err);
         return null;

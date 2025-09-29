@@ -345,8 +345,6 @@ export default function AdminDashboard() {
               setNewTeacher={setNewTeacher}
               onAdd={addTeacher}
             />
-
-         
           )}
 
           {activeTab === 'children' && (
