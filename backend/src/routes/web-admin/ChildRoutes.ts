@@ -1,3 +1,4 @@
+
 // src/routes/kidsRoutes.ts
 import { Router } from "express";
 import { getAllChilds, addChild, getChildById, updateChild, deleteChild } from "../../controllers/web-admin/ChildController";
@@ -23,5 +24,3 @@ childRoutes.put("/child/:id", updateChild);
 childRoutes.delete("/child/:id", deleteChild);
 
 
-
-export default childRoutes;

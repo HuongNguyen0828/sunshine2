@@ -1,4 +1,3 @@
-// src/lib/auth.tsx
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -7,13 +6,15 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
-  User,
-  IdTokenResult,
   createUserWithEmailAndPassword,
   updateProfile,
+  type User,
 } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
+import { useRouter } from "next/navigation";
 import app from "./firebase";
 
+/** Public shape of the Auth context */
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
@@ -24,40 +25,53 @@ interface AuthContextType {
   signOutUser: () => Promise<void>;
 }
 
+/** Backend response types (adjust if your API differs) */
+type CheckEmailResponse = { role: string };
+type GetAdminResponse = { user: { role: string } };
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const auth = getAuth(app);
+  const router = useRouter(); // App Router navigation (client-only)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
- 
-  // Detect curent user
+  /** Keep Firebase Auth state in sync with React state */
   useEffect(() => {
+    // Optional: rehydrate role from localStorage before first render
+    const cachedRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+    if (cachedRole) {
+      setUserRole(cachedRole);
+      setIsAdmin(cachedRole === "admin");
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setLoading(false);
 
-      // If user not login, clean up authContext and local storage
+      // When signed out, clear cached role state as well
       if (!user) {
-      setUserRole(null);
-      setIsAdmin(false);
-      localStorage.removeItem("userRole");
-    }
+        setUserRole(null);
+        setIsAdmin(false);
+        localStorage.removeItem("userRole");
+      }
     });
     return () => unsubscribe();
   }, [auth]);
 
- 
-
-  // Sign up
-  const signUp = async (name: string, email: string, password: string) => {
+  /** Sign up:
+   *  1) Check email with backend
+   *  2) Create Firebase user
+   *  3) Tell backend to verify/set role and create profile
+   */
+  const signUp = async (email: string, password: string, name: string) => {
     try {
-        // Step 1: check email
+      // 1) Email check against backend policy
       const res = await fetch("http://localhost:5000/auth/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -139,10 +153,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+
+  /** Full sign out: clear Firebase session + local role state */
   const signOutUser = async () => {
     await signOut(auth);
+    setCurrentUser(null);
     setUserRole(null);
     setIsAdmin(false);
+    localStorage.removeItem("userRole");
+    // Redirect after logout (comment out if you prefer page-guard redirection)
+    router.replace("/login");
   };
 
   return (
@@ -162,8 +182,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
+/** Hook to consume the Auth context safely */
 export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 };

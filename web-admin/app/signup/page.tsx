@@ -32,10 +32,10 @@ export default function SignIn() {
     try {
       setErr(null);
       setLoading(true);
-      await signUp(name, email, pw); // Use the signUp function from the hook
-      router.push("/"); // Redirect to Login screen to assess the role
-    } catch (e: any) {
-      const msg = e?.message;
+      await signUp(name, email, pw);
+      router.push("/");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
       setErr(msg);
     } finally {
       setLoading(false);

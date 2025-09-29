@@ -51,9 +51,6 @@ app.get("/teachers", async (req, res) => {
       return {
         id: doc.id,
         ...data,
-        // // Convert Firestore Timestamp to ISO string for frontend
-        // startDate: data.start ? data.start.toDate().toISOString() : null,
-        // endDate: data.end ? data.end.toDate().toISOString() : null,
       };
     });
     return res.status(200).json(teachers);

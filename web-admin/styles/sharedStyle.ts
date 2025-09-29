@@ -37,5 +37,4 @@ export const sharedStyles: Record<string, CSSProperties> = {
     padding: "1rem",
     borderBottom: "1px solid #eee",
   },
-
 }

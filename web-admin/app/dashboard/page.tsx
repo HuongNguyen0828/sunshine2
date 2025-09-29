@@ -10,8 +10,7 @@ import TeachersTab from '@/components/dashboard/TeachersTab';
 import ChildrenTab from '@/components/dashboard/ChildrenTab';
 import ParentsTab from '@/components/dashboard/ParentsTab';
 import ClassesTab from '@/components/dashboard/ClassesTab';
-import Schedule from "@/components/dashboard/ScheduleTab";
-import Report from "@/components/dashboard/ReportTab";
+import Schedule from "@/components/dashboard/SchedulerLabsTab";
 import { dash } from '@/styles/dashboard';
 import * as Types from '../../../shared/types/type';
 import type {
@@ -26,7 +25,7 @@ import type {
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import swal from 'sweetalert2' // for alert library
-// import { isContext } from 'vm';
+import { isContext } from 'vm';
 import { fetchTeachers } from '@/hooks/useTeachersAPI';
 
 
@@ -293,7 +292,10 @@ export default function AdminDashboard() {
 
   const addClass = () => {
     // Local-only example; can be migrated to Firestore
-    const cls: Types.Class = { id: String(classes.length + 1), ...newClass };
+    const cls: Types.Class = {
+      id: String(classes.length + 1), ...newClass,
+      classroom: ''
+    };
     setClasses((p) => [...p, cls]);
     setNewClass({
       name: '',

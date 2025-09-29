@@ -1,4 +1,4 @@
-//src/routes/AdminRoutes
+//src/routes/AuthRoutes
 import {Router } from "express"
 import {checkEmail, verifyRole, getAdmin, getParentOrTeacher } from "../controllers/AuthController"
 import { authMiddleware } from "../middleware/authMiddleware";
