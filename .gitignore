@@ -44,3 +44,9 @@ serviceAccountKey.json
 # generated native folders
 /ios
 /android
+
+# Claude Code
+CLAUDE.md
+
+# Member Specific
+/yuezhou

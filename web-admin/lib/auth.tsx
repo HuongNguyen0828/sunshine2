@@ -40,6 +40,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Development bypass
+  const bypassAuth = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
 
   /** Keep Firebase Auth state in sync with React state */
   useEffect(() => {
@@ -62,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     });
     return () => unsubscribe();
-  }, [auth]);
+  }, [auth, bypassAuth]);
 
   /** Sign up:
    *  1) Check email with backend
