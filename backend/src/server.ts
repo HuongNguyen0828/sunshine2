@@ -10,7 +10,7 @@ import teacherRoutes from "./routes/web-admin/TeacherRoutes";
 
 // Must be on top
 dotenv.config({debug: true}); // enable debug logging 
-// console.log("Loaded port: ", process.env.PORT);
+console.log("Loaded port: ", process.env.PORT);
 
 // Enforce security network domain in Cors
 const app = express();
