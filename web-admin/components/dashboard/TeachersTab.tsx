@@ -196,40 +196,40 @@ export default function TeachersTab({
 
       {/* Teacher Grid */}
       {paginatedTeachers.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
           {paginatedTeachers.map((teacher) => (
             <div
               key={teacher.id}
-              className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-6"
+              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5"
             >
               {/* Teacher Header */}
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold flex-shrink-0">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-semibold flex-shrink-0">
                   {getInitials(teacher.firstName)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-xl font-bold text-gray-800 truncate">
+                  <h3 className="text-lg font-semibold text-gray-900 truncate leading-tight">
                     {teacher.firstName} {teacher.lastName}
                   </h3>
-                  <div className="flex items-center gap-2 text-gray-600 mt-1">
-                    <span>✉️</span>
+                  <div className="flex items-center gap-1.5 text-gray-600 mt-0.5">
+                    <span className="text-sm">✉️</span>
                     <span className="text-sm truncate">{teacher.email}</span>
                   </div>
                 </div>
               </div>
 
               {/* Teacher Details */}
-              <div className="space-y-2 mb-4">
+              <div className="space-y-2.5 mb-4">
                 <div className="flex items-center gap-2 text-gray-700">
-                  <span>📞</span>
+                  <span className="text-sm">📞</span>
                   <span className="text-sm">{teacher.phone}</span>
                 </div>
                 <div className="flex items-start gap-2 text-gray-700">
-                  <span className="mt-0.5">📍</span>
-                  <span className="text-sm flex-1">{formatAddress(teacher)}</span>
+                  <span className="mt-0.5 text-sm">📍</span>
+                  <span className="text-sm flex-1 leading-relaxed">{formatAddress(teacher)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-700">
-                  <span>📅</span>
+                  <span className="text-sm">📅</span>
                   <span className="text-sm">
                     {String(teacher.startDate)}
                     {teacher.endDate ? ` → ${String(teacher.endDate)}` : ' → Present'}
@@ -238,22 +238,22 @@ export default function TeachersTab({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2 pt-4 border-t border-gray-200">
+              <div className="flex gap-2 pt-4 border-t border-gray-100">
                 <button
                   onClick={() => handleAssignClass(teacher.id)}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition duration-200 text-sm"
+                  className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
                 >
-                  Assign Class
+                  Assign
                 </button>
                 <button
                   onClick={() => handleEditClick(teacher)}
-                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-lg transition duration-200 text-sm"
+                  className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDeleteClick(teacher)}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition duration-200 text-sm"
+                  className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
                 >
                   Delete
                 </button>
@@ -318,8 +318,8 @@ export default function TeachersTab({
 
       {/* Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h3 className="text-2xl font-bold text-gray-800">
                 {editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}
@@ -454,8 +454,8 @@ export default function TeachersTab({
 
       {/* Assign Class Modal */}
       {showAssignClass && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100">
             <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-800">Assign Class</h3>
               <button
