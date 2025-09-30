@@ -31,7 +31,6 @@ import { fetchTeachers } from '@/hooks/useTeachersAPI';
 
 export default function AdminDashboard() {
 
-  const { signOutUser } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -317,16 +316,7 @@ export default function AdminDashboard() {
     <ProtectedRoute>
 
     <div style={dash.container}>
-      <header style={dash.header}>
-        <AppHeader />
-        <h1 style={dash.headerTitle}>Admin Dashboard</h1>
-        <div style={dash.headerActions}>
-          <span style={dash.welcome}>Welcome, Admin</span>
-          <button onClick={signOutUser} style={dash.logoutButton}>
-            Logout
-          </button>
-        </div>
-      </header>
+      <AppHeader />
 
       <div style={dash.content}>
         <SidebarNav active={activeTab} onChange={setActiveTab} />
