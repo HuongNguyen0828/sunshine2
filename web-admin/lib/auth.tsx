@@ -79,8 +79,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log(`  Email: ${email}`);
 
       // 1) Email check against backend policy
+
       console.log('  Step 1: Checking email with backend...');
       const res = await fetch("http://localhost:5001/auth/check-email", {
+
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -113,9 +115,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Step 3: Verify role in backend, and create users collection with same uid
       console.log('  Step 3: Verifying role and creating user profile...');
       const idToken = await userCredential.user.getIdToken();
-      console.log('  Got ID token, sending to backend...');
 
-      const verifyRes = await fetch("http://localhost:5001/auth/verify-role", {
+      const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-role`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, name }),
@@ -167,8 +168,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log('  ✅ ID token retrieved');
 
       // 3. Call backend to get role
-      console.log('  Step 3: Verifying admin role with backend...');
-      const res = await fetch("http://localhost:5001/auth/get-admin", {
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/get-admin`, {
         method: "GET",
         // Input Header autherization inside Request extended
         headers: { Authorization: `Bearer ${idToken}` },
