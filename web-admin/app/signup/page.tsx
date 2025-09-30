@@ -20,13 +20,18 @@ export default function SignUpPage() {
 
   const router = useRouter();
 
+  console.log('[SignUp Page] Component state:', { email, name, loading, hasError: !!err });
+
   const valid = useMemo(() => {
     const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    return okEmail && pw.length >= 6 && pw.length <= 50 && pw.trim() === pw;
+    const isValid = okEmail && pw.length >= 6 && pw.length <= 50 && pw.trim() === pw;
+    console.log('[SignUp Page] Form validation:', { okEmail, pwLength: pw.length, isValid });
+    return isValid;
   }, [email, pw]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!valid || loading) return;
 
     // Client-side password match validation
@@ -37,19 +42,32 @@ export default function SignUpPage() {
 
     if (!name.trim()) {
       setErr('Full name is required');
+
+
+
       return;
     }
 
     try {
+      console.log('  🔄 Starting signup process...');
       setErr(null);
       setLoading(true);
+
       await signUp(name, email, pw);
-      router.push('/');
+
+
+
+
+      console.log('  ✅ Signup successful! Redirecting to home...');
+      router.push("/");
+
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      console.log('  ❌ Signup failed:', msg);
       setErr(msg);
     } finally {
       setLoading(false);
+      console.log('  🏁 Signup process completed');
     }
   };
 
