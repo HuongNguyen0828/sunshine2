@@ -1,6 +1,6 @@
-import admin from "firebase-admin";
+import { admin } from "../lib/firebase";
 import {UserRole} from "../models/user"
-import {db} from "../server" // import db from main server.ts
+import {db} from "../lib/firebase" // import db from main server.ts
 
 
 // Checking email exist before let user signup: email could be null from verify token

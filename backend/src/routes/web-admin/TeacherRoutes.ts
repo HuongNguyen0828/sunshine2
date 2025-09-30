@@ -15,11 +15,13 @@ teacherRoutes.get("/", getAllTeachers);
 // GET /teachers/:id
 teacherRoutes.get("/:id", getTeacherById);
 
-// Update teacher
-teacherRoutes.put("/:id", updateTeacher);
+// Partial update teacher
+// PATCH /teachers/:id: Partially update a teacher
+teacherRoutes.patch("/:id", updateTeacher);
 
 // DELETE /teachers/:id
 teacherRoutes.delete("/:id", deleteTeacher);
+
 
 
 
