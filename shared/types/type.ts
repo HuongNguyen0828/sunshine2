@@ -8,6 +8,7 @@ type FoodSubtype = "Breakfast" | "Lunch" | "Snack"
 
 export type Admin = {
   daycareId: string, // referencing Daycare Provider 
+  locationId: string[] // referencing location id, ['*'] for all location
   firstName: string,
   lastName: string, 
   email: string,

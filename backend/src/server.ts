@@ -9,7 +9,8 @@ import childRoutes from "./routes/web-admin/ChildRoutes";
 import teacherRoutes from "./routes/web-admin/TeacherRoutes";
 
 // Must be on top
-dotenv.config();
+dotenv.config({debug: true}); // enable debug logging 
+// console.log("Loaded port: ", process.env.PORT);
 
 // Enforce security network domain in Cors
 const app = express();
