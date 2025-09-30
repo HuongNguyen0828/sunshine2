@@ -1,6 +1,6 @@
 export const assignRoleToUser = async (uid: string, role: string, canEdit: boolean) => {
   try {
-    const res = await fetch("http://localhost:5000/set-role", {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/set-role`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

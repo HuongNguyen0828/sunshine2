@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Providers from "./provider"; // client wrapper for Auth and Google Maps API
+import "./globals.css";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
