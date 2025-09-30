@@ -17,24 +17,42 @@ export default function LoginPage() {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  console.log('[Login Page] Component state:', { email, loading, hasError: !!err });
+
   const valid = useMemo(() => {
     const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    return okEmail && pw.length >= 6 && pw.length <= 50 && pw.trim() === pw;
+    const isValid = okEmail && pw.length >= 6 && pw.length <= 50 && pw.trim() === pw;
+    console.log('[Login Page] Form validation:', { okEmail, pwLength: pw.length, isValid });
+    return isValid;
   }, [email, pw]);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!valid || loading) return;
+    console.log('\n🔐 [Login Page] Form submitted');
+    console.log('  Valid:', valid, '| Loading:', loading);
+
+    if (!valid || loading) {
+      console.log('  ⚠️  Form submission blocked:', { valid, loading });
+      return;
+    }
+
     try {
+      console.log('  🔄 Starting sign in process...');
+      console.log('  Email (normalized):', email.trim().toLowerCase());
       setErr(null);
       setLoading(true);
+
       await signIn(email.trim().toLowerCase(), pw);
+
+      console.log('  ✅ Sign in successful! Redirecting to dashboard...');
       router.push('/dashboard');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Login failed';
+      console.log('  ❌ Sign in failed:', message);
       setErr(message);
     } finally {
       setLoading(false);
+      console.log('  🏁 Sign in process completed');
     }
   };
 
