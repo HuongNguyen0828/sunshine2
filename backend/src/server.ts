@@ -2,26 +2,15 @@
 // src/app.ts
 import express from "express";
 import cors from "cors";
-import childRoutes from "./routes/web-admin/ChildRoutes";
-import admin from "firebase-admin";
+// import { admin } from "./lib/firebase";
 import dotenv from "dotenv";
 import route from "./routes/AuthRoutes";
+import childRoutes from "./routes/web-admin/ChildRoutes";
+import teacherRoutes from "./routes/web-admin/TeacherRoutes";
 
 // Must be on top
-dotenv.config();
-
-try {
-  // Initialize Firebase Admin SDK for have custom clain assign to custom user roles
-  admin.initializeApp({
-    credential: admin.credential.cert(require("../serviceAccountKey.json")),
-  });
-} catch (error: any) {
-  console.error("🔥 Firebase initialization failed", error);
-  process.exit(1);
-}
-
-// Firestore reference
-export const db = admin.firestore();
+dotenv.config({debug: true}); // enable debug logging 
+console.log("Loaded port: ", process.env.PORT);
 
 // Enforce security network domain in Cors
 const app = express();
@@ -79,24 +68,7 @@ app.get("/", (req, res) => {
 app.use("/auth", route);
 // Child
 app.use("/child", childRoutes);
-
-// Fetch all teachers
-app.get("/teachers", async (req, res) => {
-  try {
-    const snapshot = await admin.firestore().collection("teachers").get();
-    const teachers = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-      };
-    });
-    return res.status(200).json(teachers);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Failed to fetch teachers" });
-  }
-});
+app.use("/teacher", teacherRoutes);
 
 // Adding "0.0.0.0" for listing all networking, including localhost (web), and emulator and physically machine (phone)
 // Then must enforce security in CORS network (domain) access above
