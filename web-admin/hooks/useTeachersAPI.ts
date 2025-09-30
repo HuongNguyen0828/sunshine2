@@ -5,7 +5,7 @@ import { NewTeacherInput } from "@/types/forms";
 
 export async function fetchTeachers(): Promise<Types.Teacher[] | null> {
     try {
-        const res = await fetch("http://localhost:5000/teacher");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher`);
         if (!res.ok) throw new Error("Failed to fetch teachers");
         
         const teachers = await res.json();

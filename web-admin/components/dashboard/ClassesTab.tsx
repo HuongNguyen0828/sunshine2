@@ -1,8 +1,8 @@
 'use client';
 
 import * as Types from '../../../shared/types/type';
-import { sharedStyles } from '@/styles/sharedStyle';
 import type { NewClassInput } from '@/types/forms';
+import { useState } from 'react';
 
 export default function ClassesTab({
   classes,
@@ -17,43 +17,574 @@ export default function ClassesTab({
   setNewClass: React.Dispatch<React.SetStateAction<NewClassInput>>;
   onAdd: () => void;
 }) {
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [capacityFilter, setCapacityFilter] = useState<'all' | 'available' | 'nearly-full' | 'full'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [editingClass, setEditingClass] = useState<Types.Class | null>(null);
+  const [showAssignTeachers, setShowAssignTeachers] = useState<string | null>(null);
+  const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
+
+  const getCapacityStatus = (volume: number, capacity: number) => {
+    const percentage = (volume / capacity) * 100;
+    if (percentage < 70) return 'available';
+    if (percentage < 90) return 'nearly-full';
+    return 'full';
+  };
+
+  const getCapacityColor = (status: string) => {
+    switch (status) {
+      case 'available': return 'bg-green-500';
+      case 'nearly-full': return 'bg-yellow-500';
+      case 'full': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getCapacityLabel = (status: string) => {
+    switch (status) {
+      case 'available': return 'Available';
+      case 'nearly-full': return 'Nearly Full';
+      case 'full': return 'Full';
+      default: return 'Unknown';
+    }
+  };
+
+  // Filter classes based on search and capacity filter
+  const filteredClasses = classes.filter(cls => {
+    const matchesSearch = cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         cls.locationId.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    if (capacityFilter === 'all') return true;
+    const status = getCapacityStatus(cls.volume, cls.capcity);
+    return status === capacityFilter;
+  });
+
+  // Pagination logic
+  const classesPerPage = 6;
+  const totalPages = Math.ceil(filteredClasses.length / classesPerPage);
+  const startIndex = (currentPage - 1) * classesPerPage;
+  const paginatedClasses = filteredClasses.slice(startIndex, startIndex + classesPerPage);
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingClass) {
+      console.log('Update class:', { ...editingClass, ...newClass });
+      setEditingClass(null);
+      // Reset form to empty state
+      setNewClass({
+        name: '',
+        locationId: '',
+        capcity: 0,
+        volume: 0,
+        ageStart: 0,
+        ageEnd: 0,
+      });
+    } else {
+      onAdd();
+    }
+    setIsFormOpen(false);
+  };
+
+  const handleAddClick = () => {
+    setEditingClass(null);
+    setNewClass({
+      name: '',
+      locationId: '',
+      capcity: 0,
+      volume: 0,
+      ageStart: 0,
+      ageEnd: 0,
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleEditClick = (cls: Types.Class) => {
+    setEditingClass(cls);
+    setNewClass({
+      name: cls.name,
+      locationId: cls.locationId,
+      capcity: cls.capcity,
+      volume: cls.volume,
+      ageStart: cls.ageStart,
+      ageEnd: cls.ageEnd,
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteClick = (cls: Types.Class) => {
+    if (window.confirm(`Are you sure you want to delete ${cls.name}?`)) {
+      console.log('Delete class:', cls.id);
+    }
+  };
+
+  const handleAssignTeachers = (classId: string) => {
+    const cls = classes.find(c => c.id === classId);
+    const currentTeachers = teachers.filter(t => t.classIds?.includes(classId));
+    setSelectedTeachers(currentTeachers.map(t => t.id));
+    setShowAssignTeachers(classId);
+  };
+
+  const handleSaveTeachers = () => {
+    console.log('Assign teachers to class:', showAssignTeachers, 'Teachers:', selectedTeachers);
+    setShowAssignTeachers(null);
+    setSelectedTeachers([]);
+  };
+
+  const toggleTeacherSelection = (teacherId: string) => {
+    setSelectedTeachers(prev =>
+      prev.includes(teacherId)
+        ? prev.filter(id => id !== teacherId)
+        : [...prev, teacherId]
+    );
+  };
+
+  const getTeacherInitials = (firstName: string, lastName: string) => {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
   return (
-    <div>
-      <h2>Manage Classes</h2>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-3xl font-bold text-gray-800">Classes</h2>
+          <button
+            onClick={handleAddClick}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
+          >
+            <span className="text-lg">+</span>
+            Add Class
+          </button>
+        </div>
 
-      {/* Class create form */}
-      <form onSubmit={(e) => { e.preventDefault(); onAdd(); }} style={sharedStyles.form}>
-        <h3>Add New Class</h3>
-        <input style={sharedStyles.input} placeholder="Class Name" value={newClass.name} onChange={(e) => setNewClass({ ...newClass, name: e.target.value })} required />
-        <input style={sharedStyles.input} placeholder="Location ID" value={newClass.locationId} onChange={(e) => setNewClass({ ...newClass, locationId: e.target.value })} required />
-        {/* Keep `capcity` to align with current Types.Class */}
-        <input type="number" style={sharedStyles.input} placeholder="Capacity" value={newClass.capcity} onChange={(e) => setNewClass({ ...newClass, capcity: Number(e.target.value) })} required />
-        <input type="number" style={sharedStyles.input} placeholder="Volume" value={newClass.volume} onChange={(e) => setNewClass({ ...newClass, volume: Number(e.target.value) })} required />
-        <input type="number" style={sharedStyles.input} placeholder="Age Start" value={newClass.ageStart} onChange={(e) => setNewClass({ ...newClass, ageStart: Number(e.target.value) })} required />
-        <input type="number" style={sharedStyles.input} placeholder="Age End" value={newClass.ageEnd} onChange={(e) => setNewClass({ ...newClass, ageEnd: Number(e.target.value) })} required />
-        <button type="submit" style={sharedStyles.button}>Add Class</button>
-      </form>
+        {/* Search and Filter Bar */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                placeholder="Search by class name or location..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
 
-      {/* Class list */}
-      <div style={sharedStyles.list}>
-        <h3>All Classes</h3>
-        {classes.map((cls) => {
-          const assignedTeachers = teachers.filter((t) => t.classIds?.includes(cls.id));
-          return (
-            <div key={cls.id} style={sharedStyles.listItem}>
-              <div><strong>{cls.name}</strong> (Location: {cls.locationId})</div>
-              <div>
-                Ages: {cls.ageStart}–{cls.ageEnd} | Capacity: {cls.capcity} | Volume: {cls.volume}
+            <select
+              value={capacityFilter}
+              onChange={(e) => {
+                setCapacityFilter(e.target.value as typeof capacityFilter);
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="all">All Capacities</option>
+              <option value="available">Available (&lt;70%)</option>
+              <option value="nearly-full">Nearly Full (70-90%)</option>
+              <option value="full">Full (&gt;90%)</option>
+            </select>
+
+            <div className="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg font-semibold whitespace-nowrap text-center">
+              {filteredClasses.length} of {classes.length} classes
+            </div>
+          </div>
+
+          {(searchTerm || capacityFilter !== 'all') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setCapacityFilter('all');
+                setCurrentPage(1);
+              }}
+              className="mt-3 text-purple-600 hover:text-purple-700 font-medium text-sm"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Class Grid */}
+      {paginatedClasses.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          {paginatedClasses.map((cls) => {
+            const assignedTeachers = teachers.filter(t => t.classIds?.includes(cls.id));
+            const capacityStatus = getCapacityStatus(cls.volume, cls.capcity);
+            const capacityPercentage = (cls.volume / cls.capcity) * 100;
+
+            return (
+              <div
+                key={cls.id}
+                className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-6 flex flex-col"
+              >
+                {/* Class Header */}
+                <div className="mb-4">
+                  <h3 className="text-xl font-bold text-gray-800 truncate mb-2">
+                    {cls.name}
+                  </h3>
+                  <div className="flex items-center gap-2 text-gray-600 text-sm">
+                    <span>📍</span>
+                    <span className="truncate">{cls.locationId}</span>
+                  </div>
+                </div>
+
+                {/* Full Capacity Warning */}
+                {capacityStatus === 'full' && (
+                  <div className="bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-lg mb-4 text-sm font-medium">
+                    ⚠️ Class is at full capacity
+                  </div>
+                )}
+
+                {/* Class Details */}
+                <div className="space-y-3 mb-4 flex-grow">
+                  {/* Age Range */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-600 text-sm">👶 Age Range:</span>
+                    <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-semibold">
+                      {cls.ageStart}–{cls.ageEnd} years
+                    </span>
+                  </div>
+
+                  {/* Capacity with Progress Bar */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-gray-600 text-sm">Capacity:</span>
+                      <span className="text-gray-800 font-semibold text-sm">
+                        {cls.volume}/{cls.capcity}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                      <div
+                        className={`h-2.5 ${getCapacityColor(capacityStatus)} transition-all duration-300`}
+                        style={{ width: `${Math.min(capacityPercentage, 100)}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {getCapacityLabel(capacityStatus)} ({Math.round(capacityPercentage)}%)
+                    </div>
+                  </div>
+
+                  {/* Assigned Teachers */}
+                  <div>
+                    <span className="text-gray-600 text-sm block mb-2">👥 Teachers:</span>
+                    {assignedTeachers.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {assignedTeachers.slice(0, 3).map(teacher => (
+                          <div
+                            key={teacher.id}
+                            className="flex items-center gap-2 bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium"
+                          >
+                            <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold">
+                              {getTeacherInitials(teacher.firstName, teacher.lastName)}
+                            </div>
+                            <span className="truncate max-w-[100px]">
+                              {teacher.firstName} {teacher.lastName}
+                            </span>
+                          </div>
+                        ))}
+                        {assignedTeachers.length > 3 && (
+                          <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium">
+                            +{assignedTeachers.length - 3} more
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm italic">Unassigned</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => handleAssignTeachers(cls.id)}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"
+                  >
+                    Assign
+                  </button>
+                  <button
+                    onClick={() => handleEditClick(cls)}
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClick(cls)}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <div>
-                Teachers: {assignedTeachers.length
-                  ? assignedTeachers.map((t) => `${t.firstName} ${t.lastName}`).join(', ')
-                  : 'Unassigned'}
+            );
+          })}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <div className="text-gray-400 text-6xl mb-4">🎓</div>
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">No classes found</h3>
+          <p className="text-gray-500">
+            {searchTerm || capacityFilter !== 'all'
+              ? 'Try adjusting your search or filter settings'
+              : 'Get started by adding your first class'}
+          </p>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
+              currentPage === 1
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+            }`}
+          >
+            ← Previous
+          </button>
+
+          <div className="flex gap-2">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
+                  currentPage === page
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
+              currentPage === totalPages
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+            }`}
+          >
+            Next →
+          </button>
+        </div>
+      )}
+
+      {/* Form Modal */}
+      {isFormOpen && (
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-2xl font-bold text-gray-800">
+                {editingClass ? 'Edit Class' : 'Add New Class'}
+              </h3>
+              <button
+                onClick={() => {
+                  setIsFormOpen(false);
+                  setEditingClass(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleFormSubmit} className="p-6">
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="text-gray-700 font-medium mb-1 block">Class Name *</span>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Class Name"
+                    value={newClass.name}
+                    onChange={(e) => setNewClass({ ...newClass, name: e.target.value })}
+                    required
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-gray-700 font-medium mb-1 block">Location ID *</span>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Location ID"
+                    value={newClass.locationId}
+                    onChange={(e) => setNewClass({ ...newClass, locationId: e.target.value })}
+                    required
+                  />
+                </label>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-gray-700 font-medium mb-1 block">Capacity *</span>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Capacity"
+                      value={newClass.capacity}
+                      onChange={(e) => setNewClass({ ...newClass, capacity: Number(e.target.value) })}
+                      required
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-gray-700 font-medium mb-1 block">Volume *</span>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Volume"
+                      value={newClass.volume}
+                      onChange={(e) => setNewClass({ ...newClass, volume: Number(e.target.value) })}
+                      required
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="text-gray-700 font-medium mb-1 block">Age Start *</span>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Age Start"
+                      value={newClass.ageStart}
+                      onChange={(e) => setNewClass({ ...newClass, ageStart: Number(e.target.value) })}
+                      required
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-gray-700 font-medium mb-1 block">Age End *</span>
+                    <input
+                      type="number"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Age End"
+                      value={newClass.ageEnd}
+                      onChange={(e) => setNewClass({ ...newClass, ageEnd: Number(e.target.value) })}
+                      required
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFormOpen(false);
+                    setEditingClass(null);
+                  }}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                >
+                  {editingClass ? 'Update Class' : 'Add Class'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Teachers Modal */}
+      {showAssignTeachers && (
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-100">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-800">Assign Teachers</h3>
+              <button
+                onClick={() => {
+                  setShowAssignTeachers(null);
+                  setSelectedTeachers([]);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6">
+              <p className="text-gray-600 text-sm mb-4">
+                Select teachers to assign to this class:
+              </p>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {teachers.length > 0 ? (
+                  teachers.map(teacher => (
+                    <label
+                      key={teacher.id}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition duration-150"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedTeachers.includes(teacher.id)}
+                        onChange={() => toggleTeacherSelection(teacher.id)}
+                        className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                      />
+                      <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                        {getTeacherInitials(teacher.firstName, teacher.lastName)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-800">
+                          {teacher.firstName} {teacher.lastName}
+                        </div>
+                        <div className="text-sm text-gray-500">{teacher.email}</div>
+                      </div>
+                    </label>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No teachers available
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setShowAssignTeachers(null);
+                    setSelectedTeachers([]);
+                  }}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveTeachers}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                >
+                  Save ({selectedTeachers.length})
+                </button>
               </div>
             </div>
-          );
-        })}
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
