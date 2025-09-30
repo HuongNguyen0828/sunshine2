@@ -154,42 +154,40 @@ export default function TeachersTab({
           <h2 className="text-3xl font-bold text-gray-800">Teachers</h2>
           <button
             onClick={handleAddClick}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition duration-200 flex items-center gap-2"
+            className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
           >
-            <span className="text-xl">+</span>
+            <span className="text-lg">+</span>
             Add Teacher
           </button>
         </div>
 
         {/* Search Bar */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="Search by name or email..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1); // Reset to first page on search
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page on search
+              }}
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 shadow-sm"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setCurrentPage(1);
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setCurrentPage(1);
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-            <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-semibold whitespace-nowrap">
-              {filteredTeachers.length} of {teachers.length} teachers
-            </div>
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <div className="text-gray-500 text-xs whitespace-nowrap">
+            {filteredTeachers.length} of {teachers.length}
           </div>
         </div>
       </div>
@@ -202,38 +200,32 @@ export default function TeachersTab({
               key={teacher.id}
               className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5"
             >
-              {/* Teacher Header */}
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-semibold flex-shrink-0">
-                  {getInitials(teacher.firstName)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate leading-tight">
-                    {teacher.firstName} {teacher.lastName}
+              {/* Primary Contact Info */}
+              <div className="mb-4">
+                <div className="flex items-baseline gap-2 mb-1">
+                  <h3 className="text-xl font-bold text-gray-900 truncate">
+                    {teacher.email}
                   </h3>
-                  <div className="flex items-center gap-1.5 text-gray-600 mt-0.5">
-                    <span className="text-sm">✉️</span>
-                    <span className="text-sm truncate">{teacher.email}</span>
-                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500">
+                    {teacher.firstName} {teacher.lastName}
+                  </span>
+                  <span className="text-gray-300">•</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {teacher.phone}
+                  </span>
                 </div>
               </div>
 
-              {/* Teacher Details */}
-              <div className="space-y-2.5 mb-4">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <span className="text-sm">📞</span>
-                  <span className="text-sm">{teacher.phone}</span>
+              {/* Secondary Details */}
+              <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
+                <div className="text-xs text-gray-500 leading-relaxed">
+                  {formatAddress(teacher)}
                 </div>
-                <div className="flex items-start gap-2 text-gray-700">
-                  <span className="mt-0.5 text-sm">📍</span>
-                  <span className="text-sm flex-1 leading-relaxed">{formatAddress(teacher)}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-700">
-                  <span className="text-sm">📅</span>
-                  <span className="text-sm">
-                    {String(teacher.startDate)}
-                    {teacher.endDate ? ` → ${String(teacher.endDate)}` : ' → Present'}
-                  </span>
+                <div className="text-xs text-gray-400">
+                  {String(teacher.startDate)}
+                  {teacher.endDate ? ` → ${String(teacher.endDate)}` : ' → Present'}
                 </div>
               </div>
 
@@ -318,8 +310,17 @@ export default function TeachersTab({
 
       {/* Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100">
+        <div
+          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
+          onClick={() => {
+            setIsFormOpen(false);
+            setEditingTeacher(null);
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h3 className="text-2xl font-bold text-gray-800">
                 {editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}
@@ -454,8 +455,17 @@ export default function TeachersTab({
 
       {/* Assign Class Modal */}
       {showAssignClass && (
-        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100">
+        <div
+          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
+          onClick={() => {
+            setShowAssignClass(null);
+            setSelectedClass('');
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-800">Assign Class</h3>
               <button
