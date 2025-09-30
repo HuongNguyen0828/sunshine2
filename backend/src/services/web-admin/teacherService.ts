@@ -21,8 +21,11 @@ export const addTeacher = async (teacher: Teacher): Promise<Teacher> => {
     return {...teacher, id: doc.id};
 };
 
-export const getTeacherById = async (id: string): Promise<Teacher | null> => {
+export const getTeacherById = async (id: string | undefined): Promise<Teacher | null> => {
+    if (!id) return null;
+    // else, if id
     const doc = await teachersRef.doc(id).get();
+    // Found if doc match, else, null
     const teacher = doc.exists ? ({id: doc.id, ...doc.data()} as Teacher) : null;
     
     return teacher;
