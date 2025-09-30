@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signUp = async (name: string, email: string, password: string ) => {
     try {
       // 1) Email check against backend policy
-      const res = await fetch("http://localhost:5000/auth/check-email", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/check-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -100,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Step 3: Verify role in backend, and create users collection with same uid
       const idToken = await userCredential.user.getIdToken();
-      await fetch("http://localhost:5000/auth/verify-role", {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-role`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, name }),
@@ -132,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const idToken = await userCredential.user.getIdToken();
 
       // 3. Call backend to get role
-      const res = await fetch("http://localhost:5000/auth/get-admin", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/get-admin`, {
         method: "GET",
         // Input Header autherization inside Request extended
         headers: { Authorization: `Bearer ${idToken}` },
