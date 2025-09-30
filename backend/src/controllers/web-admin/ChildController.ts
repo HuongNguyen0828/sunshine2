@@ -1,6 +1,6 @@
 // Controller functions for handling child-related requests
 import { Request, Response } from 'express';
-import * as ChildsService from "../services/childsService";
+import * as ChildsService from "../../services/web-admin/childsService";
 
 
 // Create a new child

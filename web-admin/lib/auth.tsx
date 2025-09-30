@@ -1,150 +1,199 @@
-// src/lib/auth.tsx
-'use client';
+"use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, User, IdTokenResult } from 'firebase/auth';
-import { FirebaseError } from 'firebase/app';
-import app from './firebase';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  type User,
+} from "firebase/auth";
+import { FirebaseError } from "firebase/app";
+import { useRouter } from "next/navigation";
+import app from "./firebase";
 
+/** Public shape of the Auth context */
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
-  userLoggedIn: boolean;
-  signUp: (name: string, email: string, passowrd: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: ( name: string, email: string, password: string) => Promise<void>;
   isAdmin: boolean;
   userRole: string | null;
   signOutUser: () => Promise<void>;
 }
 
-interface AccessDeniedError extends Error {
-  name: 'AccessDeniedError';
-}
-
-const hasName = (x: unknown): x is { name: unknown } =>
-  typeof x === 'object' && x !== null && 'name' in x;
-
-const isAccessDeniedError = (e: unknown): e is AccessDeniedError =>
-  hasName(e) && e.name === 'AccessDeniedError';
-
-const isFirebaseError = (e: unknown): e is FirebaseError => e instanceof FirebaseError;
-
-const makeAccessDeniedError = (): AccessDeniedError => {
-  const err = new Error('Access denied. Admin privileges required.');
-  (err as AccessDeniedError).name = 'AccessDeniedError';
-  return err as AccessDeniedError;
-};
+/** Backend response types (adjust if your API differs) */
+type CheckEmailResponse = { role: string };
+type GetAdminResponse = { user: { role: string } };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const auth = getAuth(app);
+  const router = useRouter(); // App Router navigation (client-only)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userLoggedIn, setUserLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Development bypass
+  const bypassAuth = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true';
 
-  const checkUserRole = async (user: User | null): Promise<boolean> => {
-    if (!user) {
-      setUserRole(null);
-      setIsAdmin(false);
-      return false;
-    }
-    try {
-      const idTokenResult: IdTokenResult = await user.getIdTokenResult(true);
-      const role = idTokenResult.claims.role as string | undefined;
-      setUserRole(role ?? null);
-      const admin = role === 'admin';
-      setIsAdmin(admin);
-      return admin;
-    } catch {
-      setUserRole(null);
-      setIsAdmin(false);
-      return false;
-    }
-  };
-
-  // Check current user
+  /** Keep Firebase Auth state in sync with React state */
   useEffect(() => {
+    // Optional: rehydrate role from localStorage before first render
+    const cachedRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+    if (cachedRole) {
+      setUserRole(cachedRole);
+      setIsAdmin(cachedRole === "admin");
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
-      setUserLoggedIn(!!user);
-      void checkUserRole(user);
       setLoading(false);
+
+      // When signed out, clear cached role state as well
+      if (!user) {
+        setUserRole(null);
+        setIsAdmin(false);
+        localStorage.removeItem("userRole");
+      }
     });
     return () => unsubscribe();
-  }, [auth]);
+  }, [auth, bypassAuth]);
 
-  // Sign up
+  /** Sign up:
+   *  1) Check email with backend
+   *  2) Create Firebase user
+   *  3) Tell backend to verify/set role and create profile
+   */
   const signUp = async (name: string, email: string, password: string ) => {
-
     try {
-      const res = await fetch("http://localhost:5000/signup", {
+      // 1) Email check against backend policy
+      const res = await fetch("http://localhost:5000/auth/check-email", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({name, email, password}),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+        credentials: "include", // 👈 add this
+      });
+      
+
+      // Only respond ok is valid email
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message)
+      }
+      const { role } = await res.json(); // get the role: example: role: "parent"
+      console.log(role);
+      // Step 2: create Firebase Authentication user
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      await updateProfile(userCredential.user, { displayName: name });
+
+      // Step 3: Verify role in backend, and create users collection with same uid
+      const idToken = await userCredential.user.getIdToken();
+      await fetch("http://localhost:5000/auth/verify-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, name }),
+      });
+    } catch (error: any) {
+      if(error.code == "auth/email-already-in-use") throw new Error("Already existing email. Please login or use other email");
+      throw error;
+
+    }
+    
+  };
+
+  // Sign in:
+  // 4 cases:
+  // Case 1: user is extenal of our system: email doesn't exist-> throw error: Unrecognized email.  Your daycare registered with Sunshine to signUp and login
+  // Case 2: user is parent or teacher: throw error: Hello, parent (teacher), please login in Sunshine mobile app
+  // Case 3. user is admin, entering wrong password: throw error: Hello admin, Invalid passowrd
+  // Case 4. Success: user is admin and all correct: redirect into dashboard.
+  const signIn = async (email: string, password: string): Promise<void> => {
+    try {
+      // 1. Firebase Auth login
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      // 2. Get ID token
+      const idToken = await userCredential.user.getIdToken();
+
+      // 3. Call backend to get role
+      const res = await fetch("http://localhost:5000/auth/get-admin", {
+        method: "GET",
+        // Input Header autherization inside Request extended
+        headers: { Authorization: `Bearer ${idToken}` },
       });
 
-      // Respond not ok
+      // Case not Admin
       if (!res.ok) {
-        // Handle backend errors (including email not recognied, ...)
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to register")
+        // Extract message from respond: custome with role-based or general message
+        const errData = await res.json();
+        throw new Error(errData.message || "Access denied");
       }
-
-      // Else
+      // else, Case: Admin
       const data = await res.json();
-      console.log(" Signup success", data.message);
-      return data;
+
+      // 4. Store role in cache/localStorage (for reduce fetching check-role and user once they login)
+      localStorage.setItem("userRole", data.user.role);
+
+      // Updating AuthContext: On reload, rehydrate from localStorage.
+      setUserRole(data.user.role);
+      setIsAdmin(data.user.role === "admin");   
 
     } catch (error: any) {
-      console.log(error.message)
-    }
-  }
-
-
-
-  // Sign in
-  const signIn = async (email: string, password: string) => {
-    try {
-      setLoading(true);
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const ok = await checkUserRole(cred.user);
-      if (!ok) {
-        await signOut(auth);
-        throw makeAccessDeniedError();
-      }
-    } catch (err: unknown) {
-      if (isFirebaseError(err)) {
-        if (err.code === 'auth/invalid-credential') throw new Error('Email or password is incorrect.');
-        throw new Error(err.message);
-      }
-      if (isAccessDeniedError(err)) throw err;
-      if (err instanceof Error) throw new Error(err.message || 'Sign-in failed.');
-      throw new Error('Sign-in failed.');
-    } finally {
-      setLoading(false);
+      // Error from Frontend: Firebase Auth errors with signInWithEmailAndPassword
+      if (error.code === "auth/invalid-credential")  throw new Error("Invalid Email or Password");
+      // else, error from role-base
+      throw error;
     }
   };
 
+
+  /** Full sign out: clear Firebase session + local role state */
   const signOutUser = async () => {
     await signOut(auth);
+    setCurrentUser(null);
     setUserRole(null);
     setIsAdmin(false);
+    localStorage.removeItem("userRole");
+    // Redirect after logout (comment out if you prefer page-guard redirection)
+    router.replace("/login");
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading, userLoggedIn, signIn, signUp, isAdmin, userRole, signOutUser }}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        loading,
+        signIn,
+        signUp,
+        isAdmin,
+        userRole,
+        signOutUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
+/** Hook to consume the Auth context safely */
 export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 };

@@ -5,8 +5,8 @@ type Props = {
   title: string;
   logoWidth?: number;
   logoHeight?: number;
-  edgeOffset?: number;     // left offset for the logo
-  contentOffsetY?: number; // vertical offset to move
+  edgeOffset?: number;     // left offset for the logo (use negative to pull to edge)
+  contentOffsetY?: number; // vertical offset to move BOTH logo and title down
 };
 
 export default function HeaderWithLogo({
