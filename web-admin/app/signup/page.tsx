@@ -21,24 +21,41 @@ export default function SignIn() {
   // Next.js router for navigation
   const router = useRouter();
 
+  console.log('[SignUp Page] Component state:', { email, name, loading, hasError: !!err });
+
   const valid = useMemo(() => {
     const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-    return okEmail && pw.length >= 6 && pw.length <= 50 && pw.trim() === pw;
+    const isValid = okEmail && pw.length >= 6 && pw.length <= 50 && pw.trim() === pw;
+    console.log('[SignUp Page] Form validation:', { okEmail, pwLength: pw.length, isValid });
+    return isValid;
   }, [email, pw]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid || loading) return;
+    console.log('\n📝 [SignUp Page] Form submitted');
+    console.log('  Valid:', valid, '| Loading:', loading);
+
+    if (!valid || loading) {
+      console.log('  ⚠️  Form submission blocked:', { valid, loading });
+      return;
+    }
+
     try {
+      console.log('  🔄 Starting signup process...');
       setErr(null);
       setLoading(true);
+
       await signUp(name, email, pw);
+
+      console.log('  ✅ Signup successful! Redirecting to home...');
       router.push("/");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      console.log('  ❌ Signup failed:', msg);
       setErr(msg);
     } finally {
       setLoading(false);
+      console.log('  🏁 Signup process completed');
     }
   };
 

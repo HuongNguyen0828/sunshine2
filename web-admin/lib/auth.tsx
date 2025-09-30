@@ -74,43 +74,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
    */
   const signUp = async (name: string, email: string, password: string ) => {
     try {
+      console.log('\n🚀 [Frontend SignUp] Starting signup process...');
+      console.log(`  Name: ${name}`);
+      console.log(`  Email: ${email}`);
+
       // 1) Email check against backend policy
-      const res = await fetch("http://localhost:5000/auth/check-email", {
+      console.log('  Step 1: Checking email with backend...');
+      const res = await fetch("http://localhost:5001/auth/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
         credentials: "include", // 👈 add this
       });
-      
+
+      console.log(`  Response status: ${res.status}`);
 
       // Only respond ok is valid email
       if (!res.ok) {
         const errorData = await res.json();
+        console.log('  ❌ Email check failed:', errorData.message);
         throw new Error(errorData.message)
       }
       const { role } = await res.json(); // get the role: example: role: "parent"
-      console.log(role);
+      console.log(`  ✅ Email authorized as: ${role}`);
+
       // Step 2: create Firebase Authentication user
+      console.log('  Step 2: Creating Firebase Auth user...');
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
         password
       );
+      console.log(`  ✅ Firebase user created with UID: ${userCredential.user.uid}`);
+
       await updateProfile(userCredential.user, { displayName: name });
+      console.log(`  ✅ Display name set to: ${name}`);
 
       // Step 3: Verify role in backend, and create users collection with same uid
+      console.log('  Step 3: Verifying role and creating user profile...');
       const idToken = await userCredential.user.getIdToken();
-      await fetch("http://localhost:5000/auth/verify-role", {
+      console.log('  Got ID token, sending to backend...');
+
+      const verifyRes = await fetch("http://localhost:5001/auth/verify-role", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, name }),
       });
+
+      console.log(`  Response status: ${verifyRes.status}`);
+
+      if (!verifyRes.ok) {
+        const errorData = await verifyRes.json();
+        console.log('  ❌ Role verification failed:', errorData.message);
+        throw new Error(errorData.message);
+      }
+
+      const verifyData = await verifyRes.json();
+      console.log('  ✅ Signup complete!', verifyData);
+
     } catch (error: any) {
+      console.log('  ❌ Signup error:', error);
       if(error.code == "auth/email-already-in-use") throw new Error("Already existing email. Please login or use other email");
       throw error;
 
     }
-    
+
   };
 
   // Sign in:
@@ -121,40 +149,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Case 4. Success: user is admin and all correct: redirect into dashboard.
   const signIn = async (email: string, password: string): Promise<void> => {
     try {
+      console.log('\n🔐 [Frontend SignIn] Starting sign in process...');
+      console.log(`  Email: ${email}`);
+
       // 1. Firebase Auth login
+      console.log('  Step 1: Authenticating with Firebase...');
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
         password
       );
+      console.log(`  ✅ Firebase auth successful. UID: ${userCredential.user.uid}`);
 
       // 2. Get ID token
+      console.log('  Step 2: Getting ID token...');
       const idToken = await userCredential.user.getIdToken();
+      console.log('  ✅ ID token retrieved');
 
       // 3. Call backend to get role
-      const res = await fetch("http://localhost:5000/auth/get-admin", {
+      console.log('  Step 3: Verifying admin role with backend...');
+      const res = await fetch("http://localhost:5001/auth/get-admin", {
         method: "GET",
         // Input Header autherization inside Request extended
         headers: { Authorization: `Bearer ${idToken}` },
       });
 
+      console.log(`  Response status: ${res.status}`);
+
       // Case not Admin
       if (!res.ok) {
         // Extract message from respond: custome with role-based or general message
         const errData = await res.json();
+        console.log('  ❌ Access denied:', errData.message);
         throw new Error(errData.message || "Access denied");
       }
       // else, Case: Admin
       const data = await res.json();
+      console.log('  ✅ Admin access granted. Role:', data.user.role);
 
       // 4. Store role in cache/localStorage (for reduce fetching check-role and user once they login)
       localStorage.setItem("userRole", data.user.role);
+      console.log('  ✅ Role stored in localStorage');
 
       // Updating AuthContext: On reload, rehydrate from localStorage.
       setUserRole(data.user.role);
-      setIsAdmin(data.user.role === "admin");   
+      setIsAdmin(data.user.role === "admin");
+      console.log('  ✅ Sign in complete!');
 
     } catch (error: any) {
+      console.log('  ❌ Sign in error:', error);
       // Error from Frontend: Firebase Auth errors with signInWithEmailAndPassword
       if (error.code === "auth/invalid-credential")  throw new Error("Invalid Email or Password");
       // else, error from role-base
