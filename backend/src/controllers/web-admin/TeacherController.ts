@@ -1,14 +1,15 @@
 // Controller functions for handling teacher-related requests
 import { Request, Response } from "express";
 import * as TeacherService from "../../services/web-admin/teacherService";
+import { messaging } from "firebase-admin";
 
 // Create a new Teacher
 export const addTeacher = async (req: Request, res: Response) => {
   try {
     const newTeacher = await TeacherService.addTeacher(req.body);
     res.status(201).json(newTeacher);
-  } catch (error) {
-    res.status(500).json({ message: "Error creating teacher" });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || "Error creating teacher" });
   }
 };
 
@@ -17,8 +18,8 @@ export const getAllTeachers = async (req: Request, res: Response) => {
   try {
     const teachers = await TeacherService.getAllTeachers();
     res.status(200).json(teachers);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch teachers" });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || "Failed to fetch teachers" });
   }
 };
 
@@ -31,35 +32,38 @@ export const getTeacherById = async (req: Request, res: Response) => {
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
     // if found return the teacher
     res.json(teacher);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching teacher" });
+  } catch (error: any) {
+    res.status(500).json({message: error.message ||  "Error fetching teacher" });
   }
 };
 
 // Update an existing teacher
 export const updateTeacher = async (req: Request, res: Response) => {
+  const id = req.params.id;
+  const body = req.body;
+  if (!id) return res.status(403).json({message: "Missing teacher id"})
   try {
-    const updatedTeacher = (await TeacherService.updateTeacher)
-      ? (req.params.id, req.body)
-      : undefined;
+    const updatedTeacher = await TeacherService.updateTeacher(id, body);
+
     if (!updatedTeacher)
       return res.status(404).json({ message: "Teacher not found" });
     res.json(updatedTeacher);
-  } catch (error) {
-    res.status(500).json({ message: "Error updating teacher" });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || "Error updating teacher" });
   }
 };
 
 // Delete a Teacher
 export const deleteTeacher = async (req: Request, res: Response) => {
+  // DELETE passing Resources Id in the URL
+  const id = req.params.id;
+  if (!id) return res.status(403).json({message: "Missing teacher id"})
   try {
-    const success = (await TeacherService.deleteTeacher)
-      ? req.params.id
-      : false;
+    const success = await TeacherService.deleteTeacher(id);
     if (!success) return res.status(404).json({ message: "Teacher not found" });
     res.json({ message: "Teacher deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Error deleting Teacher" });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || "Error deleting Teacher" });
   }
 };
 

@@ -37,11 +37,8 @@ export const deleteTeacher = async (id: string): Promise<boolean> => {
   return true;
 };
 
-// Update Teacher, return new data
-export const updateTeacher = async (
-  id: string,
-  body: Partial<Teacher> // accept only fields that need updating
-): Promise<Teacher | undefined> => {
+// Update Teacher, return new data:  // accept only fields that need updating
+export const updateTeacher = async (id: string, body: Partial<Teacher>): Promise<Teacher | undefined> => {
 
   // Checking if the doc of teacher exist
   const docRef = teachersRef.doc(id);
@@ -55,6 +52,13 @@ export const updateTeacher = async (
   await teachersRef.doc(id).update(body);
   // Get reference of the doc
   const updated = await teachersRef.doc(id).get();
+  
+
+  // Case updating email, need update Firebase Auth email
+  // if (body.email) {
+  //   const editingEmail = body.email;
+
+  // }
 
   return {id: updated.id, ...updated.data()} as Teacher;
 };

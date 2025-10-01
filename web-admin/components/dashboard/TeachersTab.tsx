@@ -11,11 +11,14 @@ export default function TeachersTab({
   newTeacher,
   setNewTeacher,
   onAdd,
+  onDelete,
+  
 }: {
   teachers: Types.Teacher[];
   newTeacher: NewTeacherInput;
   setNewTeacher: React.Dispatch<React.SetStateAction<NewTeacherInput>>;
   onAdd: () => void;
+  onDelete: (id: string) => void
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,7 +98,10 @@ export default function TeachersTab({
   };
 
   const handleEditClick = (teacher: Types.Teacher) => {
+    // Set editing teacher is passing Teacher
     setEditingTeacher(teacher);
+
+    // Loading input field with current value of editing teacher
     setNewTeacher({
       firstName: teacher.firstName,
       lastName: teacher.lastName,
@@ -116,7 +122,11 @@ export default function TeachersTab({
   const handleDeleteClick = (teacher: Types.Teacher) => {
     if (window.confirm(`Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}?`)) {
       console.log('Delete teacher:', teacher.id);
+      // Calling onDelete()
+      onDelete(teacher.id);
     }
+    // else, cancel
+    else return 
   };
 
   const handleAssignClass = (teacherId: string) => {

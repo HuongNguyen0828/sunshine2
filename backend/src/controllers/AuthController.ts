@@ -10,18 +10,13 @@ import { UserRole } from "../models/user";
 // Check email before let user Signin
 export async function checkEmail(req: Request, res: Response) {
   try {
-    console.log('\n🔍 [checkEmail] Starting email check...');
     // email input
     const { email } = req.body;
-    console.log(`  Email to check: ${email}`);
-
-    // calling serive
+    // calling service
     const role = await findRoleByEmail(email);
-    console.log(`  Role found: ${role || 'null'}`);
-
     // If not email
     if (!role) {
-      console.log('  ❌ Email not authorized');
+      console.log(' Email not authorized');
       return res
         .status(403)
         .send({
@@ -29,11 +24,8 @@ export async function checkEmail(req: Request, res: Response) {
             "Email not authorized. You need register your daycare with Sunshine",
         });
     }
-
-    console.log(`  ✅ Email authorized as ${role}`);
     res.send({ role });
   } catch (err: any) {
-    console.log(`  ❌ Error in checkEmail: ${err.message}`);
     res.status(500).send({ message: err.message });
   }
 }
@@ -41,36 +33,26 @@ export async function checkEmail(req: Request, res: Response) {
 // Create user by Verify userRole: link the user uid of
 export async function verifyRole(req: Request, res: Response) {
   try {
-    console.log('\n🔐 [verifyRole] Starting role verification...');
     const { idToken, name } = req.body;
-    console.log(`  Name: ${name}`);
-    console.log(`  ID Token: ${idToken ? 'present' : 'missing'}`);
 
     const decoded = await admin.auth().verifyIdToken(idToken);
-    console.log(`  Decoded UID: ${decoded.uid}`);
 
     // return email or null
     const email = decoded.email ?? null;
-    console.log(`  Email from token: ${email}`);
 
     // Extract role from email
     const role = await findRoleByEmail(email);
-    console.log(`  Role found: ${role || 'null'}`);
 
     // If role = null
     if (!role) {
-      console.log('  ❌ Unauthorized email');
       return res.status(403).send({ message: "Unauthorized email!" });
     }
 
     // if role is defined, create users collection in Firestore with same uid with uid in Firebase Auth
-    console.log(`  Creating user in Firestore...`);
     await createUser(decoded.uid, email, role, name);
-    console.log(`  ✅ User created successfully with role: ${role}`);
 
     res.send({ message: "User verified", role });
   } catch (err: any) {
-    console.log(`  ❌ Error in verifyRole: ${err.message}`);
     res.status(500).send({ message: err.message });
   }
 }

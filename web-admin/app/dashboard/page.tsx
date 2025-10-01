@@ -23,7 +23,7 @@ import type {
 
 import swal from "sweetalert2"; // for alert library
 // import { isContext } from 'vm';
-import { fetchTeachers, addATeacher } from "@/hooks/useTeachersAPI";
+import { useFetchTeachers, useAddTeacher, useDeleteTeacher, useUpdateTeacher } from "@/hooks/useTeachersAPI";
 
 export default function AdminDashboard() {
   const { signOutUser } = useAuth();
@@ -167,21 +167,6 @@ export default function AdminDashboard() {
     classroom: "",
   });
 
-  // Fetching teachers
-  useEffect(() => {
-    setLoading(true);
-    const fetchData = async () => {
-      try {
-        const data = await fetchTeachers();
-        if (data) setTeachers(data);
-      } catch (err: any) {
-        console.error(err);
-        alert("Error fetching teachers");
-      }
-    };
-    fetchData();
-    setLoading(false);
-  }, [newTeacher]); // depends on newTeacher
 
   // --- Actions
   const addTeacher = async () => {
@@ -194,7 +179,7 @@ export default function AdminDashboard() {
       endDate: newTeacher.endDate || null,
     };
     try {
-      await addATeacher(newTeacherData as NewTeacherInput);
+      await useAddTeacher(newTeacherData as NewTeacherInput);
       // Reset form; list updates automatically via onSnapshot
       setNewTeacher({
         firstName: "",
@@ -221,13 +206,38 @@ export default function AdminDashboard() {
         allowOutsideClick: false,
         showConfirmButton: true,
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Failed to add teacher. Please try again.");
+      alert(e.message);
     } finally {
       setLoading(false);
     }
   };
+
+  // Delete Teacher
+  const deleteTeacher = async (id: string) => {
+    try {
+      await useDeleteTeacher(id);
+    } catch (e: any) {
+      alert(e.message)
+    }
+  }
+
+  //Fetching teachers
+  useEffect(() => {
+    setLoading(true);
+    const fetchData = async () => {
+      try {
+        const data = await useFetchTeachers();
+        if (data) setTeachers(data);
+      } catch (err: any) {
+        console.error(err);
+        alert("Error fetching teachers");
+      }
+    };
+    fetchData();
+    setLoading(false);
+  }, [newTeacher, deleteTeacher]); // depends on newTeacher
 
   const addChild = () => {
     // Local-only example; can be migrated to Firestore with same pattern
@@ -352,6 +362,8 @@ export default function AdminDashboard() {
                   newTeacher={newTeacher}
                   setNewTeacher={setNewTeacher}
                   onAdd={addTeacher}
+                  onDelete={deleteTeacher}
+                  onUpdate={updateTeacher}
                 />
               )}
 
