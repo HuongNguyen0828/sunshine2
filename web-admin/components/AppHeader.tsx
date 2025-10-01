@@ -1,0 +1,102 @@
+'use client';
+
+import Image from 'next/image';
+import { useAuth } from '@/lib/auth';
+import { useState, useRef, useEffect } from 'react';
+
+export default function AppHeader() {
+  const { signOutUser, user } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
+  const handleLogout = async () => {
+    setIsMenuOpen(false);
+    await signOutUser();
+  };
+
+  return (
+    <header className="bg-white border-b border-gray-200">
+      <div className="mx-auto px-6 py-3">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center">
+            <Image
+              src="/logo.svg"
+              alt="Sunshine Daycare"
+              width={32}
+              height={32}
+              className="h-8 w-8"
+            />
+            <span className="ml-3 text-sm font-medium text-gray-700">Sunshine Daycare</span>
+          </div>
+
+          {/* Right side - User menu */}
+          <div className="flex items-center gap-4">
+            {/* User info - hidden on mobile */}
+            {user?.email && (
+              <span className="hidden sm:block text-xs text-gray-500">
+                {user.email}
+              </span>
+            )}
+
+            {/* User menu dropdown */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+              >
+                <div className="w-7 h-7 rounded-full bg-gray-700 text-white flex items-center justify-center text-xs font-medium">
+                  {user?.email ? user.email.charAt(0).toUpperCase() : 'A'}
+                </div>
+                <svg
+                  className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Dropdown menu */}
+              {isMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                  {user?.email && (
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-xs text-gray-500 mb-1">Signed in as</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
