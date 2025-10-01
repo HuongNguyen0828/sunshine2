@@ -61,10 +61,8 @@ export const deleteTeacher = async (id: string): Promise<boolean> => {
   return true;
 };
 
-// Assign a teacher to a class (bidirectional), returns success boolean
-export const assignTeacherToClass = async (id: string, classId: string): Promise<boolean> => {
-  const teacherRef = teachersRef.doc(id);
-  const classRef   = classesRef.doc(classId);
+// Update Teacher, return new data:  // accept only fields that need updating
+export const updateTeacher = async (id: string, body: Partial<Teacher>): Promise<Teacher | undefined> => {
 
   const [tSnap, cSnap] = await Promise.all([teacherRef.get(), classRef.get()]);
   if (!tSnap.exists || !cSnap.exists) return false;
@@ -74,5 +72,17 @@ export const assignTeacherToClass = async (id: string, classId: string): Promise
   batch.set(classRef, { teacherId: id }, { merge: true });
   await batch.commit();
 
-  return true;
+  // else, if found, Update the doc
+  await teachersRef.doc(id).update(body);
+  // Get reference of the doc
+  const updated = await teachersRef.doc(id).get();
+  
+
+  // Case updating email, need update Firebase Auth email
+  // if (body.email) {
+  //   const editingEmail = body.email;
+
+  // }
+
+  return {id: updated.id, ...updated.data()} as Teacher;
 };

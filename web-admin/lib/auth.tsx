@@ -88,10 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-
-  // Development bypass (skip backend role checks)
-  const bypassAuth = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
-
+  
   /** Keep Firebase Auth state in sync with React state */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -138,9 +135,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setIsAdmin(false);
       setLoading(false);
     });
-
-    return () => unsub();
-  }, [auth, bypassAuth]);
+    return () => unsubscribe();
+  }, [auth]);
 
   /**
    * Sign up flow:
@@ -154,43 +150,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     password: string
   ): Promise<void> => {
     try {
-      console.log("\n🚀 [Frontend SignUp] Starting signup");
-      console.log(`  Name: ${name}`);
-      console.log(`  Email: ${email}`);
 
-      // Step 1: email check
-      console.log("  Step 1: Checking email against backend...");
-      const check = await fetchJson<CheckEmailResponse>("/api/auth/check-email", {
+      // 1) Email check against backend policy
+      console.log('  Step 1: Checking email with backend...');
+      const res = await fetch("http://localhost:5001/auth/check-email", {
+
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
-        credentials: "include",
+        credentials: "include", // add this matching with CORS
       });
       console.log(`  ✅ Authorized role: ${check.role}`);
 
-      // Step 2: create Firebase user
-      console.log("  Step 2: Creating Firebase user...");
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(cred.user, { displayName: name });
-      console.log(`  ✅ Firebase user created: ${cred.user.uid}`);
+      // Only respond ok is valid email
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message)
+      }
+      const { role } = await res.json(); // get the role: example: role: "parent"
 
-      // Step 3: verify role + create profile in backend
-      console.log("  Step 3: Verifying role & creating profile...");
-      const idToken = await cred.user.getIdToken();
-      const verify = await fetchJson<{ ok: true }>("/api/auth/verify-role", {
+      // Step 2: create Firebase Authentication user
+      console.log('  Step 2: Creating Firebase Auth user...');
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      await updateProfile(userCredential.user, { displayName: name });
+
+      // Step 3: Verify role in backend, and create users collection with same uid
+      console.log('  Step 3: Verifying role and creating user profile...');
+      const idToken = await userCredential.user.getIdToken();
+
+      const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-role`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, name }),
       });
-      console.log("  ✅ Signup complete", verify);
-    } catch (error: unknown) {
-      console.log("  ❌ Signup error:", error);
-      if (isFirebaseError(error) && error.code === "auth/email-already-in-use") {
-        throw new Error(
-          "Already existing email. Please login or use other email"
-        );
+
+      console.log(`  Response status: ${verifyRes.status}`);
+
+      if (!verifyRes.ok) {
+        const errorData = await verifyRes.json();
+        throw new Error(errorData.message);
       }
-      throw new Error(errorMessage(error));
+
+    } catch (error: any) {
+      if(error.code == "auth/email-already-in-use") throw new Error("Already existing email. Please login or use other email");
+      throw error;
+
     }
   };
 
@@ -202,49 +211,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
    */
   const signIn = async (email: string, password: string): Promise<void> => {
     try {
-      console.log("\n🔐 [Frontend SignIn] Starting");
-      console.log(`  Email: ${email}`);
+      // 1. Firebase Auth login
+      console.log('  Step 1: Authenticating with Firebase...');
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
 
-      // Step 1: Firebase signIn
-      console.log("  Step 1: Firebase auth...");
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      console.log(`  ✅ Firebase OK. UID: ${cred.user.uid}`);
+      // 2. Get ID token
+      const idToken = await userCredential.user.getIdToken();
 
-      // Step 2: get token from returned user
-      console.log("  Step 2: Getting ID token...");
-      const idToken = await cred.user.getIdToken();
-      console.log("  ✅ Token ready");
+      // 3. Call backend to get role
 
-      // Step 3: role from backend (or bypass)
-      let role: string;
-      let locationId: string;
-      if (bypassAuth) {
-        console.log("  ⚠️ Bypass mode: force role=admin");
-        role = "admin";
-      } else {
-        console.log("  Step 3: Calling backend /api/auth/get-admin ...");
-        const data = await fetchJson<GetAdminResponse>("/api/auth/get-admin", {
-          method: "GET",
-          headers: { Authorization: `Bearer ${idToken}` },
-        });
-        role = data.user.role;
-        console.log("  ✅ Backend role:", role);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/get-admin`, {
+        method: "GET",
+        // Input Header autherization inside Request extended
+        headers: { Authorization: `Bearer ${idToken}` },
+      });
+
+      console.log(`  Response status: ${res.status}`);
+
+      // Case not Admin
+      if (!res.ok) {
+        // Extract message from respond: custome with role-based or general message
+        const errData = await res.json();
+        console.log('Access denied:', errData.message);
+        throw new Error(errData.message || "Access denied");
       }
+      // else, Case: Admin
+      const data = await res.json();
 
-      if (typeof window !== "undefined") {
-        Cookies.set("userRole", role, { expires: 7 });
-        Cookies.set("idToken", idToken, { expires: 7 });
-        Cookies.set("uid", cred.user.uid, { expires: 7 });
-      }
-      setUserRole(role);
-      setIsAdmin(role === "admin");
-      console.log("  ✅ Sign in complete");
-    } catch (error: unknown) {
-      console.log("  ❌ Sign in error:", error);
-      if (isFirebaseError(error) && error.code === "auth/invalid-credential") {
-        throw new Error("Invalid Email or Password");
-      }
-      throw new Error(errorMessage(error));
+      // 4. Store role in cache/localStorage (for reduce fetching check-role and user once they login)
+      localStorage.setItem("userRole", data.user.role);
+
+      // Updating AuthContext: On reload, rehydrate from localStorage.
+      setUserRole(data.user.role);
+      setIsAdmin(data.user.role === "admin");
+
+    } catch (error: any) {
+      // Error from Frontend: Firebase Auth errors with signInWithEmailAndPassword
+      if (error.code === "auth/invalid-credential")  throw new Error("Invalid Email or Password");
+      // else, error from role-base
+      throw error;
     }
   };
 

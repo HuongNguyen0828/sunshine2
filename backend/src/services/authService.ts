@@ -4,14 +4,8 @@ import { UserRole } from "../models/user";
 import { db } from "../lib/firebase";
 
 
-/**
- * Find a user's role by email across collections (teachers, parents, admins).
- * Returns the matching UserRole or null if not found.
- */
-export async function findRoleByEmail(
-  email: string | null
-): Promise<UserRole | null> {
-  console.log(`    🔎 [findRoleByEmail] Searching for email: ${email}`);
+// Checking email exist before let user signup: email could be null from verify token
+export async function findRoleByEmail(email: string | null): Promise<UserRole | null>{
 
   // Guard clause: reject null/empty emails
   if (!email || !email.trim()) {
@@ -27,9 +21,6 @@ export async function findRoleByEmail(
     .where("email", "==", emailLower)
     .limit(1)
     .get();
-  console.log(
-    `      Teachers collection: ${teacherDoc.empty ? "not found" : "FOUND"}`
-  );
   if (!teacherDoc.empty) return UserRole.Teacher;
 
   // parents
@@ -38,9 +29,6 @@ export async function findRoleByEmail(
     .where("email", "==", emailLower)
     .limit(1)
     .get();
-  console.log(
-    `      Parents collection: ${parentDoc.empty ? "not found" : "FOUND"}`
-  );
   if (!parentDoc.empty) return UserRole.Parent;
 
   // admins
@@ -49,33 +37,17 @@ export async function findRoleByEmail(
     .where("email", "==", emailLower)
     .limit(1)
     .get();
-  console.log(
-    `      Admins collection: ${adminDoc.empty ? "not found" : "FOUND"}`
-  );
   if (!adminDoc.empty) return UserRole.Admin;
 
-  console.log(`      ❌ Email not found in any collection`);
   return null;
 }
 
-/**
- * Create a user document in 'users/{uid}'.
- * Skips creation if email is null or empty.
- */
-export async function createUser(
-  uid: string,
-  email: string | null,
-  role: string, // keep as string for compatibility; prefer UserRole in new code
-  name: string
-): Promise<void> {
-  console.log(`    👤 [createUser] Creating user...`);
-  console.log(`      UID: ${uid}`);
-  console.log(`      Email: ${email}`);
-  console.log(`      Role: ${role}`);
-  console.log(`      Name: ${name}`);
 
-  if (!email || !email.trim()) {
-    console.log(`      ⚠️  No email provided, skipping user creation`);
+// Create new user after checking user email is valid
+export async function createUser(uid: string, email: string | null, role: string, name: string) {
+
+  // If email is undefined, no create new user
+  if (!email) {
     return;
   }
 
@@ -88,8 +60,6 @@ export async function createUser(
     name,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
-
-  console.log(`      ✅ User document created in 'users' collection`);
 }
 
 /**
@@ -103,15 +73,8 @@ export async function getUserByUid(uid: string) {
 }
 
 
-export async function findDaycareAndLocationByEmail(email: string | null): Promise<{daycareId: string, locationId: string} | null> {
-  // Case: not provide email
-  if (!email || !email.trim()) {
-    throw new Error("Email required to find daycare and location");
-  }
-  // else
-  try {
-    const adminRef = await db.collection("admins")
-      .where("email", "==", email.trim().toLowerCase());
+// Other services like: 
+// Updating user email
 
     // Extract daycare and location IDs
     const snapshot = await adminRef.get();

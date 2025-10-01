@@ -20,11 +20,14 @@ export default function TeachersTab({
   newTeacher,
   setNewTeacher,
   onAdd,
+  onDelete,
+  
 }: {
   teachers: Types.Teacher[];
   newTeacher: NewTeacherInput;
   setNewTeacher: React.Dispatch<React.SetStateAction<NewTeacherInput>>;
   onAdd: () => void;
+  onDelete: (id: string) => void
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -114,7 +117,10 @@ export default function TeachersTab({
   };
 
   const handleEditClick = (teacher: Types.Teacher) => {
+    // Set editing teacher is passing Teacher
     setEditingTeacher(teacher);
+
+    // Loading input field with current value of editing teacher
     setNewTeacher({
       firstName: teacher.firstName,
       lastName: teacher.lastName,
@@ -132,16 +138,14 @@ export default function TeachersTab({
     setIsFormOpen(true);
   };
 
-  const handleDeleteClick = async (teacher: Types.Teacher) => {
-    const ok = window.confirm(`Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}?`);
-    if (!ok) return;
-    await api.delete<{ ok: boolean; uid: string }>(`${ENDPOINTS.teachers}/${teacher.id}`);
-    setRows((prev) => {
-      const next = prev.filter((t) => t.id !== teacher.id);
-      const maxPage = Math.max(1, Math.ceil(next.length / teachersPerPage));
-      if (currentPage > maxPage) setCurrentPage(maxPage);
-      return next;
-    });
+  const handleDeleteClick = (teacher: Types.Teacher) => {
+    if (window.confirm(`Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}?`)) {
+      console.log('Delete teacher:', teacher.id);
+      // Calling onDelete()
+      onDelete(teacher.id);
+    }
+    // else, cancel
+    else return 
   };
 
   const handleAssignClass = (teacherId: string) => {
