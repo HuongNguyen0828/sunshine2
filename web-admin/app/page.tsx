@@ -8,12 +8,13 @@ export default function Home() {
 
   const router = useRouter();
   useEffect(() => {
-    const user = localStorage.getItem("user");
+    const userRole = localStorage.getItem("userRole");
+    const uid = localStorage.getItem("userId");
 
-    if (!user) {
+    if (!userRole) {
       redirect("/login");
     } else {
-      router.push("/dashboard");
+      router.push(`/dashboard/${uid}`);
     }
   }, [router]);
 

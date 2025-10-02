@@ -12,7 +12,7 @@ import ParentsTab from "@/components/dashboard/ParentsTab";
 import ClassesTab from "@/components/dashboard/ClassesTab";
 import SchedulerLabsTab from "@/components/dashboard/SchedulerLabsTab";
 import { dash } from "@/styles/dashboard";
-import * as Types from "../../../shared/types/type";
+import * as Types from "../../../../shared/types/type";
 import type {
   Tab,
   NewTeacherInput,
@@ -25,7 +25,17 @@ import swal from "sweetalert2"; // for alert library
 // import { isContext } from 'vm';
 import { fetchAllTeachers, fetchAddTeacher, fetchDeleteTeacher, fetchUpdateTeacher } from "@/hooks/useTeachersAPI";
 
-export default function AdminDashboard() {
+
+interface DashboardPageProps {
+  params: Promise<{ uid: string }>; // params is now a Promise
+}
+
+
+export default function AdminDashboard({ params }: DashboardPageProps) {
+  // Extract uid from params
+  const { uid } = React.use(params);
+
+
   const { signOutUser } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   // const [loading, setLoading] = useState<boolean>(true);

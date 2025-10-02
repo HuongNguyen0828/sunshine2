@@ -42,8 +42,16 @@ export const authMiddleware = async (
 
     if (!role) return res.status(403).send({ message: "Unauthorized email!" });
 
+    // Adding: check if admin accessing their own resource
+      // Case: if not passing uid in rquest link, and 
+      // Case: if uid passing in  request link, but doesn't match the uid of user login (from decode JWT)
+    if (req.params.uid && req.params.uid !== decoded.uid) {
+      return res.status(403).send({ message: "Forbidden: cannot access other user's data" });
+    }
+
     req.user = { uid: decoded.uid, email: email!, role };
     // Room for call next function as getRole from controller
+    
     next();
   } catch (err) {
     return res.status(401).send({ message: "Invalid token" });

@@ -162,9 +162,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       // else, Case: Admin
       const data = await res.json();
-
+      const uid = data.user.uid;
       // 4. Store user in cache/localStorage (for reduce fetching check-role and user once they login)
-      localStorage.setItem("user", data.user);
+      localStorage.setItem("userRole", data.user.role);
+      localStorage.setItem("userId", uid);
 
       // Updating AuthContext: On reload, rehydrate from localStorage.
       setUserRole(data.user.role);
@@ -185,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setCurrentUser(null);
     setUserRole(null);
     setIsAdmin(false);
-    localStorage.removeItem("user");
+    localStorage.removeItem("userRole");
     // Redirect after logout (comment out if you prefer page-guard redirection)
     router.replace("/login");
   };

@@ -28,31 +28,23 @@ export default function LoginPage() {
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('\n🔐 [Login Page] Form submitted');
-    console.log('  Valid:', valid, '| Loading:', loading);
-
     if (!valid || loading) {
-      console.log('  ⚠️  Form submission blocked:', { valid, loading });
       return;
     }
 
     try {
-      console.log('  🔄 Starting sign in process...');
-      console.log('  Email (normalized):', email.trim().toLowerCase());
       setErr(null);
       setLoading(true);
 
       await signIn(email.trim().toLowerCase(), pw);
-
-      console.log('  ✅ Sign in successful! Redirecting to dashboard...');
-      router.push('/dashboard');
+      // If success, direct user to their dashboard
+      const uid = localStorage.getItem("userId");
+      router.push(`/dashboard/${uid}`);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Login failed';
-      console.log('  ❌ Sign in failed:', message);
       setErr(message);
     } finally {
       setLoading(false);
-      console.log('  🏁 Sign in process completed');
     }
   };
 
