@@ -57,23 +57,9 @@ export const authMiddleware = async (
       return res.status(403).send({ message: "Forbidden: cannot access other user's data" });
     }
 
-    // Extract daycarId and locationId from user in Firestore
-    const daycareAndLocationResult = await findDaycareAndLocationByEmail(email);
-    if (!daycareAndLocationResult) {
-      return res.status(403).send({ message: "No daycare/location found for this user" });
-    }
-
-    // Else: extract daycareId and locationId
-    const {daycareId, locationId} = daycareAndLocationResult;
-    // Attach auth info to req.auth
-    req.user = { 
-      uid: decoded.uid, 
-      email: email!, 
-      role,
-      daycareId, 
-      locationId,
-    };
+    req.user = { uid: decoded.uid, email: email!, role };
     // Room for call next function as getRole from controller
+    
     next();
   } catch (err) {
     return res.status(401).send({ message: "Invalid token" });

@@ -91,7 +91,14 @@ export async function getAdmin(req: Request, res: Response) {
           message: `Access denied. Admins only. As ${req.user.role}, please use Sunshine mobile app`,
         });
     // else, Case admin return user is Admin\
-    res.status(200).send({ user: req.user });
+    res.status(200).send({
+      message: "Admin logged in",
+      user: {
+        uid: req.user.uid, // passing userID for direct route dashboard/{id}
+        email: req.user.email,
+        role: req.user.role,
+      },
+    });
   } catch (err: any) {
     res.status(500).send({ message: err.message });
   }
@@ -111,7 +118,14 @@ export async function getParentOrTeacher(req: Request, res: Response) {
           message: `Access denied. As ${req.user.role}, please login via web app`,
         });
     // else, Case Teacher or Parent return user is Admin\
-    res.status(200).send({ user: req.user });
+    res.status(200).send({
+      message: `${req.user.role} logged in`,
+      user: {
+        uid: req.user.uid,
+        email: req.user.email,
+        role: req.user.role,
+      },
+    });
   } catch (err: any) {
     res.status(500).send({ message: err.message });
   }
