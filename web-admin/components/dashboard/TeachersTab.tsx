@@ -64,14 +64,12 @@ export default function TeachersTab({
     postalcode: newTeacher?.postalcode 
   }
 
-  const filteredTeachers = useMemo(() => {
-    const term = searchTerm.toLowerCase();
-    return rows.filter((t) =>
-      t.firstName?.toLowerCase().includes(term) ||
-      t.lastName?.toLowerCase().includes(term) ||
-      t.email?.toLowerCase().includes(term)
-    );
-  }, [rows, searchTerm]);
+  // Filter teachers based on search
+  const filteredTeachers = teachers.filter(t =>
+    t.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const teachersPerPage = 6;
   const totalPages = Math.ceil(filteredTeachers.length / teachersPerPage) || 1;
@@ -426,9 +424,9 @@ export default function TeachersTab({
 
                 <div className="block">
                   <span className="text-gray-700 font-medium mb-1 block">Address *</span>
-                  <AutoCompleteAddress 
-                    onAddressChanged={handleAddressChange}
-                    addressValues={newTeacherAddressValues}
+                  <AutoCompleteAdress 
+                  addressValues={newTeacherAddressValues}
+                  onAddressChanged={handleAddressChange} 
                   />
                 </div>
 
