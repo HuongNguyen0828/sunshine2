@@ -39,6 +39,7 @@ export const getTeacherById = async (req: Request, res: Response) => {
 
 // Update an existing teacher
 export const updateTeacher = async (req: Request, res: Response) => {
+  console.log("Handling  http request")
   const id = req.params.id;
   const body = req.body;
   if (!id) return res.status(403).json({message: "Missing teacher id"})

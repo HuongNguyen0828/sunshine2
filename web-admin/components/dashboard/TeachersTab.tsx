@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import type { NewTeacherInput } from "@/types/forms";
 import AutoCompleteAdress from "@/components/AutoCompleteAddress";
 import {Address} from "@/components/AutoCompleteAddress"
+import { json } from "stream/consumers";
 
 export default function TeachersTab({
   teachers,
@@ -12,13 +13,14 @@ export default function TeachersTab({
   setNewTeacher,
   onAdd,
   onDelete,
-  
+  onUpdate
 }: {
   teachers: Types.Teacher[];
   newTeacher: NewTeacherInput;
   setNewTeacher: React.Dispatch<React.SetStateAction<NewTeacherInput>>;
   onAdd: () => void;
-  onDelete: (id: string) => void
+  onDelete: (id: string) => void,
+  onUpdate: (id: string, newTeacherInfo: Partial<NewTeacherInput>) => void;
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,10 +54,28 @@ export default function TeachersTab({
   const startIndex = (currentPage - 1) * teachersPerPage;
   const paginatedTeachers = filteredTeachers.slice(startIndex, startIndex + teachersPerPage);
 
+  // After done editing current Teacher or adding New Teacher
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingTeacher) {
       console.log('Update teacher:', { ...editingTeacher, ...newTeacher });
+
+      // Find the only info that is updating: currently (editingTeacher) => new (newTeacher)      
+      // Case: no changes, do nothing
+      if (JSON.stringify(newTeacher) === JSON.stringify(editingTeacher)) return;
+
+      // Else, collect only changed fileds; is type Parital<Types.Teacher> with Teacher ID
+      const teacherId = editingTeacher.id;
+      const newInfo = Object.fromEntries((Object.keys(newTeacher) as (keyof NewTeacherInput)[])
+        .filter((key) => newTeacher[key] !== editingTeacher[key])
+        .map((key) => [key, newTeacher[key]])
+      ) as Partial<NewTeacherInput>;
+
+      // Call onUpdate();
+      onUpdate(teacherId, newInfo);
+
+
+      // After upating Teacher new Info
       setEditingTeacher(null);
       // Reset form to empty state
       setNewTeacher({
@@ -97,6 +117,8 @@ export default function TeachersTab({
     setIsFormOpen(true);
   };
 
+
+  // Opening form, and allow editing
   const handleEditClick = (teacher: Types.Teacher) => {
     // Set editing teacher is passing Teacher
     setEditingTeacher(teacher);
