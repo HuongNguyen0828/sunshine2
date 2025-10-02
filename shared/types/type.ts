@@ -1,30 +1,13 @@
-type EntryType = 
-  "Attendance" | "Schedule_note" | "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
-
+type EntryType =
+  | "Attendance"
+  | "Schedule_note"
+  | "Food"
+  | "Photo"
+  | "Sleep"
+  | "Toilet"
+  | "Supply Request";
 type AttendanceSubtype = "Check in" | "Check out";
 type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
-
-export type Admin = {
-  daycareId: string,             // referencing Daycare Provider 
-  locationId?: string[],         // referencing location id, ['*'] means all locations; optional for now
-  firstName: string,
-  lastName: string, 
-  email: string,
-  phone: string,
-  address: string,
-  postalCode: string,
-}
-
-export type Entry = {
-  id: string;
-  childId: string;
-  staffId: string;
-  type: EntryType;
-  subtype?: AttendanceSubtype | FoodSubtype;
-  detail?: string;
-  photoUrl?: string;
-  createdAt: string;
-};
 
 export type DaycareProvider = {
   id: string;
@@ -34,60 +17,45 @@ export type DaycareProvider = {
   phone: string;
   email: string;
   contactName: string;
-}
+};
+// Remove Location for now for purpose of simplicity
+export type Location = {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  providerId: string;
+  street: string;
+  city: string;
+  provine: string;
+  zip: string;
+  country: string;
+  creditCardInfo?: string;
+};
 
-// ////// Remove Location for now for simplicity
-// export type Location = { 
-//   id: string;
-//   name: string;
-//   phone: string;
-//   email: string;
-//   providerId: string;
-//   street: string;
-//   city: string;
-//   province: string;
-//   zip: string;
-//   country: string;
-//   creditCardInfo?: string; 
-// }
+export type Admin = {
+  daycareId: string; // referencing Daycare Provider , ['*'] means all daycare, only for Sunshine admin
+  locationId: string[]; // referencing location id, ['*'] for all location
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  postalCode: string;
+};
+// Upper, For Sunshine admin only read/ write access ====================================================================
+// The rest if for admin of daycare/ daycare location having read and write access. Sunshine admin just have read access
 
 export type Class = {
   id: string;
   name: string;
-  locationId?: string;
+  locationId: string;
   capacity: number;
   volume: number;
   ageStart: number;
   ageEnd: number;
-  classroom?: string;
-  teacherIds?: string[];   
-  createdAt?: string;      
-  updatedAt?: string;
+  classroom: string;
 };
-
-export type ClassCreate = Omit<Class, "id" | "teacherIds" | "createdAt" | "updatedAt">;
-export type ClassUpdate = Partial<ClassCreate>;
-
-export type User = {
-  id: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  role?: "admin" | "teacher" | "parent" | string;
-  status?: "New" | "Active" | string;
-  locationIds?: string[];
-  daycareId?: string;
-  classIds?: string[];
-};
-
-export type Schedule = {
-  id: string;
-  classId: string;
-  dayOfWeek: number;       // 0 (Sunday) to 6 (Saturday)
-  startTime: string;       // "HH:MM" format
-  endTime: string;         // "HH:MM" format
-  morningAfernoon: "Morning" | "Afternoon" | "Full day";
-}
 
 export type Teacher = {
   id: string;
@@ -104,19 +72,17 @@ export type Teacher = {
   classIds?: string[];     // classes assigned to this staff
   locationId?: string;     // optional for now
   startDate: string;
-  endDate?: string;        // optional end date for staff
-}
+  endDate?: string; // Optional end date for staff
+};
 
-export type monthlyReport = {
+export type Schedule = {
   id: string;
-  childId?: string;        // optional, if not provided → all children under the parent
-  classId?: string;        // optional, if not provided → all classes under the location
-  locationId?: string;     // optional, if not provided → all locations under the provider
-  month: string;           // "YYYY-MM" format
-  attendanceCount: number;
-  creatAt: string;
-  updatedAt?: string;
-}
+  classId: string;
+  dayOfWeek: number; // 0 (Sunday) to 6 (Saturday)
+  startTime: string; // "HH:MM" format
+  endTime: string; // "HH:MM" format
+  morningAfernoon: "Morning" | "Afternoon" | "Full day";
+};
 
 export type Child = {
   id: string;
@@ -130,8 +96,8 @@ export type Child = {
   subsidyStatus?: string;
   enrollmentDate: string;  // ISO date string
   enrollmentStatus: "Active" | "Withdraw" | "New" | "Waitlist";
-  endDate?: string;        // ISO date string
-}
+  endDate?: string; // ISO date string
+};
 
 export type Parent = {
   id: string;
@@ -147,22 +113,42 @@ export type Parent = {
   province: string;
   country: string;
   emergencyContact?: string;
-  createdAt: string;       // ISO date string
-  updatedAt?: string;      // ISO date string  
+  createdAt: string; // ISO date string
+  updatedAt?: string; // ISO date string
   preferredLanguage?: string; // e.g., "en", "fr"
-}
+};
 
+export type Entry = {
+  id: string;
+  childId: string;
+  staffId: string;
+  type: EntryType;
+  subtype?: AttendanceSubtype | FoodSubtype;
+  detail?: string;
+  photoUrl?: string;
+  createdAt: string;
+};
+export type Photo = {
+  id: string;
+  entryId: string;
+  url: string;
+  uploadedAt: string; // ISO date string
+};
 export type DailyReport = {
   id: string;
   childId: string;
   date: string;            // ISO date string
   entries: Entry[];
-  createdAt: string;       // ISO date string; report created after kid is checked out
-}
+  createdAt: string; // ISO date string // report created right after kid is checked out
+};
 
-export type Photo = {
+export type monthlyReport = {
   id: string;
-  entryId: string;
-  url: string;
-  uploadedAt: string;      // ISO date string  
-}
+  childId?: string; // Optional, if not provided, means all children under the parent
+  classId?: string; // Optional, if not provided, means all classes under the location
+  locationId?: string; // Optional, if not provided, means all locations under the provider
+  month: string; // "YYYY-MM" format
+  attendanceCount: number;
+  creatAt: string;
+  updatedAt?: string;
+};
