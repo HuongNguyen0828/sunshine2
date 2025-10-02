@@ -246,7 +246,7 @@ export default function AdminDashboard() {
     };
     fetchData();
 
-  }, [newTeacher, deleteTeacher, updateTeacher]); // depends on newTeacher
+  }, [newTeacher, addTeacher, deleteTeacher, updateTeacher]); // depends on newTeacher
 
   const addChild = () => {
     // Local-only example; can be migrated to Firestore with same pattern
