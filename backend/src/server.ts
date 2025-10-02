@@ -23,7 +23,7 @@ app.use(
       // Add production domains later
     ],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], // Allow PATCH
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
