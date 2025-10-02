@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // 1) Email check against backend policy
       console.log('  Step 1: Checking email with backend...');
-      const res = await fetch("http://localhost:5001/auth/check-email", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/check-email`, {
 
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -163,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // else, Case: Admin
       const data = await res.json();
 
-      // 4. Store role in cache/localStorage (for reduce fetching check-role and user once they login)
+      // 4. Store user in cache/localStorage (for reduce fetching check-role and user once they login)
       localStorage.setItem("user", data.user);
 
       // Updating AuthContext: On reload, rehydrate from localStorage.
@@ -185,7 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setCurrentUser(null);
     setUserRole(null);
     setIsAdmin(false);
-    localStorage.removeItem("userRole");
+    localStorage.removeItem("user");
     // Redirect after logout (comment out if you prefer page-guard redirection)
     router.replace("/login");
   };

@@ -24,7 +24,7 @@ export async function fetchAllTeachers(): Promise<Types.Teacher[]> {
 // Add a new teacher
 export async function fetchAddTeacher(newTeacherInfo: Partial<NewTeacherInput>): Promise<Types.Teacher | null> {
     try {
-        const res = await fetch("http://localhost:5000/teacher", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ...newTeacherInfo }), // pass in object elements, not the whole object
@@ -51,7 +51,7 @@ export async function fetchAddTeacher(newTeacherInfo: Partial<NewTeacherInput>):
     // If editing endDate involved, need disable the account after the endDate on Firebase Auth (consider an automatic script)
 export async function fetchUpdateTeacher(id: string, editingTeacher: Partial<NewTeacherInput>): Promise<Types.Teacher | null> {
     try {
-        const res = await fetch(`http://localhost:5000/teacher/${id}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(editingTeacher), // pass in object 
@@ -76,7 +76,7 @@ export async function fetchUpdateTeacher(id: string, editingTeacher: Partial<New
 // After deleting, also delete teacher account on Firebase Auth
 export async function fetchDeleteTeacher(teacherId: string): Promise<Types.Teacher | null> {
     try {
-        const res = await fetch(`http://localhost:5000/teacher/${teacherId}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/${teacherId}`, {
             method: "DELETE",
         });
         // If faild calling API
