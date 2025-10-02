@@ -4,7 +4,7 @@ import * as Types from "../../shared/types/type"
 import { NewTeacherInput } from "@/types/forms";
 
 // Fetch all teachers
-export async function useFetchTeachers(): Promise<Types.Teacher[]> {
+export async function fetchAllTeachers(): Promise<Types.Teacher[]> {
     try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher`);
         if (!res.ok) {
@@ -22,7 +22,7 @@ export async function useFetchTeachers(): Promise<Types.Teacher[]> {
 }
 
 // Add a new teacher
-export async function useAddTeacher(newTeacherInfo: Partial<NewTeacherInput>): Promise<Types.Teacher | null> {
+export async function fetchAddTeacher(newTeacherInfo: Partial<NewTeacherInput>): Promise<Types.Teacher | null> {
     try {
         const res = await fetch("http://localhost:5000/teacher", {
             method: "POST",
@@ -49,7 +49,7 @@ export async function useAddTeacher(newTeacherInfo: Partial<NewTeacherInput>): P
 // Updating an existing teacher (Partially: only update changing fields)
     // If editing email involved, need to update on Firebase Auth
     // If editing endDate involved, need disable the account after the endDate on Firebase Auth (consider an automatic script)
-export async function useUpdateTeacher(id: string, editingTeacher: Partial<NewTeacherInput>): Promise<Types.Teacher | null> {
+export async function fetchUpdateTeacher(id: string, editingTeacher: Partial<NewTeacherInput>): Promise<Types.Teacher | null> {
     try {
         const res = await fetch(`http://localhost:5000/teacher/${id}`, {
             method: "PATCH",
@@ -74,7 +74,7 @@ export async function useUpdateTeacher(id: string, editingTeacher: Partial<NewTe
 
 // Deleting an existing teacher
 // After deleting, also delete teacher account on Firebase Auth
-export async function useDeleteTeacher(teacherId: string): Promise<Types.Teacher | null> {
+export async function fetchDeleteTeacher(teacherId: string): Promise<Types.Teacher | null> {
     try {
         const res = await fetch(`http://localhost:5000/teacher/${teacherId}`, {
             method: "DELETE",
