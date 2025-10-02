@@ -29,14 +29,16 @@ import { fetchAllTeachers, fetchAddTeacher, fetchDeleteTeacher, fetchUpdateTeach
 interface DashboardPageProps {
   params: Promise<{ uid: string }>; // params is now a Promise
 }
-
+//Note: 
+  // Always get the UID from the route params, not localStorage, for fetching user-specific data. 
+  // LocalStorage can be used just for redirect or UI hints.
 
 export default function AdminDashboard({ params }: DashboardPageProps) {
   // Extract uid from params
   const { uid } = React.use(params);
 
 
-  const { signOutUser } = useAuth();
+  const { signOutUser, currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   // const [loading, setLoading] = useState<boolean>(true);
 
@@ -354,7 +356,7 @@ export default function AdminDashboard({ params }: DashboardPageProps) {
             <AppHeader />
             <h1 style={dash.headerTitle}>Admin Dashboard</h1>
             <div style={dash.headerActions}>
-              <span style={dash.welcome}>Welcome, Admin</span>
+              <span style={dash.welcome}>Welcome, {currentUser?.displayName} Admin</span>
               <button onClick={signOutUser} style={dash.logoutButton}>
                 Logout
               </button>
