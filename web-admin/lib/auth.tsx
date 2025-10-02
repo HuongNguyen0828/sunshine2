@@ -243,7 +243,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const data = await res.json();
 
       // 4. Store role in cache/localStorage (for reduce fetching check-role and user once they login)
-      localStorage.setItem("userRole", data.user.role);
+      localStorage.setItem("user", data.user);
 
       // Updating AuthContext: On reload, rehydrate from localStorage.
       setUserRole(data.user.role);
