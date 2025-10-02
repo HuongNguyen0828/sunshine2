@@ -41,6 +41,17 @@ export default function TeachersTab({
     }));
   }, []);
 
+  // Handle load address to form when editing: setNewTeacher with value of current Address
+  // Passing Current address value back to input value
+  const newTeacherAddressValues : Address = {
+    address1: newTeacher.address1,
+    address2: newTeacher.address2,
+    city: newTeacher.city,
+    province: newTeacher.province,
+    country: newTeacher.country,
+    postalcode: newTeacher?.postalcode 
+  }
+
   // Filter teachers based on search
   const filteredTeachers = teachers.filter(t =>
     t.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -427,7 +438,10 @@ export default function TeachersTab({
 
                 <div className="block">
                   <span className="text-gray-700 font-medium mb-1 block">Address *</span>
-                  <AutoCompleteAdress onAddressChanged={handleAddressChange} />
+                  <AutoCompleteAdress 
+                  addressValues={newTeacherAddressValues}
+                  onAddressChanged={handleAddressChange} 
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
