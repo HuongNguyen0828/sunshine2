@@ -20,6 +20,8 @@ type Props = {
   onCreated?: (created: Types.Class) => void;
   onUpdated?: (updated: Types.Class) => void;
   onDeleted?: (id: string) => void;
+  // Added: trigger a refetch after assigning teachers
+  onAssigned?: () => Promise<void> | void;
 };
 
 export default function ClassesTab({
@@ -31,6 +33,7 @@ export default function ClassesTab({
   onCreated,
   onUpdated,
   onDeleted,
+  onAssigned,
 }: Props) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -40,6 +43,7 @@ export default function ClassesTab({
   const [editingClass, setEditingClass] = useState<Types.Class | null>(null);
   const [showAssignTeachers, setShowAssignTeachers] = useState<string | null>(null);
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
+  const [isAssigning, setIsAssigning] = useState(false); // prevent double submit
 
   // ----- helpers -----
   const getCapacityStatus = (volume: number, capacity: number) => {
@@ -50,11 +54,13 @@ export default function ClassesTab({
     return "full";
   };
   const getCapacityColor = (status: string) =>
-    status === "available" ? "bg-green-500" :
-    status === "nearly-full" ? "bg-yellow-500" : "bg-red-500";
+    status === "available"
+      ? "bg-green-500"
+      : status === "nearly-full"
+      ? "bg-yellow-500"
+      : "bg-red-500";
   const getCapacityLabel = (status: string) =>
-    status === "available" ? "Available" :
-    status === "nearly-full" ? "Nearly Full" : "Full";
+    status === "available" ? "Available" : status === "nearly-full" ? "Nearly Full" : "Full";
 
   const getLocationLabel = (locId?: string) => {
     if (!locId) return "—";
@@ -65,8 +71,7 @@ export default function ClassesTab({
   // ----- list & filtering & paging -----
   const filteredClasses = useMemo(() => {
     return classes.filter((cls) => {
-      const locName =
-        (locations ?? []).find((l) => l.id === cls.locationId)?.name || "";
+      const locName = (locations ?? []).find((l) => l.id === cls.locationId)?.name || "";
       const matches =
         cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (cls.locationId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -82,10 +87,7 @@ export default function ClassesTab({
   const classesPerPage = 6;
   const totalPages = Math.max(1, Math.ceil(filteredClasses.length / classesPerPage));
   const startIndex = (currentPage - 1) * classesPerPage;
-  const paginatedClasses = filteredClasses.slice(
-    startIndex,
-    startIndex + classesPerPage
-  );
+  const paginatedClasses = filteredClasses.slice(startIndex, startIndex + classesPerPage);
 
   // ----- CRUD handlers -----
   async function handleFormSubmit(e: React.FormEvent) {
@@ -160,19 +162,24 @@ export default function ClassesTab({
 
   // ----- assign teachers -----
   function openAssign(classId: string) {
-    const currentTeachers = teachers.filter((t) =>
-      (t.classIds || []).includes(classId)
-    );
+    const currentTeachers = teachers.filter((t) => (t.classIds || []).includes(classId));
     setSelectedTeachers(currentTeachers.map((t) => t.id));
     setShowAssignTeachers(classId);
   }
 
   async function handleSaveTeachers() {
-    if (!showAssignTeachers) return;
-    const result = await assignTeachersToClass(showAssignTeachers, selectedTeachers);
-    if (result) {
-      setShowAssignTeachers(null);
-      setSelectedTeachers([]);
+    if (!showAssignTeachers || isAssigning) return;
+    try {
+      setIsAssigning(true);
+      const ok = await assignTeachersToClass(showAssignTeachers, selectedTeachers);
+      if (ok) {
+        // Tell parent to refetch classes/teachers immediately
+        await onAssigned?.();
+        setShowAssignTeachers(null);
+        setSelectedTeachers([]);
+      }
+    } finally {
+      setIsAssigning(false);
     }
   }
 
@@ -260,14 +267,9 @@ export default function ClassesTab({
       {paginatedClasses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {paginatedClasses.map((cls) => {
-            const assigned = teachers.filter((t) =>
-              (t.classIds || []).includes(cls.id)
-            );
+            const assigned = teachers.filter((t) => (t.classIds || []).includes(cls.id));
             const status = getCapacityStatus(cls.volume, cls.capacity);
-            const percent = Math.min(
-              100,
-              Math.round((cls.volume / (cls.capacity || 1)) * 100)
-            );
+            const percent = Math.min(100, Math.round((cls.volume / (cls.capacity || 1)) * 100));
 
             return (
               <div
@@ -276,9 +278,7 @@ export default function ClassesTab({
               >
                 {/* Header */}
                 <div className="mb-4">
-                  <h3 className="text-xl font-bold text-gray-800 truncate mb-2">
-                    {cls.name}
-                  </h3>
+                  <h3 className="text-xl font-bold text-gray-800 truncate mb-2">{cls.name}</h3>
                   <div className="flex items-center gap-2 text-gray-600 text-sm">
                     <span>📍</span>
                     <span className="truncate">{getLocationLabel(cls.locationId)}</span>
@@ -589,9 +589,7 @@ export default function ClassesTab({
             </div>
 
             <div className="p-6">
-              <p className="text-gray-600 text-sm mb-4">
-                Select teachers to assign to this class:
-              </p>
+              <p className="text-gray-600 text-sm mb-4">Select teachers to assign to this class:</p>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {teachers.length > 0 ? (
                   teachers.map((t) => (
@@ -604,9 +602,7 @@ export default function ClassesTab({
                         checked={selectedTeachers.includes(t.id)}
                         onChange={() =>
                           setSelectedTeachers((prev) =>
-                            prev.includes(t.id)
-                              ? prev.filter((id) => id !== t.id)
-                              : [...prev, t.id]
+                            prev.includes(t.id) ? prev.filter((id) => id !== t.id) : [...prev, t.id]
                           )
                         }
                         className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
@@ -639,9 +635,12 @@ export default function ClassesTab({
                 </button>
                 <button
                   onClick={handleSaveTeachers}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                  disabled={isAssigning}
+                  className={`flex-1 ${
+                    isAssigning ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+                  } text-white font-medium px-6 py-3 rounded-lg transition duration-200`}
                 >
-                  Save ({selectedTeachers.length})
+                  {isAssigning ? "Saving..." : `Save (${selectedTeachers.length})`}
                 </button>
               </div>
             </div>

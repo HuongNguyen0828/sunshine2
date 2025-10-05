@@ -140,54 +140,85 @@ export async function deleteClass(req: AuthRequest, res: Response) {
   }
 }
 
-// POST /class/:id/assign-teachers 
+// POST /class/:id/assign-teachers
 // Body: { teacherIds: string[] }
+
 export async function assignTeachers(req: AuthRequest, res: Response) {
   try {
-    const { id } = req.params as { id?: string };
-    if (!id) return res.status(400).send({ message: "Missing class id" });
+    // 1) Validate path param and body payload
+    const classId = req.params?.id || req.params?.classId;
+    if (!classId) return res.status(400).json({ message: "Missing class id" });
 
-    const { teacherIds } = req.body as { teacherIds: string[] };
-
-    const classDoc = await db.collection("classes").doc(id).get();
-    if (!classDoc.exists) return res.status(404).send({ message: "Class not found" });
-
-    // Fetch teachers that are selected OR currently have this class, to diff and update
-    const toRead: Promise<FirebaseFirestore.DocumentSnapshot>[] = teacherIds.map((tid) =>
-      db.collection("teachers").doc(tid).get()
+    // Normalize & validate teacherIds into string[]
+    const teacherIdsRaw: unknown[] = Array.isArray(req.body?.teacherIds) ? req.body.teacherIds : [];
+    const teacherIds: string[] = Array.from(
+      new Set<string>(
+        teacherIdsRaw
+          .filter((v: unknown): v is string => typeof v === "string")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0)
+      )
     );
-    const alreadySnap = await db
+
+    // 2) Ensure class exists
+    const classRef = db.collection("classes").doc(classId);
+    const classSnap = await classRef.get();
+    if (!classSnap.exists) return res.status(404).json({ message: "Class not found" });
+
+    // Ensure all teachers exist (avoid creating ghost documents)
+    const teacherDocs = await Promise.all(
+      teacherIds.map((id) => db.collection("teachers").doc(id).get())
+    );
+
+    // Build the invalid list without out-of-bounds risks
+    const invalid = teacherIds.reduce<string[]>((acc, id, i) => {
+      const snap = teacherDocs[i];
+      if (!snap || !snap.exists) acc.push(id); // 'id' is string, safe to push
+      return acc;
+    }, []);
+
+    if (invalid.length) {
+      return res.status(400).json({ message: "Invalid teacherIds", invalid });
+    }
+
+    // 4) Find currently assigned teachers for this class
+    const currentAssignedSnap = await db
       .collection("teachers")
-      .where("classIds", "array-contains", id)
+      .where("classIds", "array-contains", classId)
       .get();
+    const current = new Set(currentAssignedSnap.docs.map(d => d.id));
+    const selected = new Set(teacherIds);
 
-    const batch = db.batch();
+    // Compute diffs
+    const toAdd = teacherIds.filter(id => !current.has(id));
+    const toRemove = [...current].filter(id => !selected.has(id));
 
-    // Add classId to selected teachers
-    const selectedDocs = await Promise.all(toRead);
-    selectedDocs.forEach((doc) => {
-      if (!doc.exists) return;
-      const data = doc.data()!;
-      const list = (data.classIds as string[] | undefined) || [];
-      if (!list.includes(id)) {
-        batch.update(doc.ref, { classIds: [...list, id] });
+    // 5) Apply changes atomically in a transaction (prevents race conditions)
+    await db.runTransaction(async tx => {
+      if (toAdd.length) {
+        tx.update(classRef, { teacherIds: admin.firestore.FieldValue.arrayUnion(...toAdd) });
       }
+      if (toRemove.length) {
+        tx.update(classRef, { teacherIds: admin.firestore.FieldValue.arrayRemove(...toRemove) });
+      }
+
+      toAdd.forEach(id => {
+        const tRef = db.collection("teachers").doc(id);
+        tx.update(tRef, { classIds: admin.firestore.FieldValue.arrayUnion(classId) });
+      });
+
+      toRemove.forEach(id => {
+        const tRef = db.collection("teachers").doc(id);
+        tx.update(tRef, { classIds: admin.firestore.FieldValue.arrayRemove(classId) });
+      });
     });
 
-    // Remove classId from teachers who currently have it but are not selected
-    alreadySnap.forEach((doc) => {
-      if (!teacherIds.includes(doc.id)) {
-        const data = doc.data()!;
-        const list = (data.classIds as string[] | undefined) || [];
-        batch.update(doc.ref, { classIds: list.filter((c) => c !== id) });
-      }
-    });
-
-    await batch.commit();
-
-    return res.json({ classId: id, teacherIds });
+    // 6) Disable caches and return success
+    res.set("Cache-Control", "no-store");
+    return res.json({ ok: true, classId, teacherIds });
   } catch (e) {
     console.error(e);
-    return res.status(500).send({ message: "Failed to assign teachers" });
+    return res.status(500).json({ message: "Failed to assign teachers" });
   }
 }
+

@@ -6,13 +6,27 @@ import api from "@shared/api/client";
 import { ENDPOINTS } from "@shared/api/endpoint";
 import { NewClassInput } from "@/types/forms";
 
+// Normalize optional text fields
 function normalizeOptionalString(v?: string): string | undefined {
   if (v == null) return undefined;
   const t = v.trim();
   return t === "" ? undefined : t;
 }
 
-// GET /class
+// Normalize teacherIds: strings only, trimmed, unique
+function normalizeTeacherIds(ids: unknown): string[] {
+  if (!Array.isArray(ids)) return [];
+  const out = new Set<string>();
+  for (const v of ids as unknown[]) {
+    if (typeof v === "string") {
+      const s = v.trim();
+      if (s.length > 0) out.add(s);
+    }
+  }
+  return Array.from(out);
+}
+
+// GET /classes
 export async function fetchClasses(): Promise<Types.Class[] | null> {
   try {
     const items = await api.get<Types.Class[]>(ENDPOINTS.classes);
@@ -23,7 +37,7 @@ export async function fetchClasses(): Promise<Types.Class[] | null> {
   }
 }
 
-// POST /class
+// POST /classes
 export async function addClass(input: NewClassInput): Promise<Types.Class | null> {
   try {
     const payload = {
@@ -43,7 +57,7 @@ export async function addClass(input: NewClassInput): Promise<Types.Class | null
   }
 }
 
-// PUT /class/:id
+// PUT /classes/:id
 export async function updateClass(id: string, input: NewClassInput): Promise<Types.Class | null> {
   try {
     const payload = {
@@ -63,7 +77,7 @@ export async function updateClass(id: string, input: NewClassInput): Promise<Typ
   }
 }
 
-// DELETE /class/:id
+// DELETE /classes/:id
 export async function deleteClass(id: string): Promise<boolean> {
   try {
     await api.delete<void>(`${ENDPOINTS.classes}/${id}`);
@@ -74,19 +88,20 @@ export async function deleteClass(id: string): Promise<boolean> {
   }
 }
 
-// POST /class/:id/assign-teachers
+// POST /classes/:id/assign-teachers
 export async function assignTeachersToClass(
   classId: string,
   teacherIds: string[]
-): Promise<{ classId: string; teacherIds: string[] } | null> {
+): Promise<boolean> {
   try {
-    const result = await api.post<{ classId: string; teacherIds: string[] }>(
+    const payload = { teacherIds: normalizeTeacherIds(teacherIds) };
+    const res = await api.post<{ ok?: boolean; classId?: string; teacherIds?: string[] }>(
       `${ENDPOINTS.classes}/${classId}/assign-teachers`,
-      { teacherIds }
+      payload
     );
-    return result;
+    return !!res?.ok;
   } catch (err: unknown) {
     console.error(err);
-    return null;
+    return false;
   }
 }

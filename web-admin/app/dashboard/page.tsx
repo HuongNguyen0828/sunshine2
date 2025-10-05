@@ -1,6 +1,7 @@
+// web-admin/app/dashboard/page.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import ProtectedRoute from "@/components/ProtectRoute";
 import AppHeader from "@/components/AppHeader";
 import SidebarNav from "@/components/dashboard/SidebarNav";
@@ -31,16 +32,16 @@ export default function AdminDashboard() {
   const { signOutUser, currentUser, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
-  // server-backed data
+  // Server-backed data (teachers/classes/locations)
   const [teachers, setTeachers] = useState<Types.Teacher[]>([]);
   const [classes, setClasses] = useState<Types.Class[]>([]);
   const [locations, setLocations] = useState<LocationLite[]>([]);
 
-  // local demo data
+  // Local demo data (children/parents) — not persisted to backend
   const [children, setChildren] = useState<Types.Child[]>([]);
   const [parents, setParents] = useState<Types.Parent[]>([]);
 
-  // forms
+  // Forms state (lifted to parent so tabs can read/write)
   const [newTeacher, setNewTeacher] = useState<NewTeacherInput>({
     firstName: "",
     lastName: "",
@@ -98,10 +99,34 @@ export default function AdminDashboard() {
     classroom: "",
   });
 
-  // loading UI
+  // Global loading for initial and manual refreshes
   const [dataLoading, setDataLoading] = useState<boolean>(true);
 
-  // fetch after auth ready
+  // Fetch teachers/classes/locations (used both on mount and after updates)
+  const refreshAll = useCallback(async () => {
+    setDataLoading(true);
+    try {
+      const [tchs, clss, locs] = await Promise.all([
+        fetchTeachers(),
+        fetchClasses(),
+        fetchLocationsLite(),
+      ]);
+      setTeachers(tchs ?? []);
+      setClasses(clss ?? []);
+      setLocations(locs ?? []);
+    } catch (e) {
+      console.error(e);
+      await swal.fire({
+        icon: "error",
+        title: "Failed to load",
+        text: "Could not fetch teachers/classes/locations.",
+      });
+    } finally {
+      setDataLoading(false);
+    }
+  }, []);
+
+  // Initial load after auth is ready
   useEffect(() => {
     if (authLoading || !currentUser) return;
 
@@ -114,19 +139,20 @@ export default function AdminDashboard() {
           fetchClasses(),
           fetchLocationsLite(),
         ]);
-
         if (!cancelled) {
-          if (tchs) setTeachers(tchs);
-          if (clss) setClasses(clss);
+          setTeachers(tchs ?? []);
+          setClasses(clss ?? []);
           setLocations(locs ?? []);
         }
       } catch (e) {
         console.error(e);
-        await swal.fire({
-          icon: "error",
-          title: "Failed to load",
-          text: "Could not fetch teachers/classes/locations.",
-        });
+        if (!cancelled) {
+          await swal.fire({
+            icon: "error",
+            title: "Failed to load",
+            text: "Could not fetch teachers/classes/locations.",
+          });
+        }
       } finally {
         if (!cancelled) setDataLoading(false);
       }
@@ -137,7 +163,7 @@ export default function AdminDashboard() {
     };
   }, [authLoading, currentUser]);
 
-  // teacher create (optimistic)
+  // Create teacher (optimistic UI)
   const handleAddTeacher = async () => {
     const optimistic: Types.Teacher = {
       id: `tmp-${Date.now()}`,
@@ -195,7 +221,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // local demo adds
+  // Demo-only local adds (children/parents)
   const addChild = () => {
     const child: Types.Child = {
       id: String(children.length + 1),
@@ -255,7 +281,7 @@ export default function AdminDashboard() {
     });
   };
 
-  // classes callbacks (sync UI after API success)
+  // Classes callbacks: keep local list in sync after CRUD
   const onClassCreated = (created: Types.Class) => {
     setClasses((prev) => [created, ...prev]);
   };
@@ -266,6 +292,12 @@ export default function AdminDashboard() {
     setClasses((prev) => prev.filter((c) => c.id !== id));
   };
 
+  // NEW: after teacher assignment, refresh classes/teachers/locations immediately
+  const onClassAssigned = async () => {
+    await refreshAll();
+  };
+
+  // Show a simple loader while fetching initial data
   if (authLoading || dataLoading) {
     return (
       <ProtectedRoute>
@@ -277,6 +309,7 @@ export default function AdminDashboard() {
   return (
     <ProtectedRoute>
       <div style={dash.container}>
+        {/* App header */}
         <header style={dash.header}>
           <AppHeader />
           <h1 style={dash.headerTitle}>Admin Dashboard</h1>
@@ -288,6 +321,7 @@ export default function AdminDashboard() {
           </div>
         </header>
 
+        {/* Main content with sidebar + active tab */}
         <div style={dash.content}>
           <SidebarNav active={activeTab} onChange={setActiveTab} />
           <main style={dash.main}>
@@ -339,6 +373,7 @@ export default function AdminDashboard() {
                 onCreated={onClassCreated}
                 onUpdated={onClassUpdated}
                 onDeleted={onClassDeleted}
+                onAssigned={onClassAssigned} // Trigger immediate refetch after assignment
               />
             )}
 
