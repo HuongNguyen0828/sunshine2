@@ -23,7 +23,7 @@ import type {
 
 import swal from "sweetalert2"; // for alert library
 // import { isContext } from 'vm';
-import { fetchAllTeachers, fetchAddTeacher, fetchDeleteTeacher, fetchUpdateTeacher } from "@/hooks/useTeachersAPI";
+import { fetchAllTeachers, fetchAddTeacher, fetchDeleteTeacher, fetchUpdateTeacher } from "@/api/useTeachersAPI";
 
 //Note: 
   //uid is uid of admin inside admins collection for dynamic route
