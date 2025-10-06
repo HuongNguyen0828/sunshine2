@@ -34,10 +34,10 @@ export default function ClassesTab({
 
   const getCapacityColor = (status: string) => {
     switch (status) {
-      case 'available': return 'bg-green-500';
-      case 'nearly-full': return 'bg-yellow-500';
-      case 'full': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case 'available': return 'bg-gray-400';
+      case 'nearly-full': return 'bg-gray-500';
+      case 'full': return 'bg-gray-600';
+      default: return 'bg-gray-400';
     }
   };
 
@@ -153,7 +153,7 @@ export default function ClassesTab({
           <h2 className="text-3xl font-bold text-gray-800">Classes</h2>
           <button
             onClick={handleAddClick}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
+            className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
           >
             <span className="text-lg">+</span>
             Add Class
@@ -161,64 +161,62 @@ export default function ClassesTab({
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
-          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="Search by class name or location..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 mb-4">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              placeholder="Search by class name or location..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-400"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
                   setCurrentPage(1);
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setCurrentPage(1);
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            <select
-              value={capacityFilter}
-              onChange={(e) => {
-                setCapacityFilter(e.target.value as typeof capacityFilter);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="all">All Capacities</option>
-              <option value="available">Available (&lt;70%)</option>
-              <option value="nearly-full">Nearly Full (70-90%)</option>
-              <option value="full">Full (&gt;90%)</option>
-            </select>
-
-            <div className="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg font-semibold whitespace-nowrap text-center">
-              {filteredClasses.length} of {classes.length} classes
-            </div>
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
-          {(searchTerm || capacityFilter !== 'all') && (
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setCapacityFilter('all');
-                setCurrentPage(1);
-              }}
-              className="mt-3 text-purple-600 hover:text-purple-700 font-medium text-sm"
-            >
-              Clear filters
-            </button>
-          )}
+          <select
+            value={capacityFilter}
+            onChange={(e) => {
+              setCapacityFilter(e.target.value as typeof capacityFilter);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-400"
+          >
+            <option value="all">All Capacities</option>
+            <option value="available">Available (&lt;70%)</option>
+            <option value="nearly-full">Nearly Full (70-90%)</option>
+            <option value="full">Full (&gt;90%)</option>
+          </select>
+
+          <div className="text-gray-500 text-xs whitespace-nowrap">
+            {filteredClasses.length} of {classes.length}
+          </div>
         </div>
+
+        {(searchTerm || capacityFilter !== 'all') && (
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setCapacityFilter('all');
+              setCurrentPage(1);
+            }}
+            className="mb-4 text-gray-500 hover:text-gray-700 text-xs"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Class Grid */}
@@ -232,102 +230,80 @@ export default function ClassesTab({
             return (
               <div
                 key={cls.id}
-                className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-6 flex flex-col"
+                className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 flex flex-col"
               >
                 {/* Class Header */}
                 <div className="mb-4">
-                  <h3 className="text-xl font-bold text-gray-800 truncate mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900 truncate mb-1">
                     {cls.name}
                   </h3>
-                  <div className="flex items-center gap-2 text-gray-600 text-sm">
-                    <span>📍</span>
+                  <div className="flex items-center gap-2 text-gray-500 text-sm">
                     <span className="truncate">{cls.locationId}</span>
+                    <span className="text-gray-300">•</span>
+                    <span className="text-xs">Ages {cls.ageStart}–{cls.ageEnd}</span>
                   </div>
                 </div>
 
-                {/* Full Capacity Warning */}
-                {capacityStatus === 'full' && (
-                  <div className="bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-lg mb-4 text-sm font-medium">
-                    ⚠️ Class is at full capacity
-                  </div>
-                )}
-
                 {/* Class Details */}
-                <div className="space-y-3 mb-4 flex-grow">
-                  {/* Age Range */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-600 text-sm">👶 Age Range:</span>
-                    <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-semibold">
-                      {cls.ageStart}–{cls.ageEnd} years
-                    </span>
-                  </div>
-
+                <div className="space-y-3 mb-4 pb-4 border-b border-gray-100 flex-grow">
                   {/* Capacity with Progress Bar */}
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-gray-600 text-sm">Capacity:</span>
-                      <span className="text-gray-800 font-semibold text-sm">
+                      <span className="text-gray-500 text-xs">Capacity</span>
+                      <span className="text-gray-700 font-medium text-xs">
                         {cls.volume}/{cls.capcity}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                       <div
-                        className={`h-2.5 ${getCapacityColor(capacityStatus)} transition-all duration-300`}
+                        className={`h-1.5 ${getCapacityColor(capacityStatus)} transition-all duration-300`}
                         style={{ width: `${Math.min(capacityPercentage, 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {getCapacityLabel(capacityStatus)} ({Math.round(capacityPercentage)}%)
+                    <div className="text-xs text-gray-400 mt-1">
+                      {Math.round(capacityPercentage)}% {capacityStatus === 'full' ? '(Full)' : ''}
                     </div>
                   </div>
 
                   {/* Assigned Teachers */}
                   <div>
-                    <span className="text-gray-600 text-sm block mb-2">👥 Teachers:</span>
+                    <div className="text-gray-500 text-xs mb-1">Teachers</div>
                     {assignedTeachers.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {assignedTeachers.slice(0, 3).map(teacher => (
-                          <div
-                            key={teacher.id}
-                            className="flex items-center gap-2 bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium"
-                          >
-                            <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold">
-                              {getTeacherInitials(teacher.firstName, teacher.lastName)}
-                            </div>
-                            <span className="truncate max-w-[100px]">
-                              {teacher.firstName} {teacher.lastName}
-                            </span>
-                          </div>
+                      <div className="text-sm text-gray-700">
+                        {assignedTeachers.slice(0, 2).map(teacher => (
+                          <span key={teacher.id} className="block text-xs">
+                            {teacher.firstName} {teacher.lastName}
+                          </span>
                         ))}
-                        {assignedTeachers.length > 3 && (
-                          <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium">
-                            +{assignedTeachers.length - 3} more
-                          </div>
+                        {assignedTeachers.length > 2 && (
+                          <span className="text-xs text-gray-400">
+                            +{assignedTeachers.length - 2} more
+                          </span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-sm italic">Unassigned</span>
+                      <span className="text-gray-400 text-xs">Unassigned</span>
                     )}
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 pt-4 border-t border-gray-200">
+                <div className="flex gap-2">
                   <button
                     onClick={() => handleAssignTeachers(cls.id)}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"
+                    className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
                   >
                     Assign
                   </button>
                   <button
                     onClick={() => handleEditClick(cls)}
-                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"
+                    className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDeleteClick(cls)}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"
+                    className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
                   >
                     Delete
                   </button>
@@ -370,7 +346,7 @@ export default function ClassesTab({
                 onClick={() => setCurrentPage(page)}
                 className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
                   currentPage === page
-                    ? 'bg-purple-600 text-white'
+                    ? 'bg-gray-800 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
                 }`}
               >
@@ -395,8 +371,17 @@ export default function ClassesTab({
 
       {/* Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100">
+        <div
+          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
+          onClick={() => {
+            setIsFormOpen(false);
+            setEditingClass(null);
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h3 className="text-2xl font-bold text-gray-800">
                 {editingClass ? 'Edit Class' : 'Add New Class'}
@@ -514,8 +499,17 @@ export default function ClassesTab({
 
       {/* Assign Teachers Modal */}
       {showAssignTeachers && (
-        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-100">
+        <div
+          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
+          onClick={() => {
+            setShowAssignTeachers(null);
+            setSelectedTeachers([]);
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-800">Assign Teachers</h3>
               <button
