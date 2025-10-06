@@ -18,6 +18,10 @@ npx create-expo-app@latest mobile
 
 npx create-next-app@latest web-admin --typescript
 
+##### Install coookie:
+
+yarn add js-cookie
+
 # App structure:
 
 daycare-app/

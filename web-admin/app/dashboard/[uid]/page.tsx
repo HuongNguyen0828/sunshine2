@@ -26,8 +26,8 @@ import swal from "sweetalert2"; // for alert library
 import { fetchAllTeachers, fetchAddTeacher, fetchDeleteTeacher, fetchUpdateTeacher } from "@/hooks/useTeachersAPI";
 
 //Note: 
-  // Always get the UID from the route params, not localStorage, for fetching user-specific data. 
-  // LocalStorage can be used just for redirect or UI hints.
+  //uid is uid of admin inside admins collection for dynamic route
+  // Once user login, store idToken of user, then every rquest from frontend call using idToken 
 
 export default function AdminDashboard() {
 

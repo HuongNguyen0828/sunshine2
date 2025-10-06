@@ -13,6 +13,7 @@ import {
 import { FirebaseError } from "firebase/app";
 import { useRouter } from "next/navigation";
 import app from "./firebase";
+import Cookies  from "js-cookie";
 
 /** Public shape of the Auth context */
 interface AuthContextType {
@@ -25,7 +26,7 @@ interface AuthContextType {
   signOutUser: () => Promise<void>;
 }
 
-/** Backend response types (adjust if your API differs) */
+/** Backend response types */
 type CheckEmailResponse = { role: string };
 type GetAdminResponse = { user: { role: string } };
 
@@ -41,13 +42,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   
-  /** Keep Firebase Auth state in sync with React state */
+  /** Keep Firebase Auth state in sync with Cookies */
   useEffect(() => {
-    // Optional: rehydrate role from localStorage before first render
-    const cachedRole = typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
-    if (cachedRole) {
-      setUserRole(cachedRole);
-      setIsAdmin(cachedRole === "admin");
+    // Optional: rehydrate role from Cookies before first render
+    const cookieRole = Cookies.get("userRole");
+    if (cookieRole) {
+      setUserRole(cookieRole);
+      setIsAdmin(cookieRole === "admin");
     }
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -58,7 +59,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!user) {
         setUserRole(null);
         setIsAdmin(false);
-        localStorage.removeItem("userRole");
+        Cookies.remove("userRole");
+        Cookies.remove("userId");
+        Cookies.remove("idToken");
       }
     });
     return () => unsubscribe();
@@ -159,10 +162,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // else, Case: Admin
       const data = await res.json();
       const uid = data.user.uid;
-      // 4. Store user in cache/localStorage (for reduce fetching check-role and user once they login)
-      localStorage.setItem("userRole", data.user.role);
-      localStorage.setItem("userId", uid);
-      localStorage.setItem("idToken", idToken);
+      // 4. Store user in Cookies (for reduce fetching check-role and user once they login)
+      // Set cookies (expires in 7 days)
+      Cookies.set("userRole", data.user.role, { expires: 7 });
+      Cookies.set("userId", uid, { expires: 7 });
+      Cookies.set("idToken", idToken, { expires: 7 });
 
       // Updating AuthContext: On reload, rehydrate from localStorage.
       setUserRole(data.user.role);
@@ -183,7 +187,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setCurrentUser(null);
     setUserRole(null);
     setIsAdmin(false);
-    localStorage.removeItem("userRole");
+    Cookies.remove("idToken");
+    Cookies.remove("userRole");
+    Cookies.remove("userId");
     // Redirect after logout (comment out if you prefer page-guard redirection)
     router.replace("/login");
   };

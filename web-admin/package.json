@@ -12,6 +12,7 @@
     "@react-google-maps/api": "^2.20.7",
     "cors": "^2.8.5",
     "firebase": "^12.3.0",
+    "js-cookie": "^3.0.5",
     "next": "15.5.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",

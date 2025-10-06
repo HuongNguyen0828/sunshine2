@@ -2,14 +2,15 @@
 "use client"
 import { redirect, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import Cookies from "js-cookie"
 
 
 export default function Home() {
 
   const router = useRouter();
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole");
-    const uid = localStorage.getItem("userId");
+    const userRole = Cookies.get("userRole");
+    const uid = Cookies.get("userId");
 
     if (!userRole) {
       redirect("/login");

@@ -2,13 +2,14 @@
 
 import * as Types from "../../shared/types/type"
 import { NewTeacherInput } from "@/types/forms";
+import Cookies from "js-cookie"
 
 // Fetch all teachers
 export async function fetchAllTeachers(): Promise<Types.Teacher[]> {
     try {
 
         // using token for user auth, middleware
-        const token = localStorage.getItem("idToken");
+        const token = Cookies.get("idToken");
         // Attach header for teacher?locationId=${locationId}`
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher`, {
             headers: {
