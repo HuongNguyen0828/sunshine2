@@ -51,6 +51,36 @@ export async function getUserByUid(uid: string) {
   ();
 }
 
+type daycareAndLocation = {
+  daycareId: string, 
+  locationId: string
+}
+
+// Get daycare and location
+export async function getDaycareAndLocation(email: string | null) : Promise<daycareAndLocation> {
+  // just for admin now
+  if (!email) throw new Error("Email is null");
+  // Else, 
+  const adminDoc = await db.collection("admins")
+    .where("email", "==", email)
+    .get();
+
+    let daycareId;
+    let locationId;
+  
+    // If empty:
+  if (adminDoc.empty) {
+    throw new Error("Daycare/location not found for this user");
+  }
+  if (!adminDoc.empty) {
+    // Get locationID and daycareID; admins/{uid, email, daycareId, locationId}
+    const adminData = adminDoc.docs[0]?.data();
+    daycareId = adminData?.daycareId;
+    locationId= adminData?.locationId;
+  }
+  return {daycareId, locationId}
+
+}
 
 // Other services like: 
 // Updating user email

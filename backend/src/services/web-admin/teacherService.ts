@@ -8,11 +8,17 @@ import { db } from "../../lib/firebase" // Importing db FireStore with admin per
 const teachersRef = db.collection("teachers");
 
 // return a list of Teacher
-export const getAllTeachers = async (): Promise<Teacher[]> => {
-    const snapshot = await teachersRef.get();
-    // Return teacher with id
-    const teachers = snapshot.docs.map((doc) => ({id: doc.id, ... doc.data()} as Teacher)) 
-    return teachers;
+export const getAllTeachers = async (locationId?: string): Promise<Teacher[]> => {
+  
+  if (!locationId) {
+    throw new Error("locationId is required to fetch teachers");
+  }
+  const snapshot = await teachersRef
+    .where("locationId", "==", locationId)
+    .get();
+  // Return teacher with id
+  const teachers = snapshot.docs.map((doc) => ({id: doc.id, ... doc.data()} as Teacher)) 
+  return teachers;
 };
 
 export const addTeacher = async (teacher: Teacher): Promise<Teacher> => {

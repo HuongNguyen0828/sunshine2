@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { getAllTeachers, addTeacher, updateTeacher, deleteTeacher, getTeacherById} from "../../controllers/web-admin/TeacherController";
+import { authMiddleware } from "../../middleware/authMiddleware";
 
 
 const teacherRoutes = Router();
@@ -9,8 +10,8 @@ const teacherRoutes = Router();
 // POST /teachers
 teacherRoutes.post("/", addTeacher);
 
-// GET /teachers
-teacherRoutes.get("/", getAllTeachers);
+// GET /teachers: Add middleware for checking location id from idToken
+teacherRoutes.get("/", authMiddleware, getAllTeachers);
 
 // GET /teachers/:id
 teacherRoutes.get("/:id", getTeacherById);

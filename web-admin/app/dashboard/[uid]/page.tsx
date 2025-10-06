@@ -25,18 +25,11 @@ import swal from "sweetalert2"; // for alert library
 // import { isContext } from 'vm';
 import { fetchAllTeachers, fetchAddTeacher, fetchDeleteTeacher, fetchUpdateTeacher } from "@/hooks/useTeachersAPI";
 
-
-interface DashboardPageProps {
-  params: Promise<{ uid: string }>; // params is now a Promise
-}
 //Note: 
   // Always get the UID from the route params, not localStorage, for fetching user-specific data. 
   // LocalStorage can be used just for redirect or UI hints.
 
-export default function AdminDashboard({ params }: DashboardPageProps) {
-  // Extract uid from params
-  const { uid } = React.use(params);
-
+export default function AdminDashboard() {
 
   const { signOutUser, currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("overview");

@@ -15,8 +15,11 @@ export const addTeacher = async (req: Request, res: Response) => {
 
 // Get all teachers
 export const getAllTeachers = async (req: Request, res: Response) => {
+  // Extract location id from user decoded inside JWT
+  const locationId = req.user?.locationId;
+  console.log(locationId);
   try {
-    const teachers = await TeacherService.getAllTeachers();
+    const teachers = await TeacherService.getAllTeachers(locationId);
     res.status(200).json(teachers);
   } catch (error: any) {
     res.status(500).json({ message: error.message || "Failed to fetch teachers" });

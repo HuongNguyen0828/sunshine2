@@ -133,7 +133,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const signIn = async (email: string, password: string): Promise<void> => {
     try {
       // 1. Firebase Auth login
-      console.log('  Step 1: Authenticating with Firebase...');
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
@@ -151,13 +150,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         headers: { Authorization: `Bearer ${idToken}` },
       });
 
-      console.log(`  Response status: ${res.status}`);
-
       // Case not Admin
       if (!res.ok) {
         // Extract message from respond: custome with role-based or general message
         const errData = await res.json();
-        console.log('Access denied:', errData.message);
         throw new Error(errData.message || "Access denied");
       }
       // else, Case: Admin
@@ -166,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // 4. Store user in cache/localStorage (for reduce fetching check-role and user once they login)
       localStorage.setItem("userRole", data.user.role);
       localStorage.setItem("userId", uid);
+      localStorage.setItem("idToken", idToken);
 
       // Updating AuthContext: On reload, rehydrate from localStorage.
       setUserRole(data.user.role);

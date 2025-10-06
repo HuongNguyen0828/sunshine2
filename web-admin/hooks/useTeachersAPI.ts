@@ -6,7 +6,15 @@ import { NewTeacherInput } from "@/types/forms";
 // Fetch all teachers
 export async function fetchAllTeachers(): Promise<Types.Teacher[]> {
     try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher`);
+
+        // using token for user auth, middleware
+        const token = localStorage.getItem("idToken");
+        // Attach header for teacher?locationId=${locationId}`
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher`, {
+            headers: {
+                Authorization: `Bearer ${token}`, // if using JWT
+            }
+        });
         if (!res.ok) {
             const errorData = await res.json();
             throw new Error(errorData.message); // throw error message from backend

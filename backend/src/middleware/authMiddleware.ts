@@ -1,7 +1,7 @@
 // authMiddleware.ts
 import { Request, Response, NextFunction } from "express";
 import admin from "firebase-admin";
-import { findRoleByEmail } from "../services/authService";
+import { findRoleByEmail, getDaycareAndLocation } from "../services/authService";
 import { UserRole } from "../models/user";
 
 // Extend Resquest for including user
@@ -10,6 +10,8 @@ export interface AuthRequest extends Request {
     uid: string;
     email: string;
     role: UserRole;
+    daycareId: string,
+    locationId: string, 
   };
 }
 
@@ -49,7 +51,18 @@ export const authMiddleware = async (
       return res.status(403).send({ message: "Forbidden: cannot access other user's data" });
     }
 
-    req.user = { uid: decoded.uid, email: email!, role };
+    const {daycareId, locationId} = await getDaycareAndLocation(email);
+    console.log(daycareId, locationId);
+    // Decode uid, email, role, daycareId, locationId
+    req.user = { 
+      uid: decoded.uid, 
+      email: email!, 
+      role,
+      daycareId,
+      locationId
+     };
+
+     console.log(req.user);
     // Room for call next function as getRole from controller
     
     next();
