@@ -1,10 +1,12 @@
 "use client";
 
 import * as Types from "../../../shared/types/type";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import type { NewTeacherInput } from "@/types/forms";
 import AutoCompleteAdress from "@/components/AutoCompleteAddress";
-import {Address} from "@/components/AutoCompleteAddress"
+import { Address } from "@/components/AutoCompleteAddress";
+import api from "@shared/api/client";
+import { ENDPOINTS } from "@shared/api/endpoint";
 
 export default function TeachersTab({
   teachers,
@@ -18,65 +20,44 @@ export default function TeachersTab({
   onAdd: () => void;
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [editingTeacher, setEditingTeacher] = useState<Types.Teacher | null>(null);
   const [showAssignClass, setShowAssignClass] = useState<string | null>(null);
-  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedClass, setSelectedClass] = useState("");
+  const [rows, setRows] = useState<Types.Teacher[]>(teachers);
+
+  useEffect(() => {
+    setRows(teachers);
+  }, [teachers]);
 
   const handleAddressChange = useCallback((a: Address) => {
     setNewTeacher((prev) => ({
-        ...prev,
-        address1: a.address1,
-        address2: a.address2,
-        city: a.city,
-        province: a.province,
-        country: a.country,
-        postalcode: a.postalcode
+      ...prev,
+      address1: a.address1,
+      address2: a.address2,
+      city: a.city,
+      province: a.province,
+      country: a.country,
+      postalcode: a.postalcode,
     }));
-  }, []);
+  }, [setNewTeacher]);
 
-  // Filter teachers based on search
-  const filteredTeachers = teachers.filter(t =>
-    t.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTeachers = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return rows.filter((t) =>
+      t.firstName.toLowerCase().includes(term) ||
+      t.lastName.toLowerCase().includes(term) ||
+      t.email.toLowerCase().includes(term)
+    );
+  }, [rows, searchTerm]);
 
-  // Pagination logic
   const teachersPerPage = 6;
-  const totalPages = Math.ceil(filteredTeachers.length / teachersPerPage);
+  const totalPages = Math.ceil(filteredTeachers.length / teachersPerPage) || 1;
   const startIndex = (currentPage - 1) * teachersPerPage;
   const paginatedTeachers = filteredTeachers.slice(startIndex, startIndex + teachersPerPage);
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingTeacher) {
-      console.log('Update teacher:', { ...editingTeacher, ...newTeacher });
-      setEditingTeacher(null);
-      // Reset form to empty state
-      setNewTeacher({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        address1: "",
-        address2: "",
-        city: "",
-        province: "",
-        country: "",
-        postalcode: "",
-        startDate: "",
-        endDate: undefined,
-      });
-    } else {
-      onAdd();
-    }
-    setIsFormOpen(false);
-  };
-
-  const handleAddClick = () => {
-    setEditingTeacher(null);
+  const resetForm = () => {
     setNewTeacher({
       firstName: "",
       lastName: "",
@@ -91,6 +72,26 @@ export default function TeachersTab({
       startDate: "",
       endDate: undefined,
     });
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingTeacher) {
+      const id = editingTeacher.id;
+      const updated = await api.put<Types.Teacher>(`${ENDPOINTS.teachers}/${id}`, { ...newTeacher });
+      setRows((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
+      setEditingTeacher(null);
+      resetForm();
+      setIsFormOpen(false);
+      return;
+    }
+    await onAdd();
+    setIsFormOpen(false);
+  };
+
+  const handleAddClick = () => {
+    setEditingTeacher(null);
+    resetForm();
     setIsFormOpen(true);
   };
 
@@ -107,31 +108,43 @@ export default function TeachersTab({
       province: teacher.province,
       country: teacher.country,
       postalcode: teacher.postalcode,
-      startDate: teacher.startDate,
-      endDate: teacher.endDate,
+      startDate: String(teacher.startDate || ""),
+      endDate: teacher.endDate ? String(teacher.endDate) : undefined,
     });
     setIsFormOpen(true);
   };
 
-  const handleDeleteClick = (teacher: Types.Teacher) => {
-    if (window.confirm(`Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}?`)) {
-      console.log('Delete teacher:', teacher.id);
-    }
+  const handleDeleteClick = async (teacher: Types.Teacher) => {
+    const ok = window.confirm(`Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}?`);
+    if (!ok) return;
+    await api.delete<{ ok: boolean; uid: string }>(`${ENDPOINTS.teachers}/${teacher.id}`);
+    setRows((prev) => {
+      const next = prev.filter((t) => t.id !== teacher.id);
+      const maxPage = Math.max(1, Math.ceil(next.length / teachersPerPage));
+      if (currentPage > maxPage) setCurrentPage(maxPage);
+      return next;
+    });
   };
 
   const handleAssignClass = (teacherId: string) => {
     setShowAssignClass(teacherId);
-    setSelectedClass('');
+    setSelectedClass("");
   };
 
-  const handleSaveClass = () => {
-    console.log('Assign class to teacher:', showAssignClass, 'Class:', selectedClass);
+  const handleSaveClass = async () => {
+    if (!showAssignClass || !selectedClass) return;
+    const id = showAssignClass;
+
+    await api.post<{ ok: boolean }>(
+      `${ENDPOINTS.teachers}/${id}/assign`,
+      { classId: selectedClass }
+    );
+
+    setRows(prev =>
+      prev.map((t) => (t.id === id ? { ...t, classId: selectedClass } : t))
+    );
     setShowAssignClass(null);
-    setSelectedClass('');
-  };
-
-  const getInitials = (firstName: string) => {
-    return firstName.charAt(0).toUpperCase();
+    setSelectedClass("");
   };
 
   const formatAddress = (teacher: Types.Teacher) => {
@@ -141,14 +154,13 @@ export default function TeachersTab({
       teacher.city,
       teacher.province,
       teacher.country,
-      teacher.postalcode
-    ].filter(Boolean);
-    return parts.join(', ');
+      teacher.postalcode,
+    ].filter(Boolean) as string[];
+    return parts.join(", ");
   };
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-3xl font-bold text-gray-800">Teachers</h2>
@@ -156,12 +168,9 @@ export default function TeachersTab({
             onClick={handleAddClick}
             className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
           >
-            <span className="text-lg">+</span>
-            Add Teacher
+            <span className="text-lg">+</span> Add Teacher
           </button>
         </div>
-
-        {/* Search Bar */}
         <div className="flex items-center gap-3 mb-4">
           <div className="flex-1 relative">
             <input
@@ -170,14 +179,14 @@ export default function TeachersTab({
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setCurrentPage(1); // Reset to first page on search
+                setCurrentPage(1);
               }}
               className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-400"
             />
             {searchTerm && (
               <button
                 onClick={() => {
-                  setSearchTerm('');
+                  setSearchTerm("");
                   setCurrentPage(1);
                 }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
@@ -187,49 +196,31 @@ export default function TeachersTab({
             )}
           </div>
           <div className="text-gray-500 text-xs whitespace-nowrap">
-            {filteredTeachers.length} of {teachers.length}
+            {filteredTeachers.length} of {rows.length}
           </div>
         </div>
       </div>
 
-      {/* Teacher Grid */}
       {paginatedTeachers.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
           {paginatedTeachers.map((teacher) => (
-            <div
-              key={teacher.id}
-              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5"
-            >
-              {/* Primary Contact Info */}
+            <div key={teacher.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5">
               <div className="mb-4">
                 <div className="flex items-baseline gap-2 mb-1">
-                  <h3 className="text-xl font-bold text-gray-900 truncate">
-                    {teacher.email}
-                  </h3>
+                  <h3 className="text-xl font-bold text-gray-900 truncate">{teacher.email}</h3>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">
-                    {teacher.firstName} {teacher.lastName}
-                  </span>
+                  <span className="text-sm text-gray-500">{teacher.firstName} {teacher.lastName}</span>
                   <span className="text-gray-300">•</span>
-                  <span className="text-sm font-medium text-gray-700">
-                    {teacher.phone}
-                  </span>
+                  <span className="text-sm font-medium text-gray-700">{teacher.phone}</span>
                 </div>
               </div>
-
-              {/* Secondary Details */}
               <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
-                <div className="text-xs text-gray-500 leading-relaxed">
-                  {formatAddress(teacher)}
-                </div>
+                <div className="text-xs text-gray-500 leading-relaxed">{formatAddress(teacher)}</div>
                 <div className="text-xs text-gray-400">
-                  {String(teacher.startDate)}
-                  {teacher.endDate ? ` → ${String(teacher.endDate)}` : ' → Present'}
+                  {String(teacher.startDate)}{teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
                 </div>
               </div>
-
-              {/* Action Buttons */}
               <div className="flex gap-2">
                 <button
                   onClick={() => handleAssignClass(teacher.id)}
@@ -257,58 +248,40 @@ export default function TeachersTab({
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
           <div className="text-gray-400 text-6xl mb-4">👥</div>
           <h3 className="text-xl font-semibold text-gray-600 mb-2">No teachers found</h3>
-          <p className="text-gray-500">
-            {searchTerm ? 'Try adjusting your search terms' : 'Get started by adding your first teacher'}
-          </p>
+          <p className="text-gray-500">{searchTerm ? "Try adjusting your search terms" : "Get started by adding your first teacher"}</p>
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2">
           <button
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              currentPage === 1
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1 ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"}`}
           >
             ← Previous
           </button>
-
           <div className="flex gap-2">
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
-                  currentPage === page
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-                }`}
+                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"}`}
               >
                 {page}
               </button>
             ))}
           </div>
-
           <button
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              currentPage === totalPages
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"}`}
           >
             Next →
           </button>
         </div>
       )}
 
-      {/* Form Modal */}
       {isFormOpen && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
@@ -322,9 +295,7 @@ export default function TeachersTab({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-2xl font-bold text-gray-800">
-                {editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}
-              </h3>
+              <h3 className="text-2xl font-bold text-gray-800">{editingTeacher ? "Edit Teacher" : "Add New Teacher"}</h3>
               <button
                 onClick={() => {
                   setIsFormOpen(false);
@@ -345,22 +316,17 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="First Name"
                       value={newTeacher.firstName}
-                      onChange={(e) =>
-                        setNewTeacher({ ...newTeacher, firstName: e.target.value })
-                      }
+                      onChange={(e) => setNewTeacher({ ...newTeacher, firstName: e.target.value })}
                       required
                     />
                   </label>
-
                   <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">Last Name *</span>
                     <input
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Last Name"
                       value={newTeacher.lastName}
-                      onChange={(e) =>
-                        setNewTeacher({ ...newTeacher, lastName: e.target.value })
-                      }
+                      onChange={(e) => setNewTeacher({ ...newTeacher, lastName: e.target.value })}
                       required
                     />
                   </label>
@@ -373,9 +339,7 @@ export default function TeachersTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Email"
                     value={newTeacher.email}
-                    onChange={(e) =>
-                      setNewTeacher({ ...newTeacher, email: e.target.value })
-                    }
+                    onChange={(e) => setNewTeacher({ ...newTeacher, email: e.target.value })}
                     required
                   />
                 </label>
@@ -386,9 +350,7 @@ export default function TeachersTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="e.g. 403 111 2284"
                     value={newTeacher.phone}
-                    onChange={(e) =>
-                      setNewTeacher({ ...newTeacher, phone: e.target.value })
-                    }
+                    onChange={(e) => setNewTeacher({ ...newTeacher, phone: e.target.value })}
                     required
                   />
                 </label>
@@ -405,13 +367,10 @@ export default function TeachersTab({
                       type="date"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newTeacher.startDate}
-                      onChange={(e) =>
-                        setNewTeacher({ ...newTeacher, startDate: e.target.value })
-                      }
+                      onChange={(e) => setNewTeacher({ ...newTeacher, startDate: e.target.value })}
                       required
                     />
                   </label>
-
                   <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">End Date</span>
                     <input
@@ -419,12 +378,7 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="End Date (optional)"
                       value={newTeacher.endDate || ""}
-                      onChange={(e) =>
-                        setNewTeacher({
-                          ...newTeacher,
-                          endDate: e.target.value || undefined,
-                        })
-                      }
+                      onChange={(e) => setNewTeacher({ ...newTeacher, endDate: e.target.value || undefined })}
                     />
                   </label>
                 </div>
@@ -445,7 +399,7 @@ export default function TeachersTab({
                   type="submit"
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
                 >
-                  {editingTeacher ? 'Update Teacher' : 'Add Teacher'}
+                  {editingTeacher ? "Update Teacher" : "Add Teacher"}
                 </button>
               </div>
             </form>
@@ -453,13 +407,12 @@ export default function TeachersTab({
         </div>
       )}
 
-      {/* Assign Class Modal */}
       {showAssignClass && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
           onClick={() => {
             setShowAssignClass(null);
-            setSelectedClass('');
+            setSelectedClass("");
           }}
         >
           <div
@@ -471,7 +424,7 @@ export default function TeachersTab({
               <button
                 onClick={() => {
                   setShowAssignClass(null);
-                  setSelectedClass('');
+                  setSelectedClass("");
                 }}
                 className="text-gray-400 hover:text-gray-600 text-2xl"
               >
@@ -498,7 +451,7 @@ export default function TeachersTab({
                 <button
                   onClick={() => {
                     setShowAssignClass(null);
-                    setSelectedClass('');
+                    setSelectedClass("");
                   }}
                   className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
                 >

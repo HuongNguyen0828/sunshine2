@@ -1,4 +1,4 @@
-// src/services/kidsService.ts
+// src/services/childsService.ts
 import type { Child } from "../../../../shared/types/type";
 
 let childs: Child[] = []; // temporary in-memory storage

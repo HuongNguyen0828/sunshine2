@@ -1,29 +1,40 @@
+// Express router for teacher endpoints.
+// This router should be mounted in server.ts like:
+//   app.use("/api/teachers", TeacherRoutes);
+
 import { Router } from "express";
+import {
+  getAllTeachers,
+  addTeacher,
+  getTeacherById,
+  updateTeacher,
+  deleteTeacher,
+  assignTeacherToClass,
+} from "../../controllers/web-admin/TeacherController";
+import { authMiddleware } from "../../middleware/authMiddleware";
+import { authorize } from "../../middleware/authorize";
 
-import { getAllTeachers, addTeacher, updateTeacher, deleteTeacher, getTeacherById} from "../../controllers/web-admin/TeacherController";
+const router = Router();
 
+// Global auth guard for this router
+router.use(authMiddleware);
 
-const teacherRoutes = Router();
+// Create
+router.post("/", authorize("admin"), addTeacher);
 
+// Read (list)
+router.get("/", authorize("admin", "teacher"), getAllTeachers);
 
-// POST /teachers
-teacherRoutes.post("/", addTeacher);
+// Read (detail)
+router.get("/:id", authorize("admin", "teacher"), getTeacherById);
 
-// GET /teachers
-teacherRoutes.get("/", getAllTeachers);
+// Update
+router.put("/:id", authorize("admin"), updateTeacher);
 
-// GET /teachers/:id
-teacherRoutes.get("/:id", getTeacherById);
+// Delete
+router.delete("/:id", authorize("admin"), deleteTeacher);
 
-// Partial update teacher
-// PATCH /teachers/:id: Partially update a teacher
-teacherRoutes.patch("/:id", updateTeacher);
+// Assign class
+router.post("/:id/assign", authorize("admin"), assignTeacherToClass);
 
-// DELETE /teachers/:id
-teacherRoutes.delete("/:id", deleteTeacher);
-
-
-
-
-export default teacherRoutes;
-
+export default router;

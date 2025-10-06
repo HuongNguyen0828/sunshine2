@@ -26,7 +26,7 @@ export type NewParentInput = Omit<Types.Parent, 'id' | 'role' | 'createdAt'>;
 // NOTE: Keep `capcity` to match your current Types.Class (typo in schema)
 export interface NewClassInput {
   name: string;
-  locationId: string;
+  locationId?: string;
   capacity: number;
   volume: number;
   ageStart: number;
