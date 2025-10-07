@@ -53,9 +53,9 @@ export default function TeachersTab({
   const filteredTeachers = useMemo(() => {
     const term = searchTerm.toLowerCase();
     return rows.filter((t) =>
-      t.firstName.toLowerCase().includes(term) ||
-      t.lastName.toLowerCase().includes(term) ||
-      t.email.toLowerCase().includes(term)
+      t.firstName?.toLowerCase().includes(term) ||
+      t.lastName?.toLowerCase().includes(term) ||
+      t.email?.toLowerCase().includes(term)
     );
   }, [rows, searchTerm]);
 
