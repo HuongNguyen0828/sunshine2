@@ -69,9 +69,6 @@ export default function ClassesTab({
       ? "bg-yellow-500"
       : "bg-red-500";
 
-  const getCapacityLabel = (status: string) =>
-    status === "available" ? "Available" : status === "nearly-full" ? "Nearly Full" : "Full";
-
   const getLocationLabel = (locId?: string) => {
     if (!locId) return "—";
     const found = (locations ?? []).find((l) => l.id === locId);
@@ -245,7 +242,7 @@ export default function ClassesTab({
                 setCapacityFilter(e.target.value as typeof capacityFilter);
                 setCurrentPage(1);
               }}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-400"
             >
               <option value="all">All Capacities</option>
               <option value="available">Available (&lt;70%)</option>
@@ -253,23 +250,10 @@ export default function ClassesTab({
               <option value="full">Full (&gt;90%)</option>
             </select>
 
-            <div className="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg font-semibold whitespace-nowrap text-center">
-              {filteredClasses.length} of {classes.length} classes
+            <div className="text-gray-500 text-xs whitespace-nowrap">
+              {filteredClasses.length} of {classes.length}
             </div>
           </div>
-
-          {(searchTerm || capacityFilter !== "all") && (
-            <button
-              onClick={() => {
-                setSearchTerm("");
-                setCapacityFilter("all");
-                setCurrentPage(1);
-              }}
-              className="mt-3 text-purple-600 hover:text-purple-700 font-medium text-sm"
-            >
-              Clear filters
-            </button>
-          )}
         </div>
       </div>
 
@@ -277,9 +261,9 @@ export default function ClassesTab({
       {paginatedClasses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {paginatedClasses.map((cls) => {
-            const assigned = teachers.filter((t) => (t.classIds || []).includes(cls.id));
-            const status = getCapacityStatus(cls.volume, cls.capacity);
-            const percent = Math.min(100, Math.round((cls.volume / (cls.capacity || 1)) * 100));
+            const assignedTeachers = teachers.filter((t) => (t.classIds || []).includes(cls.id));
+            const capacityStatus = getCapacityStatus(cls.volume, cls.capacity);
+            const capacityPercentage = Math.min(100, Math.round((cls.volume / (cls.capacity || 1)) * 100));
 
             return (
               <div
@@ -295,7 +279,7 @@ export default function ClassesTab({
                   </div>
                 </div>
 
-                {status === "full" && (
+                {capacityStatus === "full" && (
                   <div className="bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-lg mb-4 text-sm font-medium">
                     ⚠️ Class is at full capacity
                   </div>
@@ -331,21 +315,13 @@ export default function ClassesTab({
 
                   {/* Teachers */}
                   <div>
-                    <span className="text-gray-600 text-sm block mb-2">👥 Teachers:</span>
-                    {assigned.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {assigned.slice(0, 3).map((t) => (
-                          <div
-                            key={t.id}
-                            className="flex items-center gap-2 bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium"
-                          >
-                            <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold">
-                              {getTeacherInitials(t.firstName, t.lastName)}
-                            </div>
-                            <span className="truncate max-w-[100px]">
-                              {t.firstName} {t.lastName}
-                            </span>
-                          </div>
+                    <div className="text-gray-500 text-xs mb-1">Teachers</div>
+                    {assignedTeachers.length > 0 ? (
+                      <div className="text-sm text-gray-700">
+                        {assignedTeachers.slice(0, 2).map((teacher) => (
+                          <span key={teacher.id} className="block text-xs">
+                            {teacher.firstName} {teacher.lastName}
+                          </span>
                         ))}
                         {assigned.length > 3 && (
                           <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium">
@@ -417,8 +393,8 @@ export default function ClassesTab({
                 onClick={() => setCurrentPage(page)}
                 className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
                   currentPage === page
-                    ? "bg-purple-600 text-white"
-                    : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                    ? 'bg-gray-800 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
                 }`}
               >
                 {page}
