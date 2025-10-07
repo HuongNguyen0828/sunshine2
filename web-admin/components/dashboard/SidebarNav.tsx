@@ -8,6 +8,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { JSX } from 'react';
 import type { Tab } from '@/types/forms';
 
 // SVG Icon Components

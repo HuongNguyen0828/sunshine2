@@ -54,30 +54,12 @@ export default function ClassesTab({
     return "full";
   };
 
-  const getCapacityColor = (status: string) => {
-    switch (status) {
-      case 'available': return 'bg-gray-400';
-      case 'nearly-full': return 'bg-gray-500';
-      case 'full': return 'bg-gray-600';
-      default: return 'bg-gray-400';
-    }
-  };
-
-  const getCapacityLabel = (status: string) => {
-    switch (status) {
-      case 'available': return 'Available';
-      case 'nearly-full': return 'Nearly Full';
-      case 'full': return 'Full';
-      default: return 'Unknown';
-    }
   const getCapacityColor = (status: string) =>
     status === "available"
       ? "bg-green-500"
       : status === "nearly-full"
       ? "bg-yellow-500"
       : "bg-red-500";
-  const getCapacityLabel = (status: string) =>
-    status === "available" ? "Available" : status === "nearly-full" ? "Nearly Full" : "Full";
 
   const getLocationLabel = (locId?: string) => {
     if (!locId) return "—";
@@ -219,13 +201,6 @@ export default function ClassesTab({
           </button>
         </div>
 
-        {/* Search and Filter Bar */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 mb-4">
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              placeholder="Search by class name or location..."
-              value={searchTerm}
         {/* Search & Filter */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
@@ -256,40 +231,20 @@ export default function ClassesTab({
             <select
               value={capacityFilter}
               onChange={(e) => {
-                setSearchTerm(e.target.value);
+                setCapacityFilter(e.target.value as typeof capacityFilter);
                 setCurrentPage(1);
               }}
-              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-400"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setCurrentPage(1);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            )}
-          </div>
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-400"
+            >
+              <option value="all">All Capacities</option>
+              <option value="available">Available (&lt;70%)</option>
+              <option value="nearly-full">Nearly Full (70-90%)</option>
+              <option value="full">Full (&gt;90%)</option>
+            </select>
 
-          <select
-            value={capacityFilter}
-            onChange={(e) => {
-              setCapacityFilter(e.target.value as typeof capacityFilter);
-              setCurrentPage(1);
-            }}
-            className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-400"
-          >
-            <option value="all">All Capacities</option>
-            <option value="available">Available (&lt;70%)</option>
-            <option value="nearly-full">Nearly Full (70-90%)</option>
-            <option value="full">Full (&gt;90%)</option>
-          </select>
-
-          <div className="text-gray-500 text-xs whitespace-nowrap">
-            {filteredClasses.length} of {classes.length}
+            <div className="text-gray-500 text-xs whitespace-nowrap">
+              {filteredClasses.length} of {classes.length}
+            </div>
           </div>
         </div>
 
@@ -311,9 +266,9 @@ export default function ClassesTab({
       {paginatedClasses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {paginatedClasses.map((cls) => {
-            const assigned = teachers.filter((t) => (t.classIds || []).includes(cls.id));
-            const status = getCapacityStatus(cls.volume, cls.capacity);
-            const percent = Math.min(100, Math.round((cls.volume / (cls.capacity || 1)) * 100));
+            const assignedTeachers = teachers.filter((t) => (t.classIds || []).includes(cls.id));
+            const capacityStatus = getCapacityStatus(cls.volume, cls.capacity);
+            const capacityPercentage = Math.min(100, Math.round((cls.volume / (cls.capacity || 1)) * 100));
 
             return (
               <div
@@ -322,24 +277,6 @@ export default function ClassesTab({
               >
                 {/* Header */}
                 <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate mb-1">
-                    {cls.name}
-                  </h3>
-                  <div className="flex items-center gap-2 text-gray-500 text-sm">
-                    <span className="truncate">{cls.locationId}</span>
-                    <span className="text-gray-300">•</span>
-                    <span className="text-xs">Ages {cls.ageStart}–{cls.ageEnd}</span>
-                  </div>
-                </div>
-
-                {/* Class Details */}
-                <div className="space-y-3 mb-4 pb-4 border-b border-gray-100 flex-grow">
-                  {/* Capacity with Progress Bar */}
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-gray-500 text-xs">Capacity</span>
-                      <span className="text-gray-700 font-medium text-xs">
-                        {cls.volume}/{cls.capcity}
                   <h3 className="text-xl font-bold text-gray-800 truncate mb-2">{cls.name}</h3>
                   <div className="flex items-center gap-2 text-gray-600 text-sm">
                     <span>📍</span>
@@ -347,7 +284,7 @@ export default function ClassesTab({
                   </div>
                 </div>
 
-                {status === "full" && (
+                {capacityStatus === "full" && (
                   <div className="bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-lg mb-4 text-sm font-medium">
                     ⚠️ Class is at full capacity
                   </div>
@@ -386,7 +323,7 @@ export default function ClassesTab({
                     <div className="text-gray-500 text-xs mb-1">Teachers</div>
                     {assignedTeachers.length > 0 ? (
                       <div className="text-sm text-gray-700">
-                        {assignedTeachers.slice(0, 2).map(teacher => (
+                        {assignedTeachers.slice(0, 2).map((teacher) => (
                           <span key={teacher.id} className="block text-xs">
                             {teacher.firstName} {teacher.lastName}
                           </span>
@@ -403,11 +340,6 @@ export default function ClassesTab({
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleAssignTeachers(cls.id)}
-                    className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
                 {/* Actions */}
                 <div className="flex gap-2 pt-4 border-t border-gray-200">
                   <button
@@ -468,8 +400,6 @@ export default function ClassesTab({
                   currentPage === page
                     ? 'bg-gray-800 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-                    ? "bg-purple-600 text-white"
-                    : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
                 }`}
               >
                 {page}
