@@ -1,13 +1,12 @@
+type EntryType = 
+  "Attendance" | "Schedule_note" | "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
 
-
-type EntryType = "Attendance" | "Schedule_note" |  "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
 type AttendanceSubtype = "Check in" | "Check out";
-type FoodSubtype = "Breakfast" | "Lunch" | "Snack"
-
-
+type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
 
 export type Admin = {
-  daycareId: string, // referencing Daycare Provider 
+  daycareId: string,             // referencing Daycare Provider 
+  locationId?: string[],         // referencing location id, ['*'] means all locations; optional for now
   firstName: string,
   lastName: string, 
   email: string,
@@ -37,8 +36,7 @@ export type DaycareProvider = {
   contactName: string;
 }
 
-
- /////// Remove Location for now for purpose of simplicity
+// ////// Remove Location for now for simplicity
 // export type Location = { 
 //   id: string;
 //   name: string;
@@ -47,7 +45,7 @@ export type DaycareProvider = {
 //   providerId: string;
 //   street: string;
 //   city: string;
-//   provine: string;
+//   province: string;
 //   zip: string;
 //   country: string;
 //   creditCardInfo?: string; 
@@ -56,7 +54,7 @@ export type DaycareProvider = {
 export type Class = {
   id: string;
   name: string;
-  locationId: string; 
+  locationId?: string;     // optional for now
   capacity: number;
   volume: number;
   ageStart: number;
@@ -67,9 +65,9 @@ export type Class = {
 export type Schedule = {
   id: string;
   classId: string;
-  dayOfWeek: number; // 0 (Sunday) to 6 (Saturday)
-  startTime: string; // "HH:MM" format
-  endTime: string;   // "HH:MM" format
+  dayOfWeek: number;       // 0 (Sunday) to 6 (Saturday)
+  startTime: string;       // "HH:MM" format
+  endTime: string;         // "HH:MM" format
   morningAfernoon: "Morning" | "Afternoon" | "Full day";
 }
 
@@ -77,7 +75,7 @@ export type Teacher = {
   id: string;
   firstName: string;
   lastName: string;
-  email: string; // username for login
+  email: string;           // username for login
   phone: string;
   address1: string;
   address2?: string;
@@ -85,18 +83,18 @@ export type Teacher = {
   province: string;
   country: string;
   postalcode?: string;
-  classIds?: string[]; // Classes assigned to this staff
-  locationId?: string; // Location assigned to this staff
+  classIds?: string[];     // classes assigned to this staff
+  locationId?: string;     // optional for now
   startDate: string;
-  endDate?: string; // Optional end date for staff
-
+  endDate?: string;        // optional end date for staff
 }
+
 export type monthlyReport = {
   id: string;
-  childId?: string; // Optional, if not provided, means all children under the parent
-  classId?: string; // Optional, if not provided, means all classes under the location
-  locationId?: string; // Optional, if not provided, means all locations under the provider
-  month: string; // "YYYY-MM" format
+  childId?: string;        // optional, if not provided → all children under the parent
+  classId?: string;        // optional, if not provided → all classes under the location
+  locationId?: string;     // optional, if not provided → all locations under the provider
+  month: string;           // "YYYY-MM" format
   attendanceCount: number;
   creatAt: string;
   updatedAt?: string;
@@ -106,45 +104,47 @@ export type Child = {
   id: string;
   firstName: string;
   lastName: string;
-  birthDate: string; // ISO date string
+  birthDate: string;       // ISO date string
   parentId: string[];
   classId: string;
   allergies?: string;
   specialNeeds?: string;
   subsidyStatus?: string;
-  enrollmentDate: string; // ISO date string
+  enrollmentDate: string;  // ISO date string
   enrollmentStatus: "Active" | "Withdraw" | "New" | "Waitlist";
-  endDate?: string; // ISO date string
+  endDate?: string;        // ISO date string
 }
+
 export type Parent = {
   id: string;
   firstName: string;
   lastName: string;
-  email: string; // username for login
-  role: "parent"; // Fixed as Parent
+  email: string;           // username for login
+  role: "parent";          // fixed as Parent
   phone: string;
-  passwordHash: string; // For simplicity, storing hash directly
-  childIds: string[]; // Children associated with this parent
+  passwordHash: string;    // storing hash directly for simplicity
+  childIds: string[];      // children associated with this parent
   street: string;
   city: string;
   province: string;
   country: string;
   emergencyContact?: string;
-  createdAt: string; // ISO date string
-  updatedAt?: string; // ISO date string  
+  createdAt: string;       // ISO date string
+  updatedAt?: string;      // ISO date string  
   preferredLanguage?: string; // e.g., "en", "fr"
 }
-export type DailyReport ={
+
+export type DailyReport = {
   id: string;
   childId: string;
-  date: string; // ISO date string
+  date: string;            // ISO date string
   entries: Entry[];
-  createdAt: string; // ISO date string // report created right after kid is checked out
+  createdAt: string;       // ISO date string; report created after kid is checked out
 }
+
 export type Photo = {
   id: string;
   entryId: string;
   url: string;
-  uploadedAt: string; // ISO date string  
-  
+  uploadedAt: string;      // ISO date string  
 }
