@@ -62,28 +62,13 @@ export default function ClassesTab({
     return "full";
   };
 
-  const getCapacityColor = (status: string) => {
-    switch (status) {
-      case 'available': return 'bg-gray-400';
-      case 'nearly-full': return 'bg-gray-500';
-      case 'full': return 'bg-gray-600';
-      default: return 'bg-gray-400';
-    }
-  };
-
-  const getCapacityLabel = (status: string) => {
-    switch (status) {
-      case 'available': return 'Available';
-      case 'nearly-full': return 'Nearly Full';
-      case 'full': return 'Full';
-      default: return 'Unknown';
-    }
   const getCapacityColor = (status: string) =>
     status === "available"
       ? "bg-green-500"
       : status === "nearly-full"
       ? "bg-yellow-500"
       : "bg-red-500";
+
   const getCapacityLabel = (status: string) =>
     status === "available" ? "Available" : status === "nearly-full" ? "Nearly Full" : "Full";
 
@@ -227,31 +212,6 @@ export default function ClassesTab({
           </button>
         </div>
 
-        {/* Search and Filter Bar */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 mb-4">
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              placeholder="Search by class name or location..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-400"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setCurrentPage(1);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            )}
-          </div>
         {/* Search & Filter */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
