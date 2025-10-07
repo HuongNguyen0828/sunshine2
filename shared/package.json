@@ -5,6 +5,7 @@
     "firebase": "^12.2.1"
   },
   "devDependencies": {
-    "@types/firebase": "^3.2.3"
+    "@types/firebase": "^3.2.3",
+    "@types/node": "^24.6.0"
   }
 }

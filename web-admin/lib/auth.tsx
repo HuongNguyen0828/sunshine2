@@ -10,7 +10,7 @@ import {
   updateProfile,
   type User,
 } from "firebase/auth";
-import { FirebaseError } from "firebase/app";
+import type { FirebaseError } from "firebase/app";
 import { useRouter } from "next/navigation";
 import app from "./firebase";
 import Cookies  from "js-cookie";
@@ -20,7 +20,7 @@ interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: ( name: string, email: string, password: string) => Promise<void>;
+  signUp: (name: string, email: string, password: string) => Promise<void>;
   isAdmin: boolean;
   userRole: string | null;
   signOutUser: () => Promise<void>;
@@ -32,11 +32,56 @@ type GetAdminResponse = { user: { role: string } };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/** Type guards and helpers for error handling */
+function isFirebaseError(e: unknown): e is FirebaseError {
+  return typeof e === "object" && e !== null && "code" in e;
+}
+function isRecord(e: unknown): e is Record<string, unknown> {
+  return typeof e === "object" && e !== null;
+}
+function errorMessage(e: unknown): string {
+  if (isRecord(e) && typeof e.message === "string") return e.message;
+  if (e instanceof Error) return e.message;
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return String(e);
+  }
+}
+
+/** Ensure JSON response or throw readable error */
+async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, init);
+  const ct = res.headers.get("content-type") || "";
+
+  if (!res.ok) {
+    if (ct.includes("application/json")) {
+      const data = (await res.json().catch(() => ({}))) as Record<
+        string,
+        unknown
+      >;
+      const msg =
+        typeof data.message === "string"
+          ? data.message
+          : `[${res.status}] Request failed`;
+      throw new Error(msg);
+    }
+    const text = await res.text();
+    throw new Error(`[${res.status}] ${text.slice(0, 200)}`);
+  }
+
+  if (!ct.includes("application/json")) {
+    const text = await res.text();
+    throw new Error(`Unexpected non-JSON response: ${text.slice(0, 200)}`);
+  }
+  return (await res.json()) as T;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const auth = getAuth(app);
-  const router = useRouter(); // App Router navigation (client-only)
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -61,7 +106,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         Cookies.set("idToken", idToken, {expires: 7})
       };
 
-      // When signed out, clear cached role state as well
       if (!user) {
         setUserRole(null);
         setIsAdmin(false);
@@ -73,12 +117,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => unsubscribe();
   }, [auth]);
 
-  /** Sign up:
-   *  1) Check email with backend
-   *  2) Create Firebase user
-   *  3) Tell backend to verify/set role and create profile
+  /**
+   * Sign up flow:
+   * 1) Check email with backend
+   * 2) Create Firebase user
+   * 3) Verify role on backend and create user profile
    */
-  const signUp = async (name: string, email: string, password: string ) => {
+  const signUp = async (
+    name: string,
+    email: string,
+    password: string
+  ): Promise<void> => {
     try {
 
       // 1) Email check against backend policy
@@ -90,6 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         body: JSON.stringify({ email }),
         credentials: "include", // add this matching with CORS
       });
+      console.log(`  ✅ Authorized role: ${check.role}`);
 
       // Only respond ok is valid email
       if (!res.ok) {
@@ -130,15 +180,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw error;
 
     }
-
   };
 
-  // Sign in:
-  // 4 cases:
-  // Case 1: user is extenal of our system: email doesn't exist-> throw error: Unrecognized email.  Your daycare registered with Sunshine to signUp and login
-  // Case 2: user is parent or teacher: throw error: Hello, parent (teacher), please login in Sunshine mobile app
-  // Case 3. user is admin, entering wrong password: throw error: Hello admin, Invalid passowrd
-  // Case 4. Success: user is admin and all correct: redirect into dashboard.
+  /**
+   * Sign in flow:
+   * 1) Firebase signIn
+   * 2) Get ID token from returned user
+   * 3) Ask backend for role (or bypass in dev)
+   */
   const signIn = async (email: string, password: string): Promise<void> => {
     try {
       // 1. Firebase Auth login
@@ -177,7 +226,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Updating AuthContext: On reload, rehydrate from localStorage.
       setUserRole(data.user.role);
       setIsAdmin(data.user.role === "admin");
-      setIdToken(data.user.idToken);
 
     } catch (error: any) {
       // Error from Frontend: Firebase Auth errors with signInWithEmailAndPassword
@@ -186,7 +234,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw error;
     }
   };
-
 
   /** Full sign out: clear Firebase session + local role state */
   const signOutUser = async () => {

@@ -1,102 +1,64 @@
-"use client"
+"use client";
 
-import * as Types from "../../shared/types/type"
+import * as Types from "@shared/types/type";
 import { NewTeacherInput } from "@/types/forms";
-import Cookies from "js-cookie"
+import api from "@shared/api/client";
+import { ENDPOINTS } from "@shared/api/endpoint";
 
-// Fetch all teachers
-export async function fetchAllTeachers(): Promise<Types.Teacher[]> {
-    try {
-
-        // using token for user auth, middleware
-        const token = Cookies.get("idToken");
-        // Attach header for teacher?locationId=${locationId}`
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher`, {
-            headers: {
-                Authorization: `Bearer ${token}`, // if using JWT
-            }
-        });
-        if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.message); // throw error message from backend
-        }
-        
-        const teachers = await res.json();
-        // Ensure the response data isn't frozen/read-only
-        return teachers
-    } catch (err: any) {
-        console.error(err);
-        return []; // retur empty list
-    }
+export async function fetchTeachers(): Promise<Types.Teacher[] | null> {
+  try {
+    const teachers = await api.get<Types.Teacher[]>(ENDPOINTS.teachers, );
+    return teachers;
+  } catch (err: unknown) {
+    console.error(err);
+    return null;
+  }
 }
 
-// Add a new teacher
-export async function fetchAddTeacher(newTeacherInfo: Partial<NewTeacherInput>): Promise<Types.Teacher | null> {
-    try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...newTeacherInfo }), // pass in object elements, not the whole object
-        });
-        // If faild calling API
-        if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.message); // throw error message from backend
-        }
-        //Else, return new teacher
-        const teacher = await res.json();
-        
-        // Ensure the response data isn't frozen/read-only
-        return teacher
-    } catch (err: any) {
-        console.error(err);
-        return null;
-    }
+export async function addTeacher(newTeacher: NewTeacherInput): Promise<Types.Teacher | null> {
+  try {
+    const teacher = await api.post<Types.Teacher>(ENDPOINTS.teachers, { ...newTeacher });
+    return teacher;
+  } catch (err: unknown) {
+    console.error(err);
+    return null;
+  }
 }
 
-
-// Updating an existing teacher (Partially: only update changing fields)
-    // If editing email involved, need to update on Firebase Auth
-    // If editing endDate involved, need disable the account after the endDate on Firebase Auth (consider an automatic script)
-export async function fetchUpdateTeacher(id: string, editingTeacher: Partial<NewTeacherInput>): Promise<Types.Teacher | null> {
-    try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/teacher/${id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(editingTeacher), // pass in object 
-        });
-        // If faild calling API
-        if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.message); // throw error message from backend
-        };
-        //Else, return updated teacher
-        const teacher = await res.json();
-        
-        // Ensure the response data isn't frozen/read-only
-        return teacher
-    } catch (err: any) {
-        console.error(err);
-        return null;
-    }
+export async function updateTeacher(
+  id: string,
+  payload: NewTeacherInput
+): Promise<Types.Teacher | null> {
+  try {
+    const teacher = await api.put<Types.Teacher>(`${ENDPOINTS.teachers}/${id}`, { ...payload });
+    return teacher;
+  } catch (err: unknown) {
+    console.error(err);
+    return null;
+  }
 }
 
-// Deleting an existing teacher
-// After deleting, also delete teacher account on Firebase Auth
-export async function fetchDeleteTeacher(teacherId: string): Promise<Types.Teacher | null> {
-    try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/${teacherId}`, {
-            method: "DELETE",
-        });
-        // If faild calling API
-        if (!res.ok) throw new Error("Failed to delete teacher");
-        //Else, return deleted teacher
-        const teacher = await res.json();
-        
-        // Ensure the response data isn't frozen/read-only
-        return teacher
-    } catch (err: any) {
-        console.error(err);
-        return null;
-    }
+export async function deleteTeacher(
+  id: string
+): Promise<{ ok: boolean; uid: string } | null> {
+  try {
+    const res = await api.delete<{ ok: boolean; uid: string }>(`${ENDPOINTS.teachers}/${id}`);
+    return res;
+  } catch (err: unknown) {
+    console.error(err);
+    return null;
+  }
+}
+
+export async function assignTeacherToClass(
+  id: string,
+  classId: string
+): Promise<{ ok: boolean } | null> {
+  try {
+    const res = await api.post<{ ok: boolean }>(`${ENDPOINTS.teachers}/${id}/assign`, { classId });
+    return res;
+  } catch (err: unknown) {
+    console.error(err);
+    return null;
+  }
 }

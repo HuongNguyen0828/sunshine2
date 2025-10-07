@@ -1,8 +1,8 @@
+// web-admin/app/dashboard/page.tsx
 "use client";
-import ProtectedRoute from "@/components/ProtectRoute";
 
-import React, { useEffect, useState, useCallback} from "react";
-import { useAuth } from "@/lib/auth";
+import React, { useEffect, useState, useCallback } from "react";
+import ProtectedRoute from "@/components/ProtectRoute";
 import AppHeader from "@/components/AppHeader";
 import SidebarNav from "@/components/dashboard/SidebarNav";
 import Overview from "@/components/dashboard/Overview";
@@ -12,7 +12,9 @@ import ParentsTab from "@/components/dashboard/ParentsTab";
 import ClassesTab from "@/components/dashboard/ClassesTab";
 import SchedulerLabsTab from "@/components/dashboard/SchedulerLabsTab";
 import { dash } from "@/styles/dashboard";
-import * as Types from "../../../../shared/types/type";
+
+import { useAuth } from "@/lib/auth";
+import * as Types from "@shared/types/type";
 import type {
   Tab,
   NewTeacherInput,
@@ -21,100 +23,25 @@ import type {
   NewClassInput,
 } from "@/types/forms";
 
-import swal from "sweetalert2"; // for alert library
-// import { isContext } from 'vm';
-import { fetchAllTeachers, fetchAddTeacher, fetchDeleteTeacher, fetchUpdateTeacher } from "@/api/useTeachersAPI";
-
-//Note: 
-  //uid is uid of admin inside admins collection for dynamic route
-  // Once user login, store idToken of user, then every rquest from frontend call using idToken 
+import swal from "sweetalert2";
+import { fetchTeachers, addTeacher } from "@/hooks/useTeachersAPI";
+import { fetchClasses } from "@/hooks/useClassesAPI";
+import { fetchLocationsLite, type LocationLite } from "@/hooks/useLocationsAPI";
 
 export default function AdminDashboard() {
-
-  const { signOutUser, currentUser } = useAuth();
+  const { signOutUser, currentUser, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
-  // const [loading, setLoading] = useState<boolean>(true);
 
-  // --- Entity states (Teachers from Firestore; others local for now)
+  // Server-backed data (teachers/classes/locations)
   const [teachers, setTeachers] = useState<Types.Teacher[]>([]);
-  const [children, setChildren] = useState<Types.Child[]>([
-    {
-      id: "1",
-      firstName: "Emma",
-      lastName: "Wilson",
-      birthDate: "2017-03-12",
-      parentId: ["1"],
-      classId: "1",
-      enrollmentDate: "2024-09-01",
-      enrollmentStatus: "Active",
-    },
-    {
-      id: "2",
-      firstName: "Noah",
-      lastName: "Smith",
-      birthDate: "2016-11-05",
-      parentId: ["2"],
-      classId: "1",
-      enrollmentDate: "2024-09-01",
-      enrollmentStatus: "Active",
-    },
-  ]);
-  const [parents, setParents] = useState<Types.Parent[]>([
-    {
-      id: "1",
-      firstName: "Jennifer",
-      lastName: "Wilson",
-      email: "jennifer@email.com",
-      role: "parent",
-      phone: "555-1234",
-      passwordHash: "****",
-      childIds: ["1"],
-      street: "123 Main St",
-      city: "Calgary",
-      province: "AB",
-      country: "CA",
-      createdAt: "2025-09-01",
-    },
-    {
-      id: "2",
-      firstName: "Robert",
-      lastName: "Smith",
-      email: "robert@email.com",
-      role: "parent",
-      phone: "555-5678",
-      passwordHash: "****",
-      childIds: ["2"],
-      street: "45 Oak Ave",
-      city: "Calgary",
-      province: "AB",
-      country: "CA",
-      createdAt: "2025-09-01",
-    },
-  ]);
-  const [classes, setClasses] = useState<Types.Class[]>([
-    {
-      id: "1",
-      name: "Class 3A",
-      locationId: "loc-1",
-      classroom: "Room 1",
-      capacity: 20,
-      volume: 20,
-      ageStart: 7,
-      ageEnd: 9,
-    },
-    {
-      id: "2",
-      name: "Class 4B",
-      locationId: "loc-1",
-      classroom: "Room 2",
-      capacity: 20,
-      volume: 18,
-      ageStart: 8,
-      ageEnd: 10,
-    },
-  ]);
+  const [classes, setClasses] = useState<Types.Class[]>([]);
+  const [locations, setLocations] = useState<LocationLite[]>([]);
 
-  // --- Controlled form states (type-safe; no `any`)
+  // Local demo data (children/parents) — not persisted to backend
+  const [children, setChildren] = useState<Types.Child[]>([]);
+  const [parents, setParents] = useState<Types.Parent[]>([]);
+
+  // Forms state (lifted to parent so tabs can read/write)
   const [newTeacher, setNewTeacher] = useState<NewTeacherInput>({
     firstName: "",
     lastName: "",
@@ -172,94 +99,130 @@ export default function AdminDashboard() {
     classroom: "",
   });
 
+  // Global loading for initial and manual refreshes
+  const [dataLoading, setDataLoading] = useState<boolean>(true);
 
-  //Fetching teachers 
-  const fetchTeachersData = async () => {
+  // Fetch teachers/classes/locations (used both on mount and after updates)
+  const refreshAll = useCallback(async () => {
+    setDataLoading(true);
     try {
-      const data = await fetchAllTeachers();
-      if (data) setTeachers(data);
-    } catch (err: any) {
+      const [tchs, clss, locs] = await Promise.all([
+        fetchTeachers(),
+        fetchClasses(),
+        fetchLocationsLite(),
+      ]);
+      setTeachers(tchs ?? []);
+      setClasses(clss ?? []);
+      setLocations(locs ?? []);
+    } catch (e) {
+      console.error(e);
+      await swal.fire({
+        icon: "error",
+        title: "Failed to load",
+        text: "Could not fetch teachers/classes/locations.",
+      });
+    } finally {
+      setDataLoading(false);
+    }
+  }, []);
+
+  // Initial load after auth is ready
+  useEffect(() => {
+    if (authLoading || !currentUser) return;
+
+    let cancelled = false;
+    (async () => {
+      setDataLoading(true);
+      try {
+        const [tchs, clss, locs] = await Promise.all([
+          fetchTeachers(),
+          fetchClasses(),
+          fetchLocationsLite(),
+        ]);
+        if (!cancelled) {
+          setTeachers(tchs ?? []);
+          setClasses(clss ?? []);
+          setLocations(locs ?? []);
+        }
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) {
+          await swal.fire({
+            icon: "error",
+            title: "Failed to load",
+            text: "Could not fetch teachers/classes/locations.",
+          });
+        }
+      } finally {
+        if (!cancelled) setDataLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, currentUser]);
+
+  // Create teacher (optimistic UI)
+  const handleAddTeacher = async () => {
+    const optimistic: Types.Teacher = {
+      id: `tmp-${Date.now()}`,
+      firstName: newTeacher.firstName,
+      lastName: newTeacher.lastName,
+      email: newTeacher.email,
+      phone: newTeacher.phone,
+      address1: newTeacher.address1,
+      address2: newTeacher.address2 || "",
+      city: newTeacher.city,
+      province: newTeacher.province,
+      country: newTeacher.country,
+      postalcode: newTeacher.postalcode || "",
+      classIds: newTeacher.classIds ?? [],
+      locationId: newTeacher.locationId || "",
+      startDate: newTeacher.startDate,
+      endDate: newTeacher.endDate,
+    };
+
+    setTeachers((prev) => [optimistic, ...prev]);
+
+    try {
+      const created = await addTeacher(newTeacher);
+      if (created) {
+        setTeachers((prev) => [created, ...prev.filter((t) => t.id !== optimistic.id)]);
+        setNewTeacher({
+          firstName: "",
+          lastName: "",
+          email: "",
+          phone: "",
+          address1: "",
+          address2: "",
+          city: "",
+          province: "",
+          country: "",
+          postalcode: "",
+          classIds: [],
+          locationId: "",
+          startDate: "",
+          endDate: undefined,
+        });
+        await swal.fire({
+          icon: "success",
+          title: "New Teacher",
+          text: `Successfully added: ${created.firstName} ${created.lastName}`,
+        });
+      } else {
+        setTeachers((prev) => prev.filter((t) => t.id !== optimistic.id));
+        await swal.fire({ icon: "error", title: "Add Teacher", text: "Failed to add teacher." });
+      }
+    } catch (err) {
       console.error(err);
-      alert("Error fetching teachers");
+      setTeachers((prev) => prev.filter((t) => t.id !== optimistic.id));
+      await swal.fire({ icon: "error", title: "Add Teacher", text: "Failed to add teacher." });
     }
   };
 
-  // --- Actions
-  const addTeacher = useCallback(async () => {
-
-    // Persist to Firestore; id doc is generated by server,
-    // and be regenerated by backend matching with Firebase Auth
-    const newTeacherData = {
-      ...newTeacher,
-      endDate: newTeacher.endDate || null,
-    };
-    try {
-      await fetchAddTeacher(newTeacherData as NewTeacherInput);
-      // Reset form; list updates automatically via onSnapshot
-      setNewTeacher({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        address1: "",
-        address2: "",
-        city: "",
-        province: "",
-        country: "",
-        postalcode: "",
-        classIds: [],
-        locationId: "",
-        startDate: "",
-        endDate: undefined,
-      });
-      // Success Alert
-      // alert(`New teacher added: ${newTeacher.firstName} ${newTeacher.lastName}`);
-      swal.fire({
-        icon: "success",
-        title: "New Teacher",
-        text: `Succefull adding new teacher: ${newTeacher.firstName} ${newTeacher.lastName}`,
-        allowOutsideClick: false,
-        showConfirmButton: true,
-      });
-      // Call refesh Teacher after success
-      await fetchTeachersData();
-    } catch (e: any) {
-      console.error(e);
-      alert(e.message);
-    }
-  },[newTeacher]);
-
-  // Updating Teacher: PARTITIALLY with identified id
-  const updateTeacher = useCallback(async (id: string, newTeacherInfo: Partial<NewTeacherInput>) => {
-    try {
-      await fetchUpdateTeacher(id, newTeacherInfo);
-      // Call refesh Teacher after success
-      await fetchTeachersData();
-    } catch (e: any) {
-      alert(e.message)
-    }
-  },[]);
-
-  // Delete Teacher
-  const deleteTeacher = useCallback(async (id: string) => {
-    try {
-      await fetchDeleteTeacher(id);
-      // Call refesh Teacher after success
-      await fetchTeachersData();
-    } catch (e: any) {
-      alert(e.message)
-    }
-  }, [])
-
-
-
-  useEffect(() => {
-    fetchTeachersData();
-  }, []); // run once on mount, and after each modification of TeacherTab
-
+  // Demo-only local adds (children/parents)
   const addChild = () => {
-    // Local-only example; can be migrated to Firestore with same pattern
-
     const child: Types.Child = {
       id: String(children.length + 1),
       firstName: newChild.firstName,
@@ -294,8 +257,6 @@ export default function AdminDashboard() {
   };
 
   const addParent = () => {
-    // Local-only example; can be migrated to Firestore
-
     const parent: Types.Parent = {
       id: String(parents.length + 1),
       role: "parent",
@@ -303,7 +264,6 @@ export default function AdminDashboard() {
       ...newParent,
     };
     setParents((p) => [...p, parent]);
-
     setNewParent({
       firstName: "",
       lastName: "",
@@ -321,98 +281,106 @@ export default function AdminDashboard() {
     });
   };
 
-  const addClass = () => {
-    // Local-only example; can be migrated to Firestore
-    const cls: Types.Class = {
-      id: String(classes.length + 1),
-      ...newClass,
-      classroom: "",
-    };
-    setClasses((p) => [...p, cls]);
-    setNewClass({
-      name: "",
-      locationId: "",
-      capacity: 0,
-      volume: 0,
-      ageStart: 0,
-      ageEnd: 0,
-      classroom: "",
-    });
+  // Classes callbacks: keep local list in sync after CRUD
+  const onClassCreated = (created: Types.Class) => {
+    setClasses((prev) => [created, ...prev]);
+  };
+  const onClassUpdated = (updated: Types.Class) => {
+    setClasses((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+  };
+  const onClassDeleted = (id: string) => {
+    setClasses((prev) => prev.filter((c) => c.id !== id));
   };
 
+  // NEW: after teacher assignment, refresh classes/teachers/locations immediately
+  const onClassAssigned = async () => {
+    await refreshAll();
+  };
 
+  // Show a simple loader while fetching initial data
+  if (authLoading || dataLoading) {
     return (
-      // Protected route for admin
       <ProtectedRoute>
-        <div style={dash.container}>
-          <header style={dash.header}>
-            <AppHeader />
-            <h1 style={dash.headerTitle}>Admin Dashboard</h1>
-            <div style={dash.headerActions}>
-              <span style={dash.welcome}>Welcome, {currentUser?.displayName} Admin</span>
-              <button onClick={signOutUser} style={dash.logoutButton}>
-                Logout
-              </button>
-            </div>
-          </header>
-
-          <div style={dash.content}>
-            <SidebarNav active={activeTab} onChange={setActiveTab} />
-            <main style={dash.main}>
-              {activeTab === "overview" && (
-                <Overview
-                  teacherCount={teachers.length}
-                  childCount={children.length}
-                  parentCount={parents.length}
-                  classCount={classes.length}
-                />
-              )}
-
-              {activeTab === "teachers" && (
-                <TeachersTab
-                  teachers={teachers}
-                  newTeacher={newTeacher}
-                  setNewTeacher={setNewTeacher}
-                  onAdd={addTeacher}
-                  onDelete={deleteTeacher}
-                  onUpdate={updateTeacher}
-                />
-              )}
-
-              {activeTab === "children" && (
-                <ChildrenTab
-                  classes={classes}
-                  parents={parents}
-                  childList={children} // avoid reserved prop "children"
-                  newChild={newChild}
-                  setNewChild={setNewChild}
-                  onAdd={addChild}
-                />
-              )}
-
-              {activeTab === "parents" && (
-                <ParentsTab
-                  parents={parents}
-                  newParent={newParent}
-                  setNewParent={setNewParent}
-                  onAdd={addParent}
-                />
-              )}
-
-              {activeTab === "classes" && (
-                <ClassesTab
-                  classes={classes}
-                  teachers={teachers}
-                  newClass={newClass}
-                  setNewClass={setNewClass}
-                  onAdd={addClass}
-                />
-              )}
-
-              {activeTab === "scheduler-labs" && <SchedulerLabsTab />}
-            </main>
-          </div>
-        </div>
+        <div>Loading...</div>
       </ProtectedRoute>
     );
   }
+
+  return (
+    <ProtectedRoute>
+      <div style={dash.container}>
+        {/* App header */}
+        <header style={dash.header}>
+          <AppHeader />
+          <h1 style={dash.headerTitle}>Admin Dashboard</h1>
+          <div style={dash.headerActions}>
+            <span style={dash.welcome}>Welcome, Admin</span>
+            <button onClick={signOutUser} style={dash.logoutButton}>
+              Logout
+            </button>
+          </div>
+        </header>
+
+        {/* Main content with sidebar + active tab */}
+        <div style={dash.content}>
+          <SidebarNav active={activeTab} onChange={setActiveTab} />
+          <main style={dash.main}>
+            {activeTab === "overview" && (
+              <Overview
+                teacherCount={teachers.length}
+                childCount={children.length}
+                parentCount={parents.length}
+                classCount={classes.length}
+              />
+            )}
+
+            {activeTab === "teachers" && (
+              <TeachersTab
+                teachers={teachers}
+                newTeacher={newTeacher}
+                setNewTeacher={setNewTeacher}
+                onAdd={handleAddTeacher}
+              />
+            )}
+
+            {activeTab === "children" && (
+              <ChildrenTab
+                classes={classes}
+                parents={parents}
+                childList={children}
+                newChild={newChild}
+                setNewChild={setNewChild}
+                onAdd={addChild}
+              />
+            )}
+
+            {activeTab === "parents" && (
+              <ParentsTab
+                parents={parents}
+                newParent={newParent}
+                setNewParent={setNewParent}
+                onAdd={addParent}
+              />
+            )}
+
+            {activeTab === "classes" && (
+              <ClassesTab
+                classes={classes}
+                teachers={teachers}
+                locations={locations}
+                newClass={newClass}
+                setNewClass={setNewClass}
+                onCreated={onClassCreated}
+                onUpdated={onClassUpdated}
+                onDeleted={onClassDeleted}
+                onAssigned={onClassAssigned} // Trigger immediate refetch after assignment
+              />
+            )}
+
+            {activeTab === "scheduler-labs" && <SchedulerLabsTab />}
+          </main>
+        </div>
+      </div>
+    </ProtectedRoute>
+  );
+}

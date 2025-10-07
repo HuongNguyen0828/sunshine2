@@ -1,24 +1,50 @@
+
 import { admin } from "../lib/firebase";
-import {UserRole} from "../models/user"
-import {db} from "../lib/firebase" // import db from main server.ts
+import { UserRole } from "../models/user";
+import { db } from "../lib/firebase";
 
 
 // Checking email exist before let user signup: email could be null from verify token
 export async function findRoleByEmail(email: string | null): Promise<UserRole | null>{
 
-  const teacherDoc = await db.collection("teachers")
-    .where("email", "==", email)
+  // Guard clause: reject null/empty emails
+  if (!email || !email.trim()) {
+    return null;
+  }
+
+  const emailLower = email.trim().toLowerCase();
+
+  // teachers
+  const teacherDoc = await db
+    .collection("teachers")
+    .where("email", "==", emailLower)
+    .limit(1)
     .get();
+  console.log(
+    `      Teachers collection: ${teacherDoc.empty ? "not found" : "FOUND"}`
+  );
   if (!teacherDoc.empty) return UserRole.Teacher;
 
-  const parentDoc = await db.collection("parents")
-    .where("email", "==", email)
+  // parents
+  const parentDoc = await db
+    .collection("parents")
+    .where("email", "==", emailLower)
+    .limit(1)
     .get();
+  console.log(
+    `      Parents collection: ${parentDoc.empty ? "not found" : "FOUND"}`
+  );
   if (!parentDoc.empty) return UserRole.Parent;
 
-  const adminDoc = await db.collection("admins")
-    .where("email", "==", email)
+  // admins
+  const adminDoc = await db
+    .collection("admins")
+    .where("email", "==", emailLower)
+    .limit(1)
     .get();
+  console.log(
+    `      Admins collection: ${adminDoc.empty ? "not found" : "FOUND"}`
+  );
   if (!adminDoc.empty) return UserRole.Admin;
 
   return null;
@@ -33,22 +59,25 @@ export async function createUser(uid: string, email: string | null, role: string
     return;
   }
 
-  // Else, create user in Firestore Auth
+  const emailLower = email.trim().toLowerCase();
+
   await db.collection("users").doc(uid).set({
     uid,
-    email,
+    email: emailLower,
     role,
     name,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 }
 
-// Get user by uid
+/**
+ * Get a user document by uid.
+ * Throws if the document does not exist.
+ */
 export async function getUserByUid(uid: string) {
   const userDoc = await db.collection("users").doc(uid).get();
   if (!userDoc.exists) throw new Error("User not found");
-  return userDoc.data
-  ();
+  return userDoc.data();
 }
 
 type daycareAndLocation = {
