@@ -68,7 +68,7 @@ export async function getDaycareAndLocation(email: string | null) : Promise<dayc
     let daycareId;
     let locationId;
   
-    // If empty:
+  // If empty:
   if (adminDoc.empty) {
     throw new Error("Daycare/location not found for this user");
   }
@@ -80,6 +80,33 @@ export async function getDaycareAndLocation(email: string | null) : Promise<dayc
   }
   return {daycareId, locationId}
 
+}
+
+
+// Get all locationId[] of daycare admin;
+export async function getAllLocationIdForDaycare(email: string | null): Promise<String[] | undefined>{
+  
+  const {daycareId, locationId} = await getDaycareAndLocation(email);
+
+
+  const daycareDocs = await db.collection("daycareProvider")
+  .where("daycareId", "==", daycareId)
+  .get();
+
+  if (!daycareDocs) throw new Error("Cannot find the daycare");
+  // Get sub collection location of that daycare doc
+  const daycareDocRef = daycareDocs.docs[0]?.ref;
+  const locationSnap = await daycareDocRef?.collection("locations").get();
+
+  if (locationSnap?.empty) {
+    console.log("Daycare has no location")
+    return [];
+  }
+  // convert to list of id
+
+  const locationIdList = locationSnap?.docs.map( doc => doc.id);
+
+  return locationIdList;
 }
 
 // Other services like: 

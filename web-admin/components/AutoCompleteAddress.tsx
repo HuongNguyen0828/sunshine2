@@ -5,7 +5,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { CountryType } from '@/utils/autoCompleteAddress';
 import { Autocomplete } from "@react-google-maps/api"
 import { sharedStyles } from '@/styles/sharedStyle';
-import { Teacher as type} from "../../shared/types/type"
 
 
 export interface Address {

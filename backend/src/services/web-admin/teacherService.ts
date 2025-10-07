@@ -9,10 +9,17 @@ const teachersRef = db.collection("teachers");
 
 // return a list of Teacher
 export const getAllTeachers = async (locationId?: string): Promise<Teacher[]> => {
-  
+  // if not location
   if (!locationId) {
     throw new Error("locationId is required to fetch teachers");
   }
+
+  // if locationId is *, mean fetch all teacher inside that daycare. 
+  // For daycare admin (owner with many locations) for now, ignore Sushine admin
+
+
+
+  // Else, admin of that location
   const snapshot = await teachersRef
     .where("locationId", "==", locationId)
     .get();

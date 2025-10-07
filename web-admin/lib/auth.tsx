@@ -51,9 +51,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setIsAdmin(cookieRole === "admin");
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-      setLoading(false);
+
+    // In case user reload, signout, signin
+    const unsubscribe = onAuthStateChanged(auth, async(user) => {
+      if (user) {
+        setCurrentUser(user);
+        setLoading(false);
+        const idToken = await user.getIdToken(); // automatically
+        Cookies.set("idToken", idToken, {expires: 7})
+      };
 
       // When signed out, clear cached role state as well
       if (!user) {
@@ -171,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Updating AuthContext: On reload, rehydrate from localStorage.
       setUserRole(data.user.role);
       setIsAdmin(data.user.role === "admin");
+      setIdToken(data.user.idToken);
 
     } catch (error: any) {
       // Error from Frontend: Firebase Auth errors with signInWithEmailAndPassword
