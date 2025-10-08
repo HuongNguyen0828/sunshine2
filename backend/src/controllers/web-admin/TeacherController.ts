@@ -66,9 +66,25 @@ export const getTeacherById = async (req: Request, res: Response) => {
 // PUT /api/teachers/:id
 // Update an existing teacher
 export const updateTeacher = async (req: Request, res: Response) => {
+
+  // Extract locationId from req.user (set by authMiddleware)
+  const locationId = req.user?.locationId;
+  if (!locationId) {
+    return res.status(400).json({message: "Location missing from current Admin profile"});
+  }
+  
   try {
     const id = req.params.id;
     if (!id) return res.status(400).json({ message: "id required" });
+
+    // Fetch the teacher first
+    const teacher = await TeacherService.getTeacherById(id);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+
+    // Check if teacher belongs to admin's location
+    if (teacher.locationId !== locationId) {
+      return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
+    }
 
     const updated = await TeacherService.updateTeacher(id, req.body);
     if (!updated) return res.status(404).json({ message: "Teacher not found" });
