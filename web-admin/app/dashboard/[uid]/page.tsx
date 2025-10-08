@@ -24,9 +24,9 @@ import type {
 } from "@/types/forms";
 
 import swal from "sweetalert2";
-import { fetchTeachers, addTeacher } from "@/hooks/useTeachersAPI";
-import { fetchClasses } from "@/hooks/useClassesAPI";
-import { fetchLocationsLite, type LocationLite } from "@/hooks/useLocationsAPI";
+import { fetchTeachers, addTeacher } from "@/services/useTeachersAPI";
+import { fetchClasses } from "@/services/useClassesAPI";
+import { fetchLocationsLite, type LocationLite } from "@/services/useLocationsAPI";
 
 export default function AdminDashboard() {
   const { signOutUser, currentUser, loading: authLoading } = useAuth();

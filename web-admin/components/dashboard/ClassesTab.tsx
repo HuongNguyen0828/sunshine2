@@ -11,13 +11,13 @@
 import * as Types from "../../../shared/types/type";
 import type { NewClassInput } from "@/types/forms";
 import { useMemo, useState } from "react";
-import { LocationLite } from "@/hooks/useLocationsAPI";
+import { LocationLite } from "@/services/useLocationsAPI";
 import {
   addClass as apiAddClass,
   updateClass as apiUpdateClass,
   deleteClass as apiDeleteClass,
   assignTeachersToClass,
-} from "@/hooks/useClassesAPI";
+} from "@/services/useClassesAPI";
 
 type Props = {
   classes: Types.Class[];
