@@ -101,3 +101,38 @@ export async function getUserByUid(uid: string) {
   if (!userDoc.exists) throw new Error("User not found");
   return userDoc.data();
 }
+
+
+export async function findDaycareAndLocationByEmail(email: string | null): Promise<{daycareId: string, locationId: string} | null> {
+  // Case: not provide email
+  if (!email || !email.trim()) {
+    throw new Error("Email required to find daycare and location");
+  }
+  // else
+  try {
+    const adminRef = await db.collection("admins")
+      .where("email", "==", email.trim().toLowerCase());
+
+    // Extract daycare and location IDs
+    const snapshot = await adminRef.get();
+    if (snapshot.empty) {
+      throw new Error("No matching admin found for provided email");
+    }
+
+    // If found
+    const adminData = snapshot.docs[0]?.data();
+
+    const daycareId = adminData?.daycareId;
+    const locationId = adminData?.locationId;
+    // Checking result is valid
+    if (!daycareId || !locationId) {
+      throw new Error("Admin record missing daycareId or locationId");
+    }
+    return { daycareId, locationId };
+
+  } catch (error) {
+    console.error("Error finding daycareProvider by email:", error);
+    return null;
+  }
+
+}
