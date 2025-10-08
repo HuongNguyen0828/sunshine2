@@ -1,23 +1,36 @@
-// app/dashboard/page.tsx (Server Component)
 "use client";
-import { redirect } from "next/navigation"
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import Cookies from "js-cookie";
+import { useEffect } from "react";
 
 export default function DashboardPage() {
-  
-  const currentUser = useAuth();
+  const { currentUser, loading, userRole } = useAuth();
+  const router = useRouter();
 
-  if (!currentUser) {
-    redirect("/login");
-  }
+  useEffect(() => {
+    if (loading) return; // Wait for auth to finish loading
 
-  if (currentUser.userRole !== "admin") {
-    redirect("/unauthorized");
-  }
+    if (!currentUser) {
+      router.replace("/login");
+      return;
+    }
 
-  if (currentUser && currentUser.userRole === "admin") {
+    if (userRole !== "admin") {
+      router.replace("/unauthorized");
+      return;
+    }
+
     const uid = Cookies.get("uid");
-    redirect(`/dashboard/${uid}`); // Redirect to the specific admin dashboard
-  }
+    if (uid) {
+      router.replace(`/dashboard/${uid}`);
+    }
+  }, [currentUser, loading, router]);
+
+  // Optional: loading spinner or blank screen
+  return (
+    <div className="flex items-center justify-center h-screen">
+      {loading ? <p>Loading...</p> : null}
+    </div>
+  );
 }
