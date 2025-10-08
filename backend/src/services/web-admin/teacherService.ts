@@ -8,9 +8,10 @@ const classesRef  = db.collection("classes");
 const usersRef    = db.collection("users");
 
 // List all teachers
-export const getAllTeachers = async (location: string): Promise<Teacher[]> => {
+export const getAllTeachers = async (locationId: string): Promise<Teacher[]> => {
   const snap = await teachersRef
-    .where("location", "==", location).get();
+    .where("locationId", "==", locationId)
+    .get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as Teacher));
 };
 
