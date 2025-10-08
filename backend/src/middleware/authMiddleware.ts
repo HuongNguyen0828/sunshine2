@@ -10,8 +10,8 @@ export interface AuthRequest extends Request {
     uid: string;
     email: string;
     role: UserRole;
-    daycareId?: string;
-    locationId?: string;
+    daycareId: string;
+    locationId: string;
   };
 }
 
