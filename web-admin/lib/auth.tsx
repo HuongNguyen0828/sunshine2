@@ -28,7 +28,9 @@ interface AuthContextType {
 
 /** Backend response types (adjust if your API differs) */
 type CheckEmailResponse = { role: string };
-type GetAdminResponse = { user: { role: string } };
+
+// Is the user from middleware 
+type GetAdminResponse = { user: { uid: string, email: string, role: string, daycareID: string, locationId: string} };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -195,6 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Step 3: role from backend (or bypass)
       let role: string;
+      let locationId: string;
       if (bypassAuth) {
         console.log("  ⚠️ Bypass mode: force role=admin");
         role = "admin";
