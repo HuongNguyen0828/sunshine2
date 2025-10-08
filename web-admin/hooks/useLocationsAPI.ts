@@ -1,8 +1,8 @@
 // web-admin/hooks/useLocationsAPI.ts
 "use client";
 
-import { ENDPOINTS } from "@shared/api/endpoint";
-import api from "@shared/api/client";
+import { ENDPOINTS } from "@/api/endpoint";
+import api from "@/api/client";
 
 export type LocationLite = {
   id: string;

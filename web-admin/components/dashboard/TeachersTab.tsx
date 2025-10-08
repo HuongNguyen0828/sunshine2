@@ -12,8 +12,8 @@ import { useCallback, useMemo, useState, useEffect } from "react";
 import type { NewTeacherInput } from "@/types/forms";
 import AutoCompleteAdress from "@/components/AutoCompleteAddress";
 import { Address } from "@/components/AutoCompleteAddress";
-import api from "@shared/api/client";
-import { ENDPOINTS } from "@shared/api/endpoint";
+import api from "@/api/client";
+import { ENDPOINTS } from "@/api/endpoint";
 
 export default function TeachersTab({
   teachers,

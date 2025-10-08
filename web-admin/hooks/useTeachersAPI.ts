@@ -2,8 +2,8 @@
 
 import * as Types from "@shared/types/type";
 import { NewTeacherInput } from "@/types/forms";
-import api from "@shared/api/client";
-import { ENDPOINTS } from "@shared/api/endpoint";
+import api from "@/api/client";
+import { ENDPOINTS } from "@/api/endpoint";
 
 export async function fetchTeachers(): Promise<Types.Teacher[] | null> {
   try {
