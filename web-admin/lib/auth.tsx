@@ -13,6 +13,7 @@ import {
 import type { FirebaseError } from "firebase/app";
 import { useRouter } from "next/navigation";
 import app from "./firebase";
+import Cookies from "js-cookie";
 
 /** Public shape of the Auth context */
 interface AuthContextType {
@@ -91,22 +92,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   /** Keep Firebase Auth state in sync with React state */
   useEffect(() => {
-    const cachedRole =
-      typeof window !== "undefined" ? localStorage.getItem("userRole") : null;
+    const cachedRole = Cookies.get("userRole");
     if (cachedRole) {
       setUserRole(cachedRole);
       setIsAdmin(cachedRole === "admin");
     }
-
+    // Determine initial auth state: when user already login and idToken valid and not expired
+    // onAuthStateChanged will be triggered right away with current user (or null)
+    // We wait for that before marking loading=false
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-      setLoading(false);
 
-      if (!user) {
+      const idToken = Cookies.get("idToken");
+      if (idToken) {
+        // Verify token with backend
+        setCurrentUser(user);
+        setLoading(false);
+      } else {
         setUserRole(null);
         setIsAdmin(false);
         if (typeof window !== "undefined") {
-          localStorage.removeItem("userRole");
+          Cookies.remove("userRole");
+          Cookies.remove("idToken");
+          Cookies.remove("uid");
         }
       }
     });
@@ -202,7 +209,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("userRole", role);
+        Cookies.set("userRole", role, { expires: 7 });
+        Cookies.set("idToken", idToken, { expires: 7 });
+        Cookies.set("uid", cred.user.uid, { expires: 7 });
       }
       setUserRole(role);
       setIsAdmin(role === "admin");
@@ -223,7 +232,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUserRole(null);
     setIsAdmin(false);
     if (typeof window !== "undefined") {
-      localStorage.removeItem("userRole");
+      Cookies.remove("userRole");
+      Cookies.remove("idToken");
+      Cookies.remove("uid");
     }
     router.replace("/login");
   };

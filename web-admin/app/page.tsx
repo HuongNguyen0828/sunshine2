@@ -1,20 +1,23 @@
 // app/dashboard/page.tsx (Server Component)
 "use client";
 import { redirect } from "next/navigation"
+import { useAuth } from "@/lib/auth";
+import Cookies from "js-cookie";
 
 export default function DashboardPage() {
   
-  const userRole = localStorage.getItem("userRole");
+  const currentUser = useAuth();
 
-  if (!userRole) {
+  if (!currentUser) {
     redirect("/login");
   }
 
-  if (localStorage.getItem("userRole") !== "admin") {
+  if (currentUser.userRole !== "admin") {
     redirect("/unauthorized");
   }
 
-  if (localStorage.getItem("userRole") === "admin") {
-    redirect("/dashboard");
+  if (currentUser && currentUser.userRole === "admin") {
+    const uid = Cookies.get("uid");
+    redirect(`/dashboard/${uid}`); // Redirect to the specific admin dashboard
   }
 }
