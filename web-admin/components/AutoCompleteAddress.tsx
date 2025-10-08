@@ -10,18 +10,19 @@ import { Teacher as type} from "../../shared/types/type"
 
 export interface Address {
   address1: string;
-  address2: string;
+  address2?: string;
   city: string;
   province: string;
   country: string;
-  postalcode: string;
+  postalcode?: string;
 }
 interface AutoCompleteAddressProps {
   onAddressChanged: (address: Address) => void;
+  addressValues: Address;
 }
 
 
-export default function AutoCompleteAddress( {onAddressChanged = () => {}} :AutoCompleteAddressProps ) {
+export default function AutoCompleteAddress( {onAddressChanged, addressValues} : AutoCompleteAddressProps ) {
     const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
         
     const [address1, setAddress1] = useState<string>("");
@@ -127,8 +128,9 @@ export default function AutoCompleteAddress( {onAddressChanged = () => {}} :Auto
                 <input
                 style={sharedStyles.input}
                 type="text"
-                placeholder="e.g. 231 16 Ave"
-                value={address1}
+                placeholder="231 16 Ave"
+                // Passing the value of adress Object if adress Object not null
+                value={addressValues ? addressValues.address1 : address1}
                 onChange={(e) => setAddress1(e.target.value)}
                 
                 />
@@ -137,11 +139,12 @@ export default function AutoCompleteAddress( {onAddressChanged = () => {}} :Auto
                 
                 {/* For apartment number, box, floor # */}
                 <label>
+                    Apartment, unit, suite, or floor #
                 <input
                 style={sharedStyles.input}
                 type="text"
-                placeholder="e.g. #37"
-                value={address2}
+                placeholder="unit 37"
+                value={addressValues ? addressValues.address2 : address2}
                 onChange={(e) => {setAddress2(e.target.value);}}
                 />
                 </label>
@@ -152,8 +155,8 @@ export default function AutoCompleteAddress( {onAddressChanged = () => {}} :Auto
                 <input
                 style={sharedStyles.input}
                 type="text"
-                placeholder="e.g. Calary"
-                value={city}
+                placeholder="Calary"
+                value={addressValues ? addressValues.city : city}
                 onChange={(e) => {setCity(e.target.value);}}
                 />
                 </label>
@@ -164,8 +167,8 @@ export default function AutoCompleteAddress( {onAddressChanged = () => {}} :Auto
                 <input
                 style={sharedStyles.input}
                 type="text"
-                placeholder="e.g. BC"
-                value={province}
+                placeholder="AB"
+                value={addressValues ? addressValues.province : province}
                 onChange={(e) => {setProvince(e.target.value);}}
                 />
                 </label>
@@ -177,7 +180,7 @@ export default function AutoCompleteAddress( {onAddressChanged = () => {}} :Auto
                 style={sharedStyles.input}
                 type="text"
                 placeholder="Canada or US"
-                value={country}
+                value={addressValues ? addressValues.country : country}
                 onChange={(e) => {setCountry(e.target.value);}}
                 />
             </label>     
@@ -188,8 +191,8 @@ export default function AutoCompleteAddress( {onAddressChanged = () => {}} :Auto
                 <input
                 style={sharedStyles.input}
                 type="text"
-                placeholder="e.g. T2K-1K5"
-                value={postalcode}
+                placeholder="T2K-1K5"
+                value={addressValues ? addressValues.postalcode : postalcode}
                 onChange={(e) => {setPostalCode(e.target.value);}}
                 required
                 />

@@ -11,7 +11,7 @@ import * as Types from "../../../shared/types/type";
 import { useCallback, useMemo, useState, useEffect } from "react";
 import type { NewTeacherInput } from "@/types/forms";
 import AutoCompleteAdress from "@/components/AutoCompleteAddress";
-import { Address } from "@/components/AutoCompleteAddress";
+import AutoCompleteAddress, { Address } from "@/components/AutoCompleteAddress";
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
 
@@ -49,6 +49,17 @@ export default function TeachersTab({
       postalcode: a.postalcode,
     }));
   }, [setNewTeacher]);
+
+  // Handle load address to form when editing: setNewTeacher with value of current Address
+  // Passing Current address value back to input value
+  const newTeacherAddressValues : Address = {
+    address1: newTeacher.address1,
+    address2: newTeacher.address2,
+    city: newTeacher.city,
+    province: newTeacher.province,
+    country: newTeacher.country,
+    postalcode: newTeacher?.postalcode 
+  }
 
   const filteredTeachers = useMemo(() => {
     const term = searchTerm.toLowerCase();
@@ -364,7 +375,10 @@ export default function TeachersTab({
 
                 <div className="block">
                   <span className="text-gray-700 font-medium mb-1 block">Address *</span>
-                  <AutoCompleteAdress onAddressChanged={handleAddressChange} />
+                  <AutoCompleteAddress 
+                    onAddressChanged={handleAddressChange}
+                    addressValues={newTeacherAddressValues}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
