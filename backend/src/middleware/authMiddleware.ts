@@ -6,9 +6,9 @@ import { UserRole } from "../models/user";
 
 // Use a different property name to avoid clashing with Request['user'] from other libs
 export interface AuthRequest extends Request {
-  auth?: {
+  user?: {
     uid: string;
-    email: string | null;
+    email: string;
     role: UserRole;
   };
 }
@@ -55,6 +55,8 @@ export const authMiddleware = async (
       return res.status(403).send({ message: "Forbidden: cannot access other user's data" });
     }
 
+
+    // Attach auth info to req.auth
     req.user = { uid: decoded.uid, email: email!, role };
     // Room for call next function as getRole from controller
     next();

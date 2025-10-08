@@ -5,6 +5,8 @@ import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
 
+
+//Make sure the user is signed in, get their ID token for requests
 async function waitUser(): Promise<User | null> {
   const auth = getAuth();
   if (auth.currentUser) return auth.currentUser;
