@@ -7,8 +7,22 @@ import * as TeacherService from "../../services/web-admin/teacherService";
 // POST /api/teachers
 // Create a new teacher
 export const addTeacher = async (req: Request, res: Response) => { 
+  // Extract loationId and the teacher data from req.user and req.body
+  const locationId = req.user?.locationId;
+
+  // Check locationId exists
+  if (!locationId) {
+    return res.status(400).json({message: "Location missing from current Admin  profile"});
+  }
+  // Check body exists
+  const teacherData = req.body;
+  if (!teacherData) {
+    return res.status(400).json({ message: "Teacher data required" });
+  }
+
+  // Else, create the teacher
   try {
-    const created = await TeacherService.addTeacher(req.body);
+    const created = await TeacherService.addTeacher(locationId, teacherData);
     return res.status(201).json(created);
   } catch (e: any) {
     return res.status(500).json({ message: e?.message || "Error creating teacher" });

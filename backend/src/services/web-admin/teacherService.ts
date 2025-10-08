@@ -16,8 +16,10 @@ export const getAllTeachers = async (locationId: string): Promise<Teacher[]> => 
 };
 
 // Create teacher (returns created teacher with id)
-export const addTeacher = async (teacher: Omit<Teacher, "id">): Promise<Teacher> => {
-  const doc = await teachersRef.add(teacher as any);
+export const addTeacher = async (locationId: string, teacher: Omit<Teacher, "id">): Promise<Teacher> => {
+
+  // Ensure no id field is present and locationId is set to the provided locationId
+  const doc = await teachersRef.add({...teacher, locationId: locationId});
   return { id: doc.id, ...(teacher as any) } as Teacher;
 };
 
