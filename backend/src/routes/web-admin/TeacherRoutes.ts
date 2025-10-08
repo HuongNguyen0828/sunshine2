@@ -12,7 +12,6 @@ import {
   assignTeacherToClass,
 } from "../../controllers/web-admin/TeacherController";
 import { authMiddleware } from "../../middleware/authMiddleware";
-import { authorize } from "../../middleware/authorize";
 
 const router = Router();
 
@@ -20,21 +19,21 @@ const router = Router();
 router.use(authMiddleware);
 
 // Create
-router.post("/", authorize("admin"), addTeacher);
+router.post("/", authMiddleware, addTeacher);
 
 // Read (list)
-router.get("/", authorize("admin", "teacher"), getAllTeachers);
+router.get("/", authMiddleware, getAllTeachers);
 
 // Read (detail)
-router.get("/:id", authorize("admin", "teacher"), getTeacherById);
+router.get("/:id", authMiddleware, getTeacherById);
 
 // Update
-router.put("/:id", authorize("admin"), updateTeacher);
+router.put("/:id", authMiddleware, updateTeacher);
 
 // Delete
-router.delete("/:id", authorize("admin"), deleteTeacher);
+router.delete("/:id", authMiddleware, deleteTeacher);
 
 // Assign class
-router.post("/:id/assign", authorize("admin"), assignTeacherToClass);
+router.post("/:id/assign", authMiddleware, assignTeacherToClass);
 
 export default router;
