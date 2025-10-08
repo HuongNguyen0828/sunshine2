@@ -6,7 +6,7 @@ import * as TeacherService from "../../services/web-admin/teacherService";
 
 // POST /api/teachers
 // Create a new teacher
-export const addTeacher = async (req: Request, res: Response) => {
+export const addTeacher = async (req: Request, res: Response) => { 
   try {
     const created = await TeacherService.addTeacher(req.body);
     return res.status(201).json(created);
@@ -17,9 +17,16 @@ export const addTeacher = async (req: Request, res: Response) => {
 
 // GET /api/teachers
 // List all teachers
-export const getAllTeachers = async (_req: Request, res: Response) => {
+export const getAllTeachers = async (req: Request, res: Response) => {
+  // Extract locationId from req.user (set by authMiddleware)
+  const locationId = req.user?.locationId;
+  if (!locationId) {
+    return res.status(400).json({message: "Location missing from user profile"});
+  }
+
+  // Else, get all teachers only of that location
   try {
-    const teachers = await TeacherService.getAllTeachers();
+    const teachers = await TeacherService.getAllTeachers(locationId);
     return res.status(200).json(teachers);
   } catch (e: any) {
     return res.status(500).json({ message: e?.message || "Failed to fetch teachers" });

@@ -89,6 +89,8 @@ declare module "express-serve-static-core" {
       uid: string;
       email: string;
       role: UserRole;
+      locationId: string;
+      daycareId: string;
     };
   }
 }
