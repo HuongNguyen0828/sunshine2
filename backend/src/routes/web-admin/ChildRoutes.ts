@@ -1,5 +1,5 @@
 
-// src/routes/kidsRoutes.ts
+// src/routes/childsRoutes.ts
 import { Router } from "express";
 import { getAllChilds, addChild, getChildById, updateChild, deleteChild } from "../../controllers/web-admin/ChildController";
 

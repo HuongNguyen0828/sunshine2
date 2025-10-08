@@ -1,18 +1,26 @@
-// authMiddleware.ts
+// backend/src/middleware/authMiddleware.ts
 import { Request, Response, NextFunction } from "express";
-import admin from "firebase-admin";
-import { findRoleByEmail } from "../services/authService";
+import { admin } from "../lib/firebase";
+import { findDaycareAndLocationByEmail, findRoleByEmail } from "../services/authService";
 import { UserRole } from "../models/user";
 
-// Extend Resquest for including user
+// Use a different property name to avoid clashing with Request['user'] from other libs
 export interface AuthRequest extends Request {
   user?: {
     uid: string;
     email: string;
     role: UserRole;
+    daycareId: string;
+    locationId: string;
   };
 }
 
+/**
+ * Auth middleware:
+ * - Verifies Firebase ID token from Authorization header (Bearer <token>)
+ * - Resolves user role by email across collections
+ * - Attaches { uid, email, role } to req.auth
+ */
 export const authMiddleware = async (
   req: AuthRequest,
   res: Response,
@@ -49,9 +57,23 @@ export const authMiddleware = async (
       return res.status(403).send({ message: "Forbidden: cannot access other user's data" });
     }
 
-    req.user = { uid: decoded.uid, email: email!, role };
+    // Extract daycarId and locationId from user in Firestore
+    const daycareAndLocationResult = await findDaycareAndLocationByEmail(email);
+    if (!daycareAndLocationResult) {
+      return res.status(403).send({ message: "No daycare/location found for this user" });
+    }
+
+    // Else: extract daycareId and locationId
+    const {daycareId, locationId} = daycareAndLocationResult;
+    // Attach auth info to req.auth
+    req.user = { 
+      uid: decoded.uid, 
+      email: email!, 
+      role,
+      daycareId, 
+      locationId,
+    };
     // Room for call next function as getRole from controller
-    
     next();
   } catch (err) {
     return res.status(401).send({ message: "Invalid token" });
