@@ -4,7 +4,7 @@
 import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
-
+// Wait for Firebase Auth to initialize and get current user
 async function waitUser(): Promise<User | null> {
   const auth = getAuth();
   if (auth.currentUser) return auth.currentUser;

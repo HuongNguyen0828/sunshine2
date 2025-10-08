@@ -2,8 +2,8 @@
 "use client";
 
 import * as Types from "@shared/types/type";
-import api from "@shared/api/client";
-import { ENDPOINTS } from "@shared/api/endpoint";
+import api from "@/api/client";
+import { ENDPOINTS } from "@/api/endpoint";
 import { NewClassInput } from "@/types/forms";
 
 // Normalize optional text fields
