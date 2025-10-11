@@ -5,93 +5,77 @@ import { db } from "../lib/firebase";
 
 
 /**
- * Find a user's role by email across collections (teachers, parents, admins).
+ * Find a user's role by email across user collections.
  * Returns the matching UserRole or null if not found.
+ * Errors: if email is null/empty, or if role is invalid.
  */
 export async function findRoleByEmail(
   email: string | null
 ): Promise<UserRole | null> {
-  console.log(`    🔎 [findRoleByEmail] Searching for email: ${email}`);
-
   // Guard clause: reject null/empty emails
   if (!email || !email.trim()) {
-    console.log(`      ⚠️  Empty email provided`);
     return null;
   }
-
+  // Cleanup email input
   const emailLower = email.trim().toLowerCase();
 
-  // teachers
-  const teacherDoc = await db
-    .collection("teachers")
+  // Query users collection for matching email
+  const userDoc = await db
+    .collection("users")
     .where("email", "==", emailLower)
     .limit(1)
     .get();
-  console.log(
-    `      Teachers collection: ${teacherDoc.empty ? "not found" : "FOUND"}`
-  );
-  if (!teacherDoc.empty) return UserRole.Teacher;
 
-  // parents
-  const parentDoc = await db
-    .collection("parents")
-    .where("email", "==", emailLower)
-    .limit(1)
-    .get();
-  console.log(
-    `      Parents collection: ${parentDoc.empty ? "not found" : "FOUND"}`
-  );
-  if (!parentDoc.empty) return UserRole.Parent;
+  // If no user found
+  if (userDoc.empty) return null;
+  const userData = userDoc.docs[0]?.data();
 
-  // admins
-  const adminDoc = await db
-    .collection("admins")
-    .where("email", "==", emailLower)
-    .limit(1)
-    .get();
-  console.log(
-    `      Admins collection: ${adminDoc.empty ? "not found" : "FOUND"}`
-  );
-  if (!adminDoc.empty) return UserRole.Admin;
+  //  Checking role:
+  const role = userData?.role;
+  if (role === UserRole.Teacher) return UserRole.Teacher;
+  if (role === UserRole.Parent) return UserRole.Parent;
+  if (role === UserRole.Admin) return UserRole.Admin;
 
-  console.log(`      ❌ Email not found in any collection`);
-  return null;
+  // If role is nether Teacher nor Parent nor Admin
+  throw new Error("User role is invalid");
 }
 
 /**
- * Create a user document in 'users/{uid}'.
- * Skips creation if email is null or empty.
+ * Update user document after authentication if role is defined.
+ * Sets isRegistered to true.
+ * Set doc id to uid from Firebase Auth.
+ * Returns true if update successful, false otherwise.
  */
-export async function createUser(
-  uid: string,
-  email: string | null,
-  role: string, // keep as string for compatibility; prefer UserRole in new code
-  name: string
-): Promise<void> {
-  console.log(`    👤 [createUser] Creating user...`);
-  console.log(`      UID: ${uid}`);
-  console.log(`      Email: ${email}`);
-  console.log(`      Role: ${role}`);
-  console.log(`      Name: ${name}`);
-
-  if (!email || !email.trim()) {
-    console.log(`      ⚠️  No email provided, skipping user creation`);
-    return;
+export async function updateUserAfterRegister(email: string, uid: string): Promise<Boolean> {
+  // Cleanup email input
+  const emailLower = email.trim().toLowerCase();
+  // Query users collection for matching email
+  const userDoc = await db
+    .collection("users")
+    .where("email", "==", emailLower)
+    .limit(1)
+    .get();
+  if (userDoc.empty) {
+    throw new Error("User not found");
   }
 
-  const emailLower = email.trim().toLowerCase();
+  try {
+    // updating isRegistered to true, id to uid
+    await userDoc.docs[0]?.ref.set({
+      id: uid, 
+      isRegistered: true
+    }, 
+    {
+      merge: true
+    });
 
-  await db.collection("users").doc(uid).set({
-    uid,
-    email: emailLower,
-    role,
-    name,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
-  console.log(`      ✅ User document created in 'users' collection`);
+    // after successful update
+    return true; 
+  } catch (error) {
+    console.error("Error updating user after registration:", error);
+    return false;
+  }
 }
-
 /**
  * Get a user document by uid.
  * Throws if the document does not exist.

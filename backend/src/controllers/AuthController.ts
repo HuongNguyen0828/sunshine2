@@ -9,7 +9,7 @@ import admin from "firebase-admin";
 import { Response, Request } from "express";
 import {
   findRoleByEmail,
-  createUser,
+  updateUserAfterRegister, // replace createUser with updateUserAfterRegister
   getUserByUid,
 } from "../services/authService";
 import { UserRole } from "../models/user";
@@ -47,6 +47,11 @@ export async function verifyRole(req: Request, res: Response) {
     // return email or null
     const email = decoded.email ?? null;
 
+    // If no email
+    if (!email) {
+      return res.status(400).send({ message: "No email found in token" });
+    }
+
     // Extract role from email
     const role = await findRoleByEmail(email);
 
@@ -55,8 +60,10 @@ export async function verifyRole(req: Request, res: Response) {
       return res.status(403).send({ message: "Unauthorized email!" });
     }
 
-    // if role is defined, create users collection in Firestore with same uid with uid in Firebase Auth
-    await createUser(decoded.uid, email, role, name);
+    // if role is defined, 
+    // update users collection in Firestore with same doc id with uid in Firebase Auth
+    // and set isRegistered to true
+    await updateUserAfterRegister(email, decoded.uid);
 
     res.send({ message: "User verified", role });
   } catch (err: any) {
