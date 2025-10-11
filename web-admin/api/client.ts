@@ -3,6 +3,7 @@
 
 import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
 import Cookies from "js-cookie";
+import swal from "sweetalert2";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
 // First: Wait for Firebase Auth to initialize and get current user
@@ -58,17 +59,39 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
 
   const res = await fetch(url, { ...init, headers });
 
+  // Read text once to safely handle empty or non-JSON responses
+
+  // If response not ok, throw error with status and message from response if any
   if (!res.ok) {
     let msg = `${res.status} ${res.statusText}`;
+    // Fix title for each failed request
+    let title = "Failed";
+
+    // Add more details to action type
+    if (url.includes("add")) title += " Add ";;
+    if (url.includes("update")) title += " Update ";
+    if (url.includes("delete")) title += " Delete ";
+    if (url.includes("fetch")) title += " Get ";
+    if (url.includes("assign")) title += " Assign ";
+
+    // Add more details to entity type
+    if (url.includes("teacher")) title += "Teacher";
+    if (url.includes("class")) title +="Class";
+    if (url.includes("children")) title += "Child";
+    if (url.includes("parent")) title += "Parent";
+    if (url.includes("report")) title += "Report";
+
     try {
       const j = await res.json();
       if (j?.message) msg = `${res.status} — ${JSON.stringify(j)}`;
     } catch {}
-    throw new Error(msg);
+    // throw new Error(msg);
+    // Custom alert for each failed request
+    swal.fire({ icon: "error", title: title, text: msg });
   }
 
   if (res.status === 204) return {} as T;
-  return (await res.json()) as T;
+  if (res.status === 200) return (await res.json() as T);
 }
 
 const api = {

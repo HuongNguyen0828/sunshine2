@@ -86,6 +86,23 @@ export async function getUserByUid(uid: string) {
   return userDoc.data();
 }
 
+/**
+ * Check if email is unique in users collection.
+ * @param email 
+ * @returns : true if unique, false if exists
+ */
+export async function checkingIfEmailIsUnique(email: string): Promise<Boolean> {
+  const emailLower = email.trim().toLowerCase();
+
+  const userDoc = await db.collection("users")
+    .where("email", "==", emailLower)
+    .get();
+
+    if (userDoc.empty) {
+      return true; // unique
+    }
+    return false; // exists
+}
 
 export async function findDaycareAndLocationByEmail(email: string | null): Promise<{daycareId: string, locationId: string} | null> {
   // Case: not provide email
@@ -118,5 +135,4 @@ export async function findDaycareAndLocationByEmail(email: string | null): Promi
     console.error("Error finding daycareProvider by email:", error);
     return null;
   }
-
 }

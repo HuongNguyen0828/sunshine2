@@ -90,8 +90,8 @@ export type Teacher = {
   locationId?: string;     // optional for now
   startDate: string;
   endDate?: string;        // optional end date for staff
-  status: TeacherStatus; // Default "New"
-  isRegistered: boolean; // Default false, true once new Teacher is added
+  status?: TeacherStatus; // Default "New"
+  isRegistered?: boolean; // Default false, true once new Teacher is added
 }
 
 export type monthlyReport = {

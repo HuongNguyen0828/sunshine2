@@ -212,12 +212,12 @@ export default function AdminDashboard() {
         });
       } else {
         setTeachers((prev) => prev.filter((t) => t.id !== optimistic.id));
-        await swal.fire({ icon: "error", title: "Add Teacher", text: "Failed to add teacher." });
+        // await swal.fire({ icon: "error", title: "Add Teacher", text: "Failed to add teacher." });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       setTeachers((prev) => prev.filter((t) => t.id !== optimistic.id));
-      await swal.fire({ icon: "error", title: "Add Teacher", text: "Failed to add teacher." });
+      // await swal.fire({ icon: "error", title: "Add Teacher", text: err.messsage || String(err) });
     }
   };
 
