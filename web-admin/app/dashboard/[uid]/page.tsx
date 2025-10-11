@@ -1,7 +1,7 @@
 // web-admin/app/dashboard/page.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, use } from "react";
 import ProtectedRoute from "@/components/ProtectRoute";
 import AppHeader from "@/components/AppHeader";
 import SidebarNav from "@/components/dashboard/SidebarNav";
@@ -183,40 +183,40 @@ export default function AdminDashboard() {
       endDate: newTeacher.endDate,
     };
 
-    setTeachers((prev) => [optimistic, ...prev]);
+    // setTeachers((prev) => [optimistic, ...prev]);
 
     try {
       const created = await addTeacher(newTeacher);
-      if (created) {
-        setTeachers((prev) => [created, ...prev.filter((t) => t.id !== optimistic.id)]);
-        setNewTeacher({
-          firstName: "",
-          lastName: "",
-          email: "",
-          phone: "",
-          address1: "",
-          address2: "",
-          city: "",
-          province: "",
-          country: "",
-          postalcode: "",
-          classIds: [],
-          locationId: "",
-          startDate: "",
-          endDate: undefined,
+  
+        // setTeachers((prev) => [created, ...prev.filter((t) => t.id !== optimistic.id)]);
+      setNewTeacher({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        address1: "",
+        address2: "",
+        city: "",
+        province: "",
+        country: "",
+        postalcode: "",
+        classIds: [],
+        locationId: "",
+        startDate: "",
+        endDate: undefined,
         });
-        await swal.fire({
-          icon: "success",
-          title: "New Teacher",
-          text: `Successfully added: ${created.firstName} ${created.lastName}`,
-        });
-      } else {
-        setTeachers((prev) => prev.filter((t) => t.id !== optimistic.id));
-        // await swal.fire({ icon: "error", title: "Add Teacher", text: "Failed to add teacher." });
-      }
+
+        // Remove alert since we have customem alert in api client
+        // await swal.fire({
+        //   icon: "success",
+        //   title: "New Teacher",
+        //   text: `Successfully added: ${created.firstName} ${created.lastName}`,
+        // });
+      
+    // Refresh teachers to get accurate list including new teacher with
+    await refreshAll();
     } catch (err: any) {
       console.error(err);
-      setTeachers((prev) => prev.filter((t) => t.id !== optimistic.id));
       // await swal.fire({ icon: "error", title: "Add Teacher", text: err.messsage || String(err) });
     }
   };
@@ -296,6 +296,12 @@ export default function AdminDashboard() {
   const onClassAssigned = async () => {
     await refreshAll();
   };
+
+
+  // Refresh all data (teachers/classes/locations) once on mount
+  useEffect(() => {
+    refreshAll();
+  }, []); // refesh all on mount
 
   // Show a simple loader while fetching initial data
   if (authLoading || dataLoading) {

@@ -3,6 +3,7 @@
 
 import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
 import Cookies from "js-cookie";
+import { title } from "process";
 import swal from "sweetalert2";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
@@ -59,15 +60,10 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
 
   const res = await fetch(url, { ...init, headers });
 
-  // Read text once to safely handle empty or non-JSON responses
-
-  // If response not ok, throw error with status and message from response if any
-  if (!res.ok) {
-    let msg = `${res.status} ${res.statusText}`;
-    // Fix title for each failed request
-    let title = "Failed";
-
-    // Add more details to action type
+  // Custom alert and error handling for each request
+  const customAlert = (success: boolean): string => {
+    let title = success ? "Success" : "Failed";
+        // Add more details to action type
     if (url.includes("add")) title += " Add ";;
     if (url.includes("update")) title += " Update ";
     if (url.includes("delete")) title += " Delete ";
@@ -81,6 +77,14 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
     if (url.includes("parent")) title += "Parent";
     if (url.includes("report")) title += "Report";
 
+    return title;
+  }
+
+  // If response not ok, throw error with status and message from response if any
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
+    // Fix title for each failed request
+    const title = customAlert(false);
     try {
       const j = await res.json();
       if (j?.message) msg = `${res.status} — ${JSON.stringify(j)}`;
@@ -89,9 +93,21 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
     // Custom alert for each failed request
     swal.fire({ icon: "error", title: title, text: msg });
   }
+  // Handle empty response (e.g. DELETE), with no content returned
+  if (res.status === 204) {
+    const title = customAlert(true);
+    swal.fire({ icon: "success", title: title + " Deleted", text: "Successfully deleted." });
+    return {} as T;
+  }
 
-  if (res.status === 204) return {} as T;
-  if (res.status === 200) return (await res.json() as T);
+  // Else parse response as JSON
+  if (res.status === 200) {
+    const data = await res.json();
+    // Custom alert for each successful request
+    const title = customAlert(true);
+    swal.fire({ icon: "success", title, text: "Successfully completed." });
+    return (data as T);
+  }
 }
 
 const api = {
