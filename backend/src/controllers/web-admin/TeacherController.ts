@@ -1,7 +1,7 @@
 // Controller functions for handling teacher-related requests
 // All handlers call service-layer functions and shape HTTP responses.
 
-import { Request, Response } from "express";
+import e, { Request, Response } from "express";
 import * as TeacherService from "../../services/web-admin/teacherService";
 import { messaging } from "firebase-admin";
 
@@ -23,10 +23,15 @@ export const addTeacher = async (req: Request, res: Response) => {
 
   // Else, create the teacher
   try {
-    const newTeacher = await TeacherService.addTeacher(req.body);
-    res.status(201).json(newTeacher);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message || "Error creating teacher" });
+    const created = await TeacherService.addTeacher(locationId, teacherData);
+    // Case null returned: email already exists
+    if (!created) {
+      throw new Error("Email already exists");
+    }
+    // else, return created teacher
+    return res.status(201).json(created);
+  } catch (e: any) {
+    return res.status(500).json({ message: e?.message || "Error creating teacher" });
   }
 };
 

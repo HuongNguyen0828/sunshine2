@@ -3,6 +3,7 @@ import type { Teacher } from "../../../../shared/types/type";
 import { TeacherStatus } from "../../../../shared/types/type";
 import { db } from "../../lib/firebase";
 import { UserRole } from "../../models/user";
+import { checkingIfEmailIsUnique } from "../authService";
 
 // Collections
 const classesRef  = db.collection("classes");
@@ -18,8 +19,13 @@ export const getAllTeachers = async (locationId: string): Promise<Teacher[]> => 
 };
 
 // Create teacher (returns created teacher with id)
-export const addTeacher = async (locationId: string, teacher: Omit<Teacher, "id">): Promise<Teacher> => {
+export const addTeacher = async (locationId: string, teacher: Omit<Teacher, "id">): Promise<Teacher | null> => {
 
+  // Ensure email is unique among users
+  const isUniqueEmail = await checkingIfEmailIsUnique(teacher.email);
+  if (!isUniqueEmail) {
+    return null; // email already exists, return null
+  }
   // Adding new teacher into user collection: with role, status and isRegistered flags
   // Ensure no id field is present and locationId is set to the provided locationId, role set to Teacher
   const doc = await usersRef.add({
