@@ -1,15 +1,16 @@
 // backend/src/services/web-admin/teacherService.ts
 import type { Teacher } from "../../../../shared/types/type";
+import { TeacherStatus } from "../../../../shared/types/type";
 import { db } from "../../lib/firebase";
+import { UserRole } from "../../models/user";
 
 // Collections
-const teachersRef = db.collection("teachers");
 const classesRef  = db.collection("classes");
 const usersRef    = db.collection("users");
 
 // List all teachers
 export const getAllTeachers = async (locationId: string): Promise<Teacher[]> => {
-  const snap = await teachersRef
+  const snap = await usersRef
     .where("locationId", "==", locationId)
     .get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as Teacher));
@@ -18,14 +19,20 @@ export const getAllTeachers = async (locationId: string): Promise<Teacher[]> => 
 // Create teacher (returns created teacher with id)
 export const addTeacher = async (locationId: string, teacher: Omit<Teacher, "id">): Promise<Teacher> => {
 
-  // Ensure no id field is present and locationId is set to the provided locationId
-  const doc = await teachersRef.add({...teacher, locationId: locationId});
+  // Adding new teacher into user collection: with role, status and isRegistered flags
+  // Ensure no id field is present and locationId is set to the provided locationId, role set to Teacher
+  const doc = await usersRef.add({
+    ...teacher, 
+    locationId: locationId, 
+    role: UserRole.Teacher, 
+    status: TeacherStatus.New, // status new by default
+  });
   return { id: doc.id, ...(teacher as any) } as Teacher;
 };
 
 // Get teacher by id
 export const getTeacherById = async (id: string): Promise<Teacher | null> => {
-  const doc = await teachersRef.doc(id).get();
+  const doc = await usersRef.doc(id).get();
   if (!doc.exists) return null;
   return { id: doc.id, ...(doc.data() as any) } as Teacher;
 };
@@ -35,7 +42,7 @@ export const updateTeacher = async (
   id: string,
   body: Partial<Teacher>
 ): Promise<Teacher | null> => {
-  const docRef = teachersRef.doc(id);
+  const docRef = usersRef.doc(id);
   const doc = await docRef.get();
   if (!doc.exists) return null;
 
@@ -46,7 +53,7 @@ export const updateTeacher = async (
 
 // Delete teacher and clear class references; also remove user doc if exists
 export const deleteTeacher = async (id: string): Promise<boolean> => {
-  const docRef = teachersRef.doc(id);
+  const docRef = usersRef.doc(id);
   const doc = await docRef.get();
   if (!doc.exists) return false;
 
@@ -61,8 +68,10 @@ export const deleteTeacher = async (id: string): Promise<boolean> => {
   return true;
 };
 
-// Update Teacher, return new data:  // accept only fields that need updating
-export const updateTeacher = async (id: string, body: Partial<Teacher>): Promise<Teacher | undefined> => {
+// Assign a teacher to a class (bidirectional), returns success boolean
+export const assignTeacherToClass = async (id: string, classId: string): Promise<boolean> => {
+  const teacherRef = usersRef.doc(id);
+  const classRef   = classesRef.doc(classId);
 
   const [tSnap, cSnap] = await Promise.all([teacherRef.get(), classRef.get()]);
   if (!tSnap.exists || !cSnap.exists) return false;

@@ -8,6 +8,31 @@ type EntryType =
   | "Supply Request";
 type AttendanceSubtype = "Check in" | "Check out";
 type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
+export enum TeacherStatus {
+  New = "New",
+  Active = "Active",
+  Inactive = "Inactive"
+};
+
+
+export type Admin = {
+  daycareId: string,             // referencing Daycare Provider 
+  locationId?: string[],         // referencing location id, ['*'] means all locations; optional for now
+  firstName: string,
+  lastName: string, 
+  email: string,
+}
+
+export type Entry = {
+  id: string;
+  childId: string;
+  staffId: string;
+  type: EntryType;
+  subtype?: AttendanceSubtype | FoodSubtype;
+  detail?: string;
+  photoUrl?: string;
+  createdAt: string;
+};
 
 export type DaycareProvider = {
   id: string;
@@ -72,8 +97,10 @@ export type Teacher = {
   classIds?: string[];     // classes assigned to this staff
   locationId?: string;     // optional for now
   startDate: string;
-  endDate?: string; // Optional end date for staff
-};
+  endDate?: string;        // optional end date for staff
+  status: TeacherStatus; // Default "New"
+  isRegistered: boolean; // Default false, true once new Teacher is added
+}
 
 export type Schedule = {
   id: string;
