@@ -12,6 +12,7 @@ const usersRef    = db.collection("users");
 export const getAllTeachers = async (locationId: string): Promise<Teacher[]> => {
   const snap = await usersRef
     .where("locationId", "==", locationId)
+    .where("role", "==", UserRole.Teacher) // only teachers
     .get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as Teacher));
 };
