@@ -1,5 +1,7 @@
+
 // backend/src/server.ts
 import "dotenv/config"; // must be first
+
 
 import express from "express";
 import cors from "cors";

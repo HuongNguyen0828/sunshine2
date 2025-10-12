@@ -1,6 +1,8 @@
+
 import { admin } from "../lib/firebase";
 import { UserRole } from "../models/user";
 import { db } from "../lib/firebase";
+
 
 /**
  * Find a user's role by email across collections (teachers, parents, admins).

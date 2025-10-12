@@ -17,17 +17,14 @@
     "plugins": [{ "name": "next" }],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@shared/*": ["../shared/*"],
-      "@types/*": ["./types/*"]
+      "@/*": ["./*"]
     }
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts",
-    "../shared/**/*.ts"
+    ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "../shared/node_modules"]
+  "exclude": ["node_modules"]
 }
