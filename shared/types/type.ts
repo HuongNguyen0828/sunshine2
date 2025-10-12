@@ -3,10 +3,24 @@ type EntryType =
 
 type AttendanceSubtype = "Check in" | "Check out";
 type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
+
+
 export enum TeacherStatus {
   New = "New",
   Active = "Active",
   Inactive = "Inactive"
+};
+
+// EnrollmentStatus enum applires to Child and Parent
+// The default type when add a children, or parent is "New"
+// In parent -child: many - to many relationship:
+  // If all children are “Withdraw,” you can automatically mark the parent as “Withdraw.”
+  // If at least one child is “Active,” the parent stays “Active.”
+export enum EnrollmentStatus {
+  New = "New",
+  Active = "Active",
+  withdraw = "Withdraw",
+  waitlist = "Waitlist"
 };
 
 
