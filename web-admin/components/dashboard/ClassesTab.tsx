@@ -1,3 +1,4 @@
+// web-admin/components/ClassesTab.tsx
 "use client";
 
 import * as Types from "../../../shared/types/type";
@@ -9,10 +10,13 @@ import {
   updateClass as apiUpdateClass,
   deleteClass as apiDeleteClass,
   assignTeachersToClass,
+  fetchTeacherCandidates,
+  type TeacherCandidate,
 } from "@/services/useClassesAPI";
 
 type Props = {
   classes: Types.Class[];
+  // Optional legacy prop: used only to show currently assigned teachers in the grid
   teachers: Types.Teacher[];
   locations: LocationLite[];
   newClass: NewClassInput;
@@ -20,9 +24,13 @@ type Props = {
   onCreated?: (created: Types.Class) => void;
   onUpdated?: (updated: Types.Class) => void;
   onDeleted?: (id: string) => void;
-  // Added: trigger a refetch after assigning teachers
-  onAssigned?: () => Promise<void> | void;
+  onAssigned?: () => Promise<void> | void; // ask parent to refetch after assigning
 };
+
+// Narrow type guard for reading an optional "status" string safely (no any)
+function hasStatus(obj: unknown): obj is { status?: string } {
+  return typeof obj === "object" && obj !== null && "status" in obj;
+}
 
 export default function ClassesTab({
   classes,
@@ -35,17 +43,22 @@ export default function ClassesTab({
   onDeleted,
   onAssigned,
 }: Props) {
+  // Form UI state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [capacityFilter, setCapacityFilter] =
     useState<"all" | "available" | "nearly-full" | "full">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [editingClass, setEditingClass] = useState<Types.Class | null>(null);
+
+  // Assign modal state
   const [showAssignTeachers, setShowAssignTeachers] = useState<string | null>(null);
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
-  const [isAssigning, setIsAssigning] = useState(false); // prevent double submit
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [teacherOptions, setTeacherOptions] = useState<TeacherCandidate[]>([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
 
-  // ----- helpers -----
+  // Helpers
   const getCapacityStatus = (volume: number, capacity: number) => {
     if (capacity <= 0) return "available";
     const percentage = (volume / capacity) * 100;
@@ -67,7 +80,13 @@ export default function ClassesTab({
     return found?.name || locId;
   };
 
-  // ----- list & filtering & paging -----
+  const getTeacherInitials = (firstName?: string, lastName?: string) => {
+    const a = (firstName?.trim()?.[0] ?? "").toUpperCase();
+    const b = (lastName?.trim()?.[0] ?? "").toUpperCase();
+    return (a + b) || "T";
+  };
+
+  // Filtering & paging
   const filteredClasses = useMemo(() => {
     return classes.filter((cls) => {
       const locName = (locations ?? []).find((l) => l.id === cls.locationId)?.name || "";
@@ -88,11 +107,10 @@ export default function ClassesTab({
   const startIndex = (currentPage - 1) * classesPerPage;
   const paginatedClasses = filteredClasses.slice(startIndex, startIndex + classesPerPage);
 
-  // ----- CRUD handlers -----
+  // Create / Update form handlers
   async function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // Normalize locationId: "" -> undefined (API expects undefined for optional)
     const rawLoc = newClass.locationId ?? "";
     const payloadLocationId = rawLoc.trim() === "" ? undefined : rawLoc;
 
@@ -111,7 +129,6 @@ export default function ClassesTab({
       if (created && onCreated) onCreated(created);
     }
 
-    // Reset form state (keep empty string in form; convert on submit next time)
     setNewClass({
       name: "",
       locationId: "",
@@ -159,11 +176,50 @@ export default function ClassesTab({
     if (success && onDeleted) onDeleted(cls.id);
   }
 
-  // ----- assign teachers -----
-  function openAssign(classId: string) {
-    const currentTeachers = teachers.filter((t) => (t.classIds || []).includes(classId));
-    setSelectedTeachers(currentTeachers.map((t) => t.id));
+  // Assign modal: load candidates + preselect existing assignments
+  async function openAssign(classId: string) {
     setShowAssignTeachers(classId);
+    setLoadingCandidates(true);
+
+    try {
+      // Load only NEW teachers by default
+      const candidates = await fetchTeacherCandidates(true);
+      setTeacherOptions(candidates);
+
+      // Preselect already assigned teacher ids
+      const cls = classes.find((c) => c.id === classId);
+      const pre: string[] = Array.isArray((cls as unknown as { teacherIds?: string[] })?.teacherIds)
+        ? ((cls as unknown as { teacherIds?: string[] }).teacherIds as string[])
+        : teachers.filter((t) => (t.classIds || []).includes(classId)).map((t) => t.id);
+
+      // Merge already-assigned teachers that are not part of "NEW" candidates (likely Active)
+      const candidateIds = new Set(candidates.map((c) => c.id));
+      const extras: TeacherCandidate[] = [];
+      for (const id of pre) {
+        if (!candidateIds.has(id)) {
+          const fromProps = teachers.find((t) => t.id === id);
+          if (fromProps) {
+            const status = hasStatus(fromProps) && typeof fromProps.status === "string"
+              ? fromProps.status
+              : "Active";
+
+            extras.push({
+              id,
+              firstName: fromProps.firstName,
+              lastName: fromProps.lastName,
+              email: fromProps.email,
+              status,
+              classIds: fromProps.classIds ?? [],
+            });
+          }
+        }
+      }
+      if (extras.length > 0) setTeacherOptions((prev) => [...prev, ...extras]);
+
+      setSelectedTeachers(pre);
+    } finally {
+      setLoadingCandidates(false);
+    }
   }
 
   async function handleSaveTeachers() {
@@ -172,7 +228,6 @@ export default function ClassesTab({
       setIsAssigning(true);
       const ok = await assignTeachersToClass(showAssignTeachers, selectedTeachers);
       if (ok) {
-        // Tell parent to refetch classes/teachers immediately
         await onAssigned?.();
         setShowAssignTeachers(null);
         setSelectedTeachers([]);
@@ -182,10 +237,7 @@ export default function ClassesTab({
     }
   }
 
-  const getTeacherInitials = (firstName: string, lastName: string) =>
-    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-
-  // ----- render -----
+  // Render
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
@@ -248,11 +300,11 @@ export default function ClassesTab({
           </div>
         </div>
 
-        {(searchTerm || capacityFilter !== 'all') && (
+        {(searchTerm || capacityFilter !== "all") && (
           <button
             onClick={() => {
-              setSearchTerm('');
-              setCapacityFilter('all');
+              setSearchTerm("");
+              setCapacityFilter("all");
               setCurrentPage(1);
             }}
             className="mb-4 text-gray-500 hover:text-gray-700 text-xs"
@@ -266,9 +318,9 @@ export default function ClassesTab({
       {paginatedClasses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {paginatedClasses.map((cls) => {
-            const assignedTeachers = teachers.filter((t) => (t.classIds || []).includes(cls.id));
+            const assigned = teachers.filter((t) => (t.classIds || []).includes(cls.id));
             const capacityStatus = getCapacityStatus(cls.volume, cls.capacity);
-            const capacityPercentage = Math.min(100, Math.round((cls.volume / (cls.capacity || 1)) * 100));
+            const capacityPct = Math.min(100, Math.round((cls.volume / (cls.capacity || 1)) * 100));
 
             return (
               <div
@@ -310,28 +362,26 @@ export default function ClassesTab({
                     <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                       <div
                         className={`h-1.5 ${getCapacityColor(capacityStatus)} transition-all duration-300`}
-                        style={{ width: `${Math.min(capacityPercentage, 100)}%` }}
-                      ></div>
+                        style={{ width: `${capacityPct}%` }}
+                      />
                     </div>
                     <div className="text-xs text-gray-400 mt-1">
-                      {Math.round(capacityPercentage)}% {capacityStatus === 'full' ? '(Full)' : ''}
+                      {Math.round(capacityPct)}% {capacityStatus === "full" ? "(Full)" : ""}
                     </div>
                   </div>
 
-                  {/* Teachers */}
+                  {/* Teachers summary */}
                   <div>
                     <div className="text-gray-500 text-xs mb-1">Teachers</div>
-                    {assignedTeachers.length > 0 ? (
+                    {assigned.length > 0 ? (
                       <div className="text-sm text-gray-700">
-                        {assignedTeachers.slice(0, 2).map((teacher) => (
-                          <span key={teacher.id} className="block text-xs">
-                            {teacher.firstName} {teacher.lastName}
+                        {assigned.slice(0, 2).map((t) => (
+                          <span key={t.id} className="block text-xs">
+                            {t.firstName} {t.lastName}
                           </span>
                         ))}
-                        {assignedTeachers.length > 2 && (
-                          <span className="text-xs text-gray-400">
-                            +{assignedTeachers.length - 2} more
-                          </span>
+                        {assigned.length > 2 && (
+                          <span className="text-xs text-gray-400">+{assigned.length - 2} more</span>
                         )}
                       </div>
                     ) : (
@@ -397,9 +447,7 @@ export default function ClassesTab({
                 key={page}
                 onClick={() => setCurrentPage(page)}
                 className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
-                  currentPage === page
-                    ? 'bg-gray-800 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+                  currentPage === page ? "bg-gray-800 text-white" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
                 }`}
               >
                 {page}
@@ -420,7 +468,7 @@ export default function ClassesTab({
         </div>
       )}
 
-      {/* Form Modal (Add/Edit) */}
+      {/* Add/Edit Modal */}
       {isFormOpen && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
@@ -599,9 +647,12 @@ export default function ClassesTab({
 
             <div className="p-6">
               <p className="text-gray-600 text-sm mb-4">Select teachers to assign to this class:</p>
+
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {teachers.length > 0 ? (
-                  teachers.map((t) => (
+                {loadingCandidates ? (
+                  <div className="text-center py-8 text-gray-500">Loading teachers…</div>
+                ) : teacherOptions.length > 0 ? (
+                  teacherOptions.map((t) => (
                     <label
                       key={t.id}
                       className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition duration-150"
@@ -621,14 +672,20 @@ export default function ClassesTab({
                       </div>
                       <div className="flex-1">
                         <div className="font-medium text-gray-800">
-                          {t.firstName} {t.lastName}
+                          {t.firstName ?? "—"} {t.lastName ?? ""}
                         </div>
-                        <div className="text-sm text-gray-500">{t.email}</div>
+                        <div className="text-sm text-gray-500">{t.email ?? ""}</div>
+                        {t.status && <div className="text-xs text-gray-400">Status: {t.status}</div>}
                       </div>
                     </label>
                   ))
                 ) : (
-                  <div className="text-center py-8 text-gray-500">No teachers available</div>
+                  <div className="text-center py-8 text-gray-500">
+                    No teachers available
+                    <div className="text-xs mt-1">
+                      Try saving with an empty selection to auto-assign NEW teachers.
+                    </div>
+                  </div>
                 )}
               </div>
 
