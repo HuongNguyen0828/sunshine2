@@ -14,5 +14,11 @@
   "sideEffects": false,
   "peerDependencies": {
     "react": "^18 || ^19"
+  },
+  "dependencies": {
+    "firebase": "^12.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2"
   }
 }
