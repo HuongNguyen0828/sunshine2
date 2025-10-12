@@ -1,0 +1,39 @@
+{
+  "name": "web-admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build --turbopack",
+    "start": "next start",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@react-google-maps/api": "^2.20.7",
+    "cors": "^2.8.5",
+    "firebase": "^12.4.0",
+    "js-cookie": "^3.0.5",
+    "next": "15.5.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-router-dom": "^7.9.1",
+    "shared": "file:../shared",
+    "sweetalert2": "^11.23.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.0.0",
+    "@svgr/webpack": "^8.1.0",
+    "@tailwindcss/postcss": "^4.1.13",
+    "@types/js-cookie": "^3.0.6",
+    "@types/node": "^20.19.18",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "15.5.3",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.0.0"
+  }
+}
