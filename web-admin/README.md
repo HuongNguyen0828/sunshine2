@@ -49,4 +49,4 @@ yarn dev
 
 ## or
 
-npm run dev
+npm run dev or npx next dev

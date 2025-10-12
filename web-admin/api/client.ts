@@ -60,52 +60,23 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
 
   const res = await fetch(url, { ...init, headers });
 
-  // Custom alert and error handling for each request
-  const customAlert = (success: boolean): string => {
-    let title = success ? "Success" : "Failed";
-        // Add more details to action type
-    if (url.includes("add")) title += " Add ";;
-    if (url.includes("update")) title += " Update ";
-    if (url.includes("delete")) title += " Delete ";
-    if (url.includes("fetch")) title += " Get ";
-    if (url.includes("assign")) title += " Assign ";
-
-    // Add more details to entity type
-    if (url.includes("teacher")) title += "Teacher";
-    if (url.includes("class")) title +="Class";
-    if (url.includes("children")) title += "Child";
-    if (url.includes("parent")) title += "Parent";
-    if (url.includes("report")) title += "Report";
-
-    return title;
-  }
-
   // If response not ok, throw error with status and message from response if any
   if (!res.ok) {
     let msg = `${res.status} ${res.statusText}`;
-    // Fix title for each failed request
-    const title = customAlert(false);
     try {
       const j = await res.json();
       if (j?.message) msg = `${res.status} — ${JSON.stringify(j)}`;
     } catch {}
-    // throw new Error(msg);
-    // Custom alert for each failed request
-    swal.fire({ icon: "error", title: title, text: msg });
+    throw new Error(msg);
   }
   // Handle empty response (e.g. DELETE), with no content returned
   if (res.status === 204) {
-    const title = customAlert(true);
-    swal.fire({ icon: "success", title: title + " Deleted", text: "Successfully deleted." });
     return {} as T;
   }
 
   // Else parse response as JSON
   if (res.status === 200) {
     const data = await res.json();
-    // Custom alert for each successful request
-    const title = customAlert(true);
-    swal.fire({ icon: "success", title, text: "Successfully completed." });
     return (data as T);
   }
 }

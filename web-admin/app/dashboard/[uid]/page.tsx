@@ -206,18 +206,24 @@ export default function AdminDashboard() {
         endDate: undefined,
         });
 
-        // Remove alert since we have customem alert in api client
-        // await swal.fire({
-        //   icon: "success",
-        //   title: "New Teacher",
-        //   text: `Successfully added: ${created.firstName} ${created.lastName}`,
-        // });
-      
+        if (!created) {
+          swal.fire({
+            icon: "error",
+            title: "Add Teacher",
+            text: 'Duplicate email found. Please use a different email address.',
+          });
+        }      
+        // Else, success
+        swal.fire({
+          icon: "success",
+          title: "Add Teacher",
+          text: `Teacher ${created?.firstName} ${created?.lastName} added successfully.`,
+        });
     // Refresh teachers to get accurate list including new teacher with
     await refreshAll();
     } catch (err: any) {
       console.error(err);
-      // await swal.fire({ icon: "error", title: "Add Teacher", text: err.messsage || String(err) });
+      await swal.fire({ icon: "error", title: "Add Teacher", text: err.messsage || String(err) });
     }
   };
 
