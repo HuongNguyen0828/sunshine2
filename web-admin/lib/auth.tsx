@@ -91,52 +91,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   
   /** Keep Firebase Auth state in sync with React state */
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      (async () => {
-        try {
-          if (bypassAuth) {
-            setCurrentUser(user ?? null);
-            setUserRole("admin");
-            setIsAdmin(true);
-            if (typeof window !== "undefined") {
-              Cookies.set("userRole", "admin", { expires: 7 });
-            }
-            return;
-          }
+    const cachedRole = Cookies.get("userRole");
+    if (cachedRole) {
+      setUserRole(cachedRole);
+      setIsAdmin(cachedRole === "admin");
+    }
+    // Determine initial auth state: when user already login and idToken valid and not expired
+    // onAuthStateChanged will be triggered right away with current user (or null)
+    // We wait for that before marking loading=false
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
 
-          if (user) {
-            const token = await user.getIdToken();
-            setCurrentUser(user);
-            if (typeof window !== "undefined") {
-              Cookies.set("idToken", token, { expires: 7 });
-              Cookies.set("uid", user.uid, { expires: 7 });
-            }
-          } else {
-            setCurrentUser(null);
-            setUserRole(null);
-            setIsAdmin(false);
-            if (typeof window !== "undefined") {
-              Cookies.remove("userRole");
-              Cookies.remove("idToken");
-              Cookies.remove("uid");
-            }
-          }
-        } catch {
-          setCurrentUser(null);
-          setUserRole(null);
-          setIsAdmin(false);
-        } finally {
-          setLoading(false);
+      const idToken = Cookies.get("idToken");
+      if (idToken) {
+        // Verify token with backend
+        setCurrentUser(user);
+        setLoading(false);
+      } else {
+        setUserRole(null);
+        setIsAdmin(false);
+        if (typeof window !== "undefined") {
+          Cookies.remove("userRole");
+          Cookies.remove("idToken");
+          Cookies.remove("uid");
         }
-      })();
-    }, () => {
-      setCurrentUser(null);
-      setUserRole(null);
-      setIsAdmin(false);
-      setLoading(false);
+      }
     });
     return () => unsubscribe();
-  }, [auth]);
+  }, [auth, bypassAuth]);
 
   /**
    * Sign up flow:
