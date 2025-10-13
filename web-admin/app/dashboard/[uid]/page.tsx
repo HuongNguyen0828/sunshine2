@@ -14,7 +14,7 @@ import SchedulerLabsTab from "@/components/dashboard/SchedulerLabsTab";
 import { dash } from "@/styles/dashboard";
 
 import { useAuth } from "@/lib/auth";
-import * as Types from "@shared/types/type";
+import * as Types from "../../../../shared/types/type";
 import type {
   Tab,
   NewTeacherInput,
