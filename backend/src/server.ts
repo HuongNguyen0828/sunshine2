@@ -10,7 +10,7 @@ import authRoutes from "./routes/AuthRoutes";
 import teacherRoutes from "./routes/web-admin/TeacherRoutes";
 import classRoutes from "./routes/web-admin/ClassRoutes";
 import locationRoutes from "./routes/web-admin/LocationRoutes";
-import usersRoutes from "./routes/web-admin/usersRoutes";
+import usersRoutes from "./routes/web-admin/UsersRoutes";
 // import childRoutes from "./routes/web-admin/ChildRoutes"; // if/when you have it
 
 const app = express();

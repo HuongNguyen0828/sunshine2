@@ -6,12 +6,11 @@ import {
   updateClass,
   deleteClass,
   assignTeachers,
-  getTeacherCandidates,
 } from "../../controllers/web-admin/ClassController";
 
 const router = Router();
 
-// Classes
+// /api/classes
 router.get("/", authMiddleware, getAllClasses);
 router.post("/", authMiddleware, addClass);
 router.put("/:id", authMiddleware, updateClass);
