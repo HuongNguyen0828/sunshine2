@@ -103,33 +103,84 @@ export async function checkingIfEmailIsUnique(email: string): Promise<Boolean> {
     }
     return false; // exists
 }
-
+/***
+ * Find daycareId and locationId by email for each user role
+ */
 export async function findDaycareAndLocationByEmail(email: string | null): Promise<{daycareId: string, locationId: string} | null> {
   // Case: not provide email
   if (!email || !email.trim()) {
     throw new Error("Email required to find daycare and location");
   }
+
   // else
   try {
-    const adminRef = await db.collection("admins")
-      .where("email", "==", email.trim().toLowerCase());
-
-    // Extract daycare and location IDs
-    const snapshot = await adminRef.get();
-    if (snapshot.empty) {
-      throw new Error("No matching admin found for provided email");
+    const userDoc= await db.collection("users")
+      .where("email", "==", email.trim().toLowerCase())
+      .get();
+    if (userDoc.empty) {
+      return null;
     }
 
-    // If found
-    const adminData = snapshot.docs[0]?.data();
+    // Get user role
+    const userData = userDoc.docs[0]?.data();
+    const role = userData?.role;
 
-    const daycareId = adminData?.daycareId;
-    const locationId = adminData?.locationId;
-    // Checking result is valid
-    if (!daycareId || !locationId) {
-      throw new Error("Admin record missing daycareId or locationId");
+    // If admin, extradt right away 
+    if (role === UserRole.Admin) {
+      const daycareId = userData?.daycareId;
+      const locationId = userData?.locationId;
+      return {daycareId, locationId};
     }
-    return { daycareId, locationId };
+
+    // If teacher, extract locationId from data
+    if (role === UserRole.Teacher) {
+      const locationId = userData?.locationId;
+      
+    // Find the location document by its ID
+    const snapshot = await db.collection("locations")
+      .where("id", "==", locationId)
+      .get();
+
+    if (snapshot.empty) return null;
+
+    const locationDoc = snapshot.docs[0];
+    const daycareId = locationDoc?.data()?.daycareId;
+    
+    return daycareId ? { daycareId, locationId } : null;
+    }
+
+
+    // If parent, extract children array of locationIds from data
+    if (role === UserRole.Parent) {
+      const children = userData?.childrenIds; // array of {id, locationId}
+
+      if (!children || children.length === 0) {
+        return null; // Case parent with no children, need to delete
+      }
+      const classId = children[0]?.classId; // Take the first child classId
+      if (!classId) {
+        return null;
+      }
+      const classDoc  = await db.collection("classes").doc(classId).get();
+      const locationId = (classDoc).data()?.locationId;
+      if (!locationId) {
+        return null;
+      }
+      // Then, find daycareProvider by locationId from daycareProviders collection with subcollection locations
+      const snapshot = await db.collection("locations")
+        .where("id", "==", locationId)
+        .get(); 
+      if (!snapshot.empty) {
+        const locationDoc = snapshot.docs[0];
+        const daycareId = locationDoc?.data()?.daycareId; // parent of subcollection parent
+        if (daycareId) {
+        return { daycareId, locationId };
+        }
+      }
+      return null;
+    }
+    // If role is nether Admin nor Teacher nor Parent
+    throw new Error("User role is invalid");
 
   } catch (error) {
     console.error("Error finding daycareProvider by email:", error);

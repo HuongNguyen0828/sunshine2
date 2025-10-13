@@ -1,7 +1,7 @@
 // web-admin/app/dashboard/page.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback, use } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import ProtectedRoute from "@/components/ProtectRoute";
 import AppHeader from "@/components/AppHeader";
 import SidebarNav from "@/components/dashboard/SidebarNav";
@@ -183,47 +183,39 @@ export default function AdminDashboard() {
       endDate: newTeacher.endDate,
     };
 
-    // setTeachers((prev) => [optimistic, ...prev]);
+    setTeachers((prev) => [optimistic, ...prev]);
 
     try {
       const created = await addTeacher(newTeacher);
-  
-        // setTeachers((prev) => [created, ...prev.filter((t) => t.id !== optimistic.id)]);
-      setNewTeacher({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        address1: "",
-        address2: "",
-        city: "",
-        province: "",
-        country: "",
-        postalcode: "",
-        classIds: [],
-        locationId: "",
-        startDate: "",
-        endDate: undefined,
+      if (created) {
+        setTeachers((prev) => [created, ...prev.filter((t) => t.id !== optimistic.id)]);
+        setNewTeacher({
+          firstName: "",
+          lastName: "",
+          email: "",
+          phone: "",
+          address1: "",
+          address2: "",
+          city: "",
+          province: "",
+          country: "",
+          postalcode: "",
+          classIds: [],
+          locationId: "",
+          startDate: "",
+          endDate: undefined,
         });
-
-        if (!created) {
-          swal.fire({
-            icon: "error",
-            title: "Add Teacher",
-            text: 'Duplicate email found. Please use a different email address.',
-          });
-        }      
-        // Else, success
-        swal.fire({
-          icon: "success",
-          title: "Add Teacher",
-          text: `Teacher ${created?.firstName} ${created?.lastName} added successfully.`,
-        });
-    // Refresh teachers to get accurate list including new teacher with
-    await refreshAll();
+        
+      } 
+      await refreshAll(); // Refresh from server to get latest data,in the background
     } catch (err: any) {
-      console.error(err);
-      await swal.fire({ icon: "error", title: "Add Teacher", text: err.messsage || String(err) });
+      // console.error(err);
+      setTeachers((prev) => prev.filter((t) => t.id !== optimistic.id)); 
+      await swal.fire({
+        icon: "error",
+        title: "Failed to add",
+        text: err.message,
+      });
     }
   };
 
@@ -302,12 +294,6 @@ export default function AdminDashboard() {
   const onClassAssigned = async () => {
     await refreshAll();
   };
-
-
-  // Refresh all data (teachers/classes/locations) once on mount
-  useEffect(() => {
-    refreshAll();
-  }, []); // refesh all on mount
 
   // Show a simple loader while fetching initial data
   if (authLoading || dataLoading) {

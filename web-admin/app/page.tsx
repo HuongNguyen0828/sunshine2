@@ -21,11 +21,11 @@ export default function DashboardPage() {
       return;
     }
 
-    const uid = Cookies.get("uid");
-    if (uid) {
+    if (userRole === "admin") {
+      const uid = Cookies.get("uid");
       router.replace(`/dashboard/${uid}`);
     }
-  }, [currentUser, loading, router]);
+  }, [currentUser, loading, router, userRole]);
 
   // Optional: loading spinner or blank screen
   return (
