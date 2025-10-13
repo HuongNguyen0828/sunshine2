@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { AuthProvider } from "@/lib/auth"; 
 import { LoadScript } from "@react-google-maps/api"; // for using AutoComplete api throughout the web-app
 
-const libraries: ("places")[] = ["places"]; // for using AutoComplete api throughout the web-app
+// From console log: Performance warning! LoadScript has been reloaded unintentionally! You should not pass `libraries` prop as new array. Please keep an array of libraries as static class property for Components and PureComponents, or just a const variable outside of component, or somewhere in config files or ENV variables
+const libraries: ("places")[] = ["places"];
 
 // Wrap the entire app with AuthProvider
 export default function RootLayout({ children }: { children: ReactNode }) {

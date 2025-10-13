@@ -9,7 +9,7 @@ import admin from "firebase-admin";
 import { Response, Request } from "express";
 import {
   findRoleByEmail,
-  createUser,
+  updateUserAfterRegister, // replace createUser with updateUserAfterRegister
   getUserByUid,
 } from "../services/authService";
 import { UserRole } from "../models/user";
@@ -17,18 +17,13 @@ import { UserRole } from "../models/user";
 // Check email before let user Signin
 export async function checkEmail(req: Request, res: Response) {
   try {
-    console.log('\n🔍 [checkEmail] Starting email check...');
     // email input
     const { email } = req.body;
-    console.log(`  Email to check: ${email}`);
-
-    // calling serive
+    // calling service
     const role = await findRoleByEmail(email);
-    console.log(`  Role found: ${role || 'null'}`);
-
     // If not email
     if (!role) {
-      console.log('  ❌ Email not authorized');
+      console.log(' Email not authorized');
       return res
         .status(403)
         .send({
@@ -36,11 +31,8 @@ export async function checkEmail(req: Request, res: Response) {
             "Email not authorized. You need register your daycare with Sunshine",
         });
     }
-
-    console.log(`  ✅ Email authorized as ${role}`);
     res.send({ role });
   } catch (err: any) {
-    console.log(`  ❌ Error in checkEmail: ${err.message}`);
     res.status(500).send({ message: err.message });
   }
 }
@@ -48,36 +40,33 @@ export async function checkEmail(req: Request, res: Response) {
 // Create user by Verify userRole: link the user uid of
 export async function verifyRole(req: Request, res: Response) {
   try {
-    console.log('\n🔐 [verifyRole] Starting role verification...');
     const { idToken, name } = req.body;
-    console.log(`  Name: ${name}`);
-    console.log(`  ID Token: ${idToken ? 'present' : 'missing'}`);
 
     const decoded = await admin.auth().verifyIdToken(idToken);
-    console.log(`  Decoded UID: ${decoded.uid}`);
 
     // return email or null
     const email = decoded.email ?? null;
-    console.log(`  Email from token: ${email}`);
+
+    // If no email
+    if (!email) {
+      return res.status(400).send({ message: "No email found in token" });
+    }
 
     // Extract role from email
     const role = await findRoleByEmail(email);
-    console.log(`  Role found: ${role || 'null'}`);
 
     // If role = null
     if (!role) {
-      console.log('  ❌ Unauthorized email');
       return res.status(403).send({ message: "Unauthorized email!" });
     }
 
-    // if role is defined, create users collection in Firestore with same uid with uid in Firebase Auth
-    console.log(`  Creating user in Firestore...`);
-    await createUser(decoded.uid, email, role, name);
-    console.log(`  ✅ User created successfully with role: ${role}`);
+    // if role is defined, 
+    // update users collection in Firestore with same doc id with uid in Firebase Auth
+    // and set isRegistered to true
+    await updateUserAfterRegister(email, decoded.uid);
 
     res.send({ message: "User verified", role });
   } catch (err: any) {
-    console.log(`  ❌ Error in verifyRole: ${err.message}`);
     res.status(500).send({ message: err.message });
   }
 }
@@ -109,7 +98,14 @@ export async function getAdmin(req: Request, res: Response) {
           message: `Access denied. Admins only. As ${req.user.role}, please use Sunshine mobile app`,
         });
     // else, Case admin return user is Admin\
-    res.status(200).send({ user: req.user });
+    res.status(200).send({
+      message: "Admin logged in",
+      user: {
+        uid: req.user.uid, // passing userID for direct route dashboard/{id}
+        email: req.user.email,
+        role: req.user.role,
+      },
+    });
   } catch (err: any) {
     res.status(500).send({ message: err.message });
   }
@@ -129,7 +125,14 @@ export async function getParentOrTeacher(req: Request, res: Response) {
           message: `Access denied. As ${req.user.role}, please login via web app`,
         });
     // else, Case Teacher or Parent return user is Admin\
-    res.status(200).send({ user: req.user });
+    res.status(200).send({
+      message: `${req.user.role} logged in`,
+      user: {
+        uid: req.user.uid,
+        email: req.user.email,
+        role: req.user.role,
+      },
+    });
   } catch (err: any) {
     res.status(500).send({ message: err.message });
   }

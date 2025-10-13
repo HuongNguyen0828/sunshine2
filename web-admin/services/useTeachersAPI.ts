@@ -4,6 +4,7 @@ import * as Types from "@shared/types/type";
 import { NewTeacherInput } from "@/types/forms";
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
+import swal from "sweetalert2";
 
 export async function fetchTeachers(): Promise<Types.Teacher[] | null> {
   try {
@@ -18,10 +19,20 @@ export async function fetchTeachers(): Promise<Types.Teacher[] | null> {
 export async function addTeacher(newTeacher: NewTeacherInput): Promise<Types.Teacher | null> {
   try {
     const teacher = await api.post<Types.Teacher>(ENDPOINTS.teachers, { ...newTeacher });
+    swal.fire({
+          icon: "success",
+          title: "New Teacher",
+          text: `Successfully added: ${teacher.firstName} ${teacher.lastName}`,
+        });
     return teacher;
   } catch (err: unknown) {
-    console.error(err);
-    return null;
+    // console.error(err);
+    swal.fire({
+      title: "Error",
+      text: err instanceof Error ? err.message : "Unknown error",
+      icon: "error",
+    });
+    throw err; // Rethrow the error to be handled by the caller
   }
 }
 

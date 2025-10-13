@@ -4,15 +4,32 @@ type EntryType =
 type AttendanceSubtype = "Check in" | "Check out";
 type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
 
+
+export enum TeacherStatus {
+  New = "New",
+  Active = "Active",
+  Inactive = "Inactive"
+};
+
+// EnrollmentStatus enum applires to Child and Parent
+// The default type when add a children, or parent is "New"
+// In parent -child: many - to many relationship:
+  // If all children are “Withdraw,” you can automatically mark the parent as “Withdraw.”
+  // If at least one child is “Active,” the parent stays “Active.”
+export enum EnrollmentStatus {
+  New = "New",
+  Active = "Active",
+  withdraw = "Withdraw",
+  waitlist = "Waitlist"
+};
+
+
 export type Admin = {
   daycareId: string,             // referencing Daycare Provider 
   locationId?: string[],         // referencing location id, ['*'] means all locations; optional for now
   firstName: string,
   lastName: string, 
   email: string,
-  phone: string,
-  address: string,
-  postalCode: string,
 }
 
 export type Entry = {
@@ -105,6 +122,8 @@ export type Teacher = {
   locationId?: string;     // optional for now
   startDate: string;
   endDate?: string;        // optional end date for staff
+  status?: TeacherStatus; // Default "New"
+  isRegistered?: boolean; // Default false, true once new Teacher is added
 }
 
 export type monthlyReport = {

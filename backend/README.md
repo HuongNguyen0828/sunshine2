@@ -18,5 +18,6 @@ yarn add dotenv
 yarn add --dev @types/dotenv
 
 ## To run server
-
 yarn dev
+## or, 
+npx ts-node src/server.ts

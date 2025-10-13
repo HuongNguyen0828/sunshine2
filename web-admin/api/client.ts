@@ -3,6 +3,8 @@
 
 import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
 import Cookies from "js-cookie";
+import { title } from "process";
+import swal from "sweetalert2";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
 // First: Wait for Firebase Auth to initialize and get current user
@@ -58,6 +60,7 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
 
   const res = await fetch(url, { ...init, headers });
 
+  // If response not ok, throw error with status and message from response if any
   if (!res.ok) {
     let msg = `${res.status} ${res.statusText}`;
     try {
@@ -66,9 +69,19 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
     } catch {}
     throw new Error(msg);
   }
+  // Handle empty response (e.g. DELETE), with no content returned
+  if (res.status === 204) {
+    return {} as T;
+  }
 
-  if (res.status === 204) return {} as T;
-  return (await res.json()) as T;
+  // Else parse response as JSON
+  if (res.status === 200) {
+    const data = await res.json();
+    return (data as T);
+  }
+
+  // If none of the above, throw an error to satisfy return type
+  throw new Error(`Unhandled response status: ${res.status}`);
 }
 
 const api = {

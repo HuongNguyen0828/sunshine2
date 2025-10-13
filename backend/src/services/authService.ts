@@ -5,93 +5,77 @@ import { db } from "../lib/firebase";
 
 
 /**
- * Find a user's role by email across collections (teachers, parents, admins).
+ * Find a user's role by email across user collections.
  * Returns the matching UserRole or null if not found.
+ * Errors: if email is null/empty, or if role is invalid.
  */
 export async function findRoleByEmail(
   email: string | null
 ): Promise<UserRole | null> {
-  console.log(`    🔎 [findRoleByEmail] Searching for email: ${email}`);
-
   // Guard clause: reject null/empty emails
   if (!email || !email.trim()) {
-    console.log(`      ⚠️  Empty email provided`);
     return null;
   }
-
+  // Cleanup email input
   const emailLower = email.trim().toLowerCase();
 
-  // teachers
-  const teacherDoc = await db
-    .collection("teachers")
+  // Query users collection for matching email
+  const userDoc = await db
+    .collection("users")
     .where("email", "==", emailLower)
     .limit(1)
     .get();
-  console.log(
-    `      Teachers collection: ${teacherDoc.empty ? "not found" : "FOUND"}`
-  );
-  if (!teacherDoc.empty) return UserRole.Teacher;
 
-  // parents
-  const parentDoc = await db
-    .collection("parents")
-    .where("email", "==", emailLower)
-    .limit(1)
-    .get();
-  console.log(
-    `      Parents collection: ${parentDoc.empty ? "not found" : "FOUND"}`
-  );
-  if (!parentDoc.empty) return UserRole.Parent;
+  // If no user found
+  if (userDoc.empty) return null;
+  const userData = userDoc.docs[0]?.data();
 
-  // admins
-  const adminDoc = await db
-    .collection("admins")
-    .where("email", "==", emailLower)
-    .limit(1)
-    .get();
-  console.log(
-    `      Admins collection: ${adminDoc.empty ? "not found" : "FOUND"}`
-  );
-  if (!adminDoc.empty) return UserRole.Admin;
+  //  Checking role:
+  const role = userData?.role;
+  if (role === UserRole.Teacher) return UserRole.Teacher;
+  if (role === UserRole.Parent) return UserRole.Parent;
+  if (role === UserRole.Admin) return UserRole.Admin;
 
-  console.log(`      ❌ Email not found in any collection`);
-  return null;
+  // If role is nether Teacher nor Parent nor Admin
+  throw new Error("User role is invalid");
 }
 
 /**
- * Create a user document in 'users/{uid}'.
- * Skips creation if email is null or empty.
+ * Update user document after authentication if role is defined.
+ * Sets isRegistered to true.
+ * Set doc id to uid from Firebase Auth.
+ * Returns true if update successful, false otherwise.
  */
-export async function createUser(
-  uid: string,
-  email: string | null,
-  role: string, // keep as string for compatibility; prefer UserRole in new code
-  name: string
-): Promise<void> {
-  console.log(`    👤 [createUser] Creating user...`);
-  console.log(`      UID: ${uid}`);
-  console.log(`      Email: ${email}`);
-  console.log(`      Role: ${role}`);
-  console.log(`      Name: ${name}`);
-
-  if (!email || !email.trim()) {
-    console.log(`      ⚠️  No email provided, skipping user creation`);
-    return;
+export async function updateUserAfterRegister(email: string, uid: string): Promise<Boolean> {
+  // Cleanup email input
+  const emailLower = email.trim().toLowerCase();
+  // Query users collection for matching email
+  const userDoc = await db
+    .collection("users")
+    .where("email", "==", emailLower)
+    .limit(1)
+    .get();
+  if (userDoc.empty) {
+    throw new Error("User not found");
   }
 
-  const emailLower = email.trim().toLowerCase();
+  try {
+    // updating isRegistered to true, id to uid
+    await userDoc.docs[0]?.ref.set({
+      id: uid, 
+      isRegistered: true
+    }, 
+    {
+      merge: true
+    });
 
-  await db.collection("users").doc(uid).set({
-    uid,
-    email: emailLower,
-    role,
-    name,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
-  console.log(`      ✅ User document created in 'users' collection`);
+    // after successful update
+    return true; 
+  } catch (error) {
+    console.error("Error updating user after registration:", error);
+    return false;
+  }
 }
-
 /**
  * Get a user document by uid.
  * Throws if the document does not exist.
@@ -102,37 +86,104 @@ export async function getUserByUid(uid: string) {
   return userDoc.data();
 }
 
+/**
+ * Check if email is unique in users collection.
+ * @param email 
+ * @returns : true if unique, false if exists
+ */
+export async function checkingIfEmailIsUnique(email: string): Promise<Boolean> {
+  const emailLower = email.trim().toLowerCase();
 
+  const userDoc = await db.collection("users")
+    .where("email", "==", emailLower)
+    .get();
+
+    if (userDoc.empty) {
+      return true; // unique
+    }
+    return false; // exists
+}
+/***
+ * Find daycareId and locationId by email for each user role
+ */
 export async function findDaycareAndLocationByEmail(email: string | null): Promise<{daycareId: string, locationId: string} | null> {
   // Case: not provide email
   if (!email || !email.trim()) {
     throw new Error("Email required to find daycare and location");
   }
+
   // else
   try {
-    const adminRef = await db.collection("admins")
-      .where("email", "==", email.trim().toLowerCase());
-
-    // Extract daycare and location IDs
-    const snapshot = await adminRef.get();
-    if (snapshot.empty) {
-      throw new Error("No matching admin found for provided email");
+    const userDoc= await db.collection("users")
+      .where("email", "==", email.trim().toLowerCase())
+      .get();
+    if (userDoc.empty) {
+      return null;
     }
 
-    // If found
-    const adminData = snapshot.docs[0]?.data();
+    // Get user role
+    const userData = userDoc.docs[0]?.data();
+    const role = userData?.role;
 
-    const daycareId = adminData?.daycareId;
-    const locationId = adminData?.locationId;
-    // Checking result is valid
-    if (!daycareId || !locationId) {
-      throw new Error("Admin record missing daycareId or locationId");
+    // If admin, extradt right away 
+    if (role === UserRole.Admin) {
+      const daycareId = userData?.daycareId;
+      const locationId = userData?.locationId;
+      return {daycareId, locationId};
     }
-    return { daycareId, locationId };
+
+    // If teacher, extract locationId from data
+    if (role === UserRole.Teacher) {
+      const locationId = userData?.locationId;
+      
+    // Find the location document by its ID
+    const snapshot = await db.collection("locations")
+      .where("id", "==", locationId)
+      .get();
+
+    if (snapshot.empty) return null;
+
+    const locationDoc = snapshot.docs[0];
+    const daycareId = locationDoc?.data()?.daycareId;
+    
+    return daycareId ? { daycareId, locationId } : null;
+    }
+
+
+    // If parent, extract children array of locationIds from data
+    if (role === UserRole.Parent) {
+      const children = userData?.childrenIds; // array of {id, locationId}
+
+      if (!children || children.length === 0) {
+        return null; // Case parent with no children, need to delete
+      }
+      const classId = children[0]?.classId; // Take the first child classId
+      if (!classId) {
+        return null;
+      }
+      const classDoc  = await db.collection("classes").doc(classId).get();
+      const locationId = (classDoc).data()?.locationId;
+      if (!locationId) {
+        return null;
+      }
+      // Then, find daycareProvider by locationId from daycareProviders collection with subcollection locations
+      const snapshot = await db.collection("locations")
+        .where("id", "==", locationId)
+        .get(); 
+      if (!snapshot.empty) {
+        const locationDoc = snapshot.docs[0];
+        const daycareId = locationDoc?.data()?.daycareId; // parent of subcollection parent
+        if (daycareId) {
+        return { daycareId, locationId };
+        }
+      }
+      return null;
+    }
+    // If role is nether Admin nor Teacher nor Parent
+    throw new Error("User role is invalid");
 
   } catch (error) {
     console.error("Error finding daycareProvider by email:", error);
     return null;
   }
-
 }

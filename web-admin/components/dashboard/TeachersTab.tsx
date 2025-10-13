@@ -89,6 +89,8 @@ export default function TeachersTab({
       postalcode: "",
       startDate: "",
       endDate: undefined,
+      status: Types.TeacherStatus.New,
+      isRegistered: false,
     });
   };
 
@@ -128,6 +130,8 @@ export default function TeachersTab({
       postalcode: teacher.postalcode,
       startDate: String(teacher.startDate || ""),
       endDate: teacher.endDate ? String(teacher.endDate) : undefined,
+      status: teacher.status,
+      isRegistered: teacher.isRegistered,
     });
     setIsFormOpen(true);
   };
