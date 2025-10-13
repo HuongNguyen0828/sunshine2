@@ -71,7 +71,7 @@ export type DaycareProvider = {
 export type Class = {
   id: string;
   name: string;
-  locationId?: string;
+  locationId?: string; // When adding a class, the default is go by admin location (by default-optional), but in case blossom is owner, location is by selecting
   capacity: number;
   volume: number;
   ageStart: number;

@@ -187,30 +187,26 @@ export default function AdminDashboard() {
 
     try {
       const created = await addTeacher(newTeacher);
-      if (created) {
-        setTeachers((prev) => [created, ...prev.filter((t) => t.id !== optimistic.id)]);
-        setNewTeacher({
-          firstName: "",
-          lastName: "",
-          email: "",
-          phone: "",
-          address1: "",
-          address2: "",
-          city: "",
-          province: "",
-          country: "",
-          postalcode: "",
-          classIds: [],
-          locationId: "",
-          startDate: "",
-          endDate: undefined,
-        });
+      setNewTeacher({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        address1: "",
+        address2: "",
+        city: "",
+        province: "",
+        country: "",
+        postalcode: "",
+        classIds: [],
+        locationId: "",
+        startDate: "",
+        endDate: undefined,
+      });
         
-      } 
       await refreshAll(); // Refresh from server to get latest data,in the background
     } catch (err: any) {
       // console.error(err);
-      setTeachers((prev) => prev.filter((t) => t.id !== optimistic.id)); 
       await swal.fire({
         icon: "error",
         title: "Failed to add",
