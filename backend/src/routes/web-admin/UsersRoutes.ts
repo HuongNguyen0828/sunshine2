@@ -1,9 +1,11 @@
-// routes/usersRoutes.ts
+// backend/routes/web-admin/usersRoutes.ts
 import { Router } from "express";
 import { authMiddleware } from "../../middleware/authMiddleware";
-import { getTeacherCandidates } from "../../controllers/web-admin/ClassController";
+import { getTeacherCandidates, getTeachers } from "../../controllers/web-admin/ClassController";
 
 const router = Router();
-// final path: /api/users/teacher-candidates
+
 router.get("/teacher-candidates", authMiddleware, getTeacherCandidates);
+router.get("/teachers", authMiddleware, getTeachers);
+
 export default router;
