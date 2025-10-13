@@ -79,6 +79,9 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
     const data = await res.json();
     return (data as T);
   }
+
+  // If none of the above, throw an error to satisfy return type
+  throw new Error(`Unhandled response status: ${res.status}`);
 }
 
 const api = {

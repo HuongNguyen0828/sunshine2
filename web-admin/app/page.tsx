@@ -18,5 +18,21 @@ export default function Home() {
     }
   }, [router]);
 
-  return null; // nothing rendered, just redirects
+    if (userRole !== "admin") {
+      router.replace("/unauthorized");
+      return;
+    }
+
+    if (userRole === "admin") {
+      const uid = Cookies.get("uid");
+      router.replace(`/dashboard/${uid}`);
+    }
+  }, [currentUser, loading, router, userRole]);
+
+  // Optional: loading spinner or blank screen
+  return (
+    <div className="flex items-center justify-center h-screen">
+      {loading ? <p>Loading...</p> : null}
+    </div>
+  );
 }
