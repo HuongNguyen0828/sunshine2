@@ -54,13 +54,31 @@ export type DaycareProvider = {
 export type Class = {
   id: string;
   name: string;
-  locationId?: string;     // optional for now
+  locationId?: string;
   capacity: number;
   volume: number;
   ageStart: number;
   ageEnd: number;
-  classroom: string; 
-}
+  classroom?: string;
+  teacherIds?: string[];   
+  createdAt?: string;      
+  updatedAt?: string;
+};
+
+export type ClassCreate = Omit<Class, "id" | "teacherIds" | "createdAt" | "updatedAt">;
+export type ClassUpdate = Partial<ClassCreate>;
+
+export type User = {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: "admin" | "teacher" | "parent" | string;
+  status?: "New" | "Active" | string;
+  locationIds?: string[];
+  daycareId?: string;
+  classIds?: string[];
+};
 
 export type Schedule = {
   id: string;

@@ -2,9 +2,13 @@
 import { Response } from "express";
 import { db, admin } from "../../lib/firebase";
 import { AuthRequest } from "../../middleware/authMiddleware";
+import * as Types from "../../../../shared/types/type"; 
 
-// ----- Firestore document shapes -----
-type ClassDoc = {
+/**
+ * Firestore "classes" document shape for the backend (DB model).
+ * This differs from shared DTO because it uses Firestore Timestamp/FieldValue.
+ */
+type ClassDocDB = {
   name: string;
   locationId?: string;
   capacity: number;
@@ -12,44 +16,82 @@ type ClassDoc = {
   ageStart: number;
   ageEnd: number;
   classroom?: string;
-  createdAt?: FirebaseFirestore.FieldValue;
-  updatedAt?: FirebaseFirestore.FieldValue;
+  teacherIds?: string[];
+  createdAt?: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue;
+  updatedAt?: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue;
 };
 
+/** User profile fields we read for scoping. */
 type UserProfile = {
   role?: string;
-  locationIds?: string[]; // ["*"] means wildcard (treat as "no explicit location restriction")
-  daycareId?: string;     // used only if locationIds is ["*"] or empty/undefined
+  locationIds?: string[]; // ["*"] means wildcard → treat as "no explicit location restriction" (use daycare if present)
+  daycareId?: string;     // used when locationIds missing/empty or ["*"]
 };
 
+/** Teacher fields we expose from users collection. */
 type Teacher = {
   firstName?: string;
   lastName?: string;
   email?: string;
   role?: string;     // "teacher"
-  status?: string;   // "New" | "Active" ...
+  status?: string;   // "New" | "Active" | ...
   classIds?: string[];
 };
-// ----- Admin scope model -----
-// Rule you asked for:
-// - If admin.locationIds exists with one or more concrete ids (not just ["*"]),
-//   scope is those locations only.
-// - Else (locationIds missing/empty or ["*"]): if admin.daycareId exists,
-//   scope is all locations under that daycareProvider.
-// - Else: scope = all (no restriction).
+
+/** Admin scope model. */
 type AdminScope =
   | { kind: "all" }
   | { kind: "locations"; ids: string[] }
   | { kind: "daycare"; daycareId: string };
 
-// Utility: split large arrays into chunks of size n
+/* ------------------------------------------
+ * Helpers: type guards & small utilities
+ * ------------------------------------------ */
+
+/** Detect Firestore Timestamp without using 'any'. */
+function isTimestamp(v: unknown): v is FirebaseFirestore.Timestamp {
+  return typeof v === "object" && v !== null && "toDate" in (v as { toDate?: () => Date });
+}
+
+/** Convert Timestamp/FieldValue to ISO string if it's a Timestamp. */
+function tsToISO(
+  v?: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue
+): string | undefined {
+  if (v && isTimestamp(v)) {
+    return v.toDate().toISOString();
+  }
+  return undefined;
+}
+
+/** DB -> DTO converter (shared Types.Class) */
+function classDocToDTO(id: string, data: ClassDocDB): Types.Class {
+  return {
+    id,
+    name: data.name,
+    locationId: data.locationId,
+    capacity: data.capacity,
+    volume: data.volume,
+    ageStart: data.ageStart,
+    ageEnd: data.ageEnd,
+    classroom: data.classroom,
+    teacherIds: data.teacherIds,
+    createdAt: tsToISO(data.createdAt),
+    updatedAt: tsToISO(data.updatedAt),
+  };
+}
+
+/** Split large arrays into chunks of fixed size (for Firestore 'in' constraints). */
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
 }
 
-// Load current admin scope from users/{uid} following the rule above
+/* ------------------------------------------
+ * Scope helpers
+ * ------------------------------------------ */
+
+/** Build admin scope from current user document. */
 async function loadAdminScope(req: AuthRequest): Promise<AdminScope> {
   const uid = req.user?.uid;
   if (!uid) return { kind: "all" };
@@ -66,30 +108,27 @@ async function loadAdminScope(req: AuthRequest): Promise<AdminScope> {
   const hasWildcard = locs.includes("*");
   const concreteLocs = locs.filter((v) => v !== "*");
 
-  // Case 1: concrete location ids provided → restrict to those
   if (concreteLocs.length > 0) {
     return { kind: "locations", ids: concreteLocs };
   }
 
-  // Case 2: wildcard or no locationIds → use daycareId if present
   if (hasWildcard || concreteLocs.length === 0) {
     if (u.daycareId && u.daycareId.trim().length > 0) {
       return { kind: "daycare", daycareId: u.daycareId.trim() };
     }
   }
 
-  // Case 3: fallback to all
   return { kind: "all" };
 }
 
-// Resolve locationIds for a daycare by reading its locations subcollection
+/** Get location IDs under a daycareProvider/{daycareId}/locations subcollection. */
 async function resolveDaycareLocationIds(daycareId: string): Promise<string[]> {
   const ref = db.collection(`daycareProvider/${daycareId}/locations`);
   const snap = await ref.get();
   return snap.docs.map((d) => d.id);
 }
 
-// Query classes by scope; handles Firestore "in" limit (10) by batching
+/** Query classes by scope; batches 'in' queries by 10. */
 async function queryClassesByScope(scope: AdminScope) {
   if (scope.kind === "all") {
     const snap = await db.collection("classes").orderBy("name").get();
@@ -104,7 +143,7 @@ async function queryClassesByScope(scope: AdminScope) {
     ids = await resolveDaycareLocationIds(scope.daycareId);
   }
 
-  if (ids.length === 0) return []; // no locations → no classes
+  if (ids.length === 0) return [];
 
   const results: FirebaseFirestore.QueryDocumentSnapshot[] = [];
   for (const group of chunk(ids, 10)) {
@@ -115,7 +154,8 @@ async function queryClassesByScope(scope: AdminScope) {
       .get();
     results.push(...qs.docs);
   }
-  // Uniq by id (defensive)
+
+  // Deduplicate by id (defensive)
   const seen = new Set<string>();
   const uniq: typeof results = [];
   for (const d of results) {
@@ -127,7 +167,7 @@ async function queryClassesByScope(scope: AdminScope) {
   return uniq;
 }
 
-// Ensure a specific locationId is allowed by the scope (throws 403 if not)
+/** Ensure location is allowed by current scope; throw 403 if not. */
 async function ensureLocationAllowed(scope: AdminScope, locationId?: string): Promise<void> {
   const throwForbidden = (): never => {
     const err = new Error("Forbidden: location is not within admin scope") as Error & { status?: number };
@@ -136,7 +176,6 @@ async function ensureLocationAllowed(scope: AdminScope, locationId?: string): Pr
   };
 
   if (!locationId) {
-    // class without locationId is considered not allowed when scope is restricted
     if (scope.kind !== "all") throwForbidden();
     return;
   }
@@ -148,7 +187,7 @@ async function ensureLocationAllowed(scope: AdminScope, locationId?: string): Pr
     return;
   }
 
-  // scope.kind === "daycare": verify that this locationId belongs to that daycare
+  // scope.kind === "daycare": verify membership
   const locSnap = await db
     .collection(`daycareProvider/${scope.daycareId}/locations`)
     .doc(locationId)
@@ -156,16 +195,16 @@ async function ensureLocationAllowed(scope: AdminScope, locationId?: string): Pr
   if (!locSnap.exists) throwForbidden();
 }
 
-// ----- Controllers -----
-// GET /classes
+/* ------------------------------------------
+ * Controllers
+ * ------------------------------------------ */
+
+/** GET /classes */
 export async function getAllClasses(req: AuthRequest, res: Response) {
   try {
     const scope = await loadAdminScope(req);
     const docs = await queryClassesByScope(scope);
-    const items = docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<ClassDoc, "createdAt" | "updatedAt">),
-    }));
+    const items: Types.Class[] = docs.map((d) => classDocToDTO(d.id, d.data() as ClassDocDB));
     return res.json(items);
   } catch (e) {
     const err = e as Error & { status?: number };
@@ -175,21 +214,21 @@ export async function getAllClasses(req: AuthRequest, res: Response) {
   }
 }
 
-// POST /classes
+/** POST /classes */
 export async function addClass(req: AuthRequest, res: Response) {
   try {
-    const body = req.body as ClassDoc;
+    const body = req.body as Types.Class; // we accept DTO-like payload (id ignored)
     const { name, capacity, volume, ageStart, ageEnd, locationId, classroom } = body;
 
     if (!name || capacity == null || volume == null || ageStart == null || ageEnd == null) {
       return res.status(400).send({ message: "Missing fields" });
     }
 
-    // Permission: check admin scope against provided locationId
+    // Permission: provided location must be within scope
     const scope = await loadAdminScope(req);
-    await ensureLocationAllowed(scope, locationId);
+    await ensureLocationAllowed(scope, locationId ?? undefined);
 
-    // Validate that location exists if provided
+    // Validate location exists if provided
     if (locationId) {
       const cg = await db
         .collectionGroup("locations")
@@ -198,7 +237,7 @@ export async function addClass(req: AuthRequest, res: Response) {
       if (cg.empty) return res.status(404).send({ message: "Location not found" });
     }
 
-    const payload: ClassDoc = {
+    const payload: ClassDocDB = {
       name,
       locationId: locationId || undefined,
       capacity,
@@ -206,13 +245,15 @@ export async function addClass(req: AuthRequest, res: Response) {
       ageStart,
       ageEnd,
       classroom,
+      teacherIds: [],
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     const ref = await db.collection("classes").add(payload);
     const snap = await ref.get();
-    return res.status(201).json({ id: ref.id, ...(snap.data() as object) });
+    const dto = classDocToDTO(ref.id, snap.data() as ClassDocDB);
+    return res.status(201).json(dto);
   } catch (e) {
     const err = e as Error & { status?: number };
     console.error("[addClass] failed:", err);
@@ -226,26 +267,26 @@ export async function addClass(req: AuthRequest, res: Response) {
   }
 }
 
-// PUT /classes/:id
+/** PUT /classes/:id */
 export async function updateClass(req: AuthRequest, res: Response) {
   try {
     const { id } = req.params as { id?: string };
     if (!id) return res.status(400).send({ message: "Missing class id" });
 
-    const input = req.body as Partial<ClassDoc>;
+    const input = req.body as Partial<Types.Class>;
 
-    // Load current class to determine final locationId to validate
+    // Load current class to decide final location to validate
     const ref = db.collection("classes").doc(id);
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).send({ message: "Class not found" });
 
-    const current = doc.data() as ClassDoc | undefined;
+    const current = doc.data() as ClassDocDB | undefined;
     const nextLocationId = input.locationId ?? current?.locationId;
 
     const scope = await loadAdminScope(req);
     await ensureLocationAllowed(scope, nextLocationId);
 
-    // If locationId provided, validate existence
+    // If locationId is provided, validate existence
     if (input.locationId) {
       const cg = await db
         .collectionGroup("locations")
@@ -255,12 +296,19 @@ export async function updateClass(req: AuthRequest, res: Response) {
     }
 
     await ref.update({
-      ...input,
+      ...(input.locationId !== undefined ? { locationId: input.locationId || undefined } : {}),
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.capacity !== undefined ? { capacity: input.capacity } : {}),
+      ...(input.volume !== undefined ? { volume: input.volume } : {}),
+      ...(input.ageStart !== undefined ? { ageStart: input.ageStart } : {}),
+      ...(input.ageEnd !== undefined ? { ageEnd: input.ageEnd } : {}),
+      ...(input.classroom !== undefined ? { classroom: input.classroom || undefined } : {}),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     const updated = await ref.get();
-    return res.json({ id, ...(updated.data() as object) });
+    const dto = classDocToDTO(id, updated.data() as ClassDocDB);
+    return res.json(dto);
   } catch (e) {
     const err = e as Error & { status?: number };
     console.error("[updateClass] failed:", err);
@@ -269,7 +317,7 @@ export async function updateClass(req: AuthRequest, res: Response) {
   }
 }
 
-// DELETE /classes/:id
+/** DELETE /classes/:id */
 export async function deleteClass(req: AuthRequest, res: Response) {
   try {
     const { id } = req.params as { id?: string };
@@ -279,18 +327,19 @@ export async function deleteClass(req: AuthRequest, res: Response) {
     const doc = await ref.get();
     if (!doc.exists) return res.status(404).send({ message: "Class not found" });
 
-    const cls = doc.data() as ClassDoc | undefined;
+    const cls = doc.data() as ClassDocDB | undefined;
 
-    // Permission: class location must be within scope
+    // Permission: class location must be within admin scope
     const scope = await loadAdminScope(req);
     await ensureLocationAllowed(scope, cls?.locationId);
 
-    // Remove this classId from users[].classIds, then delete class
+    // Clean up users[].classIds and delete class document
     const usersSnap = await db.collection("users").where("classIds", "array-contains", id).get();
 
     const batch = db.batch();
     usersSnap.forEach((u) => {
-      const curr = (u.data().classIds as string[]) || [];
+      const d = u.data() as { classIds?: string[] };
+      const curr = Array.isArray(d.classIds) ? d.classIds : [];
       batch.update(u.ref, { classIds: curr.filter((c) => c !== id) });
     });
     batch.delete(ref);
@@ -305,21 +354,33 @@ export async function deleteClass(req: AuthRequest, res: Response) {
   }
 }
 
-// GET /users/teacher-candidates?onlyNew=true
+/** GET /users/teacher-candidates?onlyNew=true */
 export async function getTeacherCandidates(req: AuthRequest, res: Response) {
   try {
     const onlyNew = (req.query.onlyNew ?? "true") === "true";
     let q = db.collection("users").where("role", "==", "teacher");
     if (onlyNew) q = q.where("status", "==", "New");
     const snap = await q.get();
-    const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as object) }));
+    const items = snap.docs.map((d) => {
+      const data = d.data() as Teacher;
+      return {
+        id: d.id,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        role: data.role,
+        status: data.status,
+        classIds: Array.isArray(data.classIds) ? data.classIds : [],
+      };
+    });
     return res.json(items);
   } catch (e) {
     console.error("[getTeacherCandidates] failed:", e);
     return res.status(500).json({ message: "Failed to load teacher candidates" });
   }
 }
-// GET /api/users/teachers
+
+/** GET /api/users/teachers */
 export async function getTeachers(req: AuthRequest, res: Response) {
   try {
     const classId = typeof req.query.classId === "string" ? req.query.classId : undefined;
@@ -347,7 +408,8 @@ export async function getTeachers(req: AuthRequest, res: Response) {
     return res.status(500).json({ message: "Failed to load teachers" });
   }
 }
-// POST /classes/:id/assign-teachers
+
+/** POST /classes/:id/assign-teachers */
 export async function assignTeachers(req: AuthRequest, res: Response) {
   try {
     const classId = req.params?.id || req.params?.classId;
@@ -357,9 +419,9 @@ export async function assignTeachers(req: AuthRequest, res: Response) {
     const classSnap = await classRef.get();
     if (!classSnap.exists) return res.status(404).json({ message: "Class not found" });
 
-    const cls = classSnap.data() as ClassDoc | undefined;
+    const cls = classSnap.data() as ClassDocDB | undefined;
 
-    // Permission: class location must be within admin scope
+    // Permission: class location must be within scope
     const scope = await loadAdminScope(req);
     await ensureLocationAllowed(scope, cls?.locationId);
 
@@ -406,7 +468,7 @@ export async function assignTeachers(req: AuthRequest, res: Response) {
       return res.status(400).json({ message: "No valid teachers in selection", invalid });
     }
 
-    // Compute diffs
+    // Compute diffs using users[].classIds
     const currentAssignedSnap = await db
       .collection("users")
       .where("classIds", "array-contains", classId)
