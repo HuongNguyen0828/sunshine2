@@ -14,23 +14,10 @@ import {
   type TeacherCandidate,
 } from "@/services/useClassesAPI";
 
-type Props = {
-  classes: Types.Class[];
-  // Optional legacy prop: used only to show currently assigned teachers in the grid
-  teachers: Types.Teacher[];
-  locations: LocationLite[];
-  newClass: NewClassInput;
-  setNewClass: React.Dispatch<React.SetStateAction<NewClassInput>>;
-  onCreated?: (created: Types.Class) => void;
-  onUpdated?: (updated: Types.Class) => void;
-  onDeleted?: (id: string) => void;
-  onAssigned?: () => Promise<void> | void; // ask parent to refetch after assigning
-};
-
-// Narrow type guard for reading an optional "status" string safely (no any)
-function hasStatus(obj: unknown): obj is { status?: string } {
-  return typeof obj === "object" && obj !== null && "status" in obj;
-}
+import * as Types from '../../../shared/types/type';
+import type { NewClassInput } from '@/types/forms';
+import { useState, useEffect } from 'react';
+import { useFormDraft } from '@/hooks/useFormDraft';
 
 export default function ClassesTab({
   classes,
@@ -58,7 +45,24 @@ export default function ClassesTab({
   const [teacherOptions, setTeacherOptions] = useState<TeacherCandidate[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
 
-  // Helpers
+  // Form draft management
+  const { isDraftRestored, saveDraft, clearDraft } = useFormDraft({
+    formKey: 'class-form',
+    initialData: newClass,
+    onRestore: (draft) => {
+      setNewClass(draft);
+    },
+  });
+
+  // Helper to update form and save draft
+  const updateClass = useCallback((updates: Partial<NewClassInput>) => {
+    setNewClass(prev => {
+      const updated = { ...prev, ...updates };
+      if (!editingClass) saveDraft(updated);
+      return updated;
+    });
+  }, [editingClass, saveDraft]);
+
   const getCapacityStatus = (volume: number, capacity: number) => {
     if (capacity <= 0) return "available";
     const percentage = (volume / capacity) * 100;
@@ -110,6 +114,24 @@ export default function ClassesTab({
   // Create / Update form handlers
   async function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (editingClass) {
+      console.log('Update class:', { ...editingClass, ...newClass });
+      setEditingClass(null);
+      // Reset form to empty state
+      setNewClass({
+        name: '',
+        locationId: '',
+        capcity: 0,
+        volume: 0,
+        ageStart: 0,
+        ageEnd: 0,
+      });
+    } else {
+      onAdd();
+    }
+    clearDraft(); // Clear draft after successful submission
+    setIsFormOpen(false);
+  };
 
     const rawLoc = newClass.locationId ?? "";
     const payloadLocationId = rawLoc.trim() === "" ? undefined : rawLoc;
@@ -482,9 +504,14 @@ export default function ClassesTab({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-2xl font-bold text-gray-800">
-                {editingClass ? "Edit Class" : "Add New Class"}
-              </h3>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {editingClass ? 'Edit Class' : 'Add New Class'}
+                </h3>
+                {isDraftRestored && !editingClass && (
+                  <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
+                )}
+              </div>
               <button
                 onClick={() => {
                   setIsFormOpen(false);
@@ -504,7 +531,7 @@ export default function ClassesTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Class Name"
                     value={newClass.name}
-                    onChange={(e) => setNewClass({ ...newClass, name: e.target.value })}
+                    onChange={(e) => updateClass({ name: e.target.value })}
                     required
                   />
                 </label>
@@ -513,16 +540,11 @@ export default function ClassesTab({
                   <span className="text-gray-700 font-medium mb-1 block">Location (optional)</span>
                   <select
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newClass.locationId ?? ""}
-                    onChange={(e) => setNewClass({ ...newClass, locationId: e.target.value })}
-                  >
-                    <option value="">— No location —</option>
-                    {(locations ?? []).map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name || l.id}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Location ID"
+                    value={newClass.locationId}
+                    onChange={(e) => updateClass({ locationId: e.target.value })}
+                    required
+                  />
                 </label>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -532,10 +554,8 @@ export default function ClassesTab({
                       type="number"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Capacity"
-                      value={newClass.capacity}
-                      onChange={(e) =>
-                        setNewClass({ ...newClass, capacity: Number(e.target.value) })
-                      }
+                      value={newClass.capcity}
+                      onChange={(e) => updateClass({ capcity: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -547,9 +567,7 @@ export default function ClassesTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Volume"
                       value={newClass.volume}
-                      onChange={(e) =>
-                        setNewClass({ ...newClass, volume: Number(e.target.value) })
-                      }
+                      onChange={(e) => updateClass({ volume: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -563,9 +581,7 @@ export default function ClassesTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Age Start"
                       value={newClass.ageStart}
-                      onChange={(e) =>
-                        setNewClass({ ...newClass, ageStart: Number(e.target.value) })
-                      }
+                      onChange={(e) => updateClass({ ageStart: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -577,9 +593,7 @@ export default function ClassesTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Age End"
                       value={newClass.ageEnd}
-                      onChange={(e) =>
-                        setNewClass({ ...newClass, ageEnd: Number(e.target.value) })
-                      }
+                      onChange={(e) => updateClass({ ageEnd: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -607,6 +621,15 @@ export default function ClassesTab({
                 >
                   Cancel
                 </button>
+                {!editingClass && (
+                  <button
+                    type="button"
+                    onClick={clearDraft}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                  >
+                    Clear Draft
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"

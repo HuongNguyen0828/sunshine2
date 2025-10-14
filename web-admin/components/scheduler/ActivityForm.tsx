@@ -6,8 +6,9 @@
  */
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Activity } from "@/types/scheduler";
+import { useFormDraft } from "@/hooks/useFormDraft";
 
 interface ActivityFormProps {
   onClose: () => void;
@@ -23,9 +24,25 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Form draft management
+  const { isDraftRestored, saveDraft, clearDraft } = useFormDraft({
+    formKey: 'activity-form',
+    initialData: { title: "", description: "", materials: "" },
+    onRestore: (draft) => {
+      setTitle(draft.title || "");
+      setDescription(draft.description || "");
+      setMaterials(draft.materials || "");
+    },
+  });
+
+  // Helper to save draft
+  const saveFormDraft = useCallback(() => {
+    saveDraft({ title, description, materials });
+  }, [title, description, materials, saveDraft]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!title.trim()) {
       setError("Please enter an activity title");
       return;
@@ -33,14 +50,15 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
 
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       await onActivityCreated({
         title: title.trim(),
         description: description.trim(),
         materials: materials.trim(),
       });
-      
+
+      clearDraft(); // Clear draft after successful submission
       // Success! Parent will handle the close
     } catch (error) {
       console.error('Error creating activity:', error);
@@ -55,9 +73,14 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
       <div className="bg-white rounded-lg max-w-md w-full">
         <div className="p-6 border-b border-gray-200">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Create New Activity
-            </h3>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Create New Activity
+              </h3>
+              {isDraftRestored && (
+                <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
+              )}
+            </div>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 text-xl"
@@ -83,7 +106,7 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
               type="text"
               id="title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); saveFormDraft(); }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               placeholder="e.g., Story Time, Art & Crafts"
               required
@@ -98,7 +121,7 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
             <textarea
               id="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => { setDescription(e.target.value); saveFormDraft(); }}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
               placeholder="Describe the activity and learning objectives..."
@@ -114,7 +137,7 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
               type="text"
               id="materials"
               value={materials}
-              onChange={(e) => setMaterials(e.target.value)}
+              onChange={(e) => { setMaterials(e.target.value); saveFormDraft(); }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               placeholder="e.g., Crayons, paper, glue sticks"
               disabled={isSubmitting}
@@ -129,6 +152,14 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
               disabled={isSubmitting}
             >
               Cancel
+            </button>
+            <button
+              type="button"
+              onClick={clearDraft}
+              className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm"
+              disabled={isSubmitting}
+            >
+              Clear Draft
             </button>
             <button
               type="submit"
