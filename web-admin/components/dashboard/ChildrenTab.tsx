@@ -9,7 +9,8 @@
 
 import * as Types from '../../../shared/types/type';
 import type { NewChildInput } from '@/types/forms';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useFormDraft } from '@/hooks/useFormDraft';
 
 export default function ChildrenTab({
   classes,
@@ -32,6 +33,24 @@ export default function ChildrenTab({
   const [editingChild, setEditingChild] = useState<Types.Child | null>(null);
   const [showAssignClass, setShowAssignClass] = useState<string | null>(null);
   const [selectedClassId, setSelectedClassId] = useState('');
+
+  // Form draft management
+  const { isDraftRestored, saveDraft, clearDraft } = useFormDraft({
+    formKey: 'child-form',
+    initialData: newChild,
+    onRestore: (draft) => {
+      setNewChild(draft);
+    },
+  });
+
+  // Helper to update form and save draft
+  const updateChild = useCallback((updates: Partial<NewChildInput>) => {
+    setNewChild(prev => {
+      const updated = { ...prev, ...updates };
+      if (!editingChild) saveDraft(updated);
+      return updated;
+    });
+  }, [editingChild, saveDraft]);
 
   // Filter children based on search
   const filteredChildren = childList.filter(child => {
@@ -64,6 +83,7 @@ export default function ChildrenTab({
     } else {
       onAdd();
     }
+    clearDraft(); // Clear draft after successful submission
     setIsFormOpen(false);
   };
 
@@ -367,9 +387,14 @@ export default function ChildrenTab({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-2xl font-bold text-gray-800">
-                {editingChild ? 'Edit Student' : 'Add New Student'}
-              </h3>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {editingChild ? 'Edit Student' : 'Add New Student'}
+                </h3>
+                {isDraftRestored && !editingChild && (
+                  <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
+                )}
+              </div>
               <button
                 onClick={() => {
                   setIsFormOpen(false);
@@ -534,6 +559,15 @@ export default function ChildrenTab({
                 >
                   Cancel
                 </button>
+                {!editingChild && (
+                  <button
+                    type="button"
+                    onClick={clearDraft}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                  >
+                    Clear Draft
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-medium px-6 py-3 rounded-lg transition duration-200"

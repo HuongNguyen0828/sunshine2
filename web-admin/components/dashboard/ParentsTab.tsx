@@ -9,7 +9,8 @@
 
 import * as Types from '../../../shared/types/type';
 import type { NewParentInput } from '@/types/forms';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useFormDraft } from '@/hooks/useFormDraft';
 
 export default function ParentsTab({
   parents,
@@ -26,6 +27,24 @@ export default function ParentsTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingParent, setEditingParent] = useState<Types.Parent | null>(null);
+
+  // Form draft management
+  const { isDraftRestored, saveDraft, clearDraft } = useFormDraft({
+    formKey: 'parent-form',
+    initialData: newParent,
+    onRestore: (draft) => {
+      setNewParent(draft);
+    },
+  });
+
+  // Helper to update form and save draft
+  const updateParent = useCallback((updates: Partial<NewParentInput>) => {
+    setNewParent(prev => {
+      const updated = { ...prev, ...updates };
+      if (!editingParent) saveDraft(updated);
+      return updated;
+    });
+  }, [editingParent, saveDraft]);
 
   // Filter parents based on search
   const filteredParents = parents.filter(parent =>
@@ -50,6 +69,7 @@ export default function ParentsTab({
     } else {
       onAdd();
     }
+    clearDraft(); // Clear draft after successful submission
     setIsFormOpen(false);
   };
 
@@ -291,9 +311,14 @@ export default function ParentsTab({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-2xl font-bold text-gray-800">
-                {editingParent ? 'Edit Parent' : 'Add New Parent'}
-              </h3>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {editingParent ? 'Edit Parent' : 'Add New Parent'}
+                </h3>
+                {isDraftRestored && !editingParent && (
+                  <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
+                )}
+              </div>
               <button
                 onClick={() => {
                   setIsFormOpen(false);
@@ -461,6 +486,15 @@ export default function ParentsTab({
                 >
                   Cancel
                 </button>
+                {!editingParent && (
+                  <button
+                    type="button"
+                    onClick={clearDraft}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                  >
+                    Clear Draft
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
