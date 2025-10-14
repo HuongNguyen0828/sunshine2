@@ -9,8 +9,7 @@
 
 import * as Types from '../../../shared/types/type';
 import type { NewChildInput } from '@/types/forms';
-import { useState, useEffect } from 'react';
-import { useFormDraft } from '@/hooks/useFormDraft';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export default function ChildrenTab({
   classes,
@@ -33,24 +32,49 @@ export default function ChildrenTab({
   const [editingChild, setEditingChild] = useState<Types.Child | null>(null);
   const [showAssignClass, setShowAssignClass] = useState<string | null>(null);
   const [selectedClassId, setSelectedClassId] = useState('');
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Form draft management
-  const { isDraftRestored, saveDraft, clearDraft } = useFormDraft({
-    formKey: 'child-form',
-    initialData: newChild,
-    onRestore: (draft) => {
-      setNewChild(draft);
-    },
-  });
+  // Restore draft when form opens
+  useEffect(() => {
+    if (isFormOpen && !editingChild) {
+      const draft = sessionStorage.getItem('child-form-draft');
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft);
+          setNewChild(parsed);
+          setIsDraftRestored(true);
+        } catch (e) {
+          console.error('Failed to restore draft:', e);
+        }
+      }
+    }
+  }, [isFormOpen, editingChild, setNewChild]);
 
   // Helper to update form and save draft
   const updateChild = useCallback((updates: Partial<NewChildInput>) => {
     setNewChild(prev => {
       const updated = { ...prev, ...updates };
-      if (!editingChild) saveDraft(updated);
+
+      // Save to sessionStorage with debounce
+      if (!editingChild) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
+        saveTimeoutRef.current = setTimeout(() => {
+          sessionStorage.setItem('child-form-draft', JSON.stringify(updated));
+        }, 500);
+      }
+
       return updated;
     });
-  }, [editingChild, saveDraft]);
+  }, [editingChild, setNewChild]);
+
+  // Clear draft
+  const clearDraft = useCallback(() => {
+    sessionStorage.removeItem('child-form-draft');
+    setIsDraftRestored(false);
+  }, []);
 
   // Filter children based on search
   const filteredChildren = childList.filter(child => {
@@ -415,7 +439,7 @@ export default function ChildrenTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="First Name"
                       value={newChild.firstName}
-                      onChange={(e) => setNewChild({ ...newChild, firstName: e.target.value })}
+                      onChange={(e) => updateChild({ firstName: e.target.value })}
                       required
                     />
                   </label>
@@ -426,7 +450,7 @@ export default function ChildrenTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="Last Name"
                       value={newChild.lastName}
-                      onChange={(e) => setNewChild({ ...newChild, lastName: e.target.value })}
+                      onChange={(e) => updateChild({ lastName: e.target.value })}
                       required
                     />
                   </label>
@@ -438,7 +462,7 @@ export default function ChildrenTab({
                     type="date"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     value={newChild.birthDate}
-                    onChange={(e) => setNewChild({ ...newChild, birthDate: e.target.value })}
+                    onChange={(e) => updateChild({ birthDate: e.target.value })}
                     required
                   />
                 </label>
@@ -449,7 +473,7 @@ export default function ChildrenTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Comma separated parent IDs"
                     value={newChild.parentIdsCsv}
-                    onChange={(e) => setNewChild({ ...newChild, parentIdsCsv: e.target.value })}
+                    onChange={(e) => updateChild({ parentIdsCsv: e.target.value })}
                     required
                   />
                 </label>
@@ -459,7 +483,7 @@ export default function ChildrenTab({
                   <select
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     value={newChild.classId}
-                    onChange={(e) => setNewChild({ ...newChild, classId: e.target.value })}
+                    onChange={(e) => updateChild({ classId: e.target.value })}
                     required
                   >
                     <option value="">Select Class</option>
@@ -476,12 +500,7 @@ export default function ChildrenTab({
                   <select
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     value={newChild.enrollmentStatus}
-                    onChange={(e) =>
-                      setNewChild({
-                        ...newChild,
-                        enrollmentStatus: e.target.value as Types.Child['enrollmentStatus'],
-                      })
-                    }
+                    onChange={(e) => updateChild({ enrollmentStatus: e.target.value as Types.Child['enrollmentStatus'] })}
                     required
                   >
                     <option value="New">New</option>
@@ -498,7 +517,7 @@ export default function ChildrenTab({
                       type="date"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       value={newChild.enrollmentDate}
-                      onChange={(e) => setNewChild({ ...newChild, enrollmentDate: e.target.value })}
+                      onChange={(e) => updateChild({ enrollmentDate: e.target.value })}
                       required
                     />
                   </label>
@@ -510,9 +529,7 @@ export default function ChildrenTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="End Date (optional)"
                       value={newChild.endDate || ''}
-                      onChange={(e) =>
-                        setNewChild({ ...newChild, endDate: e.target.value || undefined })
-                      }
+                      onChange={(e) => updateChild({ endDate: e.target.value || undefined })}
                     />
                   </label>
                 </div>
@@ -523,7 +540,7 @@ export default function ChildrenTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Allergies (optional)"
                     value={newChild.allergies ?? ''}
-                    onChange={(e) => setNewChild({ ...newChild, allergies: e.target.value })}
+                    onChange={(e) => updateChild({ allergies: e.target.value })}
                   />
                 </label>
 
@@ -533,7 +550,7 @@ export default function ChildrenTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Special Needs (optional)"
                     value={newChild.specialNeeds ?? ''}
-                    onChange={(e) => setNewChild({ ...newChild, specialNeeds: e.target.value })}
+                    onChange={(e) => updateChild({ specialNeeds: e.target.value })}
                   />
                 </label>
 
@@ -543,7 +560,7 @@ export default function ChildrenTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Subsidy Status (optional)"
                     value={newChild.subsidyStatus ?? ''}
-                    onChange={(e) => setNewChild({ ...newChild, subsidyStatus: e.target.value })}
+                    onChange={(e) => updateChild({ subsidyStatus: e.target.value })}
                   />
                 </label>
               </div>

@@ -9,8 +9,7 @@
 
 import * as Types from '../../../shared/types/type';
 import type { NewClassInput } from '@/types/forms';
-import { useState, useEffect } from 'react';
-import { useFormDraft } from '@/hooks/useFormDraft';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export default function ClassesTab({
   classes,
@@ -32,24 +31,49 @@ export default function ClassesTab({
   const [editingClass, setEditingClass] = useState<Types.Class | null>(null);
   const [showAssignTeachers, setShowAssignTeachers] = useState<string | null>(null);
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Form draft management
-  const { isDraftRestored, saveDraft, clearDraft } = useFormDraft({
-    formKey: 'class-form',
-    initialData: newClass,
-    onRestore: (draft) => {
-      setNewClass(draft);
-    },
-  });
+  // Restore draft when form opens
+  useEffect(() => {
+    if (isFormOpen && !editingClass) {
+      const draft = sessionStorage.getItem('class-form-draft');
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft);
+          setNewClass(parsed);
+          setIsDraftRestored(true);
+        } catch (e) {
+          console.error('Failed to restore draft:', e);
+        }
+      }
+    }
+  }, [isFormOpen, editingClass, setNewClass]);
 
   // Helper to update form and save draft
   const updateClass = useCallback((updates: Partial<NewClassInput>) => {
     setNewClass(prev => {
       const updated = { ...prev, ...updates };
-      if (!editingClass) saveDraft(updated);
+
+      // Save to sessionStorage with debounce
+      if (!editingClass) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
+        saveTimeoutRef.current = setTimeout(() => {
+          sessionStorage.setItem('class-form-draft', JSON.stringify(updated));
+        }, 500);
+      }
+
       return updated;
     });
-  }, [editingClass, saveDraft]);
+  }, [editingClass, setNewClass]);
+
+  // Clear draft
+  const clearDraft = useCallback(() => {
+    sessionStorage.removeItem('class-form-draft');
+    setIsDraftRestored(false);
+  }, []);
 
   const getCapacityStatus = (volume: number, capacity: number) => {
     const percentage = (volume / capacity) * 100;
