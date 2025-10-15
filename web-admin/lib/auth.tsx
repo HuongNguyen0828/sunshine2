@@ -232,15 +232,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.setItem("userRole", data.user.role);
       localStorage.setItem("userId", uid);
 
-      // Updating AuthContext: On reload, rehydrate from localStorage.
-      setUserRole(data.user.role);
-      setIsAdmin(data.user.role === "admin");
+      if (typeof window !== "undefined") {
+        Cookies.set("userRole", role, { expires: 7 });
+        Cookies.set("idToken", idToken, { expires: 7 });
+        Cookies.set("uid", cred.user.uid, { expires: 7 });
+      }
+      setUserRole(role);
+      setIsAdmin(role === "admin");
+      console.log("  ✅ Sign in complete");
 
-    } catch (error: any) {
-      // Error from Frontend: Firebase Auth errors with signInWithEmailAndPassword
-      if (error.code === "auth/invalid-credential")  throw new Error("Invalid Email or Password");
-      // else, error from role-base
-      throw error;
+      // 🔔 Notify all other tabs about Logout
+      localStorage.setItem("login", Date.now().toString());
+
+    } catch (error: unknown) {
+      console.log("  ❌ Sign in error:", error);
+      if (isFirebaseError(error) && error.code === "auth/invalid-credential") {
+        throw new Error("Invalid Email or Password");
+      }
+      throw new Error(errorMessage(error));
     }
   };
 
@@ -256,14 +265,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       Cookies.remove("uid");
     }
     
-    // 🔔 Notify all other tabs
+    // 🔔 Notify all other tabs about Logout
     localStorage.setItem("logout", Date.now().toString());
     // Then, redirect to /login page
     router.replace("/login");
   };
 
 
-   // --- 🪄 Sync logout across tabs ---
+   // --- Sync logout across tabs ---
   useEffect(() => {
     const syncLogout = (event: StorageEvent) => {
       if (event.key === "logout") {
@@ -280,7 +289,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     window.addEventListener("storage", syncLogout);
     return () => window.removeEventListener("storage", syncLogout);
   }, [router]);
-  
+
+  // ---  Sync login across tabs ---
+  useEffect(() => {
+    const syncLogin = (event: StorageEvent) => {
+      if (event.key === "login") {
+        // Another tab triggered login
+        const uid = Cookies.get("uid") ?? currentUser?.uid;
+        router.replace(`/dashboard/${uid}`); // forces the current tab to re-check cookies & auth state
+      }
+    };
+
+    window.addEventListener("storage", syncLogin);
+    return () => window.removeEventListener("storage", syncLogin);
+  }, [router]);
+
+
+
   return (
     <AuthContext.Provider
       value={{
