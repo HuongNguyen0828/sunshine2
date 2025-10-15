@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import ProtectedRoute from "@/components/ProtectRoute";
 import AppHeader from "@/components/AppHeader";
 import SidebarNav from "@/components/dashboard/SidebarNav";
 import Overview from "@/components/dashboard/Overview";
@@ -274,9 +273,7 @@ export default function AdminDashboard() {
   // Show a simple loader while fetching initial data
   if (authLoading || dataLoading) {
     return (
-      <ProtectedRoute>
-        <div>Loading...</div>
-      </ProtectedRoute>
+        <div>Loading inside dashboard/uid...</div>
     );
   }
 
