@@ -13,6 +13,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth';
+import Cookies from 'js-cookie';
+
 
 export default function LoginPage() {
   const { signIn } = useAuth();
@@ -45,8 +47,7 @@ export default function LoginPage() {
 
       await signIn(email.trim().toLowerCase(), pw);
       // If success, direct user to their dashboard
-      const uid = localStorage.getItem("userId");
-      router.push(`/dashboard/${uid}`);
+      router.push('/dashboard');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Login failed';
       setErr(message);
