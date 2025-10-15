@@ -98,6 +98,7 @@ export type Class = {
 
 export type Teacher = {
   id: string;
+  role?: "teacher"; 
   firstName: string;
   lastName: string;
   email: string;           // username for login

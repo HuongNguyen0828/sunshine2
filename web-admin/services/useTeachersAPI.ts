@@ -45,7 +45,8 @@ export async function updateTeacher(
     return teacher;
   } catch (err: unknown) {
     console.error(err);
-    return null;
+    // return null;
+    throw err; // Rethrow the error to be handled by the caller
   }
 }
 
@@ -57,7 +58,7 @@ export async function deleteTeacher(
     return res;
   } catch (err: unknown) {
     console.error(err);
-    return null;
+    throw err; // Rethrow the error to be handled by the caller
   }
 }
 
@@ -70,6 +71,6 @@ export async function assignTeacherToClass(
     return res;
   } catch (err: unknown) {
     console.error(err);
-    return null;
+    throw err; // Rethrow the error to be handled by the caller
   }
 }

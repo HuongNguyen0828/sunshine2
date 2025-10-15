@@ -1,38 +1,48 @@
-// app/page.tsx (server component)
-"use client"
-import { redirect, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-
-export default function Home() {
-
+"use client";
+ 
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import Cookies from "js-cookie";
+import { useEffect, useRef } from "react";
+ 
+export default function DashboardPage() {
+  const { currentUser, loading, userRole } = useAuth();
   const router = useRouter();
+  const redirectedRef = useRef(false);
+ 
   useEffect(() => {
-    const userRole = localStorage.getItem("userRole");
-    const uid = localStorage.getItem("userId");
-
-    if (!userRole) {
-      redirect("/login");
-    } else {
-      router.push(`/dashboard/${uid}`);
+    if (loading || redirectedRef.current) return;
+ 
+    if (!currentUser) {
+      redirectedRef.current = true;
+      router.replace("/login");
+      return;
     }
-  }, [router]);
-
-    if (userRole !== "admin") {
+ 
+    if (!userRole || userRole.toLowerCase() !== "admin") {
+      redirectedRef.current = true;
       router.replace("/unauthorized");
       return;
     }
-
-    if (userRole === "admin") {
-      const uid = Cookies.get("uid");
+ 
+    const uidFromCookie = Cookies.get("uid");
+    const uid = uidFromCookie ?? currentUser.uid;
+ 
+    if (uid) {
+      redirectedRef.current = true;
       router.replace(`/dashboard/${uid}`);
+      return;
     }
-  }, [currentUser, loading, router, userRole]);
-
-  // Optional: loading spinner or blank screen
+ 
+    redirectedRef.current = true;
+    router.replace("/login");
+  }, [currentUser, loading, userRole, router]);
+ 
   return (
-    <div className="flex items-center justify-center h-screen">
-      {loading ? <p>Loading...</p> : null}
+    <div className="flex h-screen items-center justify-center">
+      <p>Loading...</p>
     </div>
   );
 }
+ 
+ 

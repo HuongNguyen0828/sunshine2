@@ -24,6 +24,8 @@ const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : get
 // Export Firestore and Auth singletons
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+// Update export from moving api from shared to web-admin
+export * from "@/api/client";
 
 export default app;
 
