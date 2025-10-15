@@ -8,7 +8,7 @@
 // app/login/page.tsx
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState,  } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -17,14 +17,14 @@ import Cookies from 'js-cookie';
 
 
 export default function LoginPage() {
-  const { signIn } = useAuth();
+  const { signIn, currentUser, loading } = useAuth();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
 
   console.log('[Login Page] Component state:', { email, loading, hasError: !!err });
 
@@ -43,19 +43,16 @@ export default function LoginPage() {
 
     try {
       setErr(null);
-      setLoading(true);
-
       await signIn(email.trim().toLowerCase(), pw);
-      // If success, direct user to their dashboard
-      router.push('/dashboard');
+      // If success, direct user to the entrance page: app/page.tsx
+      router.replace('/');
+      
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Login failed';
       setErr(message);
     } finally {
-      setLoading(false);
     }
   };
-
   return (
     <div className="flex min-h-screen">
       {/* Left Side - Hero Section */}

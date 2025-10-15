@@ -281,7 +281,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <ProtectedRoute>
+    <>
       <div style={dash.container}>
         {/* App header */}
         <header style={dash.header}>
@@ -355,6 +355,6 @@ export default function AdminDashboard() {
           </main>
         </div>
       </div>
-    </ProtectedRoute>
+    </>
   );
 }
