@@ -250,11 +250,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setCurrentUser(null);
     setUserRole(null);
     setIsAdmin(false);
-    localStorage.removeItem("userRole");
-    // Redirect after logout (comment out if you prefer page-guard redirection)
+    if (typeof window !== "undefined") {
+      Cookies.remove("userRole");
+      Cookies.remove("idToken");
+      Cookies.remove("uid");
+    }
+    
+    // 🔔 Notify all other tabs
+    localStorage.setItem("logout", Date.now().toString());
+    // Then, redirect to /login page
     router.replace("/login");
   };
 
+
+   // --- 🪄 Sync logout across tabs ---
+  useEffect(() => {
+    const syncLogout = (event: StorageEvent) => {
+      if (event.key === "logout") {
+        // Another tab triggered logout
+        Cookies.remove("uid");
+        Cookies.remove("idToken");
+        Cookies.remove("userRole");
+        setCurrentUser(null);
+        setUserRole(null);
+        router.replace("/login");
+      }
+    };
+
+    window.addEventListener("storage", syncLogout);
+    return () => window.removeEventListener("storage", syncLogout);
+  }, [router]);
+  
   return (
     <AuthContext.Provider
       value={{
