@@ -165,52 +165,28 @@ export default function AdminDashboard() {
 
   // Create teacher (optimistic UI)
   const handleAddTeacher = async () => {
-    const optimistic: Types.Teacher = {
-      id: `tmp-${Date.now()}`,
-      firstName: newTeacher.firstName,
-      lastName: newTeacher.lastName,
-      email: newTeacher.email,
-      phone: newTeacher.phone,
-      address1: newTeacher.address1,
-      address2: newTeacher.address2 || "",
-      city: newTeacher.city,
-      province: newTeacher.province,
-      country: newTeacher.country,
-      postalcode: newTeacher.postalcode || "",
-      classIds: newTeacher.classIds ?? [],
-      locationId: newTeacher.locationId || "",
-      startDate: newTeacher.startDate,
-      endDate: newTeacher.endDate,
-    };
-
-    setTeachers((prev) => [optimistic, ...prev]);
-
     try {
-      const created = await addTeacher(newTeacher);
-      if (created) {
-        setTeachers((prev) => [created, ...prev.filter((t) => t.id !== optimistic.id)]);
-        setNewTeacher({
-          firstName: "",
-          lastName: "",
-          email: "",
-          phone: "",
-          address1: "",
-          address2: "",
-          city: "",
-          province: "",
-          country: "",
-          postalcode: "",
-          classIds: [],
-          locationId: "",
-          startDate: "",
-          endDate: undefined,
-        });
-        
-      } 
-      await refreshAll(); // Refresh from server to get latest data,in the background
+      await addTeacher(newTeacher);
+      setNewTeacher({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        address1: "",
+        address2: "",
+        city: "",
+        province: "",
+        country: "",
+        postalcode: "",
+        classIds: [],
+        locationId: "",
+        startDate: "",
+        endDate: undefined,
+      });
+      // Refresh from server to get latest data,in the background
+      await refreshAll(); 
     } catch (err: any) {
       // console.error(err);
-      setTeachers((prev) => prev.filter((t) => t.id !== optimistic.id)); 
       await swal.fire({
         icon: "error",
         title: "Failed to add",
@@ -312,7 +288,7 @@ export default function AdminDashboard() {
           <AppHeader />
           <h1 style={dash.headerTitle}>Admin Dashboard</h1>
           <div style={dash.headerActions}>
-            <span style={dash.welcome}>Welcome, Admin</span>
+            <span style={dash.welcome}>Welcome, {currentUser?.displayName}</span>
             <button onClick={signOutUser} style={dash.logoutButton}>
               Logout
             </button>

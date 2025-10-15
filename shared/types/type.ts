@@ -90,6 +90,7 @@ export type Schedule = {
 
 export type Teacher = {
   id: string;
+  role?: "teacher"; 
   firstName: string;
   lastName: string;
   email: string;           // username for login

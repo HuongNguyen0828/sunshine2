@@ -53,6 +53,18 @@ export const updateTeacher = async (
   const doc = await docRef.get();
   if (!doc.exists) return null;
 
+  // Checking if updating email
+  const currentTeacher = await getTeacherById(id);
+  const currentEmail = currentTeacher?.email;
+
+  if (body.email) {
+    const newEmail = body.email;
+    if (body.email !== currentEmail) {
+      // update firebae Auth credentials
+      
+    }
+  }
+
   await docRef.set(body, { merge: true });
   const updated = await docRef.get();
   return { id: updated.id, ...(updated.data() as any) } as Teacher;
