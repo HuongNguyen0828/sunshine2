@@ -1,3 +1,4 @@
+// web-admin/app/page.tsx
 "use client";
  
 import { useRouter } from "next/navigation";
@@ -6,7 +7,7 @@ import Cookies from "js-cookie";
 import { useEffect, useRef } from "react";
  
 export default function DashboardPage() {
-  const { currentUser, loading, userRole } = useAuth();
+  const { currentUser, loading, userRole, isAdmin } = useAuth();
   const router = useRouter();
   const redirectedRef = useRef(false);
  
@@ -18,13 +19,7 @@ export default function DashboardPage() {
       router.replace("/login");
       return;
     }
- 
-    if (!userRole || userRole.toLowerCase() !== "admin") {
-      redirectedRef.current = true;
-      router.replace("/unauthorized");
-      return;
-    }
- 
+
     const uidFromCookie = Cookies.get("uid");
     const uid = uidFromCookie ?? currentUser.uid;
  
@@ -33,11 +28,8 @@ export default function DashboardPage() {
       router.replace(`/dashboard/${uid}`);
       return;
     }
- 
-    redirectedRef.current = true;
-    router.replace("/login");
+
   }, [currentUser, loading, userRole, router]);
- 
   return (
     <div className="flex h-screen items-center justify-center">
       <p>Loading...</p>

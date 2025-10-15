@@ -1,3 +1,5 @@
+// web-admin/lib/auth
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -98,10 +100,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setLoading(true);
       const idToken = Cookies.get("idToken");
-      if (idToken) {
+      if (idToken || user) { // idToken from remember-me JWT and user coming from physical login => currentUser in Firebase Auth
         // Verify token with backend
         setCurrentUser(user);
-        const cachedRole = Cookies.get("userRole");
+        const cachedRole = Cookies.get("userRole") ?? userRole;
+        console.log(cachedRole);
         if (cachedRole) {
           setUserRole(cachedRole);
           setIsAdmin(cachedRole === "admin");
@@ -116,6 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
       setLoading(false); // always mark done at the end
+      // router.replace("/");   // MAke it pure updating state of Firebase Auth, the speparete routing async
     });
     return () => unsubscribe();
   }, [auth, bypassAuth]);
