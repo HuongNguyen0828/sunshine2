@@ -94,21 +94,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   /** Keep Firebase Auth state in sync with React state */
   useEffect(() => {
-    const cachedRole = Cookies.get("userRole");
-    if (cachedRole) {
-      setUserRole(cachedRole);
-      setIsAdmin(cachedRole === "admin");
-    }
+   
     // Determine initial auth state: when user already login and idToken valid and not expired
     // onAuthStateChanged will be triggered right away with current user (or null)
     // We wait for that before marking loading=false
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-
+      setLoading(true);
       const idToken = Cookies.get("idToken");
       if (idToken) {
         // Verify token with backend
         setCurrentUser(user);
-        setLoading(false);
+        const cachedRole = Cookies.get("userRole");
+        if (cachedRole) {
+          setUserRole(cachedRole);
+          setIsAdmin(cachedRole === "admin");
+        }
       } else {
         setUserRole(null);
         setIsAdmin(false);
@@ -118,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           Cookies.remove("uid");
         }
       }
+      setLoading(false); // always mark done at the end
     });
     return () => unsubscribe();
   }, [auth, bypassAuth]);

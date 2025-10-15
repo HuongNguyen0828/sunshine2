@@ -7,3 +7,5 @@ export default async function DashboardIndex() {
  if (!uid) redirect("/login");
  redirect(`/dashboard/${uid}`);
 }
+ 
+ 
