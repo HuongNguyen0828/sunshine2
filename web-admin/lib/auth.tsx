@@ -224,6 +224,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUserRole(role);
       setIsAdmin(role === "admin");
       console.log("  ✅ Sign in complete");
+
+      // 🔔 Notify all other tabs about Logout
+      localStorage.setItem("login", Date.now().toString());
+
     } catch (error: unknown) {
       console.log("  ❌ Sign in error:", error);
       if (isFirebaseError(error) && error.code === "auth/invalid-credential") {
@@ -245,14 +249,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       Cookies.remove("uid");
     }
     
-    // 🔔 Notify all other tabs
+    // 🔔 Notify all other tabs about Logout
     localStorage.setItem("logout", Date.now().toString());
     // Then, redirect to /login page
     router.replace("/login");
   };
 
 
-   // --- 🪄 Sync logout across tabs ---
+   // --- Sync logout across tabs ---
   useEffect(() => {
     const syncLogout = (event: StorageEvent) => {
       if (event.key === "logout") {
@@ -269,7 +273,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     window.addEventListener("storage", syncLogout);
     return () => window.removeEventListener("storage", syncLogout);
   }, [router]);
-  
+
+  // ---  Sync login across tabs ---
+  useEffect(() => {
+    const syncLogin = (event: StorageEvent) => {
+      if (event.key === "login") {
+        // Another tab triggered login
+        const uid = Cookies.get("uid") ?? currentUser?.uid;
+        router.replace(`/dashboard/${uid}`); // forces the current tab to re-check cookies & auth state
+      }
+    };
+
+    window.addEventListener("storage", syncLogin);
+    return () => window.removeEventListener("storage", syncLogin);
+  }, [router]);
+
+
+
   return (
     <AuthContext.Provider
       value={{
