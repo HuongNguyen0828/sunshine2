@@ -92,7 +92,7 @@ export const updateTeacher = async (req: Request, res: Response) => {
     }
 
     const updated = await TeacherService.updateTeacher(id, req.body);
-    if (!updated) return res.status(404).json({ message: "Teacher not found" });
+    if (!updated) return res.status(404).json({ message: "Failed to update teacher" });
 
     return res.json(updated);
   } catch (e: any) {
