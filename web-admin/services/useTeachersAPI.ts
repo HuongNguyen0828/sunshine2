@@ -41,6 +41,7 @@ export async function updateTeacher(
   payload: NewTeacherInput
 ): Promise<Types.Teacher | null> {
   try {
+      console.log(id);
     const teacher = await api.put<Types.Teacher>(`${ENDPOINTS.teachers}/${id}`, { ...payload });
     return teacher;
   } catch (err: unknown) {

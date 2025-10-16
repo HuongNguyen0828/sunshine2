@@ -94,11 +94,30 @@ export const deleteTeacher = async (req: Request, res: Response) => {
   const id = req.params.id;
   if (!id) return res.status(403).json({message: "Missing teacher id"})
   try {
-    const success = await TeacherService.deleteTeacher(id);
-    if (!success) return res.status(404).json({ message: "Teacher not found" });
-    res.json({ message: "Teacher deleted successfully" });
-  } catch (error: any) {
-    res.status(500).json({ message: error.message || "Error deleting Teacher" });
+    // Extract id from URL params
+    const id = req.params.id;
+    if (!id) return res.status(400).json({ message: "id required" });
+
+    // Fetch the teacher first
+    console.log("locationId", locationId);
+    console.log("backend:" , id)
+    const teacher = await TeacherService.getTeacherById(id);
+    console.log (teacher);
+    if (teacher == null) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+
+    // Check if teacher belongs to admin's location
+    if (teacher.locationId !== locationId) {
+      return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
+    }
+
+    const ok = await TeacherService.deleteTeacher(id);
+    if (!ok) return res.status(404).json({ message: "Failed to delete teacher" });
+
+    return res.json({ ok: true, uid: id });
+  } catch (e: any) {
+    return res.status(500).json({ message: e?.message || "Error deleting teacher" });
   }
 };
 
