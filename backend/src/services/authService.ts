@@ -103,6 +103,33 @@ export async function checkingIfEmailIsUnique(email: string): Promise<Boolean> {
     }
     return false; // exists
 }
+/**
+ * Update user email profile in Firebase Auth
+ * @param email 
+ * @returns 
+ */
+export async function updateEmailFirebaseAuth(uid: string, newEmail: string) {
+  try {
+    const userRecord = await admin.auth().updateUser(uid, {
+        email: newEmail,
+        emailVerified: true // we don't do email veritification
+      });
+    return userRecord;
+  }
+  catch (error: any) {
+    throw new Error("Failed to update user email from Firebase Auth");
+  }
+} 
+
+export async function deleteUserFirebaseAuth(uid: string) {
+  try {
+    await admin.auth().deleteUser(uid)
+  }
+  catch (error: any) {
+    throw new Error("Failed to delete user from Firebase Auth");
+  }
+}
+
 /***
  * Find daycareId and locationId by email for each user role
  */
