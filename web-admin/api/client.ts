@@ -80,8 +80,8 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
     return (data as T);
   }
 
-  // If none of the above, throw an error to satisfy return type
-  throw new Error(`Unhandled response status: ${res.status}`);
+  // // If none of the above, throw an error to satisfy return type
+  // throw new Error(`Unhandled response status: ${res.status}`);
 }
 
 const api = {

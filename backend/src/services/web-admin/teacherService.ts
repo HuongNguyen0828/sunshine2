@@ -28,13 +28,19 @@ export const addTeacher = async (locationId: string, teacher: Omit<Teacher, "id"
   }
   // Adding new teacher into user collection: with role, status and isRegistered flags
   // Ensure no id field is present and locationId is set to the provided locationId, role set to Teacher
-  const doc = await usersRef.add({
+  const docRef = await usersRef.add({
     ...teacher, 
     locationId: locationId, 
     role: UserRole.Teacher, 
     status: TeacherStatus.New, // status new by default
   });
-  return { id: doc.id, ...(teacher as any) } as Teacher;
+
+  // Updating current Teacher Doc with newly added id
+  const id = docRef.id;
+  await docRef.update({id});
+  
+  // return teacher
+  return { id: docRef.id, ...(teacher as any) } as Teacher;
 };
 
 
@@ -58,9 +64,16 @@ export const updateTeacher = async (
   id: string,
   body: Partial<Teacher>
 ): Promise<Teacher | null> => {
-  const docRef = usersRef.doc(id);
-  const doc = await docRef.get();
-  if (!doc.exists) return null;
+  // Find the doc ref of Teacher
+  const teacherSnap = usersRef.where("id", "==", id);
+  const doc = await teacherSnap.get();
+  const teacherDoc = doc.docs[0];
+  if (!teacherDoc?.exists) return null;
+
+  const teacherDocRef = teacherDoc?.ref;
+
+  await teacherDocRef.set(body, { merge: true });
+  const updated = await teacherDocRef.get();
 
   // Checking if updating email
   const currentTeacher = await getTeacherById(id);
@@ -78,8 +91,6 @@ export const updateTeacher = async (
     }
   }
 
-  await docRef.set(body, { merge: true });
-  const updated = await docRef.get();
   return { id: updated.id, ...(updated.data() as any) } as Teacher;
 };
 

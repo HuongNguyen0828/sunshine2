@@ -79,11 +79,21 @@ export const updateTeacher = async (req: Request, res: Response) => {
   try {
     const updatedTeacher = await TeacherService.updateTeacher(id, body);
 
-    if (!updatedTeacher)
-      return res.status(404).json({ message: "Teacher not found" });
-    res.json(updatedTeacher);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message || "Error updating teacher" });
+    // Fetch the teacher first
+    const teacher = await TeacherService.getTeacherById(id);
+    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+
+    // Check if teacher belongs to admin's location
+    if (teacher.locationId !== locationId) {
+      return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
+    }
+
+    const updated = await TeacherService.updateTeacher(id, req.body);
+    if (!updated) return res.status(404).json({ message: "Failed to update teacher" });
+
+    return res.json(updated);
+  } catch (e: any) {
+    return res.status(500).json({ message: e?.message || "Error updating teacher" });
   }
 };
 
