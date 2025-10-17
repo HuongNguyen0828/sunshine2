@@ -1,43 +1,42 @@
 // web-admin/components/dashboard/ChildrenTab.tsx
 "use client";
 
+import React, { useMemo, useState } from "react";
 import * as Types from "../../../shared/types/type";
-import { useEffect, useMemo, useState } from "react";
+import type { LocationLite } from "@/services/useLocationsAPI";
 
-/** UI form input for create/update (server가 daycareId를 주입) */
+/** UI form input used when creating/updating a child */
 export type NewChildInput = {
   firstName: string;
   lastName: string;
-  birthDate: string;   // YYYY-MM-DD
-  parentId: string[];
+  birthDate: string;         // YYYY-MM-DD
+  parentId: string[];        // list of parent user ids
   classId?: string;
-  locationId?: string;
+  locationId?: string;       // selected location id
   notes?: string;
 };
 
 type ParentLite = { id: string; firstName?: string; lastName?: string; email?: string };
 
-/** Admin scope에 따른 Location UI 제어 */
-type LocationControl =
-  | { mode: "fixed"; fixedLocationId?: string; options?: Array<{ id: string; name?: string }> }
-  | { mode: "select"; fixedLocationId?: undefined; options: Array<{ id: string; name?: string }> }
-  | { mode: "none"; fixedLocationId?: undefined; options?: Array<{ id: string; name?: string }> };
-
 type Props = {
+  /** lists */
   childrenData: Types.Child[];
   classes: Types.Class[];
   parents: ParentLite[];
 
-  locationControl: LocationControl;
-  daycareIdForInfo?: string;
+  /** admin-scoped locations (filtered in page.tsx like ClassesTab) */
+  locations: LocationLite[];
 
+  /** form state controlled by page.tsx */
   newChild: NewChildInput;
   setNewChild: React.Dispatch<React.SetStateAction<NewChildInput>>;
 
+  /** data ops (local or api) */
   createChild: (input: NewChildInput) => Promise<Types.Child | null>;
   updateChild: (id: string, patch: Partial<NewChildInput>) => Promise<Types.Child | null>;
   deleteChild: (id: string) => Promise<boolean>;
 
+  /** optional callbacks (enable the card actions) */
   onAssign?: (childId: string, classId: string) => Promise<boolean> | boolean;
   onUnassign?: (childId: string) => Promise<boolean> | boolean;
 
@@ -50,8 +49,9 @@ type Props = {
   onDeleted?: (id: string) => void;
 };
 
-/* ---------- helpers ---------- */
+/* ---------------- helpers ---------------- */
 
+/** Format age text from ISO birth date */
 function formatAge(birthISO: string): string {
   const dob = new Date(birthISO);
   if (Number.isNaN(dob.getTime())) return "—";
@@ -60,18 +60,37 @@ function formatAge(birthISO: string): string {
   const m = now.getMonth() - dob.getMonth();
   if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) years -= 1;
   if (years < 1) {
-    const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
+    const months =
+      (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
     return `${Math.max(0, months)} mo`;
   }
   return `${years} yr`;
 }
 
+/** Find class name by id */
 function classLabel(classes: Types.Class[], classId?: string): string {
   if (!classId) return "—";
   const found = classes.find((c) => c.id === classId);
-  return found ? found.name : classId;
+  return found?.name ?? classId;
 }
 
+/** Get location name by id (fallback to id) */
+function getLocationLabel(locs: LocationLite[], id?: string): string {
+  if (!id) return "—";
+  const found = (locs ?? []).find((l) => l.id === id);
+  return found?.name || id;
+}
+
+/** Local fallback: compute status if the server field is absent */
+function computeStatus(parentIds?: string[], classId?: string): Types.EnrollmentStatus {
+  const hasParent = Array.isArray(parentIds) && parentIds.length > 0;
+  const hasClass = Boolean(classId);
+  if (hasParent && hasClass) return Types.EnrollmentStatus.Active;
+  if (hasParent || hasClass) return Types.EnrollmentStatus.Waitlist;
+  return Types.EnrollmentStatus.New;
+}
+
+/** Derive capacity text + bar level from a class */
 function classCapacityBadge(
   cls?: Types.Class
 ): { text: string; pct: number; level: "ok" | "warn" | "full" } {
@@ -84,95 +103,128 @@ function classCapacityBadge(
   return { text: `${v}/${cls.capacity}`, pct, level: "ok" };
 }
 
-function computeStatus(parentIds?: string[], classId?: string): Types.EnrollmentStatus {
-  const hasParent = Array.isArray(parentIds) && parentIds.length > 0;
-  const hasClass = Boolean(classId);
-  if (hasParent && hasClass) return Types.EnrollmentStatus.Active;
-  if (hasParent || hasClass) return Types.EnrollmentStatus.Waitlist;
-  return Types.EnrollmentStatus.New;
+/** Is a class full by capacity? */
+function isClassFull(cls?: Types.Class): boolean {
+  if (!cls) return false;
+  const cap = Math.max(0, cls.capacity ?? 0);
+  const v = Math.max(0, cls.volume ?? 0);
+  return cap > 0 && v >= cap;
 }
 
-/* ---------- component ---------- */
+/* ---------------- component ---------------- */
 
-export default function ChildrenTab(props: Props) {
-  const {
-    childrenData,
-    classes,
-    parents,
-    locationControl,
-    daycareIdForInfo,
-    newChild,
-    setNewChild,
-    createChild,
-    updateChild,
-    deleteChild,
-    onAssign,
-    onUnassign,
-    onLinkParent,
-    onUnlinkParent,
-    onLinkParentByEmail,
-    onCreated,
-    onUpdated,
-    onDeleted,
-  } = props;
-
+export default function ChildrenTab({
+  childrenData,
+  classes,
+  parents,
+  locations,
+  newChild,
+  setNewChild,
+  createChild,
+  updateChild,
+  deleteChild,
+  onAssign,
+  onUnassign,
+  onLinkParent,
+  onUnlinkParent,
+  onLinkParentByEmail,
+  onCreated,
+  onUpdated,
+  onDeleted,
+}: Props) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingChild, setEditingChild] = useState<Types.Child | null>(null);
 
+  // filters
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<Types.EnrollmentStatus | "all">("all");
+  const [statusFilter, setStatusFilter] =
+    useState<Types.EnrollmentStatus | "all">("all");
   const [classFilter, setClassFilter] = useState<string>("all");
+
+  // pagination
   const [page, setPage] = useState(1);
 
+  // assign modal
   const [assignChildId, setAssignChildId] = useState<string | null>(null);
   const [assignClassId, setAssignClassId] = useState<string>("");
 
+  // link/unlink parent
   const [linkChildId, setLinkChildId] = useState<string | null>(null);
   const [parentEmail, setParentEmail] = useState<string>("");
   const [unlinkParentId, setUnlinkParentId] = useState<string>("");
 
-  /* Prefill location when opening Add modal */
-  useEffect(() => {
-    if (!isFormOpen || editingChild) return;
-    setNewChild((p) => {
-      if (locationControl.mode === "fixed") {
-        return { ...p, locationId: locationControl.fixedLocationId ?? "" };
-      }
-      if (locationControl.mode === "select") {
-        // 의도적으로 ""로 시작해서 사용자가 고르게 한다
-        return { ...p, locationId: "" };
-      }
-      return { ...p, locationId: "" };
-    });
-  }, [isFormOpen, editingChild, locationControl, setNewChild]);
+  /* -------- openers -------- */
 
-  /* filters + pagination */
-  const filtered = useMemo(() => {
-    return childrenData.filter((c) => {
-      const q = searchTerm.trim().toLowerCase();
-      const okSearch =
-        q.length === 0 ||
-        c.firstName.toLowerCase().includes(q) ||
-        c.lastName.toLowerCase().includes(q);
-      if (!okSearch) return false;
-
-      if (statusFilter !== "all" && c.enrollmentStatus !== statusFilter) return false;
-
-      if (classFilter !== "all") {
-        if (classFilter === "unassigned") return !c.classId;
-        return c.classId === classFilter;
-      }
-      return true;
-    });
-  }, [childrenData, searchTerm, statusFilter, classFilter]);
-
-  const perPage = 9;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageItems = filtered.slice((page - 1) * perPage, (page - 1) * perPage + perPage);
-
-  /* openers */
-  function openAdd() {
+  // Open "Add" modal – mirror ClassesTab UX for location select
+  function handleAddClick() {
+    if ((locations ?? []).length === 0) {
+      alert("No locations available. Please create a location first.");
+      return;
+    }
     setEditingChild(null);
+    setNewChild({
+      firstName: "",
+      lastName: "",
+      birthDate: "",
+      parentId: [],
+      classId: "",
+      locationId: locations[0]?.id ?? "",
+      notes: "",
+    });
+    setIsFormOpen(true);
+  }
+
+  // Open "Edit" modal
+  function handleEditClick(child: Types.Child) {
+    setEditingChild(child);
+    setNewChild({
+      firstName: child.firstName,
+      lastName: child.lastName,
+      birthDate: child.birthDate,
+      parentId: child.parentId ?? [],
+      classId: child.classId ?? "",
+      locationId: child.locationId ?? (locations[0]?.id ?? ""),
+      notes: child.notes ?? "",
+    });
+    setIsFormOpen(true);
+  }
+
+  /* -------- CRUD submit -------- */
+
+  async function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    const trimmedLoc = (newChild.locationId ?? "").trim();
+    if ((locations ?? []).length > 0 && !trimmedLoc) {
+      alert("Please select a location.");
+      return;
+    }
+
+    if (editingChild) {
+      const updated = await updateChild(editingChild.id, {
+        firstName: newChild.firstName.trim(),
+        lastName: newChild.lastName.trim(),
+        birthDate: newChild.birthDate,
+        parentId: Array.isArray(newChild.parentId) ? newChild.parentId : [],
+        classId: newChild.classId?.trim() || undefined,
+        locationId: trimmedLoc || undefined,
+        notes: newChild.notes?.trim() || undefined,
+      });
+      if (updated) onUpdated?.(updated);
+      setEditingChild(null);
+    } else {
+      const created = await createChild({
+        firstName: newChild.firstName.trim(),
+        lastName: newChild.lastName.trim(),
+        birthDate: newChild.birthDate,
+        parentId: Array.isArray(newChild.parentId) ? newChild.parentId : [],
+        classId: newChild.classId?.trim() || undefined,
+        locationId: trimmedLoc || undefined,
+        notes: newChild.notes?.trim() || undefined,
+      });
+      if (created) onCreated?.(created);
+    }
+
     setNewChild({
       firstName: "",
       lastName: "",
@@ -182,64 +234,14 @@ export default function ChildrenTab(props: Props) {
       locationId: "",
       notes: "",
     });
-    setIsFormOpen(true);
-  }
-
-  function openEdit(c: Types.Child) {
-    setEditingChild(c);
-    setNewChild({
-      firstName: c.firstName,
-      lastName: c.lastName,
-      birthDate: c.birthDate,
-      parentId: c.parentId ?? [],
-      classId: c.classId ?? "",
-      locationId: c.locationId ?? "",
-      notes: c.notes ?? "",
-    });
-    setIsFormOpen(true);
-  }
-
-  /* submit */
-  async function submitForm(e: React.FormEvent) {
-    e.preventDefault();
-
-    const payload: NewChildInput = {
-      ...newChild,
-      firstName: (newChild.firstName ?? "").trim(),
-      lastName: (newChild.lastName ?? "").trim(),
-      birthDate: newChild.birthDate,
-      parentId: Array.isArray(newChild.parentId) ? newChild.parentId : [],
-      classId: newChild.classId?.trim() || undefined,
-      locationId:
-        locationControl.mode === "fixed"
-          ? (locationControl.fixedLocationId ?? undefined)
-          : (newChild.locationId?.trim() || undefined),
-      notes: newChild.notes?.trim() || undefined,
-    };
-
-    if (editingChild) {
-      const patch: Partial<NewChildInput> = {
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        birthDate: payload.birthDate,
-        parentId: payload.parentId,
-        locationId: payload.locationId,
-        notes: payload.notes,
-      };
-      const up = await updateChild(editingChild.id, patch);
-      if (up && onUpdated) onUpdated(up);
-      setEditingChild(null);
-    } else {
-      const created = await createChild(payload);
-      if (created && onCreated) onCreated(created);
-    }
     setIsFormOpen(false);
   }
 
-  async function removeChild(c: Types.Child) {
-    if (!confirm(`Delete ${c.firstName} ${c.lastName}?`)) return;
-    const ok = await deleteChild(c.id);
-    if (ok && onDeleted) onDeleted(c.id);
+  async function handleDeleteClick(child: Types.Child) {
+    const ok = window.confirm(`Delete "${child.firstName} ${child.lastName}"?`);
+    if (!ok) return;
+    const success = await deleteChild(child.id);
+    if (success) onDeleted?.(child.id);
   }
 
   async function linkParentByEmail(childId: string, email: string): Promise<boolean> {
@@ -254,34 +256,58 @@ export default function ChildrenTab(props: Props) {
     return !!(await onLinkParent?.(childId, parent.id));
   }
 
-  /* ---------- render ---------- */
+  /* -------- list + filters + pagination -------- */
+
+  const filtered = useMemo(() => {
+    return childrenData.filter((c) => {
+      const q = searchTerm.trim().toLowerCase();
+      const okSearch =
+        q.length === 0 ||
+        c.firstName.toLowerCase().includes(q) ||
+        c.lastName.toLowerCase().includes(q) ||
+        getLocationLabel(locations, c.locationId).toLowerCase().includes(q);
+      if (!okSearch) return false;
+
+      if (statusFilter !== "all" && (c.enrollmentStatus ?? computeStatus(c.parentId, c.classId)) !== statusFilter)
+        return false;
+
+      if (classFilter !== "all") {
+        if (classFilter === "unassigned") return !c.classId;
+        return c.classId === classFilter;
+      }
+      return true;
+    });
+  }, [childrenData, locations, searchTerm, statusFilter, classFilter]);
+
+  const perPage = 6;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const start = (page - 1) * perPage;
+  const pageItems = filtered.slice(start, start + perPage);
+
+  /* ---------------- render ---------------- */
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
+      {/* Header + search + filters */}
       <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
+        <div className="flex justify-between items-center mb-4">
           <h2 className="text-3xl font-bold text-gray-800">Children</h2>
           <button
-            onClick={openAdd}
-            className="bg-gray-800 hover:bg-gray-900 text-white font-medium px-4 py-2 rounded-lg shadow-sm text-sm"
+            onClick={handleAddClick}
+            className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
+            title={(locations ?? []).length === 0 ? "No locations available" : "Add child"}
           >
-            + Add Child
+            <span className="text-lg">+</span>
+            Add Child
           </button>
         </div>
-        {daycareIdForInfo && (
-          <div className="text-xs text-gray-500 mb-3">
-            Daycare scope: <span className="font-medium">{daycareIdForInfo}</span>
-          </div>
-        )}
 
-        {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
             <div className="flex-1 relative">
               <input
                 type="text"
-                placeholder="Search by name…"
+                placeholder="Search by name or location..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -340,19 +366,22 @@ export default function ChildrenTab(props: Props) {
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Cards */}
       {pageItems.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {pageItems.map((child) => {
             const cls = classes.find((c) => c.id === child.classId);
             const cap = classCapacityBadge(cls);
-            const status = computeStatus(child.parentId, child.classId);
+
+            // Prefer server-provided status; compute as fallback
+            const status = child.enrollmentStatus ?? computeStatus(child.parentId, child.classId);
 
             return (
               <div
                 key={child.id}
                 className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 flex flex-col"
               >
+                {/* header */}
                 <div className="mb-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-800 truncate">
@@ -376,7 +405,10 @@ export default function ChildrenTab(props: Props) {
                   </div>
                 </div>
 
+                {/* body */}
                 <div className="space-y-2 mb-4">
+                  <div className="text-xs text-gray-500">📍 {getLocationLabel(locations, child.locationId)}</div>
+
                   <div className="text-sm text-gray-600">
                     Class: <span className="font-medium">{classLabel(classes, child.classId)}</span>
                   </div>
@@ -402,16 +434,19 @@ export default function ChildrenTab(props: Props) {
                     </div>
                   )}
 
-                  {/* Parents */}
+                  {/* parents */}
                   {child.parentId && child.parentId.length > 0 ? (
                     <div className="text-xs text-gray-600">
                       Parents:{" "}
                       {child.parentId.map((pid, idx) => {
                         const p = parents.find((pp) => pp.id === pid);
-                        const name = p ? `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() : pid;
+                        const label =
+                          (p ? `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() : "") ||
+                          p?.email ||
+                          pid;
                         return (
                           <span key={pid} className="mr-2">
-                            {name}
+                            {label}
                             {idx < child.parentId.length - 1 ? "," : ""}
                           </span>
                         );
@@ -428,16 +463,16 @@ export default function ChildrenTab(props: Props) {
                   )}
                 </div>
 
-                {/* Actions */}
+                {/* actions */}
                 <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => openEdit(child)}
+                    onClick={() => handleEditClick(child)}
                     className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
                   >
                     Edit
                   </button>
                   <button
-                    onClick={() => removeChild(child)}
+                    onClick={() => handleDeleteClick(child)}
                     className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-red-50 hover:border-red-300 hover:text-red-600"
                   >
                     Delete
@@ -521,14 +556,16 @@ export default function ChildrenTab(props: Props) {
         </div>
       )}
 
-      {/* Pagination */}
+      {/* pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              page === 1 ? "bg-gray-200 text-gray-400" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
+              page === 1
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
             }`}
           >
             ← Previous
@@ -538,7 +575,7 @@ export default function ChildrenTab(props: Props) {
               <button
                 key={n}
                 onClick={() => setPage(n)}
-                className={`w-10 h-10 rounded-lg font-medium transition ${
+                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
                   page === n ? "bg-gray-800 text-white" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
                 }`}
               >
@@ -549,9 +586,9 @@ export default function ChildrenTab(props: Props) {
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
               page === totalPages
-                ? "bg-gray-200 text-gray-400"
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                 : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
             }`}
           >
@@ -560,7 +597,7 @@ export default function ChildrenTab(props: Props) {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
+      {/* Add / Edit modal */}
       {isFormOpen && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
@@ -570,7 +607,7 @@ export default function ChildrenTab(props: Props) {
           }}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-height-[90vh] overflow-y-auto border border-gray-100"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
@@ -588,14 +625,14 @@ export default function ChildrenTab(props: Props) {
               </button>
             </div>
 
-            <form onSubmit={submitForm} className="p-6">
+            <form onSubmit={handleFormSubmit} className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="block">
                   <span className="text-gray-700 font-medium mb-1 block">First Name *</span>
                   <input
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     value={newChild.firstName}
-                    onChange={(e) => setNewChild((p) => ({ ...p, firstName: e.target.value }))}
+                    onChange={(e) => setNewChild({ ...newChild, firstName: e.target.value })}
                     required
                   />
                 </label>
@@ -605,7 +642,7 @@ export default function ChildrenTab(props: Props) {
                   <input
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     value={newChild.lastName}
-                    onChange={(e) => setNewChild((p) => ({ ...p, lastName: e.target.value }))}
+                    onChange={(e) => setNewChild({ ...newChild, lastName: e.target.value })}
                     required
                   />
                 </label>
@@ -616,64 +653,40 @@ export default function ChildrenTab(props: Props) {
                     type="date"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     value={newChild.birthDate}
-                    onChange={(e) => setNewChild((p) => ({ ...p, birthDate: e.target.value }))}
+                    onChange={(e) => setNewChild({ ...newChild, birthDate: e.target.value })}
                     required
                   />
                 </label>
 
-                {/* Location */}
-                {locationControl.mode === "fixed" ? (
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Location</span>
-                    <input
-                      value={locationControl.fixedLocationId ?? ""}
-                      readOnly
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
-                    />
-                    <div className="text-xs text-gray-400 mt-1">Fixed by your admin scope.</div>
-                  </label>
-                ) : locationControl.mode === "select" ? (
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Location *</span>
-                    <select
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      value={newChild.locationId ?? ""}
-                      onChange={(e) => setNewChild((p) => ({ ...p, locationId: e.target.value }))}
-                      required
-                    >
+                {/* Location — identical UX to ClassesTab */}
+                <label className="block">
+                  <span className="text-gray-700 font-medium mb-1 block">Location *</span>
+                  <select
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    value={newChild.locationId ?? ""}
+                    onChange={(e) => setNewChild({ ...newChild, locationId: e.target.value })}
+                    required
+                    disabled={(locations ?? []).length <= 1}
+                  >
+                    {(locations ?? []).length > 1 && (
                       <option value="" disabled>
                         Select a location
                       </option>
-                      {locationControl.options.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          {o.name ?? o.id}
-                        </option>
-                      ))}
-                    </select>
-                    {daycareIdForInfo && (
-                      <div className="text-xs text-gray-400 mt-1">
-                        Locations under daycare: <b>{daycareIdForInfo}</b>
-                      </div>
                     )}
-                  </label>
-                ) : (
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Location ID (optional)</span>
-                    <input
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      value={newChild.locationId ?? ""}
-                      onChange={(e) => setNewChild((p) => ({ ...p, locationId: e.target.value }))}
-                      placeholder="locationId"
-                    />
-                  </label>
-                )}
+                    {(locations ?? []).map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name || l.id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
                 <label className="block md:col-span-2">
                   <span className="text-gray-700 font-medium mb-1 block">Notes</span>
                   <textarea
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                     value={newChild.notes ?? ""}
-                    onChange={(e) => setNewChild((p) => ({ ...p, notes: e.target.value }))}
+                    onChange={(e) => setNewChild({ ...newChild, notes: e.target.value })}
                     placeholder="Allergies / Special needs / Subsidy status / Remarks"
                   />
                 </label>
@@ -686,13 +699,14 @@ export default function ChildrenTab(props: Props) {
                     setIsFormOpen(false);
                     setEditingChild(null);
                   }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition"
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                  title={(locations ?? []).length === 0 ? "No locations available" : "Submit"}
                 >
                   {editingChild ? "Update Child" : "Add Child"}
                 </button>
@@ -737,15 +751,16 @@ export default function ChildrenTab(props: Props) {
                 <option value="">— Choose class —</option>
                 {classes.map((c) => {
                   const cap = classCapacityBadge(c);
+                  const full = isClassFull(c);
                   return (
-                    <option key={c.id} value={c.id}>
+                    <option key={c.id} value={c.id} disabled={full}>
                       {c.name} — {cap.text}
                     </option>
                   );
                 })}
               </select>
               <div className="text-xs text-gray-500">
-                If capacity is full, the child will remain in <b>Waitlist</b> until a seat opens.
+                Full classes are disabled. If a class is full, the child should remain on <b>Waitlist</b>.
               </div>
             </div>
 
@@ -762,6 +777,11 @@ export default function ChildrenTab(props: Props) {
               <button
                 onClick={async () => {
                   if (!assignChildId || !assignClassId) return;
+                  const targetClass = classes.find((c) => c.id === assignClassId);
+                  if (isClassFull(targetClass)) {
+                    alert("This class is full. Please choose another class.");
+                    return;
+                  }
                   const ok = await onAssign?.(assignChildId, assignClassId);
                   if (ok) {
                     setAssignChildId(null);
