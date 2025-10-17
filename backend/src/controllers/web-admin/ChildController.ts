@@ -4,17 +4,22 @@ import { AuthRequest } from "../../middleware/authMiddleware";
 import * as Svc from "../../services/web-admin/childService";
 import type { EnrollmentStatus } from "../../../../shared/types/type";
 
-/** normalize a string */
+/* ---------------- helpers ---------------- */
+
+/** Normalize a string-like value to trimmed string or undefined */
 function s(v: unknown): string | undefined {
   return typeof v === "string" && v.trim() ? v.trim() : undefined;
 }
 
-/** send JSON success */
+/** Send JSON success with optional custom status code */
 function ok(res: Response, payload: unknown, code = 200) {
   return res.status(code).json(payload);
 }
 
-/** send JSON error with consistent shape */
+/**
+ * Send JSON error with consistent shape.
+ * If `err` carries `.status` or `.message`, we preserve it.
+ */
 function fail(res: Response, err: unknown, fallbackMsg: string, fallbackCode = 500) {
   const status =
     typeof (err as { status?: number })?.status === "number"
@@ -29,7 +34,12 @@ function fail(res: Response, err: unknown, fallbackMsg: string, fallbackCode = 5
   return res.status(status).json({ message });
 }
 
-/** GET /admin/children */
+/* ---------------- controllers ---------------- */
+
+/** GET /admin/children
+ *  Optional query: ?classId=...&status=...&parentUserId=...
+ *  Scope (location/daycare) is computed in the service from req.user.uid.
+ */
 export async function getChildren(req: AuthRequest, res: Response) {
   try {
     const filters = {
@@ -45,7 +55,11 @@ export async function getChildren(req: AuthRequest, res: Response) {
   }
 }
 
-/** POST /admin/children — daycareId is injected by the service */
+/** POST /admin/children
+ *  Body: { firstName, lastName, birthDate, parentId?, classId?, locationId?, notes? }
+ *  Daycare/location scope is validated in the service; daycareId injected server-side if known.
+ *  Returns the created child DTO.
+ */
 export async function addChild(req: AuthRequest, res: Response) {
   try {
     const created = await Svc.createChild(req.body, req.user?.uid);
@@ -56,7 +70,10 @@ export async function addChild(req: AuthRequest, res: Response) {
   }
 }
 
-/** PUT /admin/children/:id — profile update only */
+/** PUT /admin/children/:id
+ *  Body: partial update for profile fields (no assign here).
+ *  Returns the updated child DTO.
+ */
 export async function updateChild(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
@@ -70,7 +87,9 @@ export async function updateChild(req: AuthRequest, res: Response) {
   }
 }
 
-/** DELETE /admin/children/:id */
+/** DELETE /admin/children/:id
+ *  Also adjusts class volume if the child was assigned; see service.
+ */
 export async function deleteChild(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
@@ -84,7 +103,10 @@ export async function deleteChild(req: AuthRequest, res: Response) {
   }
 }
 
-/** POST /admin/children/:id/link-parent-by-email */
+/** POST /admin/children/:id/link-parent-by-email
+ *  Body: { email }
+ *  Returns { ok: true } or you can return the updated child if preferred.
+ */
 export async function linkParentByEmail(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
@@ -101,7 +123,10 @@ export async function linkParentByEmail(req: AuthRequest, res: Response) {
   }
 }
 
-/** POST /admin/children/:id/unlink-parent */
+/** POST /admin/children/:id/unlink-parent
+ *  Body: { parentUserId }
+ *  Returns { ok: true } or the updated child if needed.
+ */
 export async function unlinkParent(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
@@ -118,7 +143,11 @@ export async function unlinkParent(req: AuthRequest, res: Response) {
   }
 }
 
-/** POST /admin/children/:id/assign — assign to class */
+/** POST /admin/children/:id/assign
+ *  Body: { classId }
+ *  Returns { ok: true } on success.
+ *  If the class is full, the service throws with status=409 and we preserve it.
+ */
 export async function assignChild(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
@@ -131,11 +160,14 @@ export async function assignChild(req: AuthRequest, res: Response) {
     return ok(res, { ok: true });
   } catch (e) {
     console.error("[assignChild]", e);
+    // e.status (e.g., 409 for "Class is full") will be respected by fail()
     return fail(res, e, "Failed to assign child");
   }
 }
 
-/** POST /admin/children/:id/unassign — unassign from class */
+/** POST /admin/children/:id/unassign
+ *  Returns { ok: true } on success.
+ */
 export async function unassignChild(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);

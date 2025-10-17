@@ -11,7 +11,7 @@ type ChildDocDB = {
   parentId: string[];
   classId?: string;
   locationId?: string;
-  daycareId: string; // required at save time when known
+  daycareId: string;
   enrollmentStatus: Types.EnrollmentStatus;
   enrollmentDate?: string;
   notes?: string;
@@ -37,7 +37,13 @@ type AdminScope =
   | { kind: "location"; id: string }
   | { kind: "daycare"; daycareId: string };
 
-/* ---------------- Utilities ---------------- */
+/* ---------------- Helpers ---------------- */
+
+function errorWithStatus(message: string, status: number) {
+  const e = new Error(message) as Error & { status?: number };
+  e.status = status;
+  return e;
+}
 
 function chunk<T>(arr: T[], n: number): T[][] {
   const out: T[][] = [];
@@ -96,7 +102,7 @@ async function loadAdminScope(uid?: string): Promise<AdminScope> {
 
   if (loc === "*") {
     if (daycare) return { kind: "daycare", daycareId: daycare };
-    return { kind: "all" }; // no daycare info with wildcard → treat as all (or you can throw)
+    return { kind: "all" };
   }
   if (loc) return { kind: "location", id: loc };
   if (daycare) return { kind: "daycare", daycareId: daycare };
@@ -109,11 +115,7 @@ async function daycareLocationIds(daycareId: string): Promise<string[]> {
 }
 
 async function ensureLocationAllowed(scope: AdminScope, locationId?: string): Promise<void> {
-  const deny = () => {
-    const e = new Error("Forbidden: location is not within admin scope") as Error & { status?: number };
-    e.status = 403;
-    throw e;
-  };
+  const deny = () => { throw errorWithStatus("Forbidden: location is not within admin scope", 403); };
 
   // If locationId is missing, only "all" scope can proceed.
   if (!locationId) {
@@ -246,7 +248,7 @@ export async function createChild(
   uid?: string
 ): Promise<Types.Child> {
   if (!input.firstName || !input.lastName || !input.birthDate) {
-    throw new Error("Missing required fields");
+    throw errorWithStatus("Missing required fields", 400);
   }
 
   const scope = await loadAdminScope(uid);
@@ -258,42 +260,68 @@ export async function createChild(
 
   await ensureLocationAllowed(scope, effectiveLocationId);
 
-  // daycareId injection (when scope is daycare we know it for sure)
-  const effectiveDaycareId =
-    scope.kind === "daycare" ? scope.daycareId : ("" as string);
-
   const parentIds = Array.isArray(input.parentId) ? input.parentId : [];
   const status = computeStatus(parentIds, input.classId);
 
-  const payload: ChildDocDB = {
-    firstName: input.firstName.trim(),
-    lastName: input.lastName.trim(),
-    birthDate: input.birthDate,
-    parentId: parentIds,
-    classId: input.classId || undefined,
-    locationId: effectiveLocationId,
-    daycareId: effectiveDaycareId,
-    enrollmentStatus: status,
-    enrollmentDate: status === "New" ? undefined : new Date().toISOString(),
-    notes: input.notes?.trim() || undefined,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
+  // If no class assignment at creation → simple write (no volume impact).
+  if (!input.classId) {
+    const payload: ChildDocDB = {
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
+      birthDate: input.birthDate,
+      parentId: parentIds,
+      classId: undefined,
+      locationId: effectiveLocationId,
+      daycareId: scope.kind === "daycare" ? scope.daycareId : "",
+      enrollmentStatus: status,
+      enrollmentDate: status === "New" ? undefined : new Date().toISOString(),
+      notes: input.notes?.trim() || undefined,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
 
-  const childRef = await db.collection("children").add(payload);
-
-  // best-effort: adjust class volume if assigned
-  if (input.classId) {
-    await db.runTransaction(async (tx) => {
-      const classRef = db.collection("classes").doc(input.classId!);
-      const clsSnap = await tx.get(classRef);
-      if (!clsSnap.exists) return;
-      const cls = clsSnap.data() as ClassDocDB;
-      if ((cls.volume ?? 0) < (cls.capacity ?? 0)) {
-        tx.update(classRef, { volume: (cls.volume ?? 0) + 1 });
-      }
-    });
+    const ref = await db.collection("children").add(payload);
+    const saved = await ref.get();
+    return toDTO(saved.id, saved.data() as ChildDocDB);
   }
+
+  // With class assignment → one transaction: check capacity, bump volume, create child.
+  const classId = input.classId;
+  const classRef = db.collection("classes").doc(classId);
+  const childRef = db.collection("children").doc(); // precreate doc ref for tx
+
+  await db.runTransaction(async (tx) => {
+    const clsSnap = await tx.get(classRef);
+    if (!clsSnap.exists) throw errorWithStatus("Class not found", 404);
+    const cls = clsSnap.data() as ClassDocDB;
+
+    // Scope check against class location
+    await ensureLocationAllowed(scope, cls.locationId);
+
+    const cap = Math.max(0, cls.capacity ?? 0);
+    const vol = Math.max(0, cls.volume ?? 0);
+    if (vol >= cap) {
+      throw errorWithStatus("Class is full", 409);
+    }
+
+    const payload: ChildDocDB = {
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
+      birthDate: input.birthDate,
+      parentId: parentIds,
+      classId,
+      locationId: cls.locationId ?? effectiveLocationId,
+      daycareId: scope.kind === "daycare" ? scope.daycareId : "",
+      enrollmentStatus: status,
+      enrollmentDate: status === "New" ? undefined : new Date().toISOString(),
+      notes: input.notes?.trim() || undefined,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    tx.update(classRef, { volume: vol + 1 });
+    tx.set(childRef, payload);
+  });
 
   const saved = await childRef.get();
   return toDTO(saved.id, saved.data() as ChildDocDB);
@@ -304,15 +332,14 @@ export async function updateChildById(
   patch: Partial<Pick<Types.Child, "firstName" | "lastName" | "birthDate" | "locationId" | "notes" | "parentId">>,
   uid?: string
 ): Promise<Types.Child> {
-  if (!id) throw new Error("Missing child id");
+  if (!id) throw errorWithStatus("Missing child id", 400);
 
   const ref = db.collection("children").doc(id);
   const snap = await ref.get();
-  if (!snap.exists) throw new Error("Child not found");
+  if (!snap.exists) throw errorWithStatus("Child not found", 404);
   const curr = snap.data() as ChildDocDB;
 
   const nextParentIds = Array.isArray(patch.parentId) ? patch.parentId : curr.parentId;
-
   const nextLoc = patch.locationId ?? curr.locationId ?? (await classLocation(curr.classId));
   const scope = await loadAdminScope(uid);
   await ensureLocationAllowed(scope, nextLoc);
@@ -338,10 +365,10 @@ export async function updateChildById(
 }
 
 export async function deleteChildById(id: string, uid?: string): Promise<void> {
-  if (!id) throw new Error("Missing child id");
+  if (!id) throw errorWithStatus("Missing child id", 400);
   const ref = db.collection("children").doc(id);
   const snap = await ref.get();
-  if (!snap.exists) throw new Error("Child not found");
+  if (!snap.exists) throw errorWithStatus("Child not found", 404);
   const child = snap.data() as ChildDocDB;
 
   const locForScope = (await classLocation(child.classId)) ?? child.locationId;
@@ -371,16 +398,16 @@ export async function linkParentToChild(
   parentUserId: string,
   uid?: string
 ): Promise<Types.Child> {
-  if (!childId || !parentUserId) throw new Error("Missing childId or parentUserId");
+  if (!childId || !parentUserId) throw errorWithStatus("Missing childId or parentUserId", 400);
 
   const userSnap = await db.collection("users").doc(parentUserId).get();
-  if (!userSnap.exists) throw new Error("Parent user not found");
+  if (!userSnap.exists) throw errorWithStatus("Parent user not found", 404);
   const role = (userSnap.data() as UserProfile).role;
-  if (role !== "parent") throw new Error("User is not a parent");
+  if (role !== "parent") throw errorWithStatus("User is not a parent", 400);
 
   const ref = db.collection("children").doc(childId);
   const snap = await ref.get();
-  if (!snap.exists) throw new Error("Child not found");
+  if (!snap.exists) throw errorWithStatus("Child not found", 404);
   const child = snap.data() as ChildDocDB;
 
   const scope = await loadAdminScope(uid);
@@ -407,12 +434,12 @@ export async function linkParentToChildByEmail(
   parentEmail: string,
   uid?: string
 ): Promise<Types.Child> {
-  if (!childId || !parentEmail) throw new Error("Missing childId or parentEmail");
+  if (!childId || !parentEmail) throw errorWithStatus("Missing childId or parentEmail", 400);
   const q = await db.collection("users").where("email", "==", parentEmail.trim()).limit(1).get();
-  if (q.empty) throw new Error("Parent user not found by email");
+  if (q.empty) throw errorWithStatus("Parent user not found by email", 404);
   const u = q.docs[0];
   const data = u.data() as UserProfile;
-  if (data.role !== "parent") throw new Error("User is not a parent");
+  if (data.role !== "parent") throw errorWithStatus("User is not a parent", 400);
   return linkParentToChild(childId, u.id, uid);
 }
 
@@ -421,11 +448,11 @@ export async function unlinkParentFromChild(
   parentUserId: string,
   uid?: string
 ): Promise<Types.Child> {
-  if (!childId || !parentUserId) throw new Error("Missing childId or parentUserId");
+  if (!childId || !parentUserId) throw errorWithStatus("Missing childId or parentUserId", 400);
 
   const ref = db.collection("children").doc(childId);
   const snap = await ref.get();
-  if (!snap.exists) throw new Error("Child not found");
+  if (!snap.exists) throw errorWithStatus("Child not found", 404);
   const child = snap.data() as ChildDocDB;
 
   const scope = await loadAdminScope(uid);
@@ -454,14 +481,14 @@ export async function assignChildToClass(
   classId: string,
   uid?: string
 ): Promise<Types.Child> {
-  if (!childId || !classId) throw new Error("Missing childId or classId");
+  if (!childId || !classId) throw errorWithStatus("Missing childId or classId", 400);
 
   const classRef = db.collection("classes").doc(classId);
   const childRef = db.collection("children").doc(childId);
 
   await db.runTransaction(async (tx) => {
     const [clsSnap, chSnap] = await Promise.all([tx.get(classRef), tx.get(childRef)]);
-    if (!clsSnap.exists || !chSnap.exists) throw new Error("Child or class not found");
+    if (!clsSnap.exists || !chSnap.exists) throw errorWithStatus("Child or class not found", 404);
 
     const cls = clsSnap.data() as ClassDocDB;
     const child = chSnap.data() as ChildDocDB;
@@ -469,13 +496,15 @@ export async function assignChildToClass(
     const scope = await loadAdminScope(uid);
     await ensureLocationAllowed(scope, cls.locationId);
 
-    // Adjust class volume if not full (best-effort)
-    if ((cls.volume ?? 0) < (cls.capacity ?? 0)) {
-      tx.update(classRef, { volume: (cls.volume ?? 0) + 1 });
+    const cap = Math.max(0, cls.capacity ?? 0);
+    const vol = Math.max(0, cls.volume ?? 0);
+    if (vol >= cap) {
+      throw errorWithStatus("Class is full", 409);
     }
 
     const nextStatus = computeStatus(child.parentId, classId);
 
+    tx.update(classRef, { volume: vol + 1 });
     tx.update(childRef, {
       classId,
       locationId: cls.locationId ?? child.locationId,
@@ -491,12 +520,12 @@ export async function assignChildToClass(
 }
 
 export async function unassignChild(childId: string, uid?: string): Promise<Types.Child> {
-  if (!childId) throw new Error("Missing childId");
+  if (!childId) throw errorWithStatus("Missing childId", 400);
   const ref = db.collection("children").doc(childId);
 
   await db.runTransaction(async (tx) => {
     const ch = await tx.get(ref);
-    if (!ch.exists) throw new Error("Child not found");
+    if (!ch.exists) throw errorWithStatus("Child not found", 404);
     const c = ch.data() as ChildDocDB;
 
     if (c.classId) {
