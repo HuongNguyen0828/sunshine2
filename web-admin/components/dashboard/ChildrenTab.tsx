@@ -5,11 +5,28 @@
  * Date: 2025-10-06
  */
 
-'use client';
+"use client";
+import * as React from 'react';
+import * as Types from "../../../shared/types/type";
+import type { NewChildInput } from "@/types/forms";
+import { useState } from "react";
+// For Stepper: Choosing linear bar
+//Steppers convey progress through numbered steps. It provides a wizard-like workflow.
+import Box from "@mui/material/Box";
+import Stepper from "@mui/material/Stepper";
+import Step from "@mui/material/Step";
+import StepLabel from "@mui/material/StepLabel";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 
-import * as Types from '../../../shared/types/type';
-import type { NewChildInput } from '@/types/forms';
-import { useState, useEffect, useCallback, useRef } from 'react';
+const steps = [
+  "Child infomation", // 0
+  "Parent infomation", // 1
+  "Emergency contact", // 2
+  "Medical/ Food concern", 
+  "Review", // 5
+  "Sumit", // 6
+];
 
 export default function ChildrenTab({
   classes,
@@ -27,62 +44,76 @@ export default function ChildrenTab({
   onAdd: () => void;
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [editingChild, setEditingChild] = useState<Types.Child | null>(null);
   const [showAssignClass, setShowAssignClass] = useState<string | null>(null);
-  const [selectedClassId, setSelectedClassId] = useState('');
-  const [isDraftRestored, setIsDraftRestored] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState("");
 
-  // Restore draft when form opens
-  useEffect(() => {
-    if (isFormOpen && !editingChild) {
-      const draft = sessionStorage.getItem('child-form-draft');
-      if (draft) {
-        try {
-          const parsed = JSON.parse(draft);
-          setNewChild(parsed);
-          setIsDraftRestored(true);
-        } catch (e) {
-          console.error('Failed to restore draft:', e);
-        }
-      }
+  // =========================Progress bar
+  const [activeStep, setActiveStep] = useState(0);
+  const [skipped, setSkipped] = useState(new Set<number>()); // using imutable list of number
+
+  // Identify which step is optional
+  const isStepOptional = (step: number) => {
+    // Optional for Medical Concerned and Alergies
+    const optional = 3 ;
+    return step === optional;
+  };
+
+  // Track if optional step is passed
+  const isStepSkipped = (step: number) => {
+    return skipped.has(step);
+  };
+
+  // Handle click Next
+  const handleNext = () => {
+    // Initially, skipped = empty or just new Set();
+    let newSkipped = skipped;
+    // If at Optional step
+    if (isStepSkipped(activeStep)) {
+      newSkipped = new Set(newSkipped.values());
+      newSkipped.delete(activeStep);
     }
-  }, [isFormOpen, editingChild, setNewChild]);
 
-  // Helper to update form and save draft
-  const updateChild = useCallback((updates: Partial<NewChildInput>) => {
-    setNewChild(prev => {
-      const updated = { ...prev, ...updates };
+    // Increase next step
+    setActiveStep((prev) => prev + 1);
+    setSkipped(newSkipped);
+  };
 
-      // Save to sessionStorage with debounce
-      if (!editingChild) {
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-        }
-        saveTimeoutRef.current = setTimeout(() => {
-          sessionStorage.setItem('child-form-draft', JSON.stringify(updated));
-        }, 500);
-      }
+  // Handle click Back
+  const handleBack = () => {
+    setActiveStep((prev) => prev - 1);
+  };
 
-      return updated;
+  const handleSkip = () => {
+    if (!isStepOptional(activeStep)) {
+      // You probably want to guard against something like this,
+      // it should never occur unless someone's actively trying to break something.
+      throw new Error("You can't skip a step that isn't optional.");
+    }
+    setActiveStep((prev) => prev + 1);
+    setSkipped((prev) => {
+      const newSkipped = new Set(prev.values());
+      newSkipped.add(activeStep);
+      return newSkipped;
     });
-  }, [editingChild, setNewChild]);
+  };
 
-  // Clear draft
-  const clearDraft = useCallback(() => {
-    sessionStorage.removeItem('child-form-draft');
-    setIsDraftRestored(false);
-  }, []);
+  // Start all over agaim
+  const handleReset = () => {
+    setActiveStep(0);
+  };
+
+  // ========================== done progress bar
 
   // Filter children based on search
-  const filteredChildren = childList.filter(child => {
+  const filteredChildren = childList.filter((child) => {
     const searchLower = searchTerm.toLowerCase();
     const parentNames = parents
-      .filter(p => child.parentId.includes(p.id))
-      .map(p => `${p.firstName} ${p.lastName}`)
-      .join(' ');
+      .filter((p) => child.parentId.includes(p.id))
+      .map((p) => `${p.firstName} ${p.lastName}`)
+      .join(" ");
 
     return (
       child.firstName.toLowerCase().includes(searchLower) ||
@@ -96,12 +127,15 @@ export default function ChildrenTab({
   const childrenPerPage = 6;
   const totalPages = Math.ceil(filteredChildren.length / childrenPerPage);
   const startIndex = (currentPage - 1) * childrenPerPage;
-  const paginatedChildren = filteredChildren.slice(startIndex, startIndex + childrenPerPage);
+  const paginatedChildren = filteredChildren.slice(
+    startIndex,
+    startIndex + childrenPerPage
+  );
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingChild) {
-      console.log('Update child:', { ...editingChild, ...newChild });
+      console.log("Update child:", { ...editingChild, ...newChild });
       setEditingChild(null);
       resetForm();
     } else {
@@ -113,16 +147,16 @@ export default function ChildrenTab({
 
   const resetForm = () => {
     setNewChild({
-      firstName: '',
-      lastName: '',
-      birthDate: '',
-      parentIdsCsv: '',
-      classId: '',
+      firstName: "",
+      lastName: "",
+      birthDate: "",
+      parentIdsCsv: "",
+      classId: "",
       allergies: undefined,
       specialNeeds: undefined,
       subsidyStatus: undefined,
-      enrollmentDate: '',
-      enrollmentStatus: 'New',
+      enrollmentDate: "",
+      enrollmentStatus: "New",
       endDate: undefined,
     });
   };
@@ -139,7 +173,7 @@ export default function ChildrenTab({
       firstName: child.firstName,
       lastName: child.lastName,
       birthDate: child.birthDate,
-      parentIdsCsv: child.parentId.join(', '),
+      parentIdsCsv: child.parentId.join(", "),
       classId: child.classId,
       allergies: child.allergies,
       specialNeeds: child.specialNeeds,
@@ -152,21 +186,30 @@ export default function ChildrenTab({
   };
 
   const handleDeleteClick = (child: Types.Child) => {
-    if (window.confirm(`Are you sure you want to delete ${child.firstName} ${child.lastName}?`)) {
-      console.log('Delete child:', child.id);
+    if (
+      window.confirm(
+        `Are you sure you want to delete ${child.firstName} ${child.lastName}?`
+      )
+    ) {
+      console.log("Delete child:", child.id);
     }
   };
 
   const handleAssignClass = (childId: string) => {
-    const child = childList.find(c => c.id === childId);
-    setSelectedClassId(child?.classId || '');
+    const child = childList.find((c) => c.id === childId);
+    setSelectedClassId(child?.classId || "");
     setShowAssignClass(childId);
   };
 
   const handleSaveClass = () => {
-    console.log('Assign class to child:', showAssignClass, 'Class:', selectedClassId);
+    console.log(
+      "Assign class to child:",
+      showAssignClass,
+      "Class:",
+      selectedClassId
+    );
     setShowAssignClass(null);
-    setSelectedClassId('');
+    setSelectedClassId("");
   };
 
   const calculateAge = (birthDate: string) => {
@@ -174,7 +217,10 @@ export default function ChildrenTab({
     const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birth.getDate())
+    ) {
       age--;
     }
     return age;
@@ -211,7 +257,7 @@ export default function ChildrenTab({
             {searchTerm && (
               <button
                 onClick={() => {
-                  setSearchTerm('');
+                  setSearchTerm("");
                   setCurrentPage(1);
                 }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
@@ -230,8 +276,10 @@ export default function ChildrenTab({
       {paginatedChildren.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
           {paginatedChildren.map((child) => {
-            const cls = classes.find(c => c.id === child.classId);
-            const childParents = parents.filter(p => child.parentId.includes(p.id));
+            const cls = classes.find((c) => c.id === child.classId);
+            const childParents = parents.filter((p) =>
+              child.parentId.includes(p.id)
+            );
             const age = calculateAge(child.birthDate);
 
             return (
@@ -257,7 +305,7 @@ export default function ChildrenTab({
                   <div className="flex items-start gap-2">
                     <span className="text-xs text-gray-500">Class:</span>
                     <span className="text-xs text-gray-700 font-medium">
-                      {cls?.name || 'Unassigned'}
+                      {cls?.name || "Unassigned"}
                     </span>
                   </div>
 
@@ -269,11 +317,13 @@ export default function ChildrenTab({
                         childParents.map((p, idx) => (
                           <div key={p.id}>
                             {p.firstName} {p.lastName}
-                            {idx < childParents.length - 1 && ', '}
+                            {idx < childParents.length - 1 && ", "}
                           </div>
                         ))
                       ) : (
-                        <span className="text-gray-400">No parents assigned</span>
+                        <span className="text-gray-400">
+                          No parents assigned
+                        </span>
                       )}
                     </div>
                   </div>
@@ -281,7 +331,9 @@ export default function ChildrenTab({
                   {/* Birth Date */}
                   <div className="flex items-start gap-2">
                     <span className="text-xs text-gray-500">Birth Date:</span>
-                    <span className="text-xs text-gray-700">{child.birthDate}</span>
+                    <span className="text-xs text-gray-700">
+                      {child.birthDate}
+                    </span>
                   </div>
 
                   {/* Enrollment */}
@@ -289,7 +341,7 @@ export default function ChildrenTab({
                     <span className="text-xs text-gray-500">Enrolled:</span>
                     <span className="text-xs text-gray-400">
                       {child.enrollmentDate}
-                      {child.endDate ? ` → ${child.endDate}` : ''}
+                      {child.endDate ? ` → ${child.endDate}` : ""}
                     </span>
                   </div>
 
@@ -297,15 +349,21 @@ export default function ChildrenTab({
                   {child.allergies && (
                     <div className="flex items-start gap-2">
                       <span className="text-xs text-gray-500">Allergies:</span>
-                      <span className="text-xs text-gray-700">{child.allergies}</span>
+                      <span className="text-xs text-gray-700">
+                        {child.allergies}
+                      </span>
                     </div>
                   )}
 
                   {/* Special Needs (if present) */}
                   {child.specialNeeds && (
                     <div className="flex items-start gap-2">
-                      <span className="text-xs text-gray-500">Special Needs:</span>
-                      <span className="text-xs text-gray-700">{child.specialNeeds}</span>
+                      <span className="text-xs text-gray-500">
+                        Special Needs:
+                      </span>
+                      <span className="text-xs text-gray-700">
+                        {child.specialNeeds}
+                      </span>
                     </div>
                   )}
 
@@ -313,7 +371,9 @@ export default function ChildrenTab({
                   {child.subsidyStatus && (
                     <div className="flex items-start gap-2">
                       <span className="text-xs text-gray-500">Subsidy:</span>
-                      <span className="text-xs text-gray-700">{child.subsidyStatus}</span>
+                      <span className="text-xs text-gray-700">
+                        {child.subsidyStatus}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -345,9 +405,13 @@ export default function ChildrenTab({
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">No Children found</h3>
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">
+            No Children found
+          </h3>
           <p className="text-gray-500">
-            {searchTerm ? 'Try adjusting your search terms' : 'Get started by adding your first child'}
+            {searchTerm
+              ? "Try adjusting your search terms"
+              : "Get started by adding your first child"}
           </p>
         </div>
       )}
@@ -356,12 +420,12 @@ export default function ChildrenTab({
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2">
           <button
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
             className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
               currentPage === 1
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
             }`}
           >
             ← Previous
@@ -374,8 +438,8 @@ export default function ChildrenTab({
                 onClick={() => setCurrentPage(page)}
                 className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
                   currentPage === page
-                    ? 'bg-gray-800 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+                    ? "bg-gray-800 text-white"
+                    : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
                 }`}
               >
                 {page}
@@ -384,12 +448,14 @@ export default function ChildrenTab({
           </div>
 
           <button
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+            }
             disabled={currentPage === totalPages}
             className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
               currentPage === totalPages
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
             }`}
           >
             Next →
@@ -407,78 +473,169 @@ export default function ChildrenTab({
           }}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+            className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-2xl font-bold text-gray-800">
-                {editingChild ? 'Edit Child' : 'Add New Child'}
-              </h3>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingChild(null);
-                }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ✕
-              </button>
+            <div className='sticky top-0 bg-white border-b border-gray-200 px-6 py-4'> 
+              <div className="flex justify-between items-center">
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {editingChild ? "Edit Child" : "Add New Child"}
+                </h3>
+                <button
+                  onClick={() => {
+                    setIsFormOpen(false);
+                    setEditingChild(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+            
+            {/* Insert progress bar */}
+            <Box sx={{ width: "100%" }}>
+              <Stepper activeStep={activeStep}>
+                {steps.map((label, index) => {
+                  const stepProps: { completed?: boolean } = {};
+                  const labelProps: {
+                    optional?: React.ReactNode;
+                  } = {};
+                  if (isStepOptional(index)) {
+                    labelProps.optional = (
+                      <Typography variant="caption" sx={{fontWeight: "bold"}}>(Optional)</Typography>
+                    );
+                  }
+                  if (isStepSkipped(index)) {
+                    stepProps.completed = false;
+                  }
+                  return (
+                    <Step key={label} {...stepProps}>
+                      <StepLabel {...labelProps}>{label}</StepLabel>
+                    </Step>
+                  );
+                })}
+              </Stepper>
+
+              {/* Control navigation */}
+              {activeStep === steps.length ? (
+                <React.Fragment>
+                  <Typography sx={{ mt: 2, mb: 1 }}>
+                    All steps completed - you&apos;re finished
+                  </Typography>
+                  <Box sx={{ display: "flex", flexDirection: "row", pt: 2 }}>
+                    <Box sx={{ flex: "1 1 auto" }} />
+                    <Button onClick={handleReset}>Reset</Button>
+                  </Box>
+                </React.Fragment>
+              ) : (
+                <React.Fragment>
+                  <Typography sx={{ mt: 2, mb: 1 }}>
+                    Step {activeStep + 1}
+                  </Typography>
+                  <Box sx={{ display: "flex", flexDirection: "row", pt: 2 }}>
+                    <Button
+                      color="inherit"
+                      disabled={activeStep === 0}
+                      onClick={handleBack}
+                      sx={{ mr: 1 }}
+                    >
+                      ← Back
+                    </Button>
+                    <Box sx={{ flex: "1 1 auto" }} />
+                    {isStepOptional(activeStep) && (
+                      <Button
+                        color="inherit"
+                        onClick={handleSkip}
+                        sx={{ mr: 1 }}
+                      >
+                        Skip
+                      </Button>
+                    )}
+                    <Button onClick={handleNext}>
+                      {activeStep === steps.length - 1 ? "Finish" : "Next →"}
+                    </Button>
+                  </Box>
+                </React.Fragment>
+              )}
+            </Box>
             </div>
 
+
+            {/* Main form */}
             <form onSubmit={handleFormSubmit} className="p-6">
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">First Name *</span>
+                    <span className="text-gray-700 font-medium mb-1 block">
+                      First Name *
+                    </span>
                     <input
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="First Name"
                       value={newChild.firstName}
-                      onChange={(e) => updateChild({ firstName: e.target.value })}
+                      onChange={(e) =>
+                        setNewChild({ ...newChild, firstName: e.target.value })
+                      }
                       required
                     />
                   </label>
 
                   <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Last Name *</span>
+                    <span className="text-gray-700 font-medium mb-1 block">
+                      Last Name *
+                    </span>
                     <input
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="Last Name"
                       value={newChild.lastName}
-                      onChange={(e) => updateChild({ lastName: e.target.value })}
+                      onChange={(e) =>
+                        setNewChild({ ...newChild, lastName: e.target.value })
+                      }
                       required
                     />
                   </label>
                 </div>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Birth Date *</span>
+                  <span className="text-gray-700 font-medium mb-1 block">
+                    Birth Date *
+                  </span>
                   <input
                     type="date"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     value={newChild.birthDate}
-                    onChange={(e) => updateChild({ birthDate: e.target.value })}
+                    onChange={(e) =>
+                      setNewChild({ ...newChild, birthDate: e.target.value })
+                    }
                     required
                   />
                 </label>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Parent IDs *</span>
+                  <span className="text-gray-700 font-medium mb-1 block">
+                    Parent IDs *
+                  </span>
                   <input
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Comma separated parent IDs"
                     value={newChild.parentIdsCsv}
-                    onChange={(e) => updateChild({ parentIdsCsv: e.target.value })}
+                    onChange={(e) =>
+                      setNewChild({ ...newChild, parentIdsCsv: e.target.value })
+                    }
                     required
                   />
                 </label>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Class *</span>
+                  <span className="text-gray-700 font-medium mb-1 block">
+                    Class *
+                  </span>
                   <select
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     value={newChild.classId}
-                    onChange={(e) => updateChild({ classId: e.target.value })}
+                    onChange={(e) =>
+                      setNewChild({ ...newChild, classId: e.target.value })
+                    }
                     required
                   >
                     <option value="">Select Class</option>
@@ -491,11 +648,19 @@ export default function ChildrenTab({
                 </label>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Enrollment Status *</span>
+                  <span className="text-gray-700 font-medium mb-1 block">
+                    Enrollment Status *
+                  </span>
                   <select
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     value={newChild.enrollmentStatus}
-                    onChange={(e) => updateChild({ enrollmentStatus: e.target.value as Types.Child['enrollmentStatus'] })}
+                    onChange={(e) =>
+                      setNewChild({
+                        ...newChild,
+                        enrollmentStatus: e.target
+                          .value as Types.Child["enrollmentStatus"],
+                      })
+                    }
                     required
                   >
                     <option value="New">New</option>
@@ -507,55 +672,84 @@ export default function ChildrenTab({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Enrollment Date *</span>
+                    <span className="text-gray-700 font-medium mb-1 block">
+                      Enrollment Date *
+                    </span>
                     <input
                       type="date"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       value={newChild.enrollmentDate}
-                      onChange={(e) => updateChild({ enrollmentDate: e.target.value })}
+                      onChange={(e) =>
+                        setNewChild({
+                          ...newChild,
+                          enrollmentDate: e.target.value,
+                        })
+                      }
                       required
                     />
                   </label>
 
                   <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">End Date</span>
+                    <span className="text-gray-700 font-medium mb-1 block">
+                      End Date
+                    </span>
                     <input
                       type="date"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="End Date (optional)"
-                      value={newChild.endDate || ''}
-                      onChange={(e) => updateChild({ endDate: e.target.value || undefined })}
+                      value={newChild.endDate || ""}
+                      onChange={(e) =>
+                        setNewChild({
+                          ...newChild,
+                          endDate: e.target.value || undefined,
+                        })
+                      }
                     />
                   </label>
                 </div>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Allergies</span>
+                  <span className="text-gray-700 font-medium mb-1 block">
+                    Allergies
+                  </span>
                   <input
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Allergies (optional)"
-                    value={newChild.allergies ?? ''}
-                    onChange={(e) => updateChild({ allergies: e.target.value })}
+                    value={newChild.allergies ?? ""}
+                    onChange={(e) =>
+                      setNewChild({ ...newChild, allergies: e.target.value })
+                    }
                   />
                 </label>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Special Needs</span>
+                  <span className="text-gray-700 font-medium mb-1 block">
+                    Special Needs
+                  </span>
                   <input
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Special Needs (optional)"
-                    value={newChild.specialNeeds ?? ''}
-                    onChange={(e) => updateChild({ specialNeeds: e.target.value })}
+                    value={newChild.specialNeeds ?? ""}
+                    onChange={(e) =>
+                      setNewChild({ ...newChild, specialNeeds: e.target.value })
+                    }
                   />
                 </label>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Subsidy Status</span>
+                  <span className="text-gray-700 font-medium mb-1 block">
+                    Subsidy Status
+                  </span>
                   <input
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Subsidy Status (optional)"
-                    value={newChild.subsidyStatus ?? ''}
-                    onChange={(e) => updateChild({ subsidyStatus: e.target.value })}
+                    value={newChild.subsidyStatus ?? ""}
+                    onChange={(e) =>
+                      setNewChild({
+                        ...newChild,
+                        subsidyStatus: e.target.value,
+                      })
+                    }
                   />
                 </label>
               </div>
@@ -584,7 +778,7 @@ export default function ChildrenTab({
                   type="submit"
                   className="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
                 >
-                  {editingChild ? 'Update Child' : 'Add Child'}
+                  {editingChild ? "Update Child" : "Add Child"}
                 </button>
               </div>
             </form>
@@ -598,7 +792,7 @@ export default function ChildrenTab({
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
           onClick={() => {
             setShowAssignClass(null);
-            setSelectedClassId('');
+            setSelectedClassId("");
           }}
         >
           <div
@@ -610,7 +804,7 @@ export default function ChildrenTab({
               <button
                 onClick={() => {
                   setShowAssignClass(null);
-                  setSelectedClassId('');
+                  setSelectedClassId("");
                 }}
                 className="text-gray-400 hover:text-gray-600 text-2xl"
               >
@@ -620,7 +814,9 @@ export default function ChildrenTab({
 
             <div className="p-6">
               <label className="block mb-4">
-                <span className="text-gray-700 font-medium mb-2 block">Select Class</span>
+                <span className="text-gray-700 font-medium mb-2 block">
+                  Select Class
+                </span>
                 <select
                   value={selectedClassId}
                   onChange={(e) => setSelectedClassId(e.target.value)}
@@ -639,7 +835,7 @@ export default function ChildrenTab({
                 <button
                   onClick={() => {
                     setShowAssignClass(null);
-                    setSelectedClassId('');
+                    setSelectedClassId("");
                   }}
                   className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
                 >
