@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.4",
     "@react-google-maps/api": "^2.20.7",
     "@types/js-cookie": "^3.0.6",
     "cors": "^2.8.5",
