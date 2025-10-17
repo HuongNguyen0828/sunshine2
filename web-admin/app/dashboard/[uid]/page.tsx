@@ -175,6 +175,9 @@ export default function AdminDashboard() {
     name: "", locationId: "", capacity: 0, volume: 0, ageStart: 0, ageEnd: 0, classroom: "",
   });
 
+  /* ---- scope & location options ---- */
+  const scope = useMemo<AdminScope>(() => getAdminScopeFromUser(currentUser), [currentUser]);
+
   /* ---- load lists ---- */
   const refreshAll = useCallback(async () => {
   setDataLoading(true);
@@ -185,7 +188,7 @@ export default function AdminDashboard() {
       fetchLocationsLite()
     ]);
 
-    // ✅ Filter locations by current admin scope (show only their location)
+    // Filter locations by current admin scope (show only their location)
     const filtered =
       scope.mode === "fixed"
         ? (locs ?? []).filter(l => l.id === scope.fixedLocationId)
@@ -193,7 +196,7 @@ export default function AdminDashboard() {
 
     setTeachers(tchs ?? []);
     setClasses(clss ?? []);
-    setLocations(filtered); // ✅ only admin's location
+    setLocations(filtered); //  only admin's location
   } catch (e) {
 
       console.error(e);
@@ -201,7 +204,7 @@ export default function AdminDashboard() {
     } finally {
       setDataLoading(false);
     }
-  }, []);
+  }, [scope.mode, scope.fixedLocationId]);
 
   useEffect(() => {
     if (authLoading || !currentUser) return;
@@ -226,9 +229,6 @@ export default function AdminDashboard() {
     })();
     return () => { cancelled = true; };
   }, [authLoading, currentUser, refreshAll]);
-
-  /* ---- scope & location options ---- */
-  const scope = useMemo<AdminScope>(() => getAdminScopeFromUser(currentUser), [currentUser]);
 
   // type guard for daycareId on LocationLite
   const hasDaycareId = (l: LocationLite): l is LocationLite & { daycareId: string } =>
