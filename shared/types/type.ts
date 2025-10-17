@@ -1,11 +1,7 @@
-type EntryType =
-  | "Attendance"
-  | "Schedule_note"
-  | "Food"
-  | "Photo"
-  | "Sleep"
-  | "Toilet"
-  | "Supply Request";
+//shared/types/type.ts
+type EntryType = 
+  "Attendance" | "Schedule_note" | "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
+
 type AttendanceSubtype = "Check in" | "Check out";
 type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
 
@@ -85,16 +81,72 @@ export type Admin = {
 // Upper, For Sunshine admin only read/ write access ====================================================================
 // The rest if for admin of daycare/ daycare location having read and write access. Sunshine admin just have read access
 
+// ---------- Class DTOs (client/server-safe) ----------
+// Use plain primitives only. Do NOT import firebase-admin types here.
+
 export type Class = {
   id: string;
   name: string;
-  locationId?: string; // When adding a class, the default is go by admin location (by default-optional), but in case blossom is owner, location is by selecting
-  capacity: number;
-  volume: number;
-  ageStart: number;
-  ageEnd: number;
-  classroom: string;
+  // Keep this required to avoid scope bugs when querying by location
+  locationId: string;
+  capacity: number;   // expected integer >= 0
+  volume: number;     // optional meaning: room size / seats metric
+  ageStart: number;   // expected integer (years)
+  ageEnd: number;     // expected integer (years), >= ageStart
+  classroom?: string;
+  teacherIds: string[];       // present in API responses
+  createdAt: string;          // ISO string
+  updatedAt: string;          // ISO string
 };
+
+// Payload to create a class (no id/teacherIds/timestamps)
+export type ClassCreate = Pick<
+  Class,
+  "name" | "locationId" | "capacity" | "volume" | "ageStart" | "ageEnd" | "classroom"
+>;
+
+// General update payload (excluding teacher assignment)
+export type ClassUpdate = Partial<
+  Pick<Class, "name" | "locationId" | "capacity" | "volume" | "ageStart" | "ageEnd" | "classroom">
+>;
+
+// Teacher assignment is handled separately for clarity and access control
+export type ClassAssignTeachers = {
+  classId: string;
+  teacherIds: string[];
+};
+
+// ---------- Optional: common API shapes ----------
+
+export type ApiListResponse<T> = T[];
+export type ApiItemResponse<T> = T;
+
+// Standard error shape from the API
+export type ApiError = {
+  message: string;
+  error?: string;
+  code?: string | number;
+};
+export type User = {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: "admin" | "teacher" | "parent" | string;
+  status?: "New" | "Active" | string;
+  locationId?: string[];
+  daycareId?: string;
+  classIds?: string[];
+};
+
+export type Schedule = {
+  id: string;
+  classId: string;
+  dayOfWeek: number;       // 0 (Sunday) to 6 (Saturday)
+  startTime: string;       // "HH:MM" format
+  endTime: string;         // "HH:MM" format
+  morningAfernoon: "Morning" | "Afternoon" | "Full day";
+}
 
 export type Teacher = {
   id: string;
@@ -126,20 +178,62 @@ export type Schedule = {
   morningAfernoon: "Morning" | "Afternoon" | "Full day";
 };
 
+/** Possible enrollment status — automatically derived by server */
+export enum EnrollmentStatus {
+  New = "New",          // no parent link & no class assigned
+  Waitlist = "Waitlist",// one of parent or class linked
+  Active = "Active",    // both parent and class linked
+}
+
+/** Minimal structure stored in Firestore and used across UI */
 export type Child = {
+  /** Firestore document id */
   id: string;
+
+  /** Basic profile */
   firstName: string;
   lastName: string;
-  birthDate: string;       // ISO date string
+  birthDate: string; // ISO date (yyyy-mm-dd)
+
+  /** Parent linkage (user ids from users collection with role="parent") */
   parentId: string[];
-  classId: string;
-  allergies?: string;
-  specialNeeds?: string;
-  subsidyStatus?: string;
-  enrollmentDate: string;  // ISO date string
-  enrollmentStatus: "Active" | "Withdraw" | "New" | "Waitlist";
-  endDate?: string; // ISO date string
+
+  /** Placement info */
+  classId?: string;    // assigned class id (optional)
+  locationId?: string; // location scope id
+  daycareId: string;   // always required, injected from current admin
+
+  /** Enrollment lifecycle (computed) */
+  enrollmentStatus: EnrollmentStatus; // computed by backend
+  enrollmentDate?: string; // assigned automatically when class or parent linked
+
+  /** Additional notes (allergies, special needs, subsidy, etc.) */
+  notes?: string;
+
+  /** Audit fields (ISO) */
+  createdAt?: string;
+  updatedAt?: string;
 };
+
+/** Request shape when creating a new child */
+export type CreateChildInput = {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  parentId?: string[];
+  classId?: string;
+  locationId?: string;
+  notes?: string;
+};
+
+/** Request shape when updating an existing child (profile only) */
+export type UpdateChildProfileInput = Partial<Pick<
+  Child,
+  "firstName" | "lastName" | "birthDate" | "locationId" | "notes"
+>>;
+
+/** Response DTO from server after any mutation */
+export type ChildDTO = Child;
 
 export type Parent = {
   id: string;

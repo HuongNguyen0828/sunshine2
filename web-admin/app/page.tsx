@@ -1,6 +1,6 @@
 // web-admin/app/page.tsx
 "use client";
- 
+
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import Cookies from "js-cookie";
@@ -13,23 +13,32 @@ export default function DashboardPage() {
  
   useEffect(() => {
     if (loading || redirectedRef.current) return;
- 
+
     if (!currentUser) {
       redirectedRef.current = true;
       router.replace("/login");
       return;
     }
 
+    if (!userRole || userRole.toLowerCase() !== "admin") {
+      redirectedRef.current = true;
+      router.replace("/unauthorized");
+      return;
+    }
+
     const uidFromCookie = Cookies.get("uid");
     const uid = uidFromCookie ?? currentUser.uid;
- 
+
     if (uid) {
       redirectedRef.current = true;
       router.replace(`/dashboard/${uid}`);
       return;
     }
 
+    redirectedRef.current = true;
+    router.replace("/login");
   }, [currentUser, loading, userRole, router]);
+
   return (
     <div className="flex h-screen items-center justify-center">
       <p>Loading...</p>

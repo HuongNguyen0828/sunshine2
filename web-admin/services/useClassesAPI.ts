@@ -1,7 +1,6 @@
-// web-admin/services/useClassesAPI.ts
 "use client";
 
-import * as Types from "../../shared/types/type";
+import * as Types from "../../shared/types/type"; // align path with other files
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
 import { NewClassInput } from "@/types/forms";
@@ -35,7 +34,7 @@ export async function fetchClasses(): Promise<Types.Class[] | null> {
   try {
     const items = await api.get<Types.Class[]>(ENDPOINTS.classes);
     return items;
-  } catch (err: unknown) {
+  } catch (err) {
     console.error(err);
     return null;
   }
@@ -45,7 +44,7 @@ export async function fetchClasses(): Promise<Types.Class[] | null> {
 export async function addClass(input: NewClassInput): Promise<Types.Class | null> {
   try {
     const payload = {
-      name: input.name,
+      name: input.name.trim(),
       locationId: normalizeOptionalString(input.locationId),
       capacity: Number(input.capacity),
       volume: Number(input.volume),
@@ -55,7 +54,7 @@ export async function addClass(input: NewClassInput): Promise<Types.Class | null
     };
     const created = await api.post<Types.Class>(ENDPOINTS.classes, payload);
     return created;
-  } catch (err: unknown) {
+  } catch (err) {
     console.error(err);
     return null;
   }
@@ -65,7 +64,7 @@ export async function addClass(input: NewClassInput): Promise<Types.Class | null
 export async function updateClass(id: string, input: NewClassInput): Promise<Types.Class | null> {
   try {
     const payload = {
-      name: input.name,
+      name: input.name.trim(),
       locationId: normalizeOptionalString(input.locationId),
       capacity: Number(input.capacity),
       volume: Number(input.volume),
@@ -75,7 +74,7 @@ export async function updateClass(id: string, input: NewClassInput): Promise<Typ
     };
     const updated = await api.put<Types.Class>(`${ENDPOINTS.classes}/${id}`, payload);
     return updated;
-  } catch (err: unknown) {
+  } catch (err) {
     console.error(err);
     return null;
   }
@@ -86,7 +85,7 @@ export async function deleteClass(id: string): Promise<boolean> {
   try {
     await api.delete<void>(`${ENDPOINTS.classes}/${id}`);
     return true;
-  } catch (err: unknown) {
+  } catch (err) {
     console.error(err);
     return false;
   }
@@ -101,23 +100,21 @@ export type TeacherLite = {
   firstName?: string;
   lastName?: string;
   email?: string;
-  role?: string;      // should be "teacher"
-  status?: string;    // "New" | "Active" | ...
+  role?: string;
+  status?: string;
   classIds?: string[];
 };
 
-/** GET /api/users/teachers  (optionally pass classId to filter server-side if you add it later) */
 export async function fetchTeachers(): Promise<TeacherLite[]> {
   try {
     const items = await api.get<TeacherLite[]>(ENDPOINTS.teachers);
     return items ?? [];
-  } catch (err: unknown) {
+  } catch (err) {
     console.error(err);
     return [];
   }
 }
 
-/** Teacher candidates used in the "Assign" modal (defaults to onlyNew=true). */
 export type TeacherCandidate = {
   id: string;
   firstName?: string;
@@ -132,7 +129,7 @@ export async function fetchTeacherCandidates(onlyNew = true): Promise<TeacherCan
     const qs = onlyNew ? "?onlyNew=true" : "?onlyNew=false";
     const items = await api.get<TeacherCandidate[]>(`${ENDPOINTS.teacherCandidates}${qs}`);
     return items ?? [];
-  } catch (err: unknown) {
+  } catch (err) {
     console.error(err);
     return [];
   }
@@ -142,19 +139,18 @@ export async function fetchTeacherCandidates(onlyNew = true): Promise<TeacherCan
    Assign teachers
    ========================= */
 
-/** POST /api/classes/:id/assign-teachers */
 export async function assignTeachersToClass(
   classId: string,
   teacherIds: string[]
 ): Promise<boolean> {
   try {
     const payload = { teacherIds: normalizeTeacherIds(teacherIds) };
-    const res = await api.post<{ ok?: boolean; classId?: string }>(
+    const res = await api.post<{ ok?: boolean }>(
       `${ENDPOINTS.classes}/${classId}/assign-teachers`,
       payload
     );
     return !!res?.ok;
-  } catch (err: unknown) {
+  } catch (err) {
     console.error(err);
     return false;
   }
