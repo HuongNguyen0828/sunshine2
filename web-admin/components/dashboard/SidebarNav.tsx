@@ -83,7 +83,7 @@ export default function SidebarNav({
   const navItems: { id: Tab; label: string; icon: JSX.Element }[] = [
     { id: 'overview', label: 'Overview', icon: <OverviewIcon /> },
     { id: 'teachers', label: 'Teachers', icon: <TeachersIcon /> },
-    { id: 'children', label: 'Students', icon: <StudentsIcon /> },
+    { id: 'children', label: 'Children', icon: <StudentsIcon /> },
     { id: 'parents', label: 'Parents', icon: <ParentsIcon /> },
     { id: 'classes', label: 'Classes', icon: <ClassesIcon /> },
     { id: 'scheduler-labs', label: 'Scheduler', icon: <SchedulerIcon /> },

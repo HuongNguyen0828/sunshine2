@@ -1,62 +1,150 @@
-// Controller functions for handling child-related requests
-import { Request, Response } from 'express';
-import * as ChildsService from "../../services/web-admin/childsService";
+// backend/controllers/web-admin/ChildController.ts
+import { Response } from "express";
+import { AuthRequest } from "../../middleware/authMiddleware";
+import * as Svc from "../../services/web-admin/childService";
+import type { EnrollmentStatus } from "../../../../shared/types/type";
 
+/** normalize a string */
+function s(v: unknown): string | undefined {
+  return typeof v === "string" && v.trim() ? v.trim() : undefined;
+}
 
-// Create a new child
-export const addChild = async (req: Request, res: Response) => {
+/** send JSON success */
+function ok(res: Response, payload: unknown, code = 200) {
+  return res.status(code).json(payload);
+}
+
+/** send JSON error with consistent shape */
+function fail(res: Response, err: unknown, fallbackMsg: string, fallbackCode = 500) {
+  const status =
+    typeof (err as { status?: number })?.status === "number"
+      ? (err as { status: number }).status
+      : fallbackCode;
+
+  const message =
+    typeof (err as { message?: string })?.message === "string"
+      ? (err as { message: string }).message
+      : fallbackMsg;
+
+  return res.status(status).json({ message });
+}
+
+/** GET /admin/children */
+export async function getChildren(req: AuthRequest, res: Response) {
   try {
-    const newchild = await ChildsService.addChild(req.body);
-    res.status(201).json(newchild);
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating child' });
+    const filters = {
+      classId: s(req.query.classId),
+      status: s(req.query.status) as EnrollmentStatus | undefined,
+      parentId: s(req.query.parentUserId),
+    };
+    const items = await Svc.listChildren(req.user?.uid, filters);
+    return ok(res, items);
+  } catch (e) {
+    console.error("[getChildren]", e);
+    return fail(res, e, "Failed to load children");
   }
-};
+}
 
-// Get all childs
-export const getAllChilds = async (req: Request, res: Response) => {
+/** POST /admin/children — daycareId is injected by the service */
+export async function addChild(req: AuthRequest, res: Response) {
   try {
-    const childs = await ChildsService.getAllChilds();
-    res.json(childs);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching childs' });
+    const created = await Svc.createChild(req.body, req.user?.uid);
+    return ok(res, created, 201);
+  } catch (e) {
+    console.error("[addChild]", e);
+    return fail(res, e, "Failed to add child");
   }
-};
+}
 
-// Get a single child by ID
-export const getChildById = async (req: Request, res: Response) => {
+/** PUT /admin/children/:id — profile update only */
+export async function updateChild(req: AuthRequest, res: Response) {
   try {
-    // if id not found return undefined
-    const child = await ChildsService.getChildById?(req.params.id) : undefined; 
-    if (!child) return res.status(404).json({ message: 'child not found' });
-    // if found return the child
-    res.json(child);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching child' });
+    const id = s((req.params as { id?: string }).id);
+    if (!id) return res.status(400).json({ message: "Missing child id" });
+
+    const updated = await Svc.updateChildById(id, req.body, req.user?.uid);
+    return ok(res, updated);
+  } catch (e) {
+    console.error("[updateChild]", e);
+    return fail(res, e, "Failed to update child");
   }
-};
+}
 
-
-
-// Update an existing child
-export const updateChild = async (req: Request, res: Response) => {
+/** DELETE /admin/children/:id */
+export async function deleteChild(req: AuthRequest, res: Response) {
   try {
-    const updatedchild = await ChildsService.updateChild?(req.params.id, req.body) : undefined;
-    if (!updatedchild) return res.status(404).json({ message: 'child not found' });
-    res.json(updatedchild);
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating child' });
+    const id = s((req.params as { id?: string }).id);
+    if (!id) return res.status(400).json({ message: "Missing child id" });
+
+    await Svc.deleteChildById(id, req.user?.uid);
+    return res.status(204).send();
+  } catch (e) {
+    console.error("[deleteChild]", e);
+    return fail(res, e, "Failed to delete child");
   }
-};
+}
 
-
-// Delete a child
-export const deleteChild = async (req: Request, res: Response) => {
+/** POST /admin/children/:id/link-parent-by-email */
+export async function linkParentByEmail(req: AuthRequest, res: Response) {
   try {
-    const success = await ChildsService.deleteChild?(req.params.id) : false;
-    if (!success) return res.status(404).json({ message: 'child not found' });
-    res.json({ message: 'child deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error deleting child' });
+    const id = s((req.params as { id?: string }).id);
+    const email = s(req.body?.email);
+    if (!id || !email) {
+      return res.status(400).json({ message: "Missing child id or email" });
+    }
+
+    await Svc.linkParentToChildByEmail(id, email, req.user?.uid);
+    return ok(res, { ok: true });
+  } catch (e) {
+    console.error("[linkParentByEmail]", e);
+    return fail(res, e, "Failed to link parent by email");
   }
-};
+}
+
+/** POST /admin/children/:id/unlink-parent */
+export async function unlinkParent(req: AuthRequest, res: Response) {
+  try {
+    const id = s((req.params as { id?: string }).id);
+    const parentUserId = s(req.body?.parentUserId);
+    if (!id || !parentUserId) {
+      return res.status(400).json({ message: "Missing child id or parentUserId" });
+    }
+
+    await Svc.unlinkParentFromChild(id, parentUserId, req.user?.uid);
+    return ok(res, { ok: true });
+  } catch (e) {
+    console.error("[unlinkParent]", e);
+    return fail(res, e, "Failed to unlink parent");
+  }
+}
+
+/** POST /admin/children/:id/assign — assign to class */
+export async function assignChild(req: AuthRequest, res: Response) {
+  try {
+    const id = s((req.params as { id?: string }).id);
+    const classId = s(req.body?.classId);
+    if (!id || !classId) {
+      return res.status(400).json({ message: "Missing child id or classId" });
+    }
+
+    await Svc.assignChildToClass(id, classId, req.user?.uid);
+    return ok(res, { ok: true });
+  } catch (e) {
+    console.error("[assignChild]", e);
+    return fail(res, e, "Failed to assign child");
+  }
+}
+
+/** POST /admin/children/:id/unassign — unassign from class */
+export async function unassignChild(req: AuthRequest, res: Response) {
+  try {
+    const id = s((req.params as { id?: string }).id);
+    if (!id) return res.status(400).json({ message: "Missing child id" });
+
+    await Svc.unassignChild(id, req.user?.uid);
+    return ok(res, { ok: true });
+  } catch (e) {
+    console.error("[unassignChild]", e);
+    return fail(res, e, "Failed to unassign child");
+  }
+}
