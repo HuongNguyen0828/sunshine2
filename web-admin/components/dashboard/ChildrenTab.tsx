@@ -9,7 +9,7 @@
 
 import * as Types from '../../../shared/types/type';
 import type { NewChildInput } from '@/types/forms';
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export default function ChildrenTab({
   classes,
@@ -32,6 +32,49 @@ export default function ChildrenTab({
   const [editingChild, setEditingChild] = useState<Types.Child | null>(null);
   const [showAssignClass, setShowAssignClass] = useState<string | null>(null);
   const [selectedClassId, setSelectedClassId] = useState('');
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Restore draft when form opens
+  useEffect(() => {
+    if (isFormOpen && !editingChild) {
+      const draft = sessionStorage.getItem('child-form-draft');
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft);
+          setNewChild(parsed);
+          setIsDraftRestored(true);
+        } catch (e) {
+          console.error('Failed to restore draft:', e);
+        }
+      }
+    }
+  }, [isFormOpen, editingChild, setNewChild]);
+
+  // Helper to update form and save draft
+  const updateChild = useCallback((updates: Partial<NewChildInput>) => {
+    setNewChild(prev => {
+      const updated = { ...prev, ...updates };
+
+      // Save to sessionStorage with debounce
+      if (!editingChild) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
+        saveTimeoutRef.current = setTimeout(() => {
+          sessionStorage.setItem('child-form-draft', JSON.stringify(updated));
+        }, 500);
+      }
+
+      return updated;
+    });
+  }, [editingChild, setNewChild]);
+
+  // Clear draft
+  const clearDraft = useCallback(() => {
+    sessionStorage.removeItem('child-form-draft');
+    setIsDraftRestored(false);
+  }, []);
 
   // Filter children based on search
   const filteredChildren = childList.filter(child => {
@@ -64,6 +107,7 @@ export default function ChildrenTab({
     } else {
       onAdd();
     }
+    clearDraft(); // Clear draft after successful submission
     setIsFormOpen(false);
   };
 
@@ -367,9 +411,14 @@ export default function ChildrenTab({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-2xl font-bold text-gray-800">
-                {editingChild ? 'Edit Student' : 'Add New Student'}
-              </h3>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {editingChild ? 'Edit Student' : 'Add New Student'}
+                </h3>
+                {isDraftRestored && !editingChild && (
+                  <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
+                )}
+              </div>
               <button
                 onClick={() => {
                   setIsFormOpen(false);
@@ -390,7 +439,7 @@ export default function ChildrenTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="First Name"
                       value={newChild.firstName}
-                      onChange={(e) => setNewChild({ ...newChild, firstName: e.target.value })}
+                      onChange={(e) => setNewChild({  ...newChild, firstName: e.target.value })}
                       required
                     />
                   </label>
@@ -413,8 +462,7 @@ export default function ChildrenTab({
                     type="date"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     value={newChild.birthDate}
-                    onChange={(e) => setNewChild({ ...newChild, birthDate: e.target.value })}
-                    required
+                    onChange={(e) => setNewChild({ ...newChild, birthDate: e.target.value })}                    required
                   />
                 </label>
 
@@ -451,12 +499,7 @@ export default function ChildrenTab({
                   <select
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     value={newChild.enrollmentStatus}
-                    onChange={(e) =>
-                      setNewChild({
-                        ...newChild,
-                        enrollmentStatus: e.target.value as Types.Child['enrollmentStatus'],
-                      })
-                    }
+                    onChange={(e) => setNewChild({ ...newChild, enrollmentStatus: e.target.value as Types.Child['enrollmentStatus'] })}
                     required
                   >
                     <option value="New">New</option>
@@ -473,7 +516,7 @@ export default function ChildrenTab({
                       type="date"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       value={newChild.enrollmentDate}
-                      onChange={(e) => setNewChild({ ...newChild, enrollmentDate: e.target.value })}
+                      onChange={(e) => setNewChild({...newChild, enrollmentDate: e.target.value })}
                       required
                     />
                   </label>
@@ -485,9 +528,7 @@ export default function ChildrenTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="End Date (optional)"
                       value={newChild.endDate || ''}
-                      onChange={(e) =>
-                        setNewChild({ ...newChild, endDate: e.target.value || undefined })
-                      }
+                      onChange={(e) => setNewChild({ ...newChild, endDate: e.target.value || undefined })}
                     />
                   </label>
                 </div>
@@ -518,9 +559,9 @@ export default function ChildrenTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Subsidy Status (optional)"
                     value={newChild.subsidyStatus ?? ''}
-                    onChange={(e) => setNewChild({ ...newChild, subsidyStatus: e.target.value })}
+                    onChange={(e) => setNewChild({...newChild, subsidyStatus: e.target.value })}
                   />
-                </label>
+                </label>,
               </div>
 
               <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
@@ -534,6 +575,15 @@ export default function ChildrenTab({
                 >
                   Cancel
                 </button>
+                {!editingChild && (
+                  <button
+                    type="button"
+                    onClick={clearDraft}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                  >
+                    Clear Draft
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-medium px-6 py-3 rounded-lg transition duration-200"

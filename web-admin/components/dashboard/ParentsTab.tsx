@@ -9,7 +9,7 @@
 
 import * as Types from '../../../shared/types/type';
 import type { NewParentInput } from '@/types/forms';
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export default function ParentsTab({
   parents,
@@ -26,6 +26,49 @@ export default function ParentsTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingParent, setEditingParent] = useState<Types.Parent | null>(null);
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Restore draft when form opens
+  useEffect(() => {
+    if (isFormOpen && !editingParent) {
+      const draft = sessionStorage.getItem('parent-form-draft');
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft);
+          setNewParent(parsed);
+          setIsDraftRestored(true);
+        } catch (e) {
+          console.error('Failed to restore draft:', e);
+        }
+      }
+    }
+  }, [isFormOpen, editingParent, setNewParent]);
+
+  // Helper to update form and save draft
+  const updateParent = useCallback((updates: Partial<NewParentInput>) => {
+    setNewParent(prev => {
+      const updated = { ...prev, ...updates };
+
+      // Save to sessionStorage with debounce
+      if (!editingParent) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
+        saveTimeoutRef.current = setTimeout(() => {
+          sessionStorage.setItem('parent-form-draft', JSON.stringify(updated));
+        }, 500);
+      }
+
+      return updated;
+    });
+  }, [editingParent, setNewParent]);
+
+  // Clear draft
+  const clearDraft = useCallback(() => {
+    sessionStorage.removeItem('parent-form-draft');
+    setIsDraftRestored(false);
+  }, []);
 
   // Filter parents based on search
   const filteredParents = parents.filter(parent =>
@@ -50,6 +93,7 @@ export default function ParentsTab({
     } else {
       onAdd();
     }
+    clearDraft(); // Clear draft after successful submission
     setIsFormOpen(false);
   };
 
@@ -59,7 +103,6 @@ export default function ParentsTab({
       lastName: '',
       email: '',
       phone: '',
-      passwordHash: '',
       childIds: [],
       street: '',
       city: '',
@@ -84,7 +127,6 @@ export default function ParentsTab({
       lastName: parent.lastName,
       email: parent.email,
       phone: parent.phone,
-      passwordHash: '',
       childIds: parent.childIds,
       street: parent.street,
       city: parent.city,
@@ -291,9 +333,14 @@ export default function ParentsTab({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-2xl font-bold text-gray-800">
-                {editingParent ? 'Edit Parent' : 'Add New Parent'}
-              </h3>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {editingParent ? 'Edit Parent' : 'Add New Parent'}
+                </h3>
+                {isDraftRestored && !editingParent && (
+                  <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
+                )}
+              </div>
               <button
                 onClick={() => {
                   setIsFormOpen(false);
@@ -314,7 +361,7 @@ export default function ParentsTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="First Name"
                       value={newParent.firstName}
-                      onChange={(e) => setNewParent({ ...newParent, firstName: e.target.value })}
+                      onChange={(e) => updateParent({ firstName: e.target.value })}
                       required
                     />
                   </label>
@@ -325,7 +372,7 @@ export default function ParentsTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="Last Name"
                       value={newParent.lastName}
-                      onChange={(e) => setNewParent({ ...newParent, lastName: e.target.value })}
+                      onChange={(e) => updateParent({ lastName: e.target.value })}
                       required
                     />
                   </label>
@@ -338,7 +385,7 @@ export default function ParentsTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Email"
                     value={newParent.email}
-                    onChange={(e) => setNewParent({ ...newParent, email: e.target.value })}
+                    onChange={(e) => updateParent({ email: e.target.value })}
                     required
                   />
                 </label>
@@ -349,32 +396,18 @@ export default function ParentsTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Phone"
                     value={newParent.phone}
-                    onChange={(e) => setNewParent({ ...newParent, phone: e.target.value })}
+                    onChange={(e) => updateParent({ phone: e.target.value })}
                     required
                   />
                 </label>
-
-                {!editingParent && (
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Password *</span>
-                    <input
-                      type="password"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                      placeholder="Password"
-                      value={newParent.passwordHash}
-                      onChange={(e) => setNewParent({ ...newParent, passwordHash: e.target.value })}
-                      required={!editingParent}
-                    />
-                  </label>
-                )}
-
+                
                 <label className="block">
                   <span className="text-gray-700 font-medium mb-1 block">Street *</span>
                   <input
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Street Address"
                     value={newParent.street}
-                    onChange={(e) => setNewParent({ ...newParent, street: e.target.value })}
+                    onChange={(e) => updateParent({ street: e.target.value })}
                     required
                   />
                 </label>
@@ -386,7 +419,7 @@ export default function ParentsTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="City"
                       value={newParent.city}
-                      onChange={(e) => setNewParent({ ...newParent, city: e.target.value })}
+                      onChange={(e) => updateParent({ city: e.target.value })}
                       required
                     />
                   </label>
@@ -397,7 +430,7 @@ export default function ParentsTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="Province"
                       value={newParent.province}
-                      onChange={(e) => setNewParent({ ...newParent, province: e.target.value })}
+                      onChange={(e) => updateParent({ province: e.target.value })}
                       required
                     />
                   </label>
@@ -408,7 +441,7 @@ export default function ParentsTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="Country"
                       value={newParent.country}
-                      onChange={(e) => setNewParent({ ...newParent, country: e.target.value })}
+                      onChange={(e) => updateParent({ country: e.target.value })}
                       required
                     />
                   </label>
@@ -420,7 +453,7 @@ export default function ParentsTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="Emergency Contact (optional)"
                     value={newParent.emergencyContact ?? ''}
-                    onChange={(e) => setNewParent({ ...newParent, emergencyContact: e.target.value })}
+                    onChange={(e) => updateParent({ emergencyContact: e.target.value })}
                   />
                 </label>
 
@@ -430,7 +463,7 @@ export default function ParentsTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                     placeholder="e.g., en, fr (optional)"
                     value={newParent.preferredLanguage ?? ''}
-                    onChange={(e) => setNewParent({ ...newParent, preferredLanguage: e.target.value })}
+                    onChange={(e) => updateParent({ preferredLanguage: e.target.value })}
                   />
                 </label>
 
@@ -441,8 +474,7 @@ export default function ParentsTab({
                     placeholder="Comma separated child IDs (optional)"
                     value={newParent.childIds.join(', ')}
                     onChange={(e) =>
-                      setNewParent({
-                        ...newParent,
+                      updateParent({
                         childIds: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
                       })
                     }
@@ -461,6 +493,15 @@ export default function ParentsTab({
                 >
                   Cancel
                 </button>
+                {!editingParent && (
+                  <button
+                    type="button"
+                    onClick={clearDraft}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                  >
+                    Clear Draft
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-medium px-6 py-3 rounded-lg transition duration-200"

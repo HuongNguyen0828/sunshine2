@@ -3,7 +3,7 @@
 
 import * as Types from "../../../shared/types/type";
 import type { NewClassInput } from "@/types/forms";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { LocationLite } from "@/services/useLocationsAPI";
 import {
   addClass as apiAddClass,
@@ -57,6 +57,49 @@ export default function ClassesTab({
   const [isAssigning, setIsAssigning] = useState(false);
   const [teacherOptions, setTeacherOptions] = useState<TeacherCandidate[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Restore draft when form opens
+  useEffect(() => {
+    if (isFormOpen && !editingClass) {
+      const draft = sessionStorage.getItem('class-form-draft');
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft);
+          setNewClass(parsed);
+          setIsDraftRestored(true);
+        } catch (e) {
+          console.error('Failed to restore draft:', e);
+        }
+      }
+    }
+  }, [isFormOpen, editingClass, setNewClass]);
+
+  // Helper to update form and save draft
+  const updateClass = useCallback((updates: Partial<NewClassInput>) => {
+    setNewClass(prev => {
+      const updated = { ...prev, ...updates };
+
+      // Save to sessionStorage with debounce
+      if (!editingClass) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
+        saveTimeoutRef.current = setTimeout(() => {
+          sessionStorage.setItem('class-form-draft', JSON.stringify(updated));
+        }, 500);
+      }
+
+      return updated;
+    });
+  }, [editingClass, setNewClass]);
+
+  // Clear draft
+  const clearDraft = useCallback(() => {
+    sessionStorage.removeItem('class-form-draft');
+    setIsDraftRestored(false);
+  }, []);
 
   // Helpers
   const getCapacityStatus = (volume: number, capacity: number) => {
@@ -109,7 +152,7 @@ export default function ClassesTab({
 
   // Create / Update form handlers
   async function handleFormSubmit(e: React.FormEvent) {
-    e.preventDefault();
+      e.preventDefault();
 
     const rawLoc = newClass.locationId ?? "";
     const payloadLocationId = rawLoc.trim() === "" ? undefined : rawLoc;
@@ -138,8 +181,9 @@ export default function ClassesTab({
       ageEnd: 0,
       classroom: "",
     });
+    clearDraft(); // Clear draft after successful submission
     setIsFormOpen(false);
-  }
+  };
 
   function handleAddClick() {
     setEditingClass(null);
@@ -482,9 +526,14 @@ export default function ClassesTab({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-2xl font-bold text-gray-800">
-                {editingClass ? "Edit Class" : "Add New Class"}
-              </h3>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {editingClass ? 'Edit Class' : 'Add New Class'}
+                </h3>
+                {isDraftRestored && !editingClass && (
+                  <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
+                )}
+              </div>
               <button
                 onClick={() => {
                   setIsFormOpen(false);
@@ -504,7 +553,7 @@ export default function ClassesTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Class Name"
                     value={newClass.name}
-                    onChange={(e) => setNewClass({ ...newClass, name: e.target.value })}
+                    onChange={(e) => setNewClass({ name: e.target.value })}
                     required
                   />
                 </label>
@@ -607,6 +656,15 @@ export default function ClassesTab({
                 >
                   Cancel
                 </button>
+                {!editingClass && (
+                  <button
+                    type="button"
+                    onClick={clearDraft}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                  >
+                    Clear Draft
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"

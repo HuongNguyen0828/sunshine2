@@ -8,9 +8,8 @@
 "use client";
 
 import * as Types from "../../../shared/types/type";
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef, useMemo } from "react";
 import type { NewTeacherInput } from "@/types/forms";
-import AutoCompleteAdress from "@/components/AutoCompleteAddress";
 import AutoCompleteAddress, { Address } from "@/components/AutoCompleteAddress";
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
@@ -31,24 +30,62 @@ export default function TeachersTab({
   const [currentPage, setCurrentPage] = useState(1);
   const [editingTeacher, setEditingTeacher] = useState<Types.Teacher | null>(null);
   const [showAssignClass, setShowAssignClass] = useState<string | null>(null);
-  const [selectedClass, setSelectedClass] = useState("");
-  const [rows, setRows] = useState<Types.Teacher[]>(teachers);
+  const [selectedClass, setSelectedClass] = useState('');
+    const [rows, setRows] = useState<Types.Teacher[]>(teachers);
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Restore draft when form opens
   useEffect(() => {
-    setRows(teachers);
-  }, [teachers]);
+    if (isFormOpen && !editingTeacher) {
+      const draft = sessionStorage.getItem('teacher-form-draft');
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft);
+          setNewTeacher(parsed);
+          setIsDraftRestored(true);
+        } catch (e) {
+          console.error('Failed to restore draft:', e);
+        }
+      }
+    }
+  }, [isFormOpen, editingTeacher, setNewTeacher]);
+
+  // Helper to update form and save draft
+  const updateTeacher = useCallback((updates: Partial<NewTeacherInput>) => {
+    setNewTeacher(prev => {
+      const updated = { ...prev, ...updates };
+
+      // Save to sessionStorage with debounce
+      if (!editingTeacher) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
+        saveTimeoutRef.current = setTimeout(() => {
+          sessionStorage.setItem('teacher-form-draft', JSON.stringify(updated));
+        }, 500);
+      }
+
+      return updated;
+    });
+  }, [editingTeacher, setNewTeacher]);
+
+  // Clear draft
+  const clearDraft = useCallback(() => {
+    sessionStorage.removeItem('teacher-form-draft');
+    setIsDraftRestored(false);
+  }, []);
 
   const handleAddressChange = useCallback((a: Address) => {
-    setNewTeacher((prev) => ({
-      ...prev,
+    updateTeacher({
       address1: a.address1,
       address2: a.address2,
       city: a.city,
       province: a.province,
       country: a.country,
-      postalcode: a.postalcode,
-    }));
-  }, [setNewTeacher]);
+      postalcode: a.postalcode
+    });
+  }, [updateTeacher]);
 
   // Handle load address to form when editing: setNewTeacher with value of current Address
   // Passing Current address value back to input value
@@ -94,6 +131,27 @@ export default function TeachersTab({
     });
   };
 
+  const handleAddClick = () => {
+    setEditingTeacher(null);
+    setNewTeacher({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      address1: "",
+      address2: "",
+      city: "",
+      province: "",
+      country: "",
+      postalcode: "",
+      startDate: "",
+      endDate: undefined,
+      status: Types.TeacherStatus.New,
+      isRegistered: false,
+    });
+    setIsFormOpen(true);
+  };
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingTeacher) {
@@ -104,16 +162,14 @@ export default function TeachersTab({
       resetForm();
       setIsFormOpen(false);
       return;
+    } else {
+      await onAdd();
+      setIsFormOpen(false);
     }
-    await onAdd();
+    clearDraft(); // Clear draft after successful submission
     setIsFormOpen(false);
   };
 
-  const handleAddClick = () => {
-    setEditingTeacher(null);
-    resetForm();
-    setIsFormOpen(true);
-  };
 
   const handleEditClick = (teacher: Types.Teacher) => {
     setEditingTeacher(teacher);
@@ -317,7 +373,14 @@ export default function TeachersTab({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-2xl font-bold text-gray-800">{editingTeacher ? "Edit Teacher" : "Add New Teacher"}</h3>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">
+                  {editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}
+                </h3>
+                {isDraftRestored && !editingTeacher && (
+                  <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
+                )}
+              </div>
               <button
                 onClick={() => {
                   setIsFormOpen(false);
@@ -338,7 +401,7 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="First Name"
                       value={newTeacher.firstName}
-                      onChange={(e) => setNewTeacher({ ...newTeacher, firstName: e.target.value })}
+                      onChange={(e) => updateTeacher({ firstName: e.target.value })}
                       required
                     />
                   </label>
@@ -348,7 +411,7 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Last Name"
                       value={newTeacher.lastName}
-                      onChange={(e) => setNewTeacher({ ...newTeacher, lastName: e.target.value })}
+                      onChange={(e) => updateTeacher({ lastName: e.target.value })}
                       required
                     />
                   </label>
@@ -361,7 +424,7 @@ export default function TeachersTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Email"
                     value={newTeacher.email}
-                    onChange={(e) => setNewTeacher({ ...newTeacher, email: e.target.value })}
+                    onChange={(e) => updateTeacher({ email: e.target.value })}
                     required
                   />
                 </label>
@@ -372,7 +435,7 @@ export default function TeachersTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="e.g. 403 111 2284"
                     value={newTeacher.phone}
-                    onChange={(e) => setNewTeacher({ ...newTeacher, phone: e.target.value })}
+                    onChange={(e) => updateTeacher({ phone: e.target.value })}
                     required
                   />
                 </label>
@@ -392,7 +455,7 @@ export default function TeachersTab({
                       type="date"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newTeacher.startDate}
-                      onChange={(e) => setNewTeacher({ ...newTeacher, startDate: e.target.value })}
+                      onChange={(e) => updateTeacher({ startDate: e.target.value })}
                       required
                     />
                   </label>
@@ -403,7 +466,7 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="End Date (optional)"
                       value={newTeacher.endDate || ""}
-                      onChange={(e) => setNewTeacher({ ...newTeacher, endDate: e.target.value || undefined })}
+                      onChange={(e) => updateTeacher({ endDate: e.target.value || undefined })}
                     />
                   </label>
                 </div>
@@ -420,6 +483,15 @@ export default function TeachersTab({
                 >
                   Cancel
                 </button>
+                {!editingTeacher && (
+                  <button
+                    type="button"
+                    onClick={clearDraft}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                  >
+                    Clear Draft
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"

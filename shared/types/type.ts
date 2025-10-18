@@ -159,7 +159,6 @@ export type Parent = {
   email: string;           // username for login
   role: "parent";          // fixed as Parent
   phone: string;
-  passwordHash: string;    // storing hash directly for simplicity
   childIds: string[];      // children associated with this parent
   street: string;
   city: string;
