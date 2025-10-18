@@ -3,8 +3,6 @@
 
 import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
 import Cookies from "js-cookie";
-import { title } from "process";
-import swal from "sweetalert2";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
 // First: Wait for Firebase Auth to initialize and get current user

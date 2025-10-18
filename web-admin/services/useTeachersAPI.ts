@@ -22,7 +22,7 @@ export async function addTeacher(newTeacher: NewTeacherInput): Promise<Types.Tea
     swal.fire({
           icon: "success",
           title: "New Teacher",
-          text: `Successfully added: ${teacher.firstName} ${teacher.lastName}`,
+          text: `Successfully added`,
         });
     return teacher;
   } catch (err: unknown) {
