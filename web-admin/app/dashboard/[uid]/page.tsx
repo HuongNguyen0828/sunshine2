@@ -124,6 +124,18 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  // Fetching TeachersData, used in useEffect - 1st  mount and after any CRUD and related operation
+  const fetchTeachersData = async () => {
+    try {
+      const data = await fetchTeachers();
+      if (data) setTeachers(data);
+    } catch (err: any) {
+      console.error(err);
+      alert("Error fetching teachers");
+    }
+  };
+
+
   // Initial load after auth is ready
   useEffect(() => {
     if (authLoading || !currentUser) return;
@@ -165,6 +177,9 @@ export default function AdminDashboard() {
   const handleAddTeacher = async () => {
     try {
       await addTeacher(newTeacher);
+      // Refresh from server to get latest data,in the background
+      await fetchTeachersData();
+      // Reset form
       setNewTeacher({
         firstName: "",
         lastName: "",
@@ -181,10 +196,9 @@ export default function AdminDashboard() {
         startDate: "",
         endDate: undefined,
       });
-      // Refresh from server to get latest data,in the background
-      await refreshAll(); 
+
     } catch (err: any) {
-      // console.error(err);
+      console.error(err);
       await swal.fire({
         icon: "error",
         title: "Failed to add",

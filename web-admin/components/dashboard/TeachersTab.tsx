@@ -163,7 +163,7 @@ export default function TeachersTab({
       setIsFormOpen(false);
       return;
     } else {
-      await onAdd();
+      onAdd();
       setIsFormOpen(false);
     }
     clearDraft(); // Clear draft after successful submission
@@ -398,20 +398,22 @@ export default function TeachersTab({
                   <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">First Name *</span>
                     <input
+                      type="text"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="First Name"
                       value={newTeacher.firstName}
-                      onChange={(e) => updateTeacher({ firstName: e.target.value })}
+                      onChange={(e) => setNewTeacher({ ...newTeacher, firstName: e.target.value })}
                       required
                     />
                   </label>
                   <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">Last Name *</span>
                     <input
+                      type="text"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Last Name"
                       value={newTeacher.lastName}
-                      onChange={(e) => updateTeacher({ lastName: e.target.value })}
+                      onChange={(e) => setNewTeacher({ ...newTeacher, lastName: e.target.value })}
                       required
                     />
                   </label>
@@ -424,7 +426,7 @@ export default function TeachersTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Email"
                     value={newTeacher.email}
-                    onChange={(e) => updateTeacher({ email: e.target.value })}
+                    onChange={(e) => setNewTeacher({ ...newTeacher, email: e.target.value })}
                     required
                   />
                 </label>
@@ -435,7 +437,7 @@ export default function TeachersTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="e.g. 403 111 2284"
                     value={newTeacher.phone}
-                    onChange={(e) => updateTeacher({ phone: e.target.value })}
+                    onChange={(e) => setNewTeacher({ ...newTeacher, phone: e.target.value })}
                     required
                   />
                 </label>
@@ -455,7 +457,7 @@ export default function TeachersTab({
                       type="date"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newTeacher.startDate}
-                      onChange={(e) => updateTeacher({ startDate: e.target.value })}
+                      onChange={(e) => setNewTeacher({ ...newTeacher, startDate: e.target.value })}
                       required
                     />
                   </label>
@@ -466,7 +468,7 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="End Date (optional)"
                       value={newTeacher.endDate || ""}
-                      onChange={(e) => updateTeacher({ endDate: e.target.value || undefined })}
+                      onChange={(e) => setNewTeacher({ ...newTeacher, endDate: e.target.value || undefined })}
                     />
                   </label>
                 </div>
