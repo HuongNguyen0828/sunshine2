@@ -41,11 +41,13 @@ export async function updateTeacher(
   payload: NewTeacherInput
 ): Promise<Types.Teacher | null> {
   try {
+      console.log(id);
     const teacher = await api.put<Types.Teacher>(`${ENDPOINTS.teachers}/${id}`, { ...payload });
     return teacher;
   } catch (err: unknown) {
     console.error(err);
-    return null;
+    // return null;
+    throw err; // Rethrow the error to be handled by the caller
   }
 }
 
@@ -57,7 +59,7 @@ export async function deleteTeacher(
     return res;
   } catch (err: unknown) {
     console.error(err);
-    return null;
+    throw err; // Rethrow the error to be handled by the caller
   }
 }
 
@@ -70,6 +72,6 @@ export async function assignTeacherToClass(
     return res;
   } catch (err: unknown) {
     console.error(err);
-    return null;
+    throw err; // Rethrow the error to be handled by the caller
   }
 }

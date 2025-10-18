@@ -3,7 +3,7 @@ import type { Teacher } from "../../../../shared/types/type";
 import { TeacherStatus } from "../../../../shared/types/type";
 import { db } from "../../lib/firebase";
 import { UserRole } from "../../models/user";
-import { checkingIfEmailIsUnique } from "../authService";
+import { checkingIfEmailIsUnique, updateEmailFirebaseAuth, deleteUserFirebaseAuth } from "../authService";
 
 // Collections
 const classesRef  = db.collection("classes");
@@ -28,20 +28,35 @@ export const addTeacher = async (locationId: string, teacher: Omit<Teacher, "id"
   }
   // Adding new teacher into user collection: with role, status and isRegistered flags
   // Ensure no id field is present and locationId is set to the provided locationId, role set to Teacher
-  const doc = await usersRef.add({
+  const docRef = await usersRef.add({
     ...teacher, 
     locationId: locationId, 
     role: UserRole.Teacher, 
     status: TeacherStatus.New, // status new by default
   });
-  return { id: doc.id, ...(teacher as any) } as Teacher;
+
+  // Updating current Teacher Doc with newly added id
+  const id = docRef.id;
+  await docRef.update({id});
+  
+  // return teacher
+  return { id: docRef.id, ...(teacher as any) } as Teacher;
 };
 
-// Get teacher by id
+
+/**
+ *  Get teacher by id field: not doc id 
+ *  this could be doc(id) in case isRegisted is false
+ * Else, after register, id is updated to uid from Firebase Auth
+ * @param id 
+ * @returns 
+ */
 export const getTeacherById = async (id: string): Promise<Teacher | null> => {
-  const doc = await usersRef.doc(id).get();
-  if (!doc.exists) return null;
-  return { id: doc.id, ...(doc.data() as any) } as Teacher;
+  const teacherSnap = await usersRef.where("id", "==", id).get();
+  // Get teacher doc
+  const teacherDoc = teacherSnap.docs[0];
+  if (!teacherDoc?.exists) return null;
+  return {...teacherDoc.data()} as Teacher;
 };
 
 // Update teacher, returns updated doc or null if not found
@@ -49,30 +64,66 @@ export const updateTeacher = async (
   id: string,
   body: Partial<Teacher>
 ): Promise<Teacher | null> => {
-  const docRef = usersRef.doc(id);
-  const doc = await docRef.get();
-  if (!doc.exists) return null;
+  // Find the doc ref of Teacher
+  const teacherSnap = usersRef.where("id", "==", id);
+  const doc = await teacherSnap.get();
+  const teacherDoc = doc.docs[0];
+  if (!teacherDoc?.exists) return null;
 
-  await docRef.set(body, { merge: true });
-  const updated = await docRef.get();
+  const teacherDocRef = teacherDoc?.ref;
+
+  await teacherDocRef.set(body, { merge: true });
+  const updated = await teacherDocRef.get();
+
+  // Checking if updating email
+  const currentTeacher = await getTeacherById(id);
+  const currentEmail = currentTeacher?.email;
+
+  if (body.email) {
+    const newEmail = body.email;
+    if (body.email !== currentEmail) {
+      // update firebae Auth credentials: calling from authServices
+      try {
+        await updateEmailFirebaseAuth(id, newEmail);
+      } catch (error: any) {
+        throw error;
+      }
+    }
+  }
+
   return { id: updated.id, ...(updated.data() as any) } as Teacher;
 };
 
 // Delete teacher and clear class references; also remove user doc if exists
+// And delete user in Firebase Auth
 export const deleteTeacher = async (id: string): Promise<boolean> => {
-  const docRef = usersRef.doc(id);
-  const doc = await docRef.get();
-  if (!doc.exists) return false;
+  const snapDoc = usersRef.where("id", "==", id);
+  const doc = await snapDoc.get();
 
   const clsSnap = await classesRef.where("teacherId", "==", id).get();
   const batch = db.batch();
 
-  batch.delete(docRef);
-  batch.delete(usersRef.doc(id)); // ok even if missing
+  const teacherDoc = doc.docs[0];
+  if (!teacherDoc?.exists) return false;
+
+  batch.delete(teacherDoc?.ref);
+  // batch.delete(usersRef.doc(id)); // ok even if missing
   clsSnap.forEach((d) => batch.update(d.ref, { teacherId: null }));
 
   await batch.commit();
-  return true;
+  // Delete user from Firebase Auth: if already registered
+  const teacherData = teacherDoc.data();
+  if (!teacherData?.isRegistered) {
+    return true; // ignore
+  }
+
+  // Else, delete in Firebase Auth
+  try {
+    await deleteUserFirebaseAuth(id);
+    return true;
+  } catch (error: any) {
+    throw error;
+  }
 };
 
 // Assign a teacher to a class (bidirectional), returns success boolean

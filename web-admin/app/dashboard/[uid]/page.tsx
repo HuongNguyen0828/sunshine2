@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import ProtectedRoute from "@/components/ProtectRoute";
 import AppHeader from "@/components/AppHeader";
 import SidebarNav from "@/components/dashboard/SidebarNav";
 import Overview from "@/components/dashboard/Overview";
@@ -78,7 +77,6 @@ export default function AdminDashboard() {
     lastName: "",
     email: "",
     phone: "",
-    passwordHash: "",
     childIds: [],
     street: "",
     city: "",
@@ -165,28 +163,8 @@ export default function AdminDashboard() {
 
   // Create teacher (optimistic UI)
   const handleAddTeacher = async () => {
-    const optimistic: Types.Teacher = {
-      id: `tmp-${Date.now()}`,
-      firstName: newTeacher.firstName,
-      lastName: newTeacher.lastName,
-      email: newTeacher.email,
-      phone: newTeacher.phone,
-      address1: newTeacher.address1,
-      address2: newTeacher.address2 || "",
-      city: newTeacher.city,
-      province: newTeacher.province,
-      country: newTeacher.country,
-      postalcode: newTeacher.postalcode || "",
-      classIds: newTeacher.classIds ?? [],
-      locationId: newTeacher.locationId || "",
-      startDate: newTeacher.startDate,
-      endDate: newTeacher.endDate,
-    };
-
-    setTeachers((prev) => [optimistic, ...prev]);
-
     try {
-      const created = await addTeacher(newTeacher);
+      await addTeacher(newTeacher);
       setNewTeacher({
         firstName: "",
         lastName: "",
@@ -203,8 +181,8 @@ export default function AdminDashboard() {
         startDate: "",
         endDate: undefined,
       });
-        
-      await refreshAll(); // Refresh from server to get latest data,in the background
+      // Refresh from server to get latest data,in the background
+      await refreshAll(); 
     } catch (err: any) {
       // console.error(err);
       await swal.fire({
@@ -263,7 +241,6 @@ export default function AdminDashboard() {
       lastName: "",
       email: "",
       phone: "",
-      passwordHash: "",
       childIds: [],
       street: "",
       city: "",
@@ -294,21 +271,19 @@ export default function AdminDashboard() {
   // Show a simple loader while fetching initial data
   if (authLoading || dataLoading) {
     return (
-      <ProtectedRoute>
-        <div>Loading...</div>
-      </ProtectedRoute>
+        <div>Loading inside dashboard/uid...</div>
     );
   }
 
   return (
-    <ProtectedRoute>
+    <>
       <div style={dash.container}>
         {/* App header */}
         <header style={dash.header}>
           <AppHeader />
           <h1 style={dash.headerTitle}>Admin Dashboard</h1>
           <div style={dash.headerActions}>
-            <span style={dash.welcome}>Welcome, Admin</span>
+            <span style={dash.welcome}>Welcome, {currentUser?.displayName}</span>
             <button onClick={signOutUser} style={dash.logoutButton}>
               Logout
             </button>
@@ -375,6 +350,6 @@ export default function AdminDashboard() {
           </main>
         </div>
       </div>
-    </ProtectedRoute>
+    </>
   );
 }

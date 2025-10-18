@@ -103,6 +103,33 @@ export async function checkingIfEmailIsUnique(email: string): Promise<Boolean> {
     }
     return false; // exists
 }
+/**
+ * Update user email profile in Firebase Auth
+ * @param email 
+ * @returns 
+ */
+export async function updateEmailFirebaseAuth(uid: string, newEmail: string) {
+  try {
+    const userRecord = await admin.auth().updateUser(uid, {
+        email: newEmail,
+        emailVerified: true // we don't do email veritification
+      });
+    return userRecord;
+  }
+  catch (error: any) {
+    throw new Error("Failed to update user email from Firebase Auth");
+  }
+} 
+
+export async function deleteUserFirebaseAuth(uid: string) {
+  try {
+    await admin.auth().deleteUser(uid)
+  }
+  catch (error: any) {
+    throw new Error("Failed to delete user from Firebase Auth");
+  }
+}
+
 /***
  * Find daycareId and locationId by email for each user role
  */
@@ -136,14 +163,14 @@ export async function findDaycareAndLocationByEmail(email: string | null): Promi
     if (role === UserRole.Teacher) {
       const locationId = userData?.locationId;
       
-    // Find the location document by its ID
-    const snapshot = await db.collection("locations")
+    // Find the location document by its ID in subCollection locations
+    const locationSnapshot = await db.collectionGroup("locations")
       .where("id", "==", locationId)
       .get();
 
-    if (snapshot.empty) return null;
+    if (locationSnapshot.empty) return null;
 
-    const locationDoc = snapshot.docs[0];
+    const locationDoc = locationSnapshot.docs[0];
     const daycareId = locationDoc?.data()?.daycareId;
     
     return daycareId ? { daycareId, locationId } : null;
@@ -167,11 +194,11 @@ export async function findDaycareAndLocationByEmail(email: string | null): Promi
         return null;
       }
       // Then, find daycareProvider by locationId from daycareProviders collection with subcollection locations
-      const snapshot = await db.collection("locations")
+      const locatioSnapshot = await db.collectionGroup("locations")
         .where("id", "==", locationId)
         .get(); 
-      if (!snapshot.empty) {
-        const locationDoc = snapshot.docs[0];
+      if (!locatioSnapshot.empty) {
+        const locationDoc = locatioSnapshot.docs[0];
         const daycareId = locationDoc?.data()?.daycareId; // parent of subcollection parent
         if (daycareId) {
         return { daycareId, locationId };

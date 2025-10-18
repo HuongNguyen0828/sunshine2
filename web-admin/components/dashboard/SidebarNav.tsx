@@ -26,7 +26,7 @@ const TeachersIcon = () => (
   </svg>
 );
 
-const StudentsIcon = () => (
+const ChildrenIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
     <circle cx="6" cy="5" r="2.5" />
     <circle cx="12" cy="5" r="2.5" />
@@ -83,7 +83,7 @@ export default function SidebarNav({
   const navItems: { id: Tab; label: string; icon: JSX.Element }[] = [
     { id: 'overview', label: 'Overview', icon: <OverviewIcon /> },
     { id: 'teachers', label: 'Teachers', icon: <TeachersIcon /> },
-    { id: 'children', label: 'Students', icon: <StudentsIcon /> },
+    { id: 'children', label: 'Children', icon: <ChildrenIcon /> },
     { id: 'parents', label: 'Parents', icon: <ParentsIcon /> },
     { id: 'classes', label: 'Classes', icon: <ClassesIcon /> },
     { id: 'scheduler-labs', label: 'Scheduler', icon: <SchedulerIcon /> },

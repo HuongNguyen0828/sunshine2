@@ -1,3 +1,5 @@
+// web-admin/lib/auth
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -94,21 +96,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   /** Keep Firebase Auth state in sync with React state */
   useEffect(() => {
-    const cachedRole = Cookies.get("userRole");
-    if (cachedRole) {
-      setUserRole(cachedRole);
-      setIsAdmin(cachedRole === "admin");
-    }
+   
     // Determine initial auth state: when user already login and idToken valid and not expired
     // onAuthStateChanged will be triggered right away with current user (or null)
     // We wait for that before marking loading=false
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-
+      setLoading(true);
       const idToken = Cookies.get("idToken");
-      if (idToken) {
+      if (idToken || user) { // idToken from remember-me JWT and user coming from physical login => currentUser in Firebase Auth
         // Verify token with backend
         setCurrentUser(user);
-        setLoading(false);
+        const cachedRole = Cookies.get("userRole") ?? userRole;
+        console.log(cachedRole);
+        if (cachedRole) {
+          setUserRole(cachedRole);
+          setIsAdmin(cachedRole === "admin");
+        }
       } else {
         setUserRole(null);
         setIsAdmin(false);
@@ -118,6 +121,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           Cookies.remove("uid");
         }
       }
+      setLoading(false); // always mark done at the end
+      // router.replace("/");   // MAke it pure updating state of Firebase Auth, the speparete routing async
     });
     return () => unsubscribe();
   }, [auth, bypassAuth]);
@@ -219,6 +224,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUserRole(role);
       setIsAdmin(role === "admin");
       console.log("  ✅ Sign in complete");
+
+      // 🔔 Notify all other tabs about Logout
+      localStorage.setItem("login", Date.now().toString());
+
     } catch (error: unknown) {
       console.log("  ❌ Sign in error:", error);
       if (isFirebaseError(error) && error.code === "auth/invalid-credential") {
@@ -239,8 +248,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       Cookies.remove("idToken");
       Cookies.remove("uid");
     }
+    
+    // 🔔 Notify all other tabs about Logout
+    localStorage.setItem("logout", Date.now().toString());
+    // Then, redirect to /login page
     router.replace("/login");
   };
+
+
+   // --- Sync logout across tabs ---
+  useEffect(() => {
+    const syncLogout = (event: StorageEvent) => {
+      if (event.key === "logout") {
+        // Another tab triggered logout
+        Cookies.remove("uid");
+        Cookies.remove("idToken");
+        Cookies.remove("userRole");
+        setCurrentUser(null);
+        setUserRole(null);
+        router.replace("/login");
+      }
+    };
+
+    window.addEventListener("storage", syncLogout);
+    return () => window.removeEventListener("storage", syncLogout);
+  }, [router]);
+
+  // ---  Sync login across tabs ---
+  useEffect(() => {
+    const syncLogin = (event: StorageEvent) => {
+      if (event.key === "login") {
+        // Another tab triggered login
+        const uid = Cookies.get("uid") ?? currentUser?.uid;
+        router.replace(`/dashboard/${uid}`); // forces the current tab to re-check cookies & auth state
+      }
+    };
+
+    window.addEventListener("storage", syncLogin);
+    return () => window.removeEventListener("storage", syncLogin);
+  }, [router]);
+
+
 
   return (
     <AuthContext.Provider

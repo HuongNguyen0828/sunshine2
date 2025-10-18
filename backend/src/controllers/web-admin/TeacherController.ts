@@ -92,7 +92,7 @@ export const updateTeacher = async (req: Request, res: Response) => {
     }
 
     const updated = await TeacherService.updateTeacher(id, req.body);
-    if (!updated) return res.status(404).json({ message: "Teacher not found" });
+    if (!updated) return res.status(404).json({ message: "Failed to update teacher" });
 
     return res.json(updated);
   } catch (e: any) {
@@ -115,8 +115,13 @@ export const deleteTeacher = async (req: Request, res: Response) => {
     if (!id) return res.status(400).json({ message: "id required" });
 
     // Fetch the teacher first
+    console.log("locationId", locationId);
+    console.log("backend:" , id)
     const teacher = await TeacherService.getTeacherById(id);
-    if (!teacher) return res.status(404).json({ message: "Teacher not found" });
+    console.log (teacher);
+    if (teacher == null) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
 
     // Check if teacher belongs to admin's location
     if (teacher.locationId !== locationId) {
@@ -124,7 +129,7 @@ export const deleteTeacher = async (req: Request, res: Response) => {
     }
 
     const ok = await TeacherService.deleteTeacher(id);
-    if (!ok) return res.status(404).json({ message: "Teacher not found" });
+    if (!ok) return res.status(404).json({ message: "Failed to delete teacher" });
 
     return res.json({ ok: true, uid: id });
   } catch (e: any) {
