@@ -180,9 +180,10 @@ export type Schedule = {
 
 /** Possible enrollment status — automatically derived by server */
 export enum EnrollmentStatus {
-  New = "New",          // no parent link & no class assigned
-  Waitlist = "Waitlist",// one of parent or class linked
-  Active = "Active",    // both parent and class linked
+  New = "New",         
+  Waitlist = "Waitlist",
+  Active = "Active",
+  Withdraw = "Withdraw",   
 }
 
 /** Minimal structure stored in Firestore and used across UI */
