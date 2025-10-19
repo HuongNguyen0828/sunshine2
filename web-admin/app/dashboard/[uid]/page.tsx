@@ -1,4 +1,4 @@
-// web-admin/app/(whatever)/page.tsx
+// web-admin/app/dashboard/[uid]/page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
@@ -13,11 +13,9 @@ import ChildrenTab, {
   type NewChildInput as ChildFormInput,
 } from "@/components/dashboard/ChildrenTab";
 import { dash } from "@/styles/dashboard";
-
 import { useAuth } from "@/lib/auth";
 import * as Types from "../../../../shared/types/type";
 import type { Tab, NewParentInput, NewClassInput } from "@/types/forms";
-
 import swal from "sweetalert2";
 import { fetchTeachers } from "@/services/useTeachersAPI";
 import { fetchClasses } from "@/services/useClassesAPI";
@@ -25,8 +23,6 @@ import {
   fetchLocationsLite,
   type LocationLite,
 } from "@/services/useLocationsAPI";
-
-// Firestore Children API (client-side)
 import {
   fetchChildren as fetchChildrenAPI,
   addChild as addChildAPI,
@@ -34,12 +30,11 @@ import {
   deleteChildById as deleteChildAPI,
   assignChildToClass,
   unassignChildFromClass,
+  linkParentToChildByEmail,
+  unlinkParentFromChild,
+  fetchParentsLiteByIds, 
   type NewChildInput as APIChildInput,
 } from "@/services/useChildrenAPI";
-
-/* ------------------------------------------------------------------ */
-/* Helpers to read admin scope from a loosely typed currentUser object */
-/* ------------------------------------------------------------------ */
 
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null;
@@ -58,13 +53,11 @@ function toStrArray(x: unknown): string[] {
   return [];
 }
 
-/** Admin scope modes for location UX */
 type AdminScope =
-  | { mode: "select"; daycareId?: string; fixedLocationId?: undefined } // multiple or "*"
-  | { mode: "fixed"; daycareId?: string; fixedLocationId: string } // exactly one location
+  | { mode: "select"; daycareId?: string; fixedLocationId?: undefined }
+  | { mode: "fixed"; daycareId?: string; fixedLocationId: string }
   | { mode: "none"; daycareId?: string; fixedLocationId?: undefined };
 
-/** Try to read daycareId from user object or its profile */
 function readDaycareId(u: unknown): string | undefined {
   if (!isRecord(u)) return undefined;
   const top = u["daycareId"];
@@ -77,7 +70,6 @@ function readDaycareId(u: unknown): string | undefined {
   return undefined;
 }
 
-/** Collect location ids from user object or its profile */
 function collectLocationIds(u: unknown): string[] {
   if (!isRecord(u)) return [];
   const locs = new Set<string>();
@@ -91,11 +83,6 @@ function collectLocationIds(u: unknown): string[] {
   return Array.from(locs);
 }
 
-/** Decide admin scope:
- *  - if exactly one location -> fixed
- *  - if multiple or "*" -> select
- *  - else -> none
- */
 function getAdminScopeFromUser(u: unknown): AdminScope {
   const daycareId = readDaycareId(u);
   const locs = new Set(collectLocationIds(u));
@@ -105,11 +92,7 @@ function getAdminScopeFromUser(u: unknown): AdminScope {
   return { mode: "none", daycareId };
 }
 
-/** Local-only status calculator (UI fallback if server field is missing) */
-function computeStatus(
-  parentIds?: string[],
-  classId?: string
-): Types.EnrollmentStatus {
+function computeStatus(parentIds?: string[], classId?: string): Types.EnrollmentStatus {
   const hasParent = Array.isArray(parentIds) && parentIds.length > 0;
   const hasClass = Boolean(classId);
   if (hasParent && hasClass) return Types.EnrollmentStatus.Active;
@@ -117,24 +100,25 @@ function computeStatus(
   return Types.EnrollmentStatus.New;
 }
 
-/* ------------------------------------------------------------------ */
-/* Component                                                           */
-/* ------------------------------------------------------------------ */
+function getErrorMessage(e: unknown, fallback: string): string {
+  if (typeof e === "object" && e !== null && "message" in e && typeof (e as { message?: unknown }).message === "string") {
+    return (e as { message: string }).message;
+  }
+  return fallback;
+}
 
 export default function AdminDashboard() {
   const { signOutUser, currentUser, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
-  // server-backed lists
   const [teachers, setTeachers] = useState<Types.Teacher[]>([]);
   const [classes, setClasses] = useState<Types.Class[]>([]);
   const [locations, setLocations] = useState<LocationLite[]>([]);
   const [children, setChildren] = useState<Types.Child[]>([]);
-  // demo/local
   const [parents, setParents] = useState<Types.Parent[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(true);
+  const [parentLites, setParentLites] = useState<Array<{ id: string; firstName?: string; lastName?: string; email?: string }>>([]);
 
-  // form states
   const [newChild, setNewChild] = useState<ChildFormInput>({
     firstName: "",
     lastName: "",
@@ -143,6 +127,7 @@ export default function AdminDashboard() {
     classId: "",
     locationId: "",
     notes: "",
+    enrollmentStatus: Types.EnrollmentStatus.New,
   });
   const [newParent, setNewParent] = useState<NewParentInput>({
     firstName: "",
@@ -169,63 +154,63 @@ export default function AdminDashboard() {
     classroom: "",
   });
 
-  /** Resolve admin scope from currentUser */
   const scope = useMemo<AdminScope>(() => getAdminScopeFromUser(currentUser), [currentUser]);
 
-  /** Fetch everything with scope-aware children query */
-  const refreshAll = useCallback(async () => {
-    setDataLoading(true);
-    try {
-      // Children query decision:
-      // - admin has exactly one location -> query by that locationId
-      // - otherwise -> query by daycareId when available
-      const childrenQuery =
-        scope.mode === "fixed"
-          ? { locationId: scope.fixedLocationId }
-          : scope.daycareId
-          ? { daycareId: scope.daycareId }
-          : {};
+const refreshAll = useCallback(async () => {
+  setDataLoading(true);
+  try {
+    const childrenQuery =
+      scope.mode === "fixed"
+        ? { locationId: scope.fixedLocationId }
+        : scope.daycareId
+        ? { daycareId: scope.daycareId }
+        : {};
 
-      const [tchs, clss, locs, kids] = await Promise.all([
-        fetchTeachers(),
-        fetchClasses(),
-        fetchLocationsLite(),
-        fetchChildrenAPI(childrenQuery),
-      ]);
+    const [tchs, clss, locs, kids] = await Promise.all([
+      fetchTeachers(),
+      fetchClasses(),
+      fetchLocationsLite(),
+      fetchChildrenAPI(childrenQuery),
+    ]);
 
-      // Narrow visible locations if scope is fixed
-      const filteredLocs =
-        scope.mode === "fixed"
-          ? (locs ?? []).filter((l) => l.id === scope.fixedLocationId)
-          : (locs ?? []);
+    const filteredLocs =
+      scope.mode === "fixed"
+        ? (locs ?? []).filter((l) => l.id === scope.fixedLocationId)
+        : (locs ?? []);
 
-      setTeachers(tchs ?? []);
-      setClasses(clss ?? []);
-      setLocations(filteredLocs);
-      setChildren(kids ?? []);
-    } catch (e) {
-      console.error(e);
-      await swal.fire({
-        icon: "error",
-        title: "Failed to load",
-        text: "Could not fetch teachers/classes/locations/children.",
-      });
-    } finally {
-      setDataLoading(false);
-    }
-  }, [scope.mode, scope.fixedLocationId, scope.daycareId]);
+    setTeachers(tchs ?? []);
+    setClasses(clss ?? []);
+    setLocations(filteredLocs);
+    setChildren(kids ?? []);
 
-  /** First load (after auth resolved) */
+    // ✅ parents 라이트 로드
+    const parentIds = Array.from(
+      new Set(
+        (kids ?? []).flatMap((c) => Array.isArray(c.parentId) ? c.parentId : [])
+      )
+    );
+    const lites = await fetchParentsLiteByIds(parentIds);
+    setParentLites(lites);
+  } catch (e) {
+    console.error(e);
+    await swal.fire({
+      icon: "error",
+      title: "Failed to load",
+      text: "Could not fetch teachers/classes/locations/children.",
+    });
+  } finally {
+    setDataLoading(false);
+  }
+}, [scope.mode, scope.fixedLocationId, scope.daycareId]);
+
   useEffect(() => {
     if (authLoading || !currentUser) return;
     refreshAll();
   }, [authLoading, currentUser, refreshAll]);
 
-  /** Type guard for locations that carry daycareId */
   const hasDaycareId = (l: LocationLite): l is LocationLite & { daycareId: string } =>
     typeof (l as { daycareId?: unknown }).daycareId === "string";
 
-  /** Limit location options shown in UI by admin scope (same as ClassesTab) */
   const filteredLocations = useMemo<LocationLite[]>(() => {
     if (scope.mode === "fixed") return locations.filter((l) => l.id === scope.fixedLocationId);
     if (scope.mode === "select") {
@@ -235,16 +220,12 @@ export default function AdminDashboard() {
     return locations;
   }, [locations, scope]);
 
-  /** Pre-fill new class location when admin is fixed to one location */
   useEffect(() => {
     if (scope.mode === "fixed") {
       setNewClass((p) => ({ ...p, locationId: scope.fixedLocationId }));
     }
   }, [scope.mode, scope.fixedLocationId]);
 
-  /* ------------------------ Children ops (Firestore) ------------------------ */
-
-  /** Create child -> Firestore -> refresh */
   const createChild = async (input: ChildFormInput): Promise<Types.Child | null> => {
     const payload: APIChildInput = {
       firstName: input.firstName.trim(),
@@ -253,8 +234,9 @@ export default function AdminDashboard() {
       parentId: Array.isArray(input.parentId) ? input.parentId : [],
       classId: input.classId?.trim() || undefined,
       locationId: scope.mode === "fixed" ? scope.fixedLocationId : input.locationId?.trim(),
-      daycareId: scope.daycareId, // ownership for filtering
+      daycareId: scope.daycareId,
       notes: input.notes?.trim() || undefined,
+      enrollmentStatus: input.enrollmentStatus ?? computeStatus(input.parentId, input.classId),
     };
     await addChildAPI(payload);
     await refreshAll();
@@ -266,11 +248,11 @@ export default function AdminDashboard() {
       classId: "",
       locationId: "",
       notes: "",
+      enrollmentStatus: Types.EnrollmentStatus.New,
     });
     return null;
   };
 
-  /** Update child -> Firestore -> refresh (return null for now) */
   const updateChild = async (
     id: string,
     patch: Partial<ChildFormInput>
@@ -280,48 +262,66 @@ export default function AdminDashboard() {
       lastName: patch.lastName?.trim(),
       birthDate: patch.birthDate,
       parentId: Array.isArray(patch.parentId) ? patch.parentId : undefined,
-      locationId:
-        scope.mode === "fixed" ? scope.fixedLocationId : patch.locationId?.trim(),
+      locationId: scope.mode === "fixed" ? scope.fixedLocationId : patch.locationId?.trim(),
       notes: patch.notes?.trim(),
+      enrollmentStatus: patch.enrollmentStatus,
+      classId: patch.classId,
     });
     await refreshAll();
     return null;
   };
 
-  /** Delete child -> Firestore -> refresh */
   const deleteChild = async (id: string): Promise<boolean> => {
     await deleteChildAPI(id);
     await refreshAll();
     return true;
   };
 
-  /** Assign to class -> Firestore -> refresh */
   const onAssignChild = async (childId: string, classId: string) => {
     try {
       await assignChildToClass(childId, classId);
       await refreshAll();
       return true;
-    } catch (e) {
-      console.error(e);
-      alert("Failed to assign child. Please try again.");
+    } catch (e: unknown) {
+      const msg = getErrorMessage(e, "Failed to assign child. Please try again.");
+      alert(msg);
       return false;
     }
   };
 
-  /** Unassign -> Firestore -> refresh */
   const onUnassignChild = async (childId: string) => {
     try {
       await unassignChildFromClass(childId);
       await refreshAll();
       return true;
-    } catch (e) {
-      console.error(e);
+    } catch {
       alert("Failed to unassign child. Please try again.");
       return false;
     }
   };
 
-  /* ------------------------ Parents (demo/local) ------------------------ */
+  const onLinkParentByEmail = async (childId: string, email: string) => {
+    try {
+      await linkParentToChildByEmail(childId, email);
+      await refreshAll();
+      return true;
+    } catch (e: unknown) {
+      const msg = getErrorMessage(e, "Failed to link parent by email.");
+      alert(msg);
+      return false;
+    }
+  };
+
+  const onUnlinkParent = async (childId: string, parentUserId: string) => {
+    try {
+      await unlinkParentFromChild(childId, parentUserId);
+      await refreshAll();
+      return true;
+    } catch {
+      alert("Failed to unlink parent.");
+      return false;
+    }
+  };
 
   const addParent = () => {
     const parent: Types.Parent = {
@@ -348,8 +348,6 @@ export default function AdminDashboard() {
     });
   };
 
-  /* ------------------------ Classes sync (unchanged) ------------------------ */
-
   const onClassCreated = (created: Types.Class) =>
     setClasses((prev) => [created, ...prev]);
   const onClassUpdated = (updated: Types.Class) =>
@@ -368,12 +366,9 @@ export default function AdminDashboard() {
     );
   }
 
-  /* ------------------------ Render ------------------------ */
-
   return (
     <ProtectedRoute>
       <div style={dash.container}>
-        {/* Header */}
         <header style={dash.header}>
           <AppHeader />
           <h1 style={dash.headerTitle}>Admin Dashboard</h1>
@@ -401,22 +396,17 @@ export default function AdminDashboard() {
               <ChildrenTab
                 childrenData={children}
                 classes={classes}
-                parents={parents.map((p) => ({
-                  id: p.id,
-                  firstName: p.firstName,
-                  lastName: p.lastName,
-                  email: p.email,
-                }))}
-                /* Admin-scoped location options */
+                parents={parentLites}
                 locations={filteredLocations}
                 newChild={newChild}
                 setNewChild={setNewChild}
                 createChild={createChild}
                 updateChild={updateChild}
                 deleteChild={deleteChild}
-                /* Enable Assign / Unassign actions */
                 onAssign={onAssignChild}
                 onUnassign={onUnassignChild}
+                onLinkParentByEmail={onLinkParentByEmail}
+                onUnlinkParent={onUnlinkParent}
                 onCreated={(c) => console.log("created child", c?.id)}
                 onUpdated={(c) => console.log("updated child", c?.id)}
                 onDeleted={(id) => console.log("deleted child", id)}

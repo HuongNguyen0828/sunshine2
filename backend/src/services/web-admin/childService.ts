@@ -2,8 +2,6 @@
 import { db, admin } from "../../lib/firebase";
 import * as Types from "../../../../shared/types/type";
 
-/* ---------------- Firestore document shapes (server-side) ---------------- */
-
 type ChildDocDB = {
   firstName: string;
   lastName: string;
@@ -28,8 +26,8 @@ type ClassDocDB = {
 type UserProfile = {
   role?: string;
   email?: string;
-  daycareId?: string;   // single
-  locationId?: string;  // "*" or single id
+  daycareId?: string;
+  locationId?: string;
 };
 
 type AdminScope =
@@ -37,10 +35,8 @@ type AdminScope =
   | { kind: "location"; id: string }
   | { kind: "daycare"; daycareId: string };
 
-/* ---------------- Helpers ---------------- */
-
-function errorWithStatus(message: string, status: number) {
-  const e = new Error(message) as Error & { status?: number };
+function errorWithStatus(message: string, status: number): Error & { status: number } {
+  const e = new Error(message) as Error & { status: number };
   e.status = status;
   return e;
 }
@@ -88,18 +84,13 @@ function toDTO(id: string, d: ChildDocDB): Types.Child {
   };
 }
 
-/* ---------------- Admin scope (single-field model) ---------------- */
-
 async function loadAdminScope(uid?: string): Promise<AdminScope> {
   if (!uid) return { kind: "all" };
-
   const u = await db.collection("users").doc(uid).get();
   if (!u.exists) return { kind: "all" };
-
   const prof = u.data() as UserProfile;
   const loc = (prof.locationId ?? "").trim();
   const daycare = (prof.daycareId ?? "").trim();
-
   if (loc === "*") {
     if (daycare) return { kind: "daycare", daycareId: daycare };
     return { kind: "all" };
@@ -115,22 +106,18 @@ async function daycareLocationIds(daycareId: string): Promise<string[]> {
 }
 
 async function ensureLocationAllowed(scope: AdminScope, locationId?: string): Promise<void> {
-  const deny = () => { throw errorWithStatus("Forbidden: location is not within admin scope", 403); };
-
-  // If locationId is missing, only "all" scope can proceed.
+  const deny = (): never => {
+    throw errorWithStatus("Forbidden: location is not within admin scope", 403);
+  };
   if (!locationId) {
     if (scope.kind !== "all") deny();
     return;
   }
-
   if (scope.kind === "all") return;
-
   if (scope.kind === "location") {
     if (scope.id !== locationId) deny();
     return;
   }
-
-  // daycare scope: location must exist under that daycare
   const loc = await db
     .collection(`daycareProvider/${scope.daycareId}/locations`)
     .doc(locationId)
@@ -145,13 +132,10 @@ async function classLocation(classId?: string): Promise<string | undefined> {
   return data?.locationId;
 }
 
-/* ---------------- Query by scope ---------------- */
-
 async function listChildrenByScope(
   scope: AdminScope,
   f: { classId?: string; status?: Types.EnrollmentStatus; parentId?: string }
 ): Promise<Types.Child[]> {
-  // Filter by class fast path
   if (f.classId) {
     let q: FirebaseFirestore.Query = db.collection("children").where("classId", "==", f.classId);
     if (f.status) q = q.where("enrollmentStatus", "==", f.status);
@@ -160,7 +144,6 @@ async function listChildrenByScope(
     return snap.docs.map((d) => toDTO(d.id, d.data() as ChildDocDB));
   }
 
-  // Global scope
   if (scope.kind === "all") {
     let q: FirebaseFirestore.Query = db.collection("children");
     if (f.status) q = q.where("enrollmentStatus", "==", f.status);
@@ -169,12 +152,10 @@ async function listChildrenByScope(
     return snap.docs.map((d) => toDTO(d.id, d.data() as ChildDocDB));
   }
 
-  // Location-limited or daycare-limited scope
   const locIds =
     scope.kind === "location" ? [scope.id] : await daycareLocationIds(scope.daycareId);
   if (!locIds.length) return [];
 
-  // A) children with class in allowed locations
   const classIds: string[] = [];
   for (const g of chunk(locIds, 10)) {
     const cs = await db.collection("classes").where("locationId", "in", g).get();
@@ -193,7 +174,6 @@ async function listChildrenByScope(
     }
   }
 
-  // B) children without class but with an allowed locationId
   for (const g of chunk(locIds, 10)) {
     let q: FirebaseFirestore.Query = db
       .collection("children")
@@ -205,7 +185,6 @@ async function listChildrenByScope(
     out.push(...snap.docs.map((d) => toDTO(d.id, d.data() as ChildDocDB)));
   }
 
-  // Deduplicate + sort by lastName
   const seen = new Set<string>();
   const uniq: Types.Child[] = [];
   for (const c of out) {
@@ -217,8 +196,6 @@ async function listChildrenByScope(
   uniq.sort((a, b) => a.lastName.localeCompare(b.lastName));
   return uniq;
 }
-
-/* ---------------- Public API ---------------- */
 
 export async function listChildren(
   uid?: string,
@@ -232,7 +209,6 @@ export async function listChildren(
   });
 }
 
-/** Create input (from controller) */
 type CreateChildPayload = {
   firstName: string;
   lastName: string;
@@ -241,6 +217,7 @@ type CreateChildPayload = {
   classId?: string;
   locationId?: string;
   notes?: string;
+  enrollmentStatus?: Types.EnrollmentStatus;
 };
 
 export async function createChild(
@@ -252,18 +229,15 @@ export async function createChild(
   }
 
   const scope = await loadAdminScope(uid);
-
-  // Effective location: class.locationId > input.locationId > single-location scope
   const clsLoc = await classLocation(input.classId);
   const scopeFixedLoc = scope.kind === "location" ? scope.id : undefined;
   const effectiveLocationId = clsLoc ?? input.locationId ?? scopeFixedLoc ?? undefined;
-
   await ensureLocationAllowed(scope, effectiveLocationId);
 
   const parentIds = Array.isArray(input.parentId) ? input.parentId : [];
-  const status = computeStatus(parentIds, input.classId);
+  const statusProvided = input.enrollmentStatus as Types.EnrollmentStatus | undefined;
+  const status = statusProvided ?? computeStatus(parentIds, input.classId);
 
-  // If no class assignment at creation → simple write (no volume impact).
   if (!input.classId) {
     const payload: ChildDocDB = {
       firstName: input.firstName.trim(),
@@ -274,28 +248,25 @@ export async function createChild(
       locationId: effectiveLocationId,
       daycareId: scope.kind === "daycare" ? scope.daycareId : "",
       enrollmentStatus: status,
-      enrollmentDate: status === "New" ? undefined : new Date().toISOString(),
+      enrollmentDate: status === Types.EnrollmentStatus.New ? undefined : new Date().toISOString(),
       notes: input.notes?.trim() || undefined,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-
     const ref = await db.collection("children").add(payload);
     const saved = await ref.get();
     return toDTO(saved.id, saved.data() as ChildDocDB);
   }
 
-  // With class assignment → one transaction: check capacity, bump volume, create child.
   const classId = input.classId;
   const classRef = db.collection("classes").doc(classId);
-  const childRef = db.collection("children").doc(); // precreate doc ref for tx
+  const childRef = db.collection("children").doc();
 
   await db.runTransaction(async (tx) => {
     const clsSnap = await tx.get(classRef);
     if (!clsSnap.exists) throw errorWithStatus("Class not found", 404);
     const cls = clsSnap.data() as ClassDocDB;
 
-    // Scope check against class location
     await ensureLocationAllowed(scope, cls.locationId);
 
     const cap = Math.max(0, cls.capacity ?? 0);
@@ -312,8 +283,11 @@ export async function createChild(
       classId,
       locationId: cls.locationId ?? effectiveLocationId,
       daycareId: scope.kind === "daycare" ? scope.daycareId : "",
-      enrollmentStatus: status,
-      enrollmentDate: status === "New" ? undefined : new Date().toISOString(),
+      enrollmentStatus: statusProvided ?? computeStatus(parentIds, classId),
+      enrollmentDate:
+        (statusProvided ?? computeStatus(parentIds, classId)) === Types.EnrollmentStatus.New
+          ? undefined
+          : new Date().toISOString(),
       notes: input.notes?.trim() || undefined,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -329,7 +303,12 @@ export async function createChild(
 
 export async function updateChildById(
   id: string,
-  patch: Partial<Pick<Types.Child, "firstName" | "lastName" | "birthDate" | "locationId" | "notes" | "parentId">>,
+  patch: Partial<
+    Pick<
+      Types.Child,
+      "firstName" | "lastName" | "birthDate" | "locationId" | "notes" | "parentId" | "enrollmentStatus"
+    >
+  >,
   uid?: string
 ): Promise<Types.Child> {
   if (!id) throw errorWithStatus("Missing child id", 400);
@@ -344,7 +323,8 @@ export async function updateChildById(
   const scope = await loadAdminScope(uid);
   await ensureLocationAllowed(scope, nextLoc);
 
-  const nextStatus = computeStatus(nextParentIds, curr.classId);
+  const manualStatus = patch.enrollmentStatus as Types.EnrollmentStatus | undefined;
+  const nextStatus = manualStatus ?? computeStatus(nextParentIds, curr.classId);
 
   const upd: Partial<ChildDocDB> = {
     firstName: patch.firstName ?? curr.firstName,
@@ -355,7 +335,9 @@ export async function updateChildById(
     parentId: nextParentIds,
     enrollmentStatus: nextStatus,
     enrollmentDate:
-      nextStatus === "New" ? curr.enrollmentDate : (curr.enrollmentDate ?? new Date().toISOString()),
+      nextStatus === Types.EnrollmentStatus.New
+        ? curr.enrollmentDate
+        : curr.enrollmentDate ?? new Date().toISOString(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
@@ -391,8 +373,6 @@ export async function deleteChildById(id: string, uid?: string): Promise<void> {
   }
 }
 
-/* ---------------- Parent linking ---------------- */
-
 export async function linkParentToChild(
   childId: string,
   parentUserId: string,
@@ -421,7 +401,9 @@ export async function linkParentToChild(
     parentId: nextParents,
     enrollmentStatus: nextStatus,
     enrollmentDate:
-      nextStatus === "New" ? child.enrollmentDate : (child.enrollmentDate ?? new Date().toISOString()),
+      nextStatus === Types.EnrollmentStatus.New
+        ? child.enrollmentDate
+        : child.enrollmentDate ?? new Date().toISOString(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -435,11 +417,14 @@ export async function linkParentToChildByEmail(
   uid?: string
 ): Promise<Types.Child> {
   if (!childId || !parentEmail) throw errorWithStatus("Missing childId or parentEmail", 400);
-  const q = await db.collection("users").where("email", "==", parentEmail.trim()).limit(1).get();
+  const q = await db
+    .collection("users")
+    .where("email", "==", parentEmail.trim().toLowerCase())
+    .where("role", "==", "parent")
+    .limit(1)
+    .get();
   if (q.empty) throw errorWithStatus("Parent user not found by email", 404);
   const u = q.docs[0];
-  const data = u.data() as UserProfile;
-  if (data.role !== "parent") throw errorWithStatus("User is not a parent", 400);
   return linkParentToChild(childId, u.id, uid);
 }
 
@@ -466,15 +451,15 @@ export async function unlinkParentFromChild(
     parentId: nextParents,
     enrollmentStatus: nextStatus,
     enrollmentDate:
-      nextStatus === "New" ? child.enrollmentDate : (child.enrollmentDate ?? new Date().toISOString()),
+      nextStatus === Types.EnrollmentStatus.New
+        ? child.enrollmentDate
+        : child.enrollmentDate ?? new Date().toISOString(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
   const updated = await ref.get();
   return toDTO(updated.id, updated.data() as ChildDocDB);
 }
-
-/* ---------------- Enrollment actions ---------------- */
 
 export async function assignChildToClass(
   childId: string,
@@ -510,7 +495,9 @@ export async function assignChildToClass(
       locationId: cls.locationId ?? child.locationId,
       enrollmentStatus: nextStatus,
       enrollmentDate:
-        nextStatus === "New" ? child.enrollmentDate : (child.enrollmentDate ?? new Date().toISOString()),
+        nextStatus === Types.EnrollmentStatus.New
+          ? child.enrollmentDate
+          : child.enrollmentDate ?? new Date().toISOString(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   });
@@ -547,7 +534,9 @@ export async function unassignChild(childId: string, uid?: string): Promise<Type
       classId: admin.firestore.FieldValue.delete(),
       enrollmentStatus: nextStatus,
       enrollmentDate:
-        nextStatus === "New" ? c.enrollmentDate : (c.enrollmentDate ?? new Date().toISOString()),
+        nextStatus === Types.EnrollmentStatus.New
+          ? c.enrollmentDate
+          : c.enrollmentDate ?? new Date().toISOString(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   });
@@ -556,12 +545,10 @@ export async function unassignChild(childId: string, uid?: string): Promise<Type
   return toDTO(saved.id, saved.data() as ChildDocDB);
 }
 
-/** Back-compat: withdraw == unassign */
 export async function withdrawChild(childId: string, uid?: string): Promise<Types.Child> {
   return unassignChild(childId, uid);
 }
 
-/** Back-compat: reEnroll == assign again */
 export async function reEnrollChild(
   childId: string,
   classId: string,

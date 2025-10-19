@@ -9,34 +9,29 @@ import type { LocationLite } from "@/services/useLocationsAPI";
 export type NewChildInput = {
   firstName: string;
   lastName: string;
-  birthDate: string;         // YYYY-MM-DD
-  parentId: string[];        // list of parent user ids
+  birthDate: string;
+  parentId: string[];
   classId?: string;
-  locationId?: string;       // selected location id
+  locationId?: string;
   notes?: string;
+  enrollmentStatus?: Types.EnrollmentStatus;
 };
 
 type ParentLite = { id: string; firstName?: string; lastName?: string; email?: string };
 
 type Props = {
-  /** lists */
   childrenData: Types.Child[];
   classes: Types.Class[];
   parents: ParentLite[];
-
-  /** admin-scoped locations (filtered in page.tsx like ClassesTab) */
   locations: LocationLite[];
 
-  /** form state controlled by page.tsx */
   newChild: NewChildInput;
   setNewChild: React.Dispatch<React.SetStateAction<NewChildInput>>;
 
-  /** data ops (local or api) */
   createChild: (input: NewChildInput) => Promise<Types.Child | null>;
   updateChild: (id: string, patch: Partial<NewChildInput>) => Promise<Types.Child | null>;
   deleteChild: (id: string) => Promise<boolean>;
 
-  /** optional callbacks (enable the card actions) */
   onAssign?: (childId: string, classId: string) => Promise<boolean> | boolean;
   onUnassign?: (childId: string) => Promise<boolean> | boolean;
 
@@ -49,9 +44,6 @@ type Props = {
   onDeleted?: (id: string) => void;
 };
 
-/* ---------------- helpers ---------------- */
-
-/** Format age text from ISO birth date */
 function formatAge(birthISO: string): string {
   const dob = new Date(birthISO);
   if (Number.isNaN(dob.getTime())) return "—";
@@ -67,21 +59,18 @@ function formatAge(birthISO: string): string {
   return `${years} yr`;
 }
 
-/** Find class name by id */
 function classLabel(classes: Types.Class[], classId?: string): string {
   if (!classId) return "—";
   const found = classes.find((c) => c.id === classId);
   return found?.name ?? classId;
 }
 
-/** Get location name by id (fallback to id) */
 function getLocationLabel(locs: LocationLite[], id?: string): string {
   if (!id) return "—";
   const found = (locs ?? []).find((l) => l.id === id);
   return found?.name || id;
 }
 
-/** Local fallback: compute status if the server field is absent */
 function computeStatus(parentIds?: string[], classId?: string): Types.EnrollmentStatus {
   const hasParent = Array.isArray(parentIds) && parentIds.length > 0;
   const hasClass = Boolean(classId);
@@ -90,7 +79,6 @@ function computeStatus(parentIds?: string[], classId?: string): Types.Enrollment
   return Types.EnrollmentStatus.New;
 }
 
-/** Derive capacity text + bar level from a class */
 function classCapacityBadge(
   cls?: Types.Class
 ): { text: string; pct: number; level: "ok" | "warn" | "full" } {
@@ -103,15 +91,12 @@ function classCapacityBadge(
   return { text: `${v}/${cls.capacity}`, pct, level: "ok" };
 }
 
-/** Is a class full by capacity? */
 function isClassFull(cls?: Types.Class): boolean {
   if (!cls) return false;
   const cap = Math.max(0, cls.capacity ?? 0);
   const v = Math.max(0, cls.volume ?? 0);
   return cap > 0 && v >= cap;
 }
-
-/* ---------------- component ---------------- */
 
 export default function ChildrenTab({
   childrenData,
@@ -135,27 +120,20 @@ export default function ChildrenTab({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingChild, setEditingChild] = useState<Types.Child | null>(null);
 
-  // filters
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] =
     useState<Types.EnrollmentStatus | "all">("all");
   const [classFilter, setClassFilter] = useState<string>("all");
 
-  // pagination
   const [page, setPage] = useState(1);
 
-  // assign modal
   const [assignChildId, setAssignChildId] = useState<string | null>(null);
   const [assignClassId, setAssignClassId] = useState<string>("");
 
-  // link/unlink parent
   const [linkChildId, setLinkChildId] = useState<string | null>(null);
   const [parentEmail, setParentEmail] = useState<string>("");
   const [unlinkParentId, setUnlinkParentId] = useState<string>("");
 
-  /* -------- openers -------- */
-
-  // Open "Add" modal – mirror ClassesTab UX for location select
   function handleAddClick() {
     if ((locations ?? []).length === 0) {
       alert("No locations available. Please create a location first.");
@@ -170,11 +148,11 @@ export default function ChildrenTab({
       classId: "",
       locationId: locations[0]?.id ?? "",
       notes: "",
+      enrollmentStatus: Types.EnrollmentStatus.New,
     });
     setIsFormOpen(true);
   }
 
-  // Open "Edit" modal
   function handleEditClick(child: Types.Child) {
     setEditingChild(child);
     setNewChild({
@@ -185,11 +163,10 @@ export default function ChildrenTab({
       classId: child.classId ?? "",
       locationId: child.locationId ?? (locations[0]?.id ?? ""),
       notes: child.notes ?? "",
+      enrollmentStatus: child.enrollmentStatus ?? computeStatus(child.parentId, child.classId),
     });
     setIsFormOpen(true);
   }
-
-  /* -------- CRUD submit -------- */
 
   async function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -209,6 +186,7 @@ export default function ChildrenTab({
         classId: newChild.classId?.trim() || undefined,
         locationId: trimmedLoc || undefined,
         notes: newChild.notes?.trim() || undefined,
+        enrollmentStatus: newChild.enrollmentStatus,
       });
       if (updated) onUpdated?.(updated);
       setEditingChild(null);
@@ -221,6 +199,7 @@ export default function ChildrenTab({
         classId: newChild.classId?.trim() || undefined,
         locationId: trimmedLoc || undefined,
         notes: newChild.notes?.trim() || undefined,
+        enrollmentStatus: newChild.enrollmentStatus,
       });
       if (created) onCreated?.(created);
     }
@@ -233,6 +212,7 @@ export default function ChildrenTab({
       classId: "",
       locationId: "",
       notes: "",
+      enrollmentStatus: Types.EnrollmentStatus.New,
     });
     setIsFormOpen(false);
   }
@@ -256,8 +236,6 @@ export default function ChildrenTab({
     return !!(await onLinkParent?.(childId, parent.id));
   }
 
-  /* -------- list + filters + pagination -------- */
-
   const filtered = useMemo(() => {
     return childrenData.filter((c) => {
       const q = searchTerm.trim().toLowerCase();
@@ -268,8 +246,8 @@ export default function ChildrenTab({
         getLocationLabel(locations, c.locationId).toLowerCase().includes(q);
       if (!okSearch) return false;
 
-      if (statusFilter !== "all" && (c.enrollmentStatus ?? computeStatus(c.parentId, c.classId)) !== statusFilter)
-        return false;
+      const effStatus = c.enrollmentStatus ?? computeStatus(c.parentId, c.classId);
+      if (statusFilter !== "all" && effStatus !== statusFilter) return false;
 
       if (classFilter !== "all") {
         if (classFilter === "unassigned") return !c.classId;
@@ -284,11 +262,8 @@ export default function ChildrenTab({
   const start = (page - 1) * perPage;
   const pageItems = filtered.slice(start, start + perPage);
 
-  /* ---------------- render ---------------- */
-
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header + search + filters */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-3xl font-bold text-gray-800">Children</h2>
@@ -366,14 +341,11 @@ export default function ChildrenTab({
         </div>
       </div>
 
-      {/* Cards */}
       {pageItems.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {pageItems.map((child) => {
             const cls = classes.find((c) => c.id === child.classId);
             const cap = classCapacityBadge(cls);
-
-            // Prefer server-provided status; compute as fallback
             const status = child.enrollmentStatus ?? computeStatus(child.parentId, child.classId);
 
             return (
@@ -381,7 +353,6 @@ export default function ChildrenTab({
                 key={child.id}
                 className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 flex flex-col"
               >
-                {/* header */}
                 <div className="mb-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-800 truncate">
@@ -405,7 +376,6 @@ export default function ChildrenTab({
                   </div>
                 </div>
 
-                {/* body */}
                 <div className="space-y-2 mb-4">
                   <div className="text-xs text-gray-500">📍 {getLocationLabel(locations, child.locationId)}</div>
 
@@ -434,7 +404,6 @@ export default function ChildrenTab({
                     </div>
                   )}
 
-                  {/* parents */}
                   {child.parentId && child.parentId.length > 0 ? (
                     <div className="text-xs text-gray-600">
                       Parents:{" "}
@@ -463,7 +432,6 @@ export default function ChildrenTab({
                   )}
                 </div>
 
-                {/* actions */}
                 <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handleEditClick(child)}
@@ -504,7 +472,6 @@ export default function ChildrenTab({
                     </button>
                   )}
 
-                  {/* quick unlink */}
                   {child.parentId && child.parentId.length > 0 && (
                     <div className="col-span-2 flex items-center gap-2">
                       <select
@@ -556,7 +523,6 @@ export default function ChildrenTab({
         </div>
       )}
 
-      {/* pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2">
           <button
@@ -597,7 +563,6 @@ export default function ChildrenTab({
         </div>
       )}
 
-      {/* Add / Edit modal */}
       {isFormOpen && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
@@ -658,7 +623,6 @@ export default function ChildrenTab({
                   />
                 </label>
 
-                {/* Location — identical UX to ClassesTab */}
                 <label className="block">
                   <span className="text-gray-700 font-medium mb-1 block">Location *</span>
                   <select
@@ -678,6 +642,25 @@ export default function ChildrenTab({
                         {l.name || l.id}
                       </option>
                     ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="text-gray-700 font-medium mb-1 block">Status *</span>
+                  <select
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    value={newChild.enrollmentStatus ?? Types.EnrollmentStatus.New}
+                    onChange={(e) =>
+                      setNewChild({
+                        ...newChild,
+                        enrollmentStatus: e.target.value as Types.EnrollmentStatus,
+                      })
+                    }
+                    required
+                  >
+                    <option value={Types.EnrollmentStatus.New}>New</option>
+                    <option value={Types.EnrollmentStatus.Waitlist}>Waitlist</option>
+                    <option value={Types.EnrollmentStatus.Active}>Active</option>
                   </select>
                 </label>
 
@@ -716,7 +699,6 @@ export default function ChildrenTab({
         </div>
       )}
 
-      {/* Assign Modal */}
       {assignChildId && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
@@ -800,7 +782,6 @@ export default function ChildrenTab({
         </div>
       )}
 
-      {/* Link Parent by Email Modal */}
       {linkChildId && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"

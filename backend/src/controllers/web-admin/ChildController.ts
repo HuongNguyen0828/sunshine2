@@ -2,24 +2,32 @@
 import { Response } from "express";
 import { AuthRequest } from "../../middleware/authMiddleware";
 import * as Svc from "../../services/web-admin/childService";
-import type { EnrollmentStatus } from "../../../../shared/types/type";
+import { EnrollmentStatus } from "../../../../shared/types/type";
 
 /* ---------------- helpers ---------------- */
 
-/** Normalize a string-like value to trimmed string or undefined */
+// Trim string to undefined
 function s(v: unknown): string | undefined {
   return typeof v === "string" && v.trim() ? v.trim() : undefined;
 }
 
-/** Send JSON success with optional custom status code */
+// Parse enrollmentStatus safely (accepts case-insensitive)
+function parseStatus(v: unknown): EnrollmentStatus | undefined {
+  if (typeof v !== "string") return undefined;
+  const t = v.trim().toLowerCase();
+  if (t === "new") return EnrollmentStatus.New;
+  if (t === "waitlist") return EnrollmentStatus.Waitlist;
+  if (t === "active") return EnrollmentStatus.Active;
+  if (t === "withdraw") return EnrollmentStatus.Withdraw;
+  return undefined;
+}
+
+// Send success
 function ok(res: Response, payload: unknown, code = 200) {
   return res.status(code).json(payload);
 }
 
-/**
- * Send JSON error with consistent shape.
- * If `err` carries `.status` or `.message`, we preserve it.
- */
+// Send error
 function fail(res: Response, err: unknown, fallbackMsg: string, fallbackCode = 500) {
   const status =
     typeof (err as { status?: number })?.status === "number"
@@ -36,10 +44,7 @@ function fail(res: Response, err: unknown, fallbackMsg: string, fallbackCode = 5
 
 /* ---------------- controllers ---------------- */
 
-/** GET /admin/children
- *  Optional query: ?classId=...&status=...&parentUserId=...
- *  Scope (location/daycare) is computed in the service from req.user.uid.
- */
+// GET /admin/children
 export async function getChildren(req: AuthRequest, res: Response) {
   try {
     const filters = {
@@ -55,14 +60,13 @@ export async function getChildren(req: AuthRequest, res: Response) {
   }
 }
 
-/** POST /admin/children
- *  Body: { firstName, lastName, birthDate, parentId?, classId?, locationId?, notes? }
- *  Daycare/location scope is validated in the service; daycareId injected server-side if known.
- *  Returns the created child DTO.
- */
+// POST /admin/children
 export async function addChild(req: AuthRequest, res: Response) {
   try {
-    const created = await Svc.createChild(req.body, req.user?.uid);
+    const enrollmentStatus = parseStatus((req.body ?? {}).enrollmentStatus);
+    const payload = { ...(req.body ?? {}), enrollmentStatus };
+    // Service should respect provided enrollmentStatus when present
+    const created = await Svc.createChild(payload, req.user?.uid);
     return ok(res, created, 201);
   } catch (e) {
     console.error("[addChild]", e);
@@ -70,16 +74,16 @@ export async function addChild(req: AuthRequest, res: Response) {
   }
 }
 
-/** PUT /admin/children/:id
- *  Body: partial update for profile fields (no assign here).
- *  Returns the updated child DTO.
- */
+// PUT /admin/children/:id
 export async function updateChild(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
     if (!id) return res.status(400).json({ message: "Missing child id" });
 
-    const updated = await Svc.updateChildById(id, req.body, req.user?.uid);
+    const enrollmentStatus = parseStatus((req.body ?? {}).enrollmentStatus);
+    const patch = { ...(req.body ?? {}), enrollmentStatus };
+
+    const updated = await Svc.updateChildById(id, patch, req.user?.uid);
     return ok(res, updated);
   } catch (e) {
     console.error("[updateChild]", e);
@@ -87,9 +91,7 @@ export async function updateChild(req: AuthRequest, res: Response) {
   }
 }
 
-/** DELETE /admin/children/:id
- *  Also adjusts class volume if the child was assigned; see service.
- */
+// DELETE /admin/children/:id
 export async function deleteChild(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
@@ -103,17 +105,15 @@ export async function deleteChild(req: AuthRequest, res: Response) {
   }
 }
 
-/** POST /admin/children/:id/link-parent-by-email
- *  Body: { email }
- *  Returns { ok: true } or you can return the updated child if preferred.
- */
+// POST /admin/children/:id/link-parent-by-email
 export async function linkParentByEmail(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
-    const email = s(req.body?.email);
-    if (!id || !email) {
+    const emailRaw = s(req.body?.email);
+    if (!id || !emailRaw) {
       return res.status(400).json({ message: "Missing child id or email" });
     }
+    const email = emailRaw.toLowerCase();
 
     await Svc.linkParentToChildByEmail(id, email, req.user?.uid);
     return ok(res, { ok: true });
@@ -123,10 +123,7 @@ export async function linkParentByEmail(req: AuthRequest, res: Response) {
   }
 }
 
-/** POST /admin/children/:id/unlink-parent
- *  Body: { parentUserId }
- *  Returns { ok: true } or the updated child if needed.
- */
+// POST /admin/children/:id/unlink-parent
 export async function unlinkParent(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
@@ -143,11 +140,7 @@ export async function unlinkParent(req: AuthRequest, res: Response) {
   }
 }
 
-/** POST /admin/children/:id/assign
- *  Body: { classId }
- *  Returns { ok: true } on success.
- *  If the class is full, the service throws with status=409 and we preserve it.
- */
+// POST /admin/children/:id/assign
 export async function assignChild(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
@@ -160,14 +153,11 @@ export async function assignChild(req: AuthRequest, res: Response) {
     return ok(res, { ok: true });
   } catch (e) {
     console.error("[assignChild]", e);
-    // e.status (e.g., 409 for "Class is full") will be respected by fail()
     return fail(res, e, "Failed to assign child");
   }
 }
 
-/** POST /admin/children/:id/unassign
- *  Returns { ok: true } on success.
- */
+// POST /admin/children/:id/unassign
 export async function unassignChild(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
