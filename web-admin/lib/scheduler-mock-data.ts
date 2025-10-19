@@ -7,14 +7,16 @@ export const mockActivities: Activity[] = [
     title: 'Story Time',
     description: 'Interactive storytelling with picture books to develop language and listening skills',
     materials: 'Picture books, story props, cushions',
+    classId: 'all', // Shows for all classes
     userId: 'dev-user',
     _creationTime: Date.now() - 86400000,
   },
   {
-    id: '2', 
+    id: '2',
     title: 'Art & Crafts',
     description: 'Creative expression through painting, drawing, and simple craft projects',
     materials: 'Crayons, paper, glue sticks, safety scissors, construction paper',
+    classId: '1', // Toddlers only
     userId: 'dev-user',
     _creationTime: Date.now() - 172800000,
   },
@@ -23,7 +25,8 @@ export const mockActivities: Activity[] = [
     title: 'Music & Movement',
     description: 'Songs, dancing, and rhythm activities to develop motor skills and musicality',
     materials: 'Musical instruments, scarves, rhythm sticks',
-    userId: 'dev-user', 
+    classId: '2', // Preschool only
+    userId: 'dev-user',
     _creationTime: Date.now() - 259200000,
   },
   {
@@ -31,6 +34,7 @@ export const mockActivities: Activity[] = [
     title: 'Nature Discovery',
     description: 'Outdoor exploration and nature-based learning activities',
     materials: 'Magnifying glasses, collection bags, field guides',
+    classId: '3', // Kindergarten only
     userId: 'dev-user',
     _creationTime: Date.now() - 345600000,
   },
@@ -39,6 +43,7 @@ export const mockActivities: Activity[] = [
     title: 'Building Blocks',
     description: 'Construction play to develop spatial reasoning and fine motor skills',
     materials: 'Various building blocks, LEGO, wooden blocks',
+    classId: 'all', // Shows for all classes
     userId: 'dev-user',
     _creationTime: Date.now() - 432000000,
   },
