@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import type { Activity } from "@/types/scheduler";
 import { useFormDraft } from "@/hooks/useFormDraft";
 
