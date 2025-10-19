@@ -1,4 +1,4 @@
-// web-admin/hooks/useLocationsAPI.ts
+// web-admin/services/useLocationsAPI.ts
 "use client";
 
 import { ENDPOINTS } from "@/api/endpoint";

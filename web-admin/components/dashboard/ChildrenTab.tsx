@@ -8,8 +8,9 @@
 "use client";
 import * as React from 'react';
 import * as Types from "../../../shared/types/type";
-import type { NewChildInput } from "@/types/forms";
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import type { LocationLite } from "@/services/useLocationsAPI";
+
 // For Stepper: Choosing linear bar
 //Steppers convey progress through numbered steps. It provides a wizard-like workflow.
 import Box from "@mui/material/Box";
@@ -29,21 +30,118 @@ const steps = [
   "Sumit", // 6
 ];
 
-export default function ChildrenTab({
-  classes,
-  parents,
-  childList,
-  newChild,
-  setNewChild,
-  onAdd,
-}: {
+/** UI form input used when creating/updating a child */
+export type NewChildInput = {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  parentId: string[];
+  classId?: string;
+  locationId?: string;
+  notes?: string;
+  enrollmentStatus?: Types.EnrollmentStatus;
+};
+
+type ParentLite = { id: string; firstName?: string; lastName?: string; email?: string };
+
+type Props = {
+  childrenData: Types.Child[];
   classes: Types.Class[];
-  parents: Types.Parent[];
-  childList: Types.Child[];
+  parents: ParentLite[];
+  locations: LocationLite[];
+
   newChild: NewChildInput;
   setNewChild: React.Dispatch<React.SetStateAction<NewChildInput>>;
-  onAdd: () => void;
-}) {
+
+  createChild: (input: NewChildInput) => Promise<Types.Child | null>;
+  updateChild: (id: string, patch: Partial<NewChildInput>) => Promise<Types.Child | null>;
+  deleteChild: (id: string) => Promise<boolean>;
+
+  onAssign?: (childId: string, classId: string) => Promise<boolean> | boolean;
+  onUnassign?: (childId: string) => Promise<boolean> | boolean;
+
+  onLinkParent?: (childId: string, parentUserId: string) => Promise<boolean> | boolean;
+  onUnlinkParent?: (childId: string, parentUserId: string) => Promise<boolean> | boolean;
+  onLinkParentByEmail?: (childId: string, email: string) => Promise<boolean> | boolean;
+
+  onCreated?: (c: Types.Child) => void;
+  onUpdated?: (c: Types.Child) => void;
+  onDeleted?: (id: string) => void;
+};
+
+function formatAge(birthISO: string): string {
+  const dob = new Date(birthISO);
+  if (Number.isNaN(dob.getTime())) return "—";
+  const now = new Date();
+  let years = now.getFullYear() - dob.getFullYear();
+  const m = now.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) years -= 1;
+  if (years < 1) {
+    const months =
+      (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
+    return `${Math.max(0, months)} mo`;
+  }
+  return `${years} yr`;
+}
+
+function classLabel(classes: Types.Class[], classId?: string): string {
+  if (!classId) return "—";
+  const found = classes.find((c) => c.id === classId);
+  return found?.name ?? classId;
+}
+
+function getLocationLabel(locs: LocationLite[], id?: string): string {
+  if (!id) return "—";
+  const found = (locs ?? []).find((l) => l.id === id);
+  return found?.name || id;
+}
+
+function computeStatus(parentIds?: string[], classId?: string): Types.EnrollmentStatus {
+  const hasParent = Array.isArray(parentIds) && parentIds.length > 0;
+  const hasClass = Boolean(classId);
+  if (hasParent && hasClass) return Types.EnrollmentStatus.Active;
+  if (hasParent || hasClass) return Types.EnrollmentStatus.Waitlist;
+  return Types.EnrollmentStatus.New;
+}
+
+function classCapacityBadge(
+  cls?: Types.Class
+): { text: string; pct: number; level: "ok" | "warn" | "full" } {
+  if (!cls) return { text: "—", pct: 0, level: "ok" };
+  const cap = Math.max(1, cls.capacity ?? 0);
+  const v = cls.volume ?? 0;
+  const pct = Math.round((v / cap) * 100);
+  if (pct >= 95 || v >= cap) return { text: `${v}/${cls.capacity} (Full)`, pct, level: "full" };
+  if (pct >= 70) return { text: `${v}/${cls.capacity} (High)`, pct, level: "warn" };
+  return { text: `${v}/${cls.capacity}`, pct, level: "ok" };
+}
+
+function isClassFull(cls?: Types.Class): boolean {
+  if (!cls) return false;
+  const cap = Math.max(0, cls.capacity ?? 0);
+  const v = Math.max(0, cls.volume ?? 0);
+  return cap > 0 && v >= cap;
+}
+
+export default function ChildrenTab({
+  childrenData,
+  classes,
+  parents,
+  locations,
+  newChild,
+  setNewChild,
+  createChild,
+  updateChild,
+  deleteChild,
+  onAssign,
+  onUnassign,
+  onLinkParent,
+  onUnlinkParent,
+  onLinkParentByEmail,
+  onCreated,
+  onUpdated,
+  onDeleted,
+}: Props) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -52,11 +150,21 @@ export default function ChildrenTab({
   const [selectedClassId, setSelectedClassId] = useState('');
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+  const [statusFilter, setStatusFilter] = useState<Types.EnrollmentStatus | "all">("all");
+  const [classFilter, setClassFilter] = useState<string>("all")
   // =========================Progress bar
   const [activeStep, setActiveStep] = useState(0);
   const [skipped, setSkipped] = useState(new Set<number>()); // using imutable list of number
 
+  const [assignChildId, setAssignChildId] = useState<string | null>(null);
+  const [assignClassId, setAssignClassId] = useState<string>("");
+
+  const [linkChildId, setLinkChildId] = useState<string | null>(null);
+  const [parentEmail, setParentEmail] = useState<string>("");
+  const [unlinkParentId, setUnlinkParentId] = useState<string>("");
+
+
+  
   // Restore draft when form opens
   useEffect(() => {
     if (isFormOpen && !editingChild) {
@@ -74,7 +182,7 @@ export default function ChildrenTab({
   }, [isFormOpen, editingChild, setNewChild]);
 
   // Helper to update form and save draft
-  const updateChild = useCallback((updates: Partial<NewChildInput>) => {
+  const updateChildWSaveDaft = useCallback((updates: Partial<NewChildInput>) => {
     setNewChild(prev => {
       const updated = { ...prev, ...updates };
 
@@ -154,133 +262,175 @@ export default function ChildrenTab({
   // ========================== done progress bar
 
   // Filter children based on search
-  const filteredChildren = childList.filter((child) => {
+  const filteredChildren = childrenData.filter((child) => {
     const searchLower = searchTerm.toLowerCase();
     const parentNames = parents
       .filter((p) => child.parentId.includes(p.id))
       .map((p) => `${p.firstName} ${p.lastName}`)
       .join(" ");
-
-    return (
+  return (
       child.firstName.toLowerCase().includes(searchLower) ||
       child.lastName.toLowerCase().includes(searchLower) ||
       parentNames.toLowerCase().includes(searchLower) ||
       child.enrollmentStatus.toLowerCase().includes(searchLower)
     );
   });
-
-  // Pagination logic
-  const childrenPerPage = 6;
-  const totalPages = Math.ceil(filteredChildren.length / childrenPerPage);
-  const startIndex = (currentPage - 1) * childrenPerPage;
-  const paginatedChildren = filteredChildren.slice(
-    startIndex,
-    startIndex + childrenPerPage
-  );
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingChild) {
-      console.log("Update child:", { ...editingChild, ...newChild });
-      setEditingChild(null);
-      resetForm();
-    } else {
-      onAdd();
-    }
-    clearDraft(); // Clear draft after successful submission
-    setIsFormOpen(false);
-  };
+  
 
   const resetForm = () => {
     setNewChild({
       firstName: "",
       lastName: "",
       birthDate: "",
-      parentIdsCsv: "",
+      parentId: [],
       classId: "",
-      allergies: undefined,
-      specialNeeds: undefined,
-      subsidyStatus: undefined,
-      enrollmentDate: "",
-      enrollmentStatus: "New",
-      endDate: undefined,
+      // enrollmentDate: "", was removed as automatic by assigning Class. !!!!! 
+      enrollmentStatus: undefined,
+      locationId: "",
+      notes: "",
     });
   };
 
-  const handleAddClick = () => {
+  function handleAddClick() {
+    if ((locations ?? []).length === 0) {
+      alert("No locations available. Please create a location first.");
+      return;
+    }
     setEditingChild(null);
-    resetForm();
+    setNewChild({
+      firstName: "",
+      lastName: "",
+      birthDate: "",
+      parentId: [],
+      classId: "",
+      locationId: locations[0]?.id ?? "",
+      notes: "",
+      enrollmentStatus: Types.EnrollmentStatus.New,
+    });
     setIsFormOpen(true);
-  };
+  }
 
-  const handleEditClick = (child: Types.Child) => {
+  function handleEditClick(child: Types.Child) {
     setEditingChild(child);
     setNewChild({
       firstName: child.firstName,
       lastName: child.lastName,
       birthDate: child.birthDate,
-      parentIdsCsv: child.parentId.join(", "),
-      classId: child.classId,
-      allergies: child.allergies,
-      specialNeeds: child.specialNeeds,
-      subsidyStatus: child.subsidyStatus,
-      enrollmentDate: child.enrollmentDate,
-      enrollmentStatus: child.enrollmentStatus,
-      endDate: child.endDate,
+      parentId: child.parentId ?? [],
+      classId: child.classId ?? "",
+      locationId: child.locationId ?? (locations[0]?.id ?? ""),
+      notes: child.notes ?? "",
+      enrollmentStatus: child.enrollmentStatus ?? computeStatus(child.parentId, child.classId),
     });
     setIsFormOpen(true);
-  };
+  }
 
-  const handleDeleteClick = (child: Types.Child) => {
-    if (
-      window.confirm(
-        `Are you sure you want to delete ${child.firstName} ${child.lastName}?`
-      )
-    ) {
-      console.log("Delete child:", child.id);
+  async function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    const trimmedLoc = (newChild.locationId ?? "").trim();
+    if ((locations ?? []).length > 0 && !trimmedLoc) {
+      alert("Please select a location.");
+      return;
     }
-  };
 
-  const handleAssignClass = (childId: string) => {
-    const child = childList.find((c) => c.id === childId);
-    setSelectedClassId(child?.classId || "");
-    setShowAssignClass(childId);
-  };
+    if (editingChild) {
+      const updated = await updateChild(editingChild.id, {
+        firstName: newChild.firstName.trim(),
+        lastName: newChild.lastName.trim(),
+        birthDate: newChild.birthDate,
+        parentId: Array.isArray(newChild.parentId) ? newChild.parentId : [],
+        classId: newChild.classId?.trim() || undefined,
+        locationId: trimmedLoc || undefined,
+        notes: newChild.notes?.trim() || undefined,
+        enrollmentStatus: newChild.enrollmentStatus,
+      });
+      if (updated) onUpdated?.(updated);
+      setEditingChild(null);
+    } else {
+      const created = await createChild({
+        firstName: newChild.firstName.trim(),
+        lastName: newChild.lastName.trim(),
+        birthDate: newChild.birthDate,
+        parentId: Array.isArray(newChild.parentId) ? newChild.parentId : [],
+        classId: newChild.classId?.trim() || undefined,
+        locationId: trimmedLoc || undefined,
+        notes: newChild.notes?.trim() || undefined,
+        enrollmentStatus: newChild.enrollmentStatus,
+      });
+      if (created) onCreated?.(created);
+    }
 
-  const handleSaveClass = () => {
-    console.log(
-      "Assign class to child:",
-      showAssignClass,
-      "Class:",
-      selectedClassId
+    setNewChild({
+      firstName: "",
+      lastName: "",
+      birthDate: "",
+      parentId: [],
+      classId: "",
+      locationId: "",
+      notes: "",
+      enrollmentStatus: Types.EnrollmentStatus.New,
+    });
+
+    clearDraft(); // Clear draft after successful submission
+    setIsFormOpen(false);
+  }
+
+  async function handleDeleteClick(child: Types.Child) {
+    const ok = window.confirm(`Delete "${child.firstName} ${child.lastName}"?`);
+    if (!ok) return;
+    const success = await deleteChild(child.id);
+    if (success) onDeleted?.(child.id);
+  }
+
+  async function linkParentByEmail(childId: string, email: string): Promise<boolean> {
+    if (onLinkParentByEmail) return !!(await onLinkParentByEmail(childId, email));
+    const parent = parents.find(
+      (p) => (p.email ?? "").toLowerCase() === email.trim().toLowerCase()
     );
-    setShowAssignClass(null);
-    setSelectedClassId("");
-  };
-
-  const calculateAge = (birthDate: string) => {
-    const birth = new Date(birthDate);
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < birth.getDate())
-    ) {
-      age--;
+    if (!parent) {
+      alert("Parent not found by that email.");
+      return false;
     }
-    return age;
-  };
+    return !!(await onLinkParent?.(childId, parent.id));
+  }
+
+  const filtered = useMemo(() => {
+    return childrenData.filter((c) => {
+      const q = searchTerm.trim().toLowerCase();
+      const okSearch =
+        q.length === 0 ||
+        c.firstName.toLowerCase().includes(q) ||
+        c.lastName.toLowerCase().includes(q) ||
+        getLocationLabel(locations, c.locationId).toLowerCase().includes(q);
+      if (!okSearch) return false;
+
+      const effStatus = c.enrollmentStatus ?? computeStatus(c.parentId, c.classId);
+      if (statusFilter !== "all" && effStatus !== statusFilter) return false;
+
+      if (classFilter !== "all") {
+        if (classFilter === "unassigned") return !c.classId;
+        return c.classId === classFilter;
+      }
+      return true;
+    });
+  }, [childrenData, locations, searchTerm, statusFilter, classFilter]);
+
+  // Pagination login
+  const perPage = 6;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const start = (currentPage - 1) * perPage;
+  const pageItems = filtered.slice(start, start + perPage);
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-3xl font-bold text-gray-800">Children</h2>
           <button
             onClick={handleAddClick}
             className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
+            title={(locations ?? []).length === 0 ? "No locations available" : "Add child"}
           >
             <span className="text-lg">+</span>
             Add Child
@@ -306,144 +456,218 @@ export default function ChildrenTab({
                   setSearchTerm("");
                   setCurrentPage(1);
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
-                ✕
-              </button>
-            )}
-          </div>
-          <div className="text-gray-500 text-xs whitespace-nowrap">
-            {filteredChildren.length} of {childList.length}
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as typeof statusFilter);
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg"
+            >
+              <option value="all">All Status</option>
+              <option value={Types.EnrollmentStatus.New}>New</option>
+              <option value={Types.EnrollmentStatus.Waitlist}>Waitlist</option>
+              <option value={Types.EnrollmentStatus.Active}>Active</option>
+              <option value={Types.EnrollmentStatus.Withdraw}>Withdraw</option>
+            </select>
+
+            <select
+              value={classFilter}
+              onChange={(e) => {
+                setClassFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg"
+            >
+              <option value="all">All Classes</option>
+              <option value="unassigned">Unassigned</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            <div className="text-gray-500 text-xs whitespace-nowrap">
+              {filtered.length} of {childrenData.length}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Children Grid */}
-      {paginatedChildren.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
-          {paginatedChildren.map((child) => {
+      {pageItems.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          {pageItems.map((child) => {
             const cls = classes.find((c) => c.id === child.classId);
-            const childParents = parents.filter((p) =>
-              child.parentId.includes(p.id)
-            );
-            const age = calculateAge(child.birthDate);
+            const cap = classCapacityBadge(cls);
+            const status = child.enrollmentStatus ?? computeStatus(child.parentId, child.classId);
 
             return (
               <div
                 key={child.id}
-                className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5"
+                className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 flex flex-col"
               >
-                {/* Primary Info */}
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                    {child.firstName} {child.lastName}
-                  </h3>
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <span>Age {age}</span>
-                    <span className="text-gray-300">•</span>
-                    <span>{child.enrollmentStatus}</span>
+                <div className="mb-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-800 truncate">
+                      {child.firstName} {child.lastName}
+                    </h3>
+                    <span className="text-xs text-gray-500">{formatAge(child.birthDate)}</span>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Status:{" "}
+                    <span
+                      className={
+                        status === Types.EnrollmentStatus.Active
+                          ? "text-green-600"
+                          : status === Types.EnrollmentStatus.Waitlist
+                          ? "text-yellow-600"
+                          : status === Types.EnrollmentStatus.Withdraw 
+                          ? "text-red-600"
+                          : "text-gray-600"
+                      }
+                    >
+                      {status}
+                    </span>   
                   </div>
                 </div>
 
-                {/* Secondary Details */}
-                <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
-                  {/* Class Assignment */}
-                  <div className="flex items-start gap-2">
-                    <span className="text-xs text-gray-500">Class:</span>
-                    <span className="text-xs text-gray-700 font-medium">
-                      {cls?.name || "Unassigned"}
-                    </span>
+                <div className="space-y-2 mb-4">
+                  <div className="text-xs text-gray-500">📍 {getLocationLabel(locations, child.locationId)}</div>
+
+                  <div className="text-sm text-gray-600">
+                    Class: <span className="font-medium">{classLabel(classes, child.classId)}</span>
                   </div>
 
-                  {/* Parents */}
-                  <div className="flex items-start gap-2">
-                    <span className="text-xs text-gray-500">Parents:</span>
-                    <div className="text-xs text-gray-700">
-                      {childParents.length > 0 ? (
-                        childParents.map((p, idx) => (
-                          <div key={p.id}>
-                            {p.firstName} {p.lastName}
-                            {idx < childParents.length - 1 && ", "}
-                          </div>
-                        ))
-                      ) : (
-                        <span className="text-gray-400">
-                          No parents assigned
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Birth Date */}
-                  <div className="flex items-start gap-2">
-                    <span className="text-xs text-gray-500">Birth Date:</span>
-                    <span className="text-xs text-gray-700">
-                      {child.birthDate}
-                    </span>
-                  </div>
-
-                  {/* Enrollment */}
-                  <div className="flex items-start gap-2">
-                    <span className="text-xs text-gray-500">Enrolled:</span>
-                    <span className="text-xs text-gray-400">
-                      {child.enrollmentDate}
-                      {child.endDate ? ` → ${child.endDate}` : ""}
-                    </span>
-                  </div>
-
-                  {/* Allergies (if present) */}
-                  {child.allergies && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-xs text-gray-500">Allergies:</span>
-                      <span className="text-xs text-gray-700">
-                        {child.allergies}
-                      </span>
+                  {cls && (
+                    <div>
+                      <div className="flex justify-between items-center text-xs text-gray-500">
+                        <span>Capacity</span>
+                        <span>{cap.text}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className={`h-1.5 ${
+                            cap.level === "full"
+                              ? "bg-red-500"
+                              : cap.level === "warn"
+                              ? "bg-yellow-500"
+                              : "bg-green-500"
+                          }`}
+                          style={{ width: `${cap.pct}%` }}
+                        />
+                      </div>
                     </div>
                   )}
 
-                  {/* Special Needs (if present) */}
-                  {child.specialNeeds && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-xs text-gray-500">
-                        Special Needs:
-                      </span>
-                      <span className="text-xs text-gray-700">
-                        {child.specialNeeds}
-                      </span>
+                  {child.parentId && child.parentId.length > 0 ? (
+                    <div className="text-xs text-gray-600">
+                      Parents:{" "}
+                      {child.parentId.map((pid, idx) => {
+                        const p = parents.find((pp) => pp.id === pid);
+                        const label =
+                          (p ? `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() : "") ||
+                          p?.email ||
+                          pid;
+                        return (
+                          <span key={pid} className="mr-2">
+                            {label}
+                            {idx < child.parentId.length - 1 ? "," : ""}
+                          </span>
+                        );
+                      })}
                     </div>
+                  ) : (
+                    <div className="text-xs text-gray-400">No parent linked</div>
                   )}
 
-                  {/* Subsidy Status (if present) */}
-                  {child.subsidyStatus && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-xs text-gray-500">Subsidy:</span>
-                      <span className="text-xs text-gray-700">
-                        {child.subsidyStatus}
-                      </span>
+                  {child.notes && (
+                    <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded p-2">
+                      {child.notes}
                     </div>
                   )}
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleAssignClass(child.id)}
-                    className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
-                  >
-                    Assign
-                  </button>
+                <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handleEditClick(child)}
-                    className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                    className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDeleteClick(child)}
-                    className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                    className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-red-50 hover:border-red-300 hover:text-red-600"
                   >
                     Delete
                   </button>
+
+                  <button
+                    onClick={() => setLinkChildId(child.id)}
+                    className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
+                  >
+                    Link Parent
+                  </button>
+
+                  {child.classId ? (
+                    <button
+                      onClick={() => onUnassign?.(child.id)}
+                      className="px-3 py-2 rounded-lg text-xs bg-gray-700 text-white hover:bg-gray-800"
+                    >
+                      Unassign
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setAssignChildId(child.id);
+                        setAssignClassId("");
+                      }}
+                      className="px-3 py-2 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700"
+                    >
+                      Assign
+                    </button>
+                  )}
+
+                  {child.parentId && child.parentId.length > 0 && (
+                    <div className="col-span-2 flex items-center gap-2">
+                      <select
+                        value={unlinkParentId}
+                        onChange={(e) => setUnlinkParentId(e.target.value)}
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-xs"
+                      >
+                        <option value="">Select parent to unlink</option>
+                        {child.parentId.map((pid) => {
+                          const p = parents.find((pp) => pp.id === pid);
+                          const label =
+                            (p ? `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() : "") ||
+                            p?.email ||
+                            pid;
+                          return (
+                            <option key={pid} value={pid}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      <button
+                        onClick={() => unlinkParentId && onUnlinkParent?.(child.id, unlinkParentId)}
+                        disabled={!unlinkParentId}
+                        className={`px-3 py-2 rounded-lg text-xs ${
+                          unlinkParentId
+                            ? "bg-white border border-gray-200 hover:bg-gray-50"
+                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        }`}
+                      >
+                        Unlink
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -451,22 +675,20 @@ export default function ChildrenTab({
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">
-            No Children found
-          </h3>
+          <div className="text-gray-400 text-6xl mb-4">🧒</div>
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">No children found</h3>
           <p className="text-gray-500">
-            {searchTerm
-              ? "Try adjusting your search terms"
+            {searchTerm || statusFilter !== "all" || classFilter !== "all"
+              ? "Try adjusting your search or filter settings"
               : "Get started by adding your first child"}
           </p>
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2">
           <button
-            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
               currentPage === 1
@@ -476,27 +698,21 @@ export default function ChildrenTab({
           >
             ← Previous
           </button>
-
           <div className="flex gap-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
               <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
+                key={n}
+                onClick={() => setCurrentPage(n)}
                 className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
-                  currentPage === page
-                    ? "bg-gray-800 text-white"
-                    : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                  currentPage === n ? "bg-gray-800 text-white" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
                 }`}
               >
-                {page}
+                {n}
               </button>
             ))}
           </div>
-
           <button
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-            }
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
             className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
               currentPage === totalPages
@@ -509,7 +725,6 @@ export default function ChildrenTab({
         </div>
       )}
 
-      {/* Form Modal */}
       {isFormOpen && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
@@ -519,126 +734,47 @@ export default function ChildrenTab({
           }}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-height-[90vh] overflow-y-auto border border-gray-100"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className='sticky top-0 bg-white border-b border-gray-200 px-6 py-4'> 
-              <div className="flex justify-between items-center">
-                <h3 className="text-2xl font-bold text-gray-800">
-                  {editingChild ? "Edit Child" : "Add New Child"}
-                </h3>
-                <button
-                  onClick={() => {
-                    setIsFormOpen(false);
-                    setEditingChild(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                >
-                  ✕
-                </button>
-              </div>
-            
-            {/* Insert progress bar */}
-            <Box sx={{ width: "100%" }}>
-              <Stepper activeStep={activeStep}>
-                {steps.map((label, index) => {
-                  const stepProps: { completed?: boolean } = {};
-                  const labelProps: {
-                    optional?: React.ReactNode;
-                  } = {};
-                  if (isStepOptional(index)) {
-                    labelProps.optional = (
-                      <Typography variant="caption" sx={{fontWeight: "bold"}}>(Optional)</Typography>
-                    );
-                  }
-                  if (isStepSkipped(index)) {
-                    stepProps.completed = false;
-                  }
-                  return (
-                    <Step key={label} {...stepProps}>
-                      <StepLabel {...labelProps}>{label}</StepLabel>
-                    </Step>
-                  );
-                })}
-              </Stepper>
-
-              {/* Control navigation */}
-              {activeStep === steps.length ? (
-                <React.Fragment>
-                  <Typography sx={{ mt: 2, mb: 1 }}>
-                    All steps completed - you&apos;re finished
-                  </Typography>
-                  <Box sx={{ display: "flex", flexDirection: "row", pt: 2 }}>
-                    <Box sx={{ flex: "1 1 auto" }} />
-                    <Button onClick={handleReset}>Reset</Button>
-                  </Box>
-                </React.Fragment>
-              ) : (
-                <React.Fragment>
-                  <Typography sx={{ mt: 2, mb: 1 }}>
-                    Step {activeStep + 1}
-                  </Typography>
-                  <Box sx={{ display: "flex", flexDirection: "row", pt: 2 }}>
-                    <Button
-                      color="inherit"
-                      disabled={activeStep === 0}
-                      onClick={handleBack}
-                      sx={{ mr: 1 }}
-                    >
-                      ← Back
-                    </Button>
-                    <Box sx={{ flex: "1 1 auto" }} />
-                    {isStepOptional(activeStep) && (
-                      <Button
-                        color="inherit"
-                        onClick={handleSkip}
-                        sx={{ mr: 1 }}
-                      >
-                        Skip
-                      </Button>
-                    )}
-                    <Button onClick={handleNext}>
-                      {activeStep === steps.length - 1 ? "Finish" : "Next →"}
-                    </Button>
-                  </Box>
-                </React.Fragment>
-              )}
-            </Box>
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-2xl font-bold text-gray-800">
+                {editingChild ? "Edit Child" : "Add New Child"}
+              </h3>
+              <button
+                onClick={() => {
+                  setIsFormOpen(false);
+                  setEditingChild(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ✕
+              </button>
             </div>
 
 
             {/* Main form */}
             <form onSubmit={handleFormSubmit} className="p-6">
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">
-                      First Name *
-                    </span>
-                    <input
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                      placeholder="First Name"
-                      value={newChild.firstName}
-                      onChange={(e) => setNewChild({  ...newChild, firstName: e.target.value })}
-                      required
-                    />
-                  </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-gray-700 font-medium mb-1 block">First Name *</span>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    value={newChild.firstName}
+                    onChange={(e) => setNewChild({ ...newChild, firstName: e.target.value })}
+                    required
+                  />
+                </label>
 
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">
-                      Last Name *
-                    </span>
-                    <input
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                      placeholder="Last Name"
-                      value={newChild.lastName}
-                      onChange={(e) =>
-                        setNewChild({ ...newChild, lastName: e.target.value })
-                      }
-                      required
-                    />
-                  </label>
-                </div>
+                <label className="block">
+                  <span className="text-gray-700 font-medium mb-1 block">Last Name *</span>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    value={newChild.lastName}
+                    onChange={(e) => setNewChild({ ...newChild, lastName: e.target.value })}
+                    required
+                  />
+                </label>
 
                 <label className="block">
                   <span className="text-gray-700 font-medium mb-1 block">
@@ -646,130 +782,61 @@ export default function ChildrenTab({
                   </span>
                   <input
                     type="date"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     value={newChild.birthDate}
                     onChange={(e) => setNewChild({ ...newChild, birthDate: e.target.value })}                    required
                   />
                 </label>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Parent IDs *
-                  </span>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                    placeholder="Comma separated parent IDs"
-                    value={newChild.parentIdsCsv}
-                    onChange={(e) =>
-                      setNewChild({ ...newChild, parentIdsCsv: e.target.value })
-                    }
-                    required
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Class *
-                  </span>
+                  <span className="text-gray-700 font-medium mb-1 block">Location *</span>
                   <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                    value={newChild.classId}
-                    onChange={(e) =>
-                      setNewChild({ ...newChild, classId: e.target.value })
-                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    value={newChild.locationId ?? ""}
+                    onChange={(e) => setNewChild({ ...newChild, locationId: e.target.value })}
                     required
+                    disabled={(locations ?? []).length <= 1}
                   >
-                    <option value="">Select Class</option>
-                    {classes.map((cls) => (
-                      <option key={cls.id} value={cls.id}>
-                        {cls.name}
+                    {(locations ?? []).length > 1 && (
+                      <option value="" disabled>
+                        Select a location
+                      </option>
+                    )}
+                    {(locations ?? []).map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name || l.id}
                       </option>
                     ))}
                   </select>
                 </label>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Enrollment Status *
-                  </span>
+                  <span className="text-gray-700 font-medium mb-1 block">Status *</span>
                   <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                    value={newChild.enrollmentStatus}
-                    onChange={(e) => setNewChild({ ...newChild, enrollmentStatus: e.target.value as Types.Child['enrollmentStatus'] })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    value={newChild.enrollmentStatus ?? Types.EnrollmentStatus.New}
+                    onChange={(e) =>
+                      setNewChild({
+                        ...newChild,
+                        enrollmentStatus: e.target.value as Types.EnrollmentStatus,
+                      })
+                    }
                     required
                   >
-                    <option value="New">New</option>
-                    <option value="Active">Active</option>
-                    <option value="Withdraw">Withdraw</option>
-                    <option value="Waitlist">Waitlist</option>
+                    <option value={Types.EnrollmentStatus.New}>New</option>
+                    <option value={Types.EnrollmentStatus.Waitlist}>Waitlist</option>
+                    <option value={Types.EnrollmentStatus.Active}>Active</option>
+                    <option value={Types.EnrollmentStatus.Withdraw}>Withdraw</option>
                   </select>
                 </label>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">
-                      Enrollment Date *
-                    </span>
-                    <input
-                      type="date"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                      value={newChild.enrollmentDate}
-                      onChange={(e) => setNewChild({...newChild, enrollmentDate: e.target.value })}
-                      required
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">
-                      End Date
-                    </span>
-                    <input
-                      type="date"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                      placeholder="End Date (optional)"
-                      value={newChild.endDate || ''}
-                      onChange={(e) => setNewChild({ ...newChild, endDate: e.target.value || undefined })}
-                    />
-                  </label>
-                </div>
-
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Allergies
-                  </span>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                    placeholder="Allergies (optional)"
-                    value={newChild.allergies ?? ""}
-                    onChange={(e) =>
-                      setNewChild({ ...newChild, allergies: e.target.value })
-                    }
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Special Needs
-                  </span>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                    placeholder="Special Needs (optional)"
-                    value={newChild.specialNeeds ?? ""}
-                    onChange={(e) =>
-                      setNewChild({ ...newChild, specialNeeds: e.target.value })
-                    }
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Subsidy Status
-                  </span>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                    placeholder="Subsidy Status (optional)"
-                    value={newChild.subsidyStatus ?? ''}
-                    onChange={(e) => setNewChild({...newChild, subsidyStatus: e.target.value })}
+                <label className="block md:col-span-2">
+                  <span className="text-gray-700 font-medium mb-1 block">Notes</span>
+                  <textarea
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    value={newChild.notes ?? ""}
+                    onChange={(e) => setNewChild({ ...newChild, notes: e.target.value })}
+                    placeholder="Allergies / Special needs / Subsidy status / Remarks"
                   />
                 </label>,
               </div>
@@ -796,7 +863,8 @@ export default function ChildrenTab({
                 )}
                 <button
                   type="submit"
-                  className="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                  title={(locations ?? []).length === 0 ? "No locations available" : "Submit"}
                 >
                   {editingChild ? "Update Child" : "Add Child"}
                 </button>
@@ -806,25 +874,107 @@ export default function ChildrenTab({
         </div>
       )}
 
-      {/* Assign Class Modal */}
-      {showAssignClass && (
+      {assignChildId && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
           onClick={() => {
-            setShowAssignClass(null);
-            setSelectedClassId("");
+            setAssignChildId(null);
+            setAssignClassId("");
           }}
         >
           <div
             className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-800">Assign Class</h3>
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800">Select Class</h3>
               <button
                 onClick={() => {
-                  setShowAssignClass(null);
-                  setSelectedClassId("");
+                  setAssignChildId(null);
+                  setAssignClassId("");
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                value={assignClassId}
+                onChange={(e) => setAssignClassId(e.target.value)}
+              >
+                <option value="">— Choose class —</option>
+                {classes.map((c) => {
+                  const cap = classCapacityBadge(c);
+                  const full = isClassFull(c);
+                  return (
+                    <option key={c.id} value={c.id} disabled={full}>
+                      {c.name} — {cap.text}
+                    </option>
+                  );
+                })}
+              </select>
+              <div className="text-xs text-gray-500">
+                Full classes are disabled. If a class is full, the child should remain on <b>Waitlist</b>.
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => {
+                  setAssignChildId(null);
+                  setAssignClassId("");
+                }}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!assignChildId || !assignClassId) return;
+                  const targetClass = classes.find((c) => c.id === assignClassId);
+                  if (isClassFull(targetClass)) {
+                    alert("This class is full. Please choose another class.");
+                    return;
+                  }
+                  const ok = await onAssign?.(assignChildId, assignClassId);
+                  if (ok) {
+                    setAssignChildId(null);
+                    setAssignClassId("");
+                  }
+                }}
+                disabled={!assignClassId}
+                className={`flex-1 ${
+                  assignClassId ? "bg-green-600 hover:bg-green-700" : "bg-green-400 cursor-not-allowed"
+                } text-white font-medium px-4 py-2 rounded-lg`}
+              >
+                Assign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {linkChildId && (
+        <div
+          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
+          onClick={() => {
+            setLinkChildId(null);
+            setParentEmail("");
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800">Link Parent by Email</h3>
+              <button
+                onClick={() => {
+                  setLinkChildId(null);
+                  setParentEmail("");
                 }}
                 className="text-gray-400 hover:text-gray-600 text-2xl"
               >
@@ -833,41 +983,46 @@ export default function ChildrenTab({
             </div>
 
             <div className="p-6">
-              <label className="block mb-4">
-                <span className="text-gray-700 font-medium mb-2 block">
-                  Select Class
-                </span>
-                <select
-                  value={selectedClassId}
-                  onChange={(e) => setSelectedClassId(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                >
-                  <option value="">-- Select a class --</option>
-                  {classes.map((cls) => (
-                    <option key={cls.id} value={cls.id}>
-                      {cls.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowAssignClass(null);
-                    setSelectedClassId("");
-                  }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveClass}
-                  className="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
-                >
-                  Save
-                </button>
+              <input
+                type="email"
+                placeholder="parent@example.com"
+                value={parentEmail}
+                onChange={(e) => setParentEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              />
+              <div className="text-xs text-gray-500 mt-2">
+                Enter the parent&apos;s email to link their account.
               </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => {
+                  setLinkChildId(null);
+                  setParentEmail("");
+                }}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!linkChildId || !parentEmail.trim()) return;
+                  const ok = await linkParentByEmail(linkChildId, parentEmail.trim());
+                  if (ok) {
+                    setLinkChildId(null);
+                    setParentEmail("");
+                  }
+                }}
+                disabled={!parentEmail.trim()}
+                className={`flex-1 ${
+                  parentEmail.trim()
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : "bg-blue-400 cursor-not-allowed"
+                } text-white font-medium px-4 py-2 rounded-lg`}
+              >
+                Link
+              </button>
             </div>
           </div>
         </div>

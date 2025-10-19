@@ -1,4 +1,3 @@
-// web-admin/components/ClassesTab.tsx
 "use client";
 
 import * as Types from "../../../shared/types/type";
@@ -16,7 +15,6 @@ import {
 
 type Props = {
   classes: Types.Class[];
-  // Optional legacy prop: used only to show currently assigned teachers in the grid
   teachers: Types.Teacher[];
   locations: LocationLite[];
   newClass: NewClassInput;
@@ -24,7 +22,7 @@ type Props = {
   onCreated?: (created: Types.Class) => void;
   onUpdated?: (updated: Types.Class) => void;
   onDeleted?: (id: string) => void;
-  onAssigned?: () => Promise<void> | void; // ask parent to refetch after assigning
+  onAssigned?: () => Promise<void> | void;  // ask parent to refetch after assigning
 };
 
 // Narrow type guard for reading an optional "status" string safely (no any)
@@ -51,7 +49,7 @@ export default function ClassesTab({
   const [currentPage, setCurrentPage] = useState(1);
   const [editingClass, setEditingClass] = useState<Types.Class | null>(null);
 
-  // Assign modal state
+   // Assign modal state
   const [showAssignTeachers, setShowAssignTeachers] = useState<string | null>(null);
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
@@ -110,12 +108,9 @@ export default function ClassesTab({
     return "full";
   };
 
+  // Helpers
   const getCapacityColor = (status: string) =>
-    status === "available"
-      ? "bg-green-500"
-      : status === "nearly-full"
-      ? "bg-yellow-500"
-      : "bg-red-500";
+    status === "available" ? "bg-green-500" : status === "nearly-full" ? "bg-yellow-500" : "bg-red-500";
 
   const getLocationLabel = (locId?: string) => {
     if (!locId) return "—";
@@ -154,22 +149,25 @@ export default function ClassesTab({
   async function handleFormSubmit(e: React.FormEvent) {
       e.preventDefault();
 
-    const rawLoc = newClass.locationId ?? "";
-    const payloadLocationId = rawLoc.trim() === "" ? undefined : rawLoc;
+    const trimmedLoc = (newClass.locationId ?? "").trim();
+    if (!trimmedLoc) {
+      alert("Please select a location.");
+      return;
+    }
 
     if (editingClass) {
       const updated = await apiUpdateClass(editingClass.id, {
         ...newClass,
-        locationId: payloadLocationId,
+        locationId: trimmedLoc,
       });
-      if (updated && onUpdated) onUpdated(updated);
+      if (updated) onUpdated?.(updated);
       setEditingClass(null);
     } else {
       const created = await apiAddClass({
         ...newClass,
-        locationId: payloadLocationId,
+        locationId: trimmedLoc,
       });
-      if (created && onCreated) onCreated(created);
+      if (created) onCreated?.(created);
     }
 
     setNewClass({
@@ -186,10 +184,15 @@ export default function ClassesTab({
   };
 
   function handleAddClick() {
+    // Always allow the click; guide the user if there is no location.
+    if ((locations ?? []).length === 0) {
+      alert("No locations available. Please create a location first.");
+      return;
+    }
     setEditingClass(null);
     setNewClass({
       name: "",
-      locationId: "",
+      locationId: locations[0]?.id ?? "",
       capacity: 0,
       volume: 0,
       ageStart: 0,
@@ -203,7 +206,7 @@ export default function ClassesTab({
     setEditingClass(cls);
     setNewClass({
       name: cls.name,
-      locationId: cls.locationId || "",
+      locationId: cls.locationId,
       capacity: cls.capacity,
       volume: cls.volume,
       ageStart: cls.ageStart,
@@ -217,14 +220,13 @@ export default function ClassesTab({
     const ok = window.confirm(`Delete class "${cls.name}"?`);
     if (!ok) return;
     const success = await apiDeleteClass(cls.id);
-    if (success && onDeleted) onDeleted(cls.id);
+    if (success) onDeleted?.(cls.id);
   }
 
   // Assign modal: load candidates + preselect existing assignments
   async function openAssign(classId: string) {
     setShowAssignTeachers(classId);
     setLoadingCandidates(true);
-
     try {
       // Load only NEW teachers by default
       const candidates = await fetchTeacherCandidates(true);
@@ -236,17 +238,15 @@ export default function ClassesTab({
         ? ((cls as unknown as { teacherIds?: string[] }).teacherIds as string[])
         : teachers.filter((t) => (t.classIds || []).includes(classId)).map((t) => t.id);
 
-      // Merge already-assigned teachers that are not part of "NEW" candidates (likely Active)
+        // Merge already-assigned teachers that are not part of "NEW" candidates (likely Active)
+
       const candidateIds = new Set(candidates.map((c) => c.id));
       const extras: TeacherCandidate[] = [];
       for (const id of pre) {
         if (!candidateIds.has(id)) {
           const fromProps = teachers.find((t) => t.id === id);
           if (fromProps) {
-            const status = hasStatus(fromProps) && typeof fromProps.status === "string"
-              ? fromProps.status
-              : "Active";
-
+            const status = hasStatus(fromProps) && typeof fromProps.status === "string" ? fromProps.status : "Active";
             extras.push({
               id,
               firstName: fromProps.firstName,
@@ -259,7 +259,6 @@ export default function ClassesTab({
         }
       }
       if (extras.length > 0) setTeacherOptions((prev) => [...prev, ...extras]);
-
       setSelectedTeachers(pre);
     } finally {
       setLoadingCandidates(false);
@@ -281,7 +280,6 @@ export default function ClassesTab({
     }
   }
 
-  // Render
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
@@ -291,12 +289,12 @@ export default function ClassesTab({
           <button
             onClick={handleAddClick}
             className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
+            title={(locations ?? []).length === 0 ? "No locations available" : "Add class"}
           >
             <span className="text-lg">+</span>
             Add Class
           </button>
         </div>
-
         {/* Search & Filter */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
@@ -358,8 +356,8 @@ export default function ClassesTab({
         )}
       </div>
 
-      {/* Class Grid */}
       {paginatedClasses.length > 0 ? (
+        /* ... (unchanged cards list) ... */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {paginatedClasses.map((cls) => {
             const assigned = teachers.filter((t) => (t.classIds || []).includes(cls.id));
@@ -371,7 +369,7 @@ export default function ClassesTab({
                 key={cls.id}
                 className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 flex flex-col"
               >
-                {/* Header */}
+                {/* ...card content unchanged... */}
                 <div className="mb-4">
                   <h3 className="text-xl font-bold text-gray-800 truncate mb-2">{cls.name}</h3>
                   <div className="flex items-center gap-2 text-gray-600 text-sm">
@@ -386,7 +384,6 @@ export default function ClassesTab({
                   </div>
                 )}
 
-                {/* Details */}
                 <div className="space-y-3 mb-4 flex-grow">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-600 text-sm">👶 Age Range:</span>
@@ -395,7 +392,6 @@ export default function ClassesTab({
                     </span>
                   </div>
 
-                  {/* Capacity bar */}
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-gray-600 text-sm">Capacity:</span>
@@ -414,7 +410,6 @@ export default function ClassesTab({
                     </div>
                   </div>
 
-                  {/* Teachers summary */}
                   <div>
                     <div className="text-gray-500 text-xs mb-1">Teachers</div>
                     {assigned.length > 0 ? (
@@ -434,7 +429,6 @@ export default function ClassesTab({
                   </div>
                 </div>
 
-                {/* Actions */}
                 <div className="flex gap-2 pt-4 border-t border-gray-200">
                   <button
                     onClick={() => openAssign(cls.id)}
@@ -471,8 +465,8 @@ export default function ClassesTab({
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
+        /* ...pagination unchanged... */
         <div className="flex justify-center items-center gap-2">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -512,7 +506,7 @@ export default function ClassesTab({
         </div>
       )}
 
-      {/* Add/Edit Modal */}
+      {/* modal sections unchanged except for minor UX */}
       {isFormOpen && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
@@ -559,20 +553,23 @@ export default function ClassesTab({
                 </label>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Location (optional)</span>
+                  <span className="text-gray-700 font-medium mb-1 block">Location *</span>
                   <select
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     value={newClass.locationId ?? ""}
                     onChange={(e) => setNewClass({ ...newClass, locationId: e.target.value })}
+                    required
+                    disabled={(locations ?? []).length <= 1} // disable if single
                   >
-                    <option value="">— No location —</option>
-                    {(locations ?? []).map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name || l.id}
-                      </option>
+                    {(locations ?? []).length > 1 && (
+                      <option value="" disabled>Select a location</option>
+                    )}
+                    {(locations ?? []).map(l => (
+                      <option key={l.id} value={l.id}>{l.name || l.id}</option>
                     ))}
                   </select>
                 </label>
+
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className="block">
@@ -582,9 +579,7 @@ export default function ClassesTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Capacity"
                       value={newClass.capacity}
-                      onChange={(e) =>
-                        setNewClass({ ...newClass, capacity: Number(e.target.value) })
-                      }
+                      onChange={(e) => setNewClass({ ...newClass, capacity: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -596,9 +591,7 @@ export default function ClassesTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Volume"
                       value={newClass.volume}
-                      onChange={(e) =>
-                        setNewClass({ ...newClass, volume: Number(e.target.value) })
-                      }
+                      onChange={(e) => setNewClass({ ...newClass, volume: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -612,9 +605,7 @@ export default function ClassesTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Age Start"
                       value={newClass.ageStart}
-                      onChange={(e) =>
-                        setNewClass({ ...newClass, ageStart: Number(e.target.value) })
-                      }
+                      onChange={(e) => setNewClass({ ...newClass, ageStart: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -626,9 +617,7 @@ export default function ClassesTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Age End"
                       value={newClass.ageEnd}
-                      onChange={(e) =>
-                        setNewClass({ ...newClass, ageEnd: Number(e.target.value) })
-                      }
+                      onChange={(e) => setNewClass({ ...newClass, ageEnd: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -668,6 +657,7 @@ export default function ClassesTab({
                 <button
                   type="submit"
                   className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                  title={(locations ?? []).length === 0 ? "No locations available" : "Submit"}
                 >
                   {editingClass ? "Update Class" : "Add Class"}
                 </button>
@@ -677,8 +667,8 @@ export default function ClassesTab({
         </div>
       )}
 
-      {/* Assign Teachers Modal */}
       {showAssignTeachers && (
+        /* ...assign-teachers modal unchanged... */
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
           onClick={() => {
@@ -740,9 +730,7 @@ export default function ClassesTab({
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     No teachers available
-                    <div className="text-xs mt-1">
-                      Try saving with an empty selection to auto-assign NEW teachers.
-                    </div>
+                    <div className="text-xs mt-1">Try saving with an empty selection to auto-assign NEW teachers.</div>
                   </div>
                 )}
               </div>
