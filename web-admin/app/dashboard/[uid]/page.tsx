@@ -14,9 +14,9 @@ import ChildrenTab, {
 import { dash } from "@/styles/dashboard";
 import { useAuth } from "@/lib/auth";
 import * as Types from "../../../../shared/types/type";
-import type { Tab, NewParentInput, NewClassInput } from "@/types/forms";
+import type { Tab, NewParentInput, NewClassInput, NewTeacherInput } from "@/types/forms";
 import swal from "sweetalert2";
-import { fetchTeachers } from "@/services/useTeachersAPI";
+import { fetchTeachers, addTeacher } from "@/services/useTeachersAPI";
 import { fetchClasses } from "@/services/useClassesAPI";
 import {
   fetchLocationsLite,
@@ -34,6 +34,7 @@ import {
   fetchParentsLiteByIds, 
   type NewChildInput as APIChildInput,
 } from "@/services/useChildrenAPI";
+import TeachersTab from "@/components/dashboard/TeachersTab";
 
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null;
@@ -118,6 +119,24 @@ export default function AdminDashboard() {
   const [dataLoading, setDataLoading] = useState<boolean>(true);
   const [parentLites, setParentLites] = useState<Array<{ id: string; firstName?: string; lastName?: string; email?: string }>>([]);
 
+  // Forms state (lifted to parent so tabs can read/write)
+  const [newTeacher, setNewTeacher] = useState<NewTeacherInput>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    address1: "",
+    address2: "",
+    city: "",
+    province: "",
+    country: "",
+    postalcode: "",
+    classIds: [],
+    locationId: "",
+    startDate: "",
+    endDate: undefined,
+  });
+
   const [newChild, setNewChild] = useState<ChildFormInput>({
     firstName: "",
     lastName: "",
@@ -153,6 +172,7 @@ export default function AdminDashboard() {
   });
 
   const scope = useMemo<AdminScope>(() => getAdminScopeFromUser(currentUser), [currentUser]);
+
 
 const refreshAll = useCallback(async () => {
   setDataLoading(true);
@@ -223,6 +243,26 @@ const refreshAll = useCallback(async () => {
       setNewClass((p) => ({ ...p, locationId: scope.fixedLocationId }));
     }
   }, [scope.mode, scope.fixedLocationId]);
+
+  const handleAddTeacher = async () => {
+      await addTeacher(newTeacher);
+      // Refresh from server to get latest data,in the background
+      await refreshAll(); 
+      // Reset form
+      setNewTeacher({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        address1: "",
+        address2: "",
+        city: "", 
+        province: "",
+        country: "", 
+        startDate: "",
+        endDate: undefined,
+      });
+  };
 
   const createChild = async (input: ChildFormInput): Promise<Types.Child | null> => {
     const payload: APIChildInput = {
@@ -357,7 +397,7 @@ const refreshAll = useCallback(async () => {
 
   if (authLoading || dataLoading) {
     return (
-        <div>Loading inside dashboard/uid...</div>
+        <div>Loading</div>
     );
   }
 
@@ -384,6 +424,15 @@ const refreshAll = useCallback(async () => {
                 childCount={children.length}
                 parentCount={parents.length}
                 classCount={classes.length}
+              />
+            )}
+            
+            {activeTab === "teachers" && (
+              <TeachersTab
+                teachers={teachers}
+                newTeacher={newTeacher}
+                setNewTeacher={setNewTeacher}
+                onAdd={handleAddTeacher}
               />
             )}
 

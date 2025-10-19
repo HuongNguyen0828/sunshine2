@@ -12,18 +12,6 @@ export enum TeacherStatus {
   Inactive = "Inactive"
 };
 
-// EnrollmentStatus enum applires to Child and Parent
-// The default type when add a children, or parent is "New"
-// In parent -child: many - to many relationship:
-  // If all children are “Withdraw,” you can automatically mark the parent as “Withdraw.”
-  // If at least one child is “Active,” the parent stays “Active.”
-export enum EnrollmentStatus {
-  New = "New",
-  Active = "Active",
-  withdraw = "Withdraw",
-  waitlist = "Waitlist"
-};
-
 
 export type Admin = {
   daycareId: string,             // referencing Daycare Provider 
@@ -168,7 +156,14 @@ export type monthlyReport = {
   updatedAt?: string;
 }
 
-/** Possible enrollment status — automatically derived by server */
+/** 
+ * Possible enrollment status — automatically derived by server 
+ * EnrollmentStatus enum applires to Child and Parent
+ * The default type when add a children, or parent is "New"
+ * In parent -child: many - to many relationship:
+ * If all children are “Withdraw,” you can automatically mark the parent as “Withdraw.”
+ * If at least one child is “Active,” the parent stays “Active.”
+*/
 export enum EnrollmentStatus {
   New = "New",         
   Waitlist = "Waitlist",
