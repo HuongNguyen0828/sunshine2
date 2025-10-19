@@ -315,6 +315,7 @@ export default function ChildrenTab({
               <option value={Types.EnrollmentStatus.New}>New</option>
               <option value={Types.EnrollmentStatus.Waitlist}>Waitlist</option>
               <option value={Types.EnrollmentStatus.Active}>Active</option>
+              <option value={Types.EnrollmentStatus.Withdraw}>Withdraw</option>
             </select>
 
             <select
@@ -368,11 +369,13 @@ export default function ChildrenTab({
                           ? "text-green-600"
                           : status === Types.EnrollmentStatus.Waitlist
                           ? "text-yellow-600"
+                          : status === Types.EnrollmentStatus.Withdraw 
+                          ? "text-red-600"
                           : "text-gray-600"
                       }
                     >
                       {status}
-                    </span>
+                    </span>   
                   </div>
                 </div>
 
@@ -663,6 +666,7 @@ export default function ChildrenTab({
                     <option value={Types.EnrollmentStatus.New}>New</option>
                     <option value={Types.EnrollmentStatus.Waitlist}>Waitlist</option>
                     <option value={Types.EnrollmentStatus.Active}>Active</option>
+                    <option value={Types.EnrollmentStatus.Withdraw}>Withdraw</option>
                   </select>
                 </label>
 

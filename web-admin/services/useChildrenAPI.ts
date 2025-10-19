@@ -45,9 +45,11 @@ function statusFromDoc(v: unknown): Types.EnrollmentStatus | undefined {
   if (v === Types.EnrollmentStatus.Active) return Types.EnrollmentStatus.Active;
   if (v === Types.EnrollmentStatus.Waitlist) return Types.EnrollmentStatus.Waitlist;
   if (v === Types.EnrollmentStatus.New) return Types.EnrollmentStatus.New;
+  if (v === Types.EnrollmentStatus.Withdraw) return Types.EnrollmentStatus.Withdraw;
   if (v === "Active") return Types.EnrollmentStatus.Active;
   if (v === "Waitlist") return Types.EnrollmentStatus.Waitlist;
   if (v === "New") return Types.EnrollmentStatus.New;
+  if (v === "Withdraw") return Types.EnrollmentStatus.Withdraw;
   return undefined;
 }
 function statusToDoc(s: Types.EnrollmentStatus): string {
@@ -114,7 +116,7 @@ export async function fetchParentsLiteByIds(ids: string[]): Promise<ParentLite[]
   if (uniq.length === 0) return [];
 
   const out: ParentLite[] = [];
-  for (const group of chunk(uniq, 10)) { // Firestore 'in' 쿼리 한계 10개
+  for (const group of chunk(uniq, 10)) {
     const qRef = query(
       collection(db, USERS),
       where(documentId(), "in", group),
@@ -123,7 +125,6 @@ export async function fetchParentsLiteByIds(ids: string[]): Promise<ParentLite[]
     const snap = await getDocs(qRef);
     snap.forEach((d) => {
       const data = d.data() as { firstName?: string; lastName?: string; email?: string; profile?: Record<string, unknown> };
-      // 프로필 하위에 있을 수도 있으니 fallback
       let firstName = data.firstName;
       let lastName = data.lastName;
       if ((!firstName || !lastName) && data.profile && typeof data.profile === "object") {
