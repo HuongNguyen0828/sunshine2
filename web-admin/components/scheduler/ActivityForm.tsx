@@ -8,37 +8,41 @@
 
 import { useState, useCallback } from "react";
 import type { Activity } from "@/types/scheduler";
+import type { Class } from "../../../shared/types/type";
 import { useFormDraft } from "@/hooks/useFormDraft";
 
 interface ActivityFormProps {
   onClose: () => void;
   onActivityCreated: (activity: Omit<Activity, 'id' | '_creationTime' | 'userId'>) => void;
+  classes: Class[];
 }
 
 // This component shifts from Convex mutations to callback patterns
 // The form experience remains identical, but the data flow consciousness changes completely
-export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) {
+export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [materials, setMaterials] = useState("");
+  const [classId, setClassId] = useState<string>("all");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form draft management
   const { isDraftRestored, saveDraft, clearDraft } = useFormDraft({
     formKey: 'activity-form',
-    initialData: { title: "", description: "", materials: "" },
+    initialData: { title: "", description: "", materials: "", classId: "all" },
     onRestore: (draft) => {
       setTitle(draft.title || "");
       setDescription(draft.description || "");
       setMaterials(draft.materials || "");
+      setClassId(draft.classId || "all");
     },
   });
 
   // Helper to save draft
   const saveFormDraft = useCallback(() => {
-    saveDraft({ title, description, materials });
-  }, [title, description, materials, saveDraft]);
+    saveDraft({ title, description, materials, classId });
+  }, [title, description, materials, classId, saveDraft]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +60,7 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
         title: title.trim(),
         description: description.trim(),
         materials: materials.trim(),
+        classId: classId,
       });
 
       clearDraft(); // Clear draft after successful submission
@@ -142,6 +147,27 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
               placeholder="e.g., Crayons, paper, glue sticks"
               disabled={isSubmitting}
             />
+          </div>
+
+          <div>
+            <label htmlFor="classId" className="block text-sm font-medium text-gray-700 mb-1">
+              Assign to Class *
+            </label>
+            <select
+              id="classId"
+              value={classId}
+              onChange={(e) => { setClassId(e.target.value); saveFormDraft(); }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+              required
+              disabled={isSubmitting}
+            >
+              <option value="all">All Classes</option>
+              {classes.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-3 pt-4">

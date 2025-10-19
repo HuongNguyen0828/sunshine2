@@ -12,6 +12,7 @@ import { ActivityLibrary } from "./ActivityLibrary";
 import { ActivityForm } from "./ActivityForm";
 import { MockSchedulerAPI } from "@/lib/scheduler-mock-data";
 import type { Activity, Schedule } from "@/types/scheduler";
+import type { Class } from "../../../shared/types/type";
 
 // This component represents the consciousness transplant - taking the original
 // scheduler's reactive patterns and adapting them to local state management
@@ -28,6 +29,8 @@ export function WeeklyScheduler() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>("all");
 
   // Load initial data - replacing Convex useQuery with async state management
   useEffect(() => {
@@ -39,6 +42,12 @@ export function WeeklyScheduler() {
         ]);
         setActivities(activitiesData);
         setSchedules(schedulesData);
+        // Mock classes data - replace with real API call when backend is ready
+        setClasses([
+          { id: '1', name: 'Toddlers', capacity: 15, volume: 12, ageStart: 2, ageEnd: 3 },
+          { id: '2', name: 'Preschool', capacity: 20, volume: 18, ageStart: 3, ageEnd: 5 },
+          { id: '3', name: 'Kindergarten', capacity: 25, volume: 22, ageStart: 5, ageEnd: 6 },
+        ] as Class[]);
       } catch (error) {
         console.error('Error loading scheduler data:', error);
       } finally {
@@ -165,6 +174,20 @@ export function WeeklyScheduler() {
             >
               →
             </button>
+
+            {/* Class Filter Dropdown */}
+            <select
+              value={selectedClassId}
+              onChange={(e) => setSelectedClassId(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+            >
+              <option value="all">All Classes</option>
+              {classes.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-3">
@@ -187,8 +210,15 @@ export function WeeklyScheduler() {
       {/* Weekly Calendar - the heart of the transplanted UI */}
       <WeeklyCalendar
         weekStart={currentWeek}
-        schedules={schedules}
-        activities={activities}
+        schedules={schedules.filter(s => {
+          const activity = activities.find(a => a.id === s.activityId);
+          if (!activity) return false;
+          if (selectedClassId === "all") return true;
+          return activity.classId === selectedClassId || activity.classId === "all";
+        })}
+        activities={activities.filter(a =>
+          selectedClassId === "all" || a.classId === selectedClassId || a.classId === "all"
+        )}
         onActivityAssigned={handleActivityAssigned}
         onActivityRemoved={handleActivityRemoved}
       />
@@ -198,6 +228,7 @@ export function WeeklyScheduler() {
         <ActivityForm
           onClose={() => setShowActivityForm(false)}
           onActivityCreated={handleActivityCreated}
+          classes={classes}
         />
       )}
 
