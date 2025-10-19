@@ -24,8 +24,10 @@ type ClassDocDB = {
 /** Minimal user profile (SINGLE-FIELD model). */
 type UserProfile = {
   role?: string;
-  daycareId?: string;  // single daycare scope
-  locationId?: string; // single fixed location (if present, overrides daycare scope)
+  daycareId?: string;
+  locationId?: string;
+  allowedDaycareIds?: string[];
+  allowedLocationIds?: string[];
 };
 
 /** Teacher data we expose from users collection. */
@@ -115,12 +117,17 @@ async function loadAdminScope(req: AuthRequest): Promise<AdminScope> {
   if (!snap.exists) return { kind: "all" };
 
   const u = snap.data() as UserProfile;
+  const role = (u.role ?? "").trim().toLowerCase();
 
-  const loc = typeof u.locationId === "string" ? u.locationId.trim() : "";
-  if (loc) return { kind: "location", id: loc };
+  if (role === "adminowner" || role === "superadmin" || role === "owner") {
+    return { kind: "all" };
+  }
 
   const daycare = typeof u.daycareId === "string" ? u.daycareId.trim() : "";
   if (daycare) return { kind: "daycare", daycareId: daycare };
+
+  const loc = typeof u.locationId === "string" ? u.locationId.trim() : "";
+  if (loc) return { kind: "location", id: loc };
 
   return { kind: "all" };
 }
