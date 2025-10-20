@@ -73,7 +73,6 @@ export const addTeacher = async (locationId: string, teacher: Omit<Teacher, "id"
   // Ensure no id field is present and locationId is set to the provided locationId, role set to Teacher
   const docRef = await usersRef.add({
     ...teacher, 
-    locationId: locationId, 
     role: UserRole.Teacher, 
     status: TeacherStatus.New, // status new by default
   });
