@@ -34,8 +34,10 @@ export function WeeklyCalendar({
 }: WeeklyCalendarProps) {
   const [selectedSlot, setSelectedSlot] = useState<SlotInfo | null>(null);
 
-  const getScheduleForSlot = (day: string, timeSlot: string) => {
-    return schedules.find(s => s.dayOfWeek === day && s.timeSlot === timeSlot);
+  const getSchedulesForSlot = (day: string, timeSlot: string) => {
+    return schedules
+      .filter(s => s.dayOfWeek === day && s.timeSlot === timeSlot)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
   };
 
   const handleSlotClick = (day: string, timeSlot: string) => {
@@ -106,34 +108,57 @@ export function WeeklyCalendar({
               <div className="text-xs text-gray-500">{timeSlot.time}</div>
             </div>
             
-            {/* Day slots - The critical transformation happens here */}
+            {/* Day slots - Stacked activity pills UI */}
             {WEEKDAYS.map(day => {
-              const schedule = getScheduleForSlot(day, timeSlot.key);
+              const slotSchedules = getSchedulesForSlot(day, timeSlot.key);
               return (
                 <div
                   key={`${day}-${timeSlot.key}`}
-                  className="min-h-[120px] p-3 border-t border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => handleSlotClick(day, timeSlot.key)}
+                  className="min-h-[140px] p-2 border-t border-gray-200 hover:bg-gray-50 transition-colors"
                 >
-                  {schedule?.activity ? (
-                    <div className="bg-blue-100 border border-blue-200 rounded-lg p-3 h-full">
-                      <h4 className="font-medium text-blue-900 text-sm mb-1">
-                        {schedule.activity.title}
-                      </h4>
-                      <p className="text-xs text-blue-700 line-clamp-2">
-                        {schedule.activity.description}
-                      </p>
-                      {schedule.activity.materials && (
-                        <p className="text-xs text-blue-600 mt-2 font-medium">
-                          Materials: {schedule.activity.materials}
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-                      Click to add activity
-                    </div>
-                  )}
+                  <div className="h-full flex flex-col gap-2">
+                    {/* Activity pills - stacked vertically */}
+                    {slotSchedules.map((schedule) => (
+                      <div
+                        key={schedule.id}
+                        className="group relative rounded-lg px-3 py-2 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md"
+                        style={{
+                          backgroundColor: schedule.activity?.color + '20',
+                          borderLeft: `4px solid ${schedule.activity?.color}`,
+                        }}
+                        onClick={() => handleSlotClick(day, timeSlot.key)}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h4
+                              className="font-medium text-sm truncate"
+                              style={{ color: schedule.activity?.color }}
+                            >
+                              {schedule.activity?.title}
+                            </h4>
+                            {schedule.activity?.description && (
+                              <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">
+                                {schedule.activity.description}
+                              </p>
+                            )}
+                          </div>
+                          {/* Drag handle - for future drag-drop */}
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 text-xs">
+                            ⋮⋮
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Add activity button */}
+                    <button
+                      onClick={() => handleSlotClick(day, timeSlot.key)}
+                      className="flex items-center justify-center gap-1 px-3 py-2 text-xs text-gray-500 border-2 border-dashed border-gray-200 rounded-lg hover:border-gray-300 hover:text-gray-700 hover:bg-white transition-all"
+                    >
+                      <span className="text-base">+</span>
+                      <span>Add activity</span>
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -145,7 +170,7 @@ export function WeeklyCalendar({
       {selectedSlot && (
         <ActivitySelector
           activities={activities}
-          currentActivity={getScheduleForSlot(selectedSlot.day, selectedSlot.timeSlot)?.activity}
+          currentActivity={null} // We'll update ActivitySelector to handle multiple activities later
           onSelect={handleActivitySelect}
           onRemove={handleRemoveActivity}
           onClose={() => setSelectedSlot(null)}

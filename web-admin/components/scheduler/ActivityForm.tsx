@@ -18,10 +18,23 @@ interface ActivityFormProps {
 
 // This component shifts from Convex mutations to callback patterns
 // The form experience remains identical, but the data flow consciousness changes completely
+// Predefined color palette for activities
+const ACTIVITY_COLORS = [
+  { name: 'Blue', value: '#3B82F6', bg: 'bg-blue-500' },
+  { name: 'Green', value: '#10B981', bg: 'bg-green-500' },
+  { name: 'Yellow', value: '#F59E0B', bg: 'bg-yellow-500' },
+  { name: 'Purple', value: '#8B5CF6', bg: 'bg-purple-500' },
+  { name: 'Pink', value: '#EC4899', bg: 'bg-pink-500' },
+  { name: 'Red', value: '#EF4444', bg: 'bg-red-500' },
+  { name: 'Indigo', value: '#6366F1', bg: 'bg-indigo-500' },
+  { name: 'Teal', value: '#14B8A6', bg: 'bg-teal-500' },
+];
+
 export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [materials, setMaterials] = useState("");
+  const [color, setColor] = useState(ACTIVITY_COLORS[0].value);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +54,7 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
         title: title.trim(),
         description: description.trim(),
         materials: materials.trim(),
+        color,
       });
 
       // Success! Parent will handle the close
@@ -123,6 +137,37 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
               placeholder="e.g., Crayons, paper, glue sticks"
               disabled={isSubmitting}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Activity Color
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {ACTIVITY_COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setColor(c.value)}
+                  disabled={isSubmitting}
+                  className={`
+                    relative h-12 rounded-lg transition-all
+                    ${c.bg}
+                    ${color === c.value
+                      ? 'ring-2 ring-offset-2 ring-gray-900 scale-105'
+                      : 'hover:scale-105 opacity-80 hover:opacity-100'
+                    }
+                  `}
+                  title={c.name}
+                >
+                  {color === c.value && (
+                    <span className="absolute inset-0 flex items-center justify-center text-white text-xl font-bold">
+                      ✓
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">

@@ -8,6 +8,8 @@ export interface ScheduleData {
   activityDescription: string;
   activityMaterials: string;
   classId: string | null; // null = applies to all classes
+  color: string; // hex color code for activity pill
+  order: number; // order within the time slot (0 = first, 1 = second, etc.)
 }
 
 export interface Schedule extends ScheduleData {
