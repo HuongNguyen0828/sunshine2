@@ -10,8 +10,10 @@ import { useState, useEffect } from "react";
 import { WeeklyCalendar } from "./WeeklyCalendar";
 import { ActivityLibrary } from "./ActivityLibrary";
 import { ActivityForm } from "./ActivityForm";
-import { MockSchedulerAPI } from "@/lib/scheduler-mock-data";
 import type { Activity, Schedule } from "@/types/scheduler";
+import type { Class } from "../../../shared/types/type";
+import { fetchClasses } from "@/services/useClassesAPI";
+import * as SchedulerAPI from "@/services/useSchedulerAPI";
 
 // This component represents the consciousness transplant - taking the original
 // scheduler's reactive patterns and adapting them to local state management
@@ -27,18 +29,55 @@ export function WeeklyScheduler() {
   const [showActivityLibrary, setShowActivityLibrary] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [schedulesData, setSchedulesData] = useState<any[]>([]); // Raw backend data with classId
   const [loading, setLoading] = useState(true);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>("all");
 
-  // Load initial data - replacing Convex useQuery with async state management
+  // Load initial data - using real Firebase backend
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [activitiesData, schedulesData] = await Promise.all([
-          MockSchedulerAPI.listActivities(),
-          MockSchedulerAPI.getWeekSchedule(currentWeek)
+        const [rawSchedulesData, classesData] = await Promise.all([
+          SchedulerAPI.fetchSchedules(currentWeek, selectedClassId),
+          fetchClasses()
         ]);
-        setActivities(activitiesData);
-        setSchedules(schedulesData);
+
+        // Store raw data with classId for filtering
+        setSchedulesData(rawSchedulesData);
+
+        // Convert schedules to activities for library display
+        const uniqueActivities = new Map<string, Activity>();
+        rawSchedulesData.forEach(schedule => {
+          const key = schedule.activityTitle; // Activities are now class-agnostic
+          if (!uniqueActivities.has(key)) {
+            uniqueActivities.set(key, {
+              id: key,
+              title: schedule.activityTitle,
+              description: schedule.activityDescription,
+              materials: schedule.activityMaterials,
+              userId: schedule.userId,
+            });
+          }
+        });
+
+        setActivities(Array.from(uniqueActivities.values()));
+        setSchedules(rawSchedulesData.map(s => ({
+          id: s.id,
+          userId: s.userId,
+          weekStart: s.weekStart,
+          dayOfWeek: s.dayOfWeek,
+          timeSlot: s.timeSlot,
+          activityId: s.activityTitle,
+          activity: {
+            id: s.activityTitle,
+            title: s.activityTitle,
+            description: s.activityDescription,
+            materials: s.activityMaterials,
+            userId: s.userId,
+          }
+        })));
+        setClasses(classesData || []);
       } catch (error) {
         console.error('Error loading scheduler data:', error);
       } finally {
@@ -47,7 +86,7 @@ export function WeeklyScheduler() {
     };
 
     loadData();
-  }, [currentWeek]);
+  }, [currentWeek, selectedClassId]);
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     const current = new Date(currentWeek);
@@ -66,7 +105,11 @@ export function WeeklyScheduler() {
 
   const handleActivityCreated = async (activityData: Omit<Activity, 'id' | '_creationTime' | 'userId'>) => {
     try {
-      const newActivity = await MockSchedulerAPI.createActivity(activityData);
+      // Just add to local state - activities are created when scheduled
+      const newActivity: Activity = {
+        ...activityData,
+        id: `${activityData.title}-${Date.now()}`, // Use timestamp for unique ID
+      };
       setActivities(prev => [newActivity, ...prev]);
       setShowActivityForm(false);
     } catch (error) {
@@ -76,8 +119,12 @@ export function WeeklyScheduler() {
 
   const handleActivityDeleted = async (id: string) => {
     try {
-      await MockSchedulerAPI.removeActivity(id);
+      // Delete all schedules using this activity
+      const schedulesToDelete = schedules.filter(s => s.activityId === id);
+      await Promise.all(schedulesToDelete.map(s => SchedulerAPI.deleteSchedule(s.id)));
+
       setActivities(prev => prev.filter(a => a.id !== id));
+      setSchedulesData(prev => prev.filter(s => s.activityTitle !== id));
       setSchedules(prev => prev.filter(s => s.activityId !== id));
     } catch (error) {
       console.error('Error deleting activity:', error);
@@ -88,18 +135,62 @@ export function WeeklyScheduler() {
     dayOfWeek: string;
     timeSlot: string;
     activityId: string;
+    targetClassId?: string;
   }) => {
     try {
-      const newSchedule = await MockSchedulerAPI.assignActivity({
+      // Find the activity to get its details
+      const activity = activities.find(a => a.id === params.activityId);
+      if (!activity) {
+        console.error('Activity not found:', params.activityId);
+        return;
+      }
+
+      // Check if there's already a schedule for this slot
+      const existingSchedule = schedules.find(s =>
+        s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot
+      );
+
+      // Delete existing schedule if any
+      if (existingSchedule) {
+        await SchedulerAPI.deleteSchedule(existingSchedule.id);
+      }
+
+      // Create new schedule with activity data embedded
+      // Use targetClassId if provided (from multi-calendar view), otherwise use selectedClassId
+      const assignToClassId = params.targetClassId || (selectedClassId === "all" ? null : selectedClassId);
+
+      const newSchedule = await SchedulerAPI.createSchedule({
         weekStart: currentWeek,
-        ...params
+        dayOfWeek: params.dayOfWeek,
+        timeSlot: params.timeSlot,
+        activityTitle: activity.title,
+        activityDescription: activity.description,
+        activityMaterials: activity.materials,
+        classId: assignToClassId,
       });
+
+      // Update raw backend data
+      setSchedulesData(prev => {
+        const filtered = prev.filter(s =>
+          !(s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot)
+        );
+        return [...filtered, newSchedule];
+      });
+
       setSchedules(prev => {
         // Remove existing schedule for this slot, add new one
         const filtered = prev.filter(s =>
           !(s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot)
         );
-        return [...filtered, newSchedule];
+        return [...filtered, {
+          id: newSchedule.id,
+          userId: newSchedule.userId,
+          weekStart: newSchedule.weekStart,
+          dayOfWeek: newSchedule.dayOfWeek,
+          timeSlot: newSchedule.timeSlot,
+          activityId: params.activityId,
+          activity,
+        }];
       });
     } catch (error) {
       console.error('Error assigning activity:', error);
@@ -111,13 +202,15 @@ export function WeeklyScheduler() {
     timeSlot: string;
   }) => {
     try {
-      await MockSchedulerAPI.removeFromSchedule({
-        weekStart: currentWeek,
-        ...params
-      });
-      setSchedules(prev => prev.filter(s =>
-        !(s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot)
-      ));
+      const scheduleToRemove = schedules.find(s =>
+        s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot
+      );
+
+      if (scheduleToRemove) {
+        await SchedulerAPI.deleteSchedule(scheduleToRemove.id);
+        setSchedulesData(prev => prev.filter(s => s.id !== scheduleToRemove.id));
+        setSchedules(prev => prev.filter(s => s.id !== scheduleToRemove.id));
+      }
     } catch (error) {
       console.error('Error removing activity from schedule:', error);
     }
@@ -165,6 +258,20 @@ export function WeeklyScheduler() {
             >
               →
             </button>
+
+            {/* Class Filter Dropdown */}
+            <select
+              value={selectedClassId}
+              onChange={(e) => setSelectedClassId(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+            >
+              <option value="all">All Classes</option>
+              {classes.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-3">
@@ -185,19 +292,50 @@ export function WeeklyScheduler() {
       </div>
 
       {/* Weekly Calendar - the heart of the transplanted UI */}
-      <WeeklyCalendar
-        weekStart={currentWeek}
-        schedules={schedules}
-        activities={activities}
-        onActivityAssigned={handleActivityAssigned}
-        onActivityRemoved={handleActivityRemoved}
-      />
+      {selectedClassId === "all" ? (
+        // Show one calendar per class when "All Classes" is selected
+        <div className="space-y-8">
+          {classes.map((cls) => {
+            // Filter schedules for this specific class OR shared activities (classId = null)
+            const classSchedules = schedules.filter(s => {
+              const rawSchedule = schedulesData.find(rs => rs.id === s.id);
+              return rawSchedule && (rawSchedule.classId === cls.id || rawSchedule.classId === null);
+            });
+
+            return (
+              <div key={cls.id} className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">{cls.name}</h3>
+                <WeeklyCalendar
+                  weekStart={currentWeek}
+                  schedules={classSchedules}
+                  activities={activities}
+                  targetClassId={cls.id}
+                  targetClassName={cls.name}
+                  onActivityAssigned={handleActivityAssigned}
+                  onActivityRemoved={handleActivityRemoved}
+                />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        // Show single calendar for selected class
+        <WeeklyCalendar
+          weekStart={currentWeek}
+          schedules={schedules}
+          activities={activities}
+          targetClassName={classes.find(c => c.id === selectedClassId)?.name}
+          onActivityAssigned={handleActivityAssigned}
+          onActivityRemoved={handleActivityRemoved}
+        />
+      )}
 
       {/* Modals - preserving the interaction patterns */}
       {showActivityForm && (
         <ActivityForm
           onClose={() => setShowActivityForm(false)}
           onActivityCreated={handleActivityCreated}
+          classes={classes}
         />
       )}
 

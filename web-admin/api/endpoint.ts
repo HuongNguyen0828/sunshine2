@@ -5,4 +5,5 @@ export const ENDPOINTS = {
   locations: "/api/locations",
   teacherCandidates: "/api/users/teacher-candidates",
   children: "/api/children",
+  schedules: "/api/schedules",
 };
