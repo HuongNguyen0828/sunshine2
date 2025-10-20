@@ -11,6 +11,7 @@ import teacherRoutes from "./routes/web-admin/TeacherRoutes";
 import classRoutes from "./routes/web-admin/ClassRoutes";
 import locationRoutes from "./routes/web-admin/LocationRoutes";
 import usersRoutes from "./routes/web-admin/UsersRoutes";
+import schedulerRoutes from "./routes/web-admin/SchedulerRoutes";
 // import childRoutes from "./routes/web-admin/ChildRoutes"; // if/when you have it
 
 const app = express();
@@ -73,6 +74,7 @@ app.use("/api/teachers", teacherRoutes);
 app.use("/api/classes", classRoutes);
 app.use("/api/locations", locationRoutes);
 app.use("/api/users", usersRoutes);
+app.use("/api/schedules", schedulerRoutes);
 // app.use("/api/children", childRoutes); // enable when ready
 
 const PORT = Number(process.env.PORT) || 5001;
