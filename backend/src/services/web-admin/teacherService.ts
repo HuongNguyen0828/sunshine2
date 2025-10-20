@@ -62,7 +62,7 @@ export const getAllTeachers = async (daycareId: string, locationId: string): Pro
 };
 
 // Create teacher (returns created teacher with id)
-export const addTeacher = async (locationId: string, teacher: Omit<Teacher, "id">): Promise<Teacher | null> => {
+export const addTeacher = async (teacher: Omit<Teacher, "id">): Promise<Teacher | null> => {
 
   // Ensure email is unique among users
   const isUniqueEmail = await checkingIfEmailIsUnique(teacher.email);
