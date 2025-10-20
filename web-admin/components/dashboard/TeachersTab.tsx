@@ -332,6 +332,7 @@ export default function TeachersTab({
               <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
                 <div className="text-xs text-gray-500 leading-relaxed"> <span>🏠</span> {formatAddress(teacher)}</div>
                 <div className="text-xs text-gray-400">
+                  <div>Status: {teacher.status}</div>
                   {String(teacher.startDate)}{teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
                 </div>
               </div>

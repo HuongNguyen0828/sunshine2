@@ -123,80 +123,80 @@ export default function AutoCompleteAddress( {onAddressChanged, addressValues} :
                 componentRestrictions:{ country: [CountryType.Ca, CountryType.Us] }, 
                 }}
             >
-                {/* Main address */}
-                <label> Street: 
+                                 
+                {/* Street Address */}
+                <label className="block">
+                <span className="text-gray-700 font-medium mb-1 block">Street Address *</span>
                 <input
-                style={sharedStyles.input}
-                type="text"
-                placeholder="231 16 Ave"
-                // Passing the value of adress Object if adress Object not null
-                value={addressValues ? addressValues.address1 : address1}
-                onChange={(e) => setAddress1(e.target.value)}
-                
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                    placeholder="123 Main St"
+                    value={addressValues ? addressValues.address1 : address1}
+                    onChange={(e) => setAddress1(e.target.value)}
+                    required
                 />
                 </label>
             </Autocomplete>
-                
-                {/* For apartment number, box, floor # */}
-                <label>
-                    Apartment, unit, suite, or floor #
+
+
+            {/* Apartment / Postal Code */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <label className="block">
+                <span className="text-gray-700 font-medium mb-1 block">Apt, Unit, Suite, or Floor #</span>
                 <input
-                style={sharedStyles.input}
-                type="text"
-                placeholder="unit 37"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                placeholder="Unit 37"
                 value={addressValues ? addressValues.address2 : address2}
-                onChange={(e) => {setAddress2(e.target.value);}}
+                onChange={(e) => setAddress2(e.target.value)}
                 />
-                </label>
-                
-                {/* City Autocomplete */}
-                <label style={sharedStyles.address}>
-                City:
-                <input
-                style={sharedStyles.input}
-                type="text"
-                placeholder="Calary"
-                value={addressValues ? addressValues.city : city}
-                onChange={(e) => {setCity(e.target.value);}}
-                />
-                </label>
+            </label>
 
-                {/* Province/ State */}
-                <label style={sharedStyles.address}>
-                Province/State:
+            <label className="block">
+                <span className="text-gray-700 font-medium mb-1 block">Postal Code *</span>
                 <input
-                style={sharedStyles.input}
-                type="text"
-                placeholder="AB"
-                value={addressValues ? addressValues.province : province}
-                onChange={(e) => {setProvince(e.target.value);}}
-                />
-                </label>
-
-                {/* Country */}
-                <label style={sharedStyles.address}>
-                Country:
-                <input
-                style={sharedStyles.input}
-                type="text"
-                placeholder="Canada or US"
-                value={addressValues ? addressValues.country : country}
-                onChange={(e) => {setCountry(e.target.value);}}
-                />
-            </label>     
-
-            {/* Postalcode */}
-                <label style={sharedStyles.address}>
-                Postal Code:
-                <input
-                style={sharedStyles.input}
-                type="text"
-                placeholder="T2K-1K5"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                placeholder="T2K 1K5"
                 value={addressValues ? addressValues.postalcode : postalcode}
-                onChange={(e) => {setPostalCode(e.target.value);}}
+                onChange={(e) => setPostalCode(e.target.value)}
                 required
                 />
-            </label> 
+            </label>
+            </div>
+
+            {/* City / Province / Country */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <label className="block">
+                <span className="text-gray-700 font-medium mb-1 block">City *</span>
+                <input
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                placeholder="Calgary"
+                value={addressValues ? addressValues.city : city}
+                onChange={(e) => setCity(e.target.value)}
+                required
+                />
+            </label>
+
+            <label className="block">
+                <span className="text-gray-700 font-medium mb-1 block">Province *</span>
+                <input
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                placeholder="AB"
+                value={addressValues ? addressValues.province : province}
+                onChange={(e) => setProvince(e.target.value)}
+                required
+                />
+            </label>
+
+            <label className="block">
+                <span className="text-gray-700 font-medium mb-1 block">Country *</span>
+                <input
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                placeholder="Canada"
+                value={addressValues ? addressValues.country : country}
+                onChange={(e) => setCountry(e.target.value)}
+                required
+                />
+            </label>
         </div>
+    </div>
     )
 }
