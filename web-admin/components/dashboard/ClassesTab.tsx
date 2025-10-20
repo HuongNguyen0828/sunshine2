@@ -22,10 +22,9 @@ type Props = {
   onCreated?: (created: Types.Class) => void;
   onUpdated?: (updated: Types.Class) => void;
   onDeleted?: (id: string) => void;
-  onAssigned?: () => Promise<void> | void;  // ask parent to refetch after assigning
+  onAssigned?: () => Promise<void> | void;
 };
 
-// Narrow type guard for reading an optional "status" string safely (no any)
 function hasStatus(obj: unknown): obj is { status?: string } {
   return typeof obj === "object" && obj !== null && "status" in obj;
 }
@@ -41,7 +40,6 @@ export default function ClassesTab({
   onDeleted,
   onAssigned,
 }: Props) {
-  // Form UI state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [capacityFilter, setCapacityFilter] =
@@ -49,57 +47,55 @@ export default function ClassesTab({
   const [currentPage, setCurrentPage] = useState(1);
   const [editingClass, setEditingClass] = useState<Types.Class | null>(null);
 
-   // Assign modal state
   const [showAssignTeachers, setShowAssignTeachers] = useState<string | null>(null);
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
   const [teacherOptions, setTeacherOptions] = useState<TeacherCandidate[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
+
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Restore draft when form opens
   useEffect(() => {
     if (isFormOpen && !editingClass) {
-      const draft = sessionStorage.getItem('class-form-draft');
+      const draft = sessionStorage.getItem("class-form-draft");
       if (draft) {
         try {
           const parsed = JSON.parse(draft);
           setNewClass(parsed);
           setIsDraftRestored(true);
-        } catch (e) {
-          console.error('Failed to restore draft:', e);
-        }
+        } catch {}
       }
     }
   }, [isFormOpen, editingClass, setNewClass]);
 
-  // Helper to update form and save draft
-  const updateClass = useCallback((updates: Partial<NewClassInput>) => {
-    setNewClass(prev => {
-      const updated = { ...prev, ...updates };
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
 
-      // Save to sessionStorage with debounce
-      if (!editingClass) {
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
+  const updateClass = useCallback(
+    (updates: Partial<NewClassInput>) => {
+      setNewClass(prev => {
+        const updated = { ...prev, ...updates };
+        if (!editingClass) {
+          if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = setTimeout(() => {
+            sessionStorage.setItem("class-form-draft", JSON.stringify(updated));
+          }, 500);
         }
-        saveTimeoutRef.current = setTimeout(() => {
-          sessionStorage.setItem('class-form-draft', JSON.stringify(updated));
-        }, 500);
-      }
+        return updated;
+      });
+    },
+    [editingClass, setNewClass]
+  );
 
-      return updated;
-    });
-  }, [editingClass, setNewClass]);
-
-  // Clear draft
   const clearDraft = useCallback(() => {
-    sessionStorage.removeItem('class-form-draft');
+    sessionStorage.removeItem("class-form-draft");
     setIsDraftRestored(false);
   }, []);
 
-  // Helpers
   const getCapacityStatus = (volume: number, capacity: number) => {
     if (capacity <= 0) return "available";
     const percentage = (volume / capacity) * 100;
@@ -108,13 +104,12 @@ export default function ClassesTab({
     return "full";
   };
 
-  // Helpers
   const getCapacityColor = (status: string) =>
     status === "available" ? "bg-green-500" : status === "nearly-full" ? "bg-yellow-500" : "bg-red-500";
 
   const getLocationLabel = (locId?: string) => {
     if (!locId) return "—";
-    const found = (locations ?? []).find((l) => l.id === locId);
+    const found = (locations ?? []).find(l => l.id === locId);
     return found?.name || locId;
   };
 
@@ -124,15 +119,13 @@ export default function ClassesTab({
     return (a + b) || "T";
   };
 
-  // Filtering & paging
   const filteredClasses = useMemo(() => {
-    return classes.filter((cls) => {
-      const locName = (locations ?? []).find((l) => l.id === cls.locationId)?.name || "";
+    return classes.filter(cls => {
+      const locName = (locations ?? []).find(l => l.id === cls.locationId)?.name || "";
       const matches =
         cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (cls.locationId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         locName.toLowerCase().includes(searchTerm.toLowerCase());
-
       if (!matches) return false;
       if (capacityFilter === "all") return true;
       const status = getCapacityStatus(cls.volume, cls.capacity);
@@ -145,9 +138,8 @@ export default function ClassesTab({
   const startIndex = (currentPage - 1) * classesPerPage;
   const paginatedClasses = filteredClasses.slice(startIndex, startIndex + classesPerPage);
 
-  // Create / Update form handlers
   async function handleFormSubmit(e: React.FormEvent) {
-      e.preventDefault();
+    e.preventDefault();
 
     const trimmedLoc = (newClass.locationId ?? "").trim();
     if (!trimmedLoc) {
@@ -179,12 +171,11 @@ export default function ClassesTab({
       ageEnd: 0,
       classroom: "",
     });
-    clearDraft(); // Clear draft after successful submission
+    clearDraft();
     setIsFormOpen(false);
-  };
+  }
 
   function handleAddClick() {
-    // Always allow the click; guide the user if there is no location.
     if ((locations ?? []).length === 0) {
       alert("No locations available. Please create a location first.");
       return;
@@ -223,30 +214,26 @@ export default function ClassesTab({
     if (success) onDeleted?.(cls.id);
   }
 
-  // Assign modal: load candidates + preselect existing assignments
   async function openAssign(classId: string) {
     setShowAssignTeachers(classId);
     setLoadingCandidates(true);
     try {
-      // Load only NEW teachers by default
       const candidates = await fetchTeacherCandidates(true);
       setTeacherOptions(candidates);
 
-      // Preselect already assigned teacher ids
-      const cls = classes.find((c) => c.id === classId);
+      const cls = classes.find(c => c.id === classId);
       const pre: string[] = Array.isArray((cls as unknown as { teacherIds?: string[] })?.teacherIds)
         ? ((cls as unknown as { teacherIds?: string[] }).teacherIds as string[])
-        : teachers.filter((t) => (t.classIds || []).includes(classId)).map((t) => t.id);
+        : teachers.filter(t => (t.classIds || []).includes(classId)).map(t => t.id);
 
-        // Merge already-assigned teachers that are not part of "NEW" candidates (likely Active)
-
-      const candidateIds = new Set(candidates.map((c) => c.id));
+      const candidateIds = new Set(candidates.map(c => c.id));
       const extras: TeacherCandidate[] = [];
       for (const id of pre) {
         if (!candidateIds.has(id)) {
-          const fromProps = teachers.find((t) => t.id === id);
+          const fromProps = teachers.find(t => t.id === id);
           if (fromProps) {
-            const status = hasStatus(fromProps) && typeof fromProps.status === "string" ? fromProps.status : "Active";
+            const status =
+              hasStatus(fromProps) && typeof fromProps.status === "string" ? fromProps.status : "Active";
             extras.push({
               id,
               firstName: fromProps.firstName,
@@ -258,7 +245,7 @@ export default function ClassesTab({
           }
         }
       }
-      if (extras.length > 0) setTeacherOptions((prev) => [...prev, ...extras]);
+      if (extras.length > 0) setTeacherOptions(prev => [...prev, ...extras]);
       setSelectedTeachers(pre);
     } finally {
       setLoadingCandidates(false);
@@ -282,7 +269,6 @@ export default function ClassesTab({
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-3xl font-bold text-gray-800">Classes</h2>
@@ -295,7 +281,7 @@ export default function ClassesTab({
             Add Class
           </button>
         </div>
-        {/* Search & Filter */}
+
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
             <div className="flex-1 relative">
@@ -303,7 +289,7 @@ export default function ClassesTab({
                 type="text"
                 placeholder="Search by class name or location..."
                 value={searchTerm}
-                onChange={(e) => {
+                onChange={e => {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
@@ -324,7 +310,7 @@ export default function ClassesTab({
 
             <select
               value={capacityFilter}
-              onChange={(e) => {
+              onChange={e => {
                 setCapacityFilter(e.target.value as typeof capacityFilter);
                 setCurrentPage(1);
               }}
@@ -357,10 +343,9 @@ export default function ClassesTab({
       </div>
 
       {paginatedClasses.length > 0 ? (
-        /* ... (unchanged cards list) ... */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-          {paginatedClasses.map((cls) => {
-            const assigned = teachers.filter((t) => (t.classIds || []).includes(cls.id));
+          {paginatedClasses.map(cls => {
+            const assigned = teachers.filter(t => (t.classIds || []).includes(cls.id));
             const capacityStatus = getCapacityStatus(cls.volume, cls.capacity);
             const capacityPct = Math.min(100, Math.round((cls.volume / (cls.capacity || 1)) * 100));
 
@@ -369,7 +354,6 @@ export default function ClassesTab({
                 key={cls.id}
                 className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 flex flex-col"
               >
-                {/* ...card content unchanged... */}
                 <div className="mb-4">
                   <h3 className="text-xl font-bold text-gray-800 truncate mb-2">{cls.name}</h3>
                   <div className="flex items-center gap-2 text-gray-600 text-sm">
@@ -414,7 +398,7 @@ export default function ClassesTab({
                     <div className="text-gray-500 text-xs mb-1">Teachers</div>
                     {assigned.length > 0 ? (
                       <div className="text-sm text-gray-700">
-                        {assigned.slice(0, 2).map((t) => (
+                        {assigned.slice(0, 2).map(t => (
                           <span key={t.id} className="block text-xs">
                             {t.firstName} {t.lastName}
                           </span>
@@ -466,10 +450,9 @@ export default function ClassesTab({
       )}
 
       {totalPages > 1 && (
-        /* ...pagination unchanged... */
         <div className="flex justify-center items-center gap-2">
           <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
               currentPage === 1
@@ -480,7 +463,7 @@ export default function ClassesTab({
             ← Previous
           </button>
           <div className="flex gap-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
@@ -493,7 +476,7 @@ export default function ClassesTab({
             ))}
           </div>
           <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
             className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
               currentPage === totalPages
@@ -506,7 +489,6 @@ export default function ClassesTab({
         </div>
       )}
 
-      {/* modal sections unchanged except for minor UX */}
       {isFormOpen && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
@@ -517,12 +499,12 @@ export default function ClassesTab({
         >
           <div
             className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <div>
                 <h3 className="text-2xl font-bold text-gray-800">
-                  {editingClass ? 'Edit Class' : 'Add New Class'}
+                  {editingClass ? "Edit Class" : "Add New Class"}
                 </h3>
                 {isDraftRestored && !editingClass && (
                   <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
@@ -547,7 +529,7 @@ export default function ClassesTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Class Name"
                     value={newClass.name}
-                    onChange={(e) => setNewClass({ ...newClass, name: e.target.value })}
+                    onChange={e => updateClass({ name: e.target.value })}
                     required
                   />
                 </label>
@@ -557,19 +539,18 @@ export default function ClassesTab({
                   <select
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     value={newClass.locationId ?? ""}
-                    onChange={(e) => setNewClass({ ...newClass, locationId: e.target.value })}
+                    onChange={e => updateClass({ locationId: e.target.value })}
                     required
-                    disabled={(locations ?? []).length <= 1} // disable if single
+                    disabled={(locations ?? []).length <= 1}
                   >
-                    {(locations ?? []).length > 1 && (
-                      <option value="" disabled>Select a location</option>
-                    )}
+                    {(locations ?? []).length > 1 && <option value="" disabled>Select a location</option>}
                     {(locations ?? []).map(l => (
-                      <option key={l.id} value={l.id}>{l.name || l.id}</option>
+                      <option key={l.id} value={l.id}>
+                        {l.name || l.id}
+                      </option>
                     ))}
                   </select>
                 </label>
-
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className="block">
@@ -579,7 +560,7 @@ export default function ClassesTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Capacity"
                       value={newClass.capacity}
-                      onChange={(e) => setNewClass({ ...newClass, capacity: Number(e.target.value) })}
+                      onChange={e => updateClass({ capacity: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -591,7 +572,7 @@ export default function ClassesTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Volume"
                       value={newClass.volume}
-                      onChange={(e) => setNewClass({ ...newClass, volume: Number(e.target.value) })}
+                      onChange={e => updateClass({ volume: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -605,7 +586,7 @@ export default function ClassesTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Age Start"
                       value={newClass.ageStart}
-                      onChange={(e) => setNewClass({ ...newClass, ageStart: Number(e.target.value) })}
+                      onChange={e => updateClass({ ageStart: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -617,7 +598,7 @@ export default function ClassesTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       placeholder="Age End"
                       value={newClass.ageEnd}
-                      onChange={(e) => setNewClass({ ...newClass, ageEnd: Number(e.target.value) })}
+                      onChange={e => updateClass({ ageEnd: Number(e.target.value) })}
                       required
                     />
                   </label>
@@ -629,7 +610,7 @@ export default function ClassesTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Room name / number"
                     value={newClass.classroom || ""}
-                    onChange={(e) => setNewClass({ ...newClass, classroom: e.target.value })}
+                    onChange={e => updateClass({ classroom: e.target.value })}
                   />
                 </label>
               </div>
@@ -668,7 +649,6 @@ export default function ClassesTab({
       )}
 
       {showAssignTeachers && (
-        /* ...assign-teachers modal unchanged... */
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
           onClick={() => {
@@ -678,7 +658,7 @@ export default function ClassesTab({
         >
           <div
             className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-100"
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-800">Assign Teachers</h3>
@@ -700,7 +680,7 @@ export default function ClassesTab({
                 {loadingCandidates ? (
                   <div className="text-center py-8 text-gray-500">Loading teachers…</div>
                 ) : teacherOptions.length > 0 ? (
-                  teacherOptions.map((t) => (
+                  teacherOptions.map(t => (
                     <label
                       key={t.id}
                       className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition duration-150"
@@ -709,8 +689,8 @@ export default function ClassesTab({
                         type="checkbox"
                         checked={selectedTeachers.includes(t.id)}
                         onChange={() =>
-                          setSelectedTeachers((prev) =>
-                            prev.includes(t.id) ? prev.filter((id) => id !== t.id) : [...prev, t.id]
+                          setSelectedTeachers(prev =>
+                            prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
                           )
                         }
                         className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
