@@ -38,18 +38,22 @@ export const addTeacher = async (req: Request, res: Response) => {
 // GET /api/teachers
 // List all teachers
 export const getAllTeachers = async (req: Request, res: Response) => {
-  // Extract locationId from req.user (set by authMiddleware)
+  // Extract locationId and daycareId from req.user (set by authMiddleware)
   const locationId = req.user?.locationId;
+  const daycareId = req.user?.daycareId;
+  if (!daycareId) {
+    return res.status(400).json({message: "Daycare missing from user profile"});
+  }
   if (!locationId) {
     return res.status(400).json({message: "Location missing from user profile"});
   }
 
-  // Else, get all teachers only of that location
+  // Else, get all teachers only of that daycare and location
   try {
-    const teachers = await TeacherService.getAllTeachers();
-    res.status(200).json(teachers);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message || "Failed to fetch teachers" });
+    const teachers = await TeacherService.getAllTeachers(daycareId, locationId);
+    return res.status(200).json(teachers);
+  } catch (e: any) {
+    return res.status(500).json({ message: e?.message || "Failed to fetch teachers" });
   }
 };
 
