@@ -433,6 +433,7 @@ const refreshAll = useCallback(async () => {
                 newTeacher={newTeacher}
                 setNewTeacher={setNewTeacher}
                 onAdd={handleAddTeacher}
+                locations={filteredLocations}
               />
             )}
 

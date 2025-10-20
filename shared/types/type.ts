@@ -7,9 +7,9 @@ type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
 
 
 export enum TeacherStatus {
-  New = "New",
-  Active = "Active",
-  Inactive = "Inactive"
+  New = "🆕 New",
+  Active = "✅ Active",
+  Inactive = "🚫 Inactive"
 };
 
 
