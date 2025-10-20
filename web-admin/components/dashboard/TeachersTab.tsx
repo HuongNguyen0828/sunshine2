@@ -467,6 +467,24 @@ export default function TeachersTab({
                 </div>
 
                 <label className="block">
+                  <span className="text-gray-700 font-medium mb-1 block">Location *</span>
+                  <select
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    value={newTeacher.locationId ?? ""}
+                    onChange={(e) => setNewTeacher({ ...newTeacher, locationId: e.target.value })}
+                    required
+                    disabled={(locations ?? []).length <= 1} // disable if single
+                  >
+                    {(locations ?? []).length > 1 && (
+                      <option value="" disabled>Select a location</option>
+                    )}
+                    {(locations ?? []).map(l => (
+                      <option key={l.id} value={l.id}>{l.name || l.id}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
                   <span className="text-gray-700 font-medium mb-1 block">Email *</span>
                   <input
                     type="email"
