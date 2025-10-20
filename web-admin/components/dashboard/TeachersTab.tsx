@@ -312,7 +312,7 @@ export default function TeachersTab({
               </div>
               <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
                 <div className="text-xs text-gray-500 leading-relaxed"> <span>🏠</span> {formatAddress(teacher)}</div>
-                <div className="text-xs text-gray-400">
+                <div className="text-sm text-gray-400">
                   <div>Status: {teacher.status}</div>
                   {String(teacher.startDate)}{teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
                 </div>
@@ -455,38 +455,57 @@ export default function TeachersTab({
                   </select>
                 </label>
 
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Email *</span>
-                  <input
-                    type="email"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Email"
-                    value={newTeacher.email}
-                    onChange={(e) => updateTeacher({email: e.target.value })}
-                    required
-                  />
-                </label>
+                {/*  Email and phone number*/}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> 
+                  <label className="block">
+                    <span className="text-gray-700 font-medium mb-1 block">Email *</span>
+                    <input
+                      type="email"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Email"
+                      value={newTeacher.email}
+                      onChange={(e) => updateTeacher({email: e.target.value })}
+                      required
+                    />
+                  </label>
 
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Phone Number *</span>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g. 403 111 2284"
-                    value={newTeacher.phone}
-                    onChange={(e) => updateTeacher({phone: e.target.value })}
-                    required
-                  />
-                </label>
+                  <label className="block">
+                    <span className="text-gray-700 font-medium mb-1 block">Phone Number *</span>
+                    <input
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g. 403 111 2284"
+                      value={newTeacher.phone}
+                      onChange={(e) => updateTeacher({phone: e.target.value })}
+                      required
+                    />
+                  </label>
+                </div>
 
                 <div className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Address *</span>
                   <AutoCompleteAddress 
                     onAddressChanged={handleAddressChange}
                     addressValues={newTeacherAddressValues}
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Status */}
+                  <label className="block">
+                    <span className="text-gray-700 font-medium mb-1 block">Status *</span>
+                    <select
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    value={newTeacher.status}
+                    onChange={(e) => updateTeacher({status: e.target.value as Types.TeacherStatus})}
+                    required
+                    >
+                      <option disabled>Select status</option>
+                      <option value={Types.TeacherStatus.New}>New</option>
+                      <option value={Types.TeacherStatus.Active}>Active</option>
+                      <option value={Types.TeacherStatus.Inactive}>Inactive</option>
+      
+                    </select>
+                  </label>
+
                   <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">Start Date *</span>
                     <input
