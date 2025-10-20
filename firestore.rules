@@ -34,14 +34,16 @@ service cloud.firestore {
       allow create: if isAdmin()
         && request.resource.data.keys().hasAll([
           'weekStart', 'dayOfWeek', 'timeSlot',
-          'activityTitle', 'classId', 'userId'
+          'activityTitle', 'classId', 'userId', 'color', 'order'
         ])
         && request.resource.data.weekStart is string
         && request.resource.data.dayOfWeek is string
         && request.resource.data.timeSlot is string
         && request.resource.data.activityTitle is string
         && request.resource.data.classId is string
-        && request.resource.data.userId is string;
+        && request.resource.data.userId is string
+        && request.resource.data.color is string
+        && request.resource.data.order is number;
       allow update, delete: if isAdmin();
     }
 

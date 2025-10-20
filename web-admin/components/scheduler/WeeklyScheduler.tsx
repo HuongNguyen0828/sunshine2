@@ -56,6 +56,7 @@ export function WeeklyScheduler() {
               title: schedule.activityTitle,
               description: schedule.activityDescription,
               materials: schedule.activityMaterials,
+              color: schedule.color || '#3B82F6', // Default to blue if no color
               userId: schedule.userId,
             });
           }
@@ -69,11 +70,13 @@ export function WeeklyScheduler() {
           dayOfWeek: s.dayOfWeek,
           timeSlot: s.timeSlot,
           activityId: s.activityTitle,
+          order: s.order || 0,
           activity: {
             id: s.activityTitle,
             title: s.activityTitle,
             description: s.activityDescription,
             materials: s.activityMaterials,
+            color: s.color || '#3B82F6',
             userId: s.userId,
           }
         })));
@@ -145,15 +148,11 @@ export function WeeklyScheduler() {
         return;
       }
 
-      // Check if there's already a schedule for this slot
-      const existingSchedule = schedules.find(s =>
+      // Calculate the next order position for this slot
+      const existingSchedulesInSlot = schedules.filter(s =>
         s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot
       );
-
-      // Delete existing schedule if any
-      if (existingSchedule) {
-        await SchedulerAPI.deleteSchedule(existingSchedule.id);
-      }
+      const nextOrder = existingSchedulesInSlot.length;
 
       // Create new schedule with activity data embedded
       // Use targetClassId if provided (from multi-calendar view), otherwise use selectedClassId
@@ -167,31 +166,23 @@ export function WeeklyScheduler() {
         activityDescription: activity.description,
         activityMaterials: activity.materials,
         classId: assignToClassId,
+        color: activity.color,
+        order: nextOrder,
       });
 
-      // Update raw backend data
-      setSchedulesData(prev => {
-        const filtered = prev.filter(s =>
-          !(s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot)
-        );
-        return [...filtered, newSchedule];
-      });
+      // Update raw backend data - add to existing schedules, don't replace
+      setSchedulesData(prev => [...prev, newSchedule]);
 
-      setSchedules(prev => {
-        // Remove existing schedule for this slot, add new one
-        const filtered = prev.filter(s =>
-          !(s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot)
-        );
-        return [...filtered, {
-          id: newSchedule.id,
-          userId: newSchedule.userId,
-          weekStart: newSchedule.weekStart,
-          dayOfWeek: newSchedule.dayOfWeek,
-          timeSlot: newSchedule.timeSlot,
-          activityId: params.activityId,
-          activity,
-        }];
-      });
+      setSchedules(prev => [...prev, {
+        id: newSchedule.id,
+        userId: newSchedule.userId,
+        weekStart: newSchedule.weekStart,
+        dayOfWeek: newSchedule.dayOfWeek,
+        timeSlot: newSchedule.timeSlot,
+        activityId: params.activityId,
+        activity,
+        order: nextOrder,
+      }]);
     } catch (error) {
       console.error('Error assigning activity:', error);
     }
