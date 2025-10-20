@@ -209,6 +209,7 @@ export default function TeachersTab({
     setNewTeacher({
       firstName: teacher.firstName,
       lastName: teacher.lastName,
+      locationId: teacher.locationId,
       email: teacher.email,
       phone: teacher.phone,
       address1: teacher.address1,
