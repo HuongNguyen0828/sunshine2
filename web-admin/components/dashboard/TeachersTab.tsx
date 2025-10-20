@@ -13,7 +13,10 @@ import type { NewTeacherInput } from "@/types/forms";
 import AutoCompleteAddress, { Address } from "@/components/AutoCompleteAddress";
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
-import {fetchLocationsLite, type LocationLite } from "@/services/useLocationsAPI";
+import {
+  fetchLocationsLite,
+  type LocationLite,
+} from "@/services/useLocationsAPI";
 import { data } from "react-router-dom";
 
 export default function TeachersTab({
@@ -32,14 +35,20 @@ export default function TeachersTab({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingTeacher, setEditingTeacher] = useState<Types.Teacher | null>(null);
+  const [editingTeacher, setEditingTeacher] = useState<Types.Teacher | null>(
+    null
+  );
   const [showAssignClass, setShowAssignClass] = useState<string | null>(null);
-  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedClass, setSelectedClass] = useState("");
+  const [rows, setRows] = useState<Types.Teacher[]>(teachers);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Location view Teacher
+  const defaultLocationView: string = "all";
+  const [locationView, setLocationView] = useState<string>(defaultLocationView); // default is viewing all locations
 
-  // Allow Teachers of different Locations 
+  // Allow Teachers of different Locations
   const getLocationLabel = (locId?: string) => {
     if (!locId) return "—";
     const found = (locations ?? []).find((l) => l.id === locId);
@@ -49,66 +58,92 @@ export default function TeachersTab({
   // Restore draft when form opens
   useEffect(() => {
     if (isFormOpen && !editingTeacher) {
-      const draft = sessionStorage.getItem('teacher-form-draft');
+      const draft = sessionStorage.getItem("teacher-form-draft");
       if (draft) {
         try {
           const parsed = JSON.parse(draft);
           setNewTeacher(parsed);
           setIsDraftRestored(true);
         } catch (e) {
-          console.error('Failed to restore draft:', e);
+          console.error("Failed to restore draft:", e);
         }
       }
     }
   }, [isFormOpen, editingTeacher, setNewTeacher]);
 
   // Helper to update form and save draft
-  const updateTeacher = useCallback((updates: Partial<NewTeacherInput>) => {
-    setNewTeacher(prev => {
-      const updated = { ...prev, ...updates };
+  const updateTeacher = useCallback(
+    (updates: Partial<NewTeacherInput>) => {
+      setNewTeacher((prev) => {
+        const updated = { ...prev, ...updates };
 
-      // Save to sessionStorage with debounce
-      if (!editingTeacher) {
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
+        // Save to sessionStorage with debounce
+        if (!editingTeacher) {
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+          }
+          saveTimeoutRef.current = setTimeout(() => {
+            sessionStorage.setItem(
+              "teacher-form-draft",
+              JSON.stringify(updated)
+            );
+          }, 500);
         }
-        saveTimeoutRef.current = setTimeout(() => {
-          sessionStorage.setItem('teacher-form-draft', JSON.stringify(updated));
-        }, 500);
-      }
 
-      return updated;
-    });
-  }, [editingTeacher, setNewTeacher]);
+        return updated;
+      });
+    },
+    [editingTeacher, setNewTeacher]
+  );
 
   // Clear draft
   const clearDraft = useCallback(() => {
-    sessionStorage.removeItem('teacher-form-draft');
+    sessionStorage.removeItem("teacher-form-draft");
     setIsDraftRestored(false);
   }, []);
 
-  const handleAddressChange = useCallback((a: Address) => {
-    updateTeacher({
-      address1: a.address1,
-      address2: a.address2,
-      city: a.city,
-      province: a.province,
-      country: a.country,
-      postalcode: a.postalcode
-    });
-  }, [updateTeacher]);
-
-  // Filter teachers based on search
-  const filteredTeachers = teachers.filter(t =>
-    t.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const handleAddressChange = useCallback(
+    (a: Address) => {
+      updateTeacher({
+        address1: a.address1,
+        address2: a.address2,
+        city: a.city,
+        province: a.province,
+        country: a.country,
+        postalcode: a.postalcode,
+      });
+    },
+    [updateTeacher]
   );
+
+  // Handle load address to form when editing: setNewTeacher with value of current Address
+  // Passing Current address value back to input value
+  const newTeacherAddressValues: Address = {
+    address1: newTeacher.address1,
+    address2: newTeacher.address2,
+    city: newTeacher.city,
+    province: newTeacher.province,
+    country: newTeacher.country,
+    postalcode: newTeacher?.postalcode,
+  };
+
+  const filteredTeachers = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return rows.filter(
+      (t) =>
+        t.firstName?.toLowerCase().includes(term) ||
+        t.lastName?.toLowerCase().includes(term) ||
+        t.email?.toLowerCase().includes(term)
+    );
+  }, [rows, searchTerm]);
 
   const teachersPerPage = 6;
   const totalPages = Math.ceil(filteredTeachers.length / teachersPerPage) || 1;
   const startIndex = (currentPage - 1) * teachersPerPage;
-  const paginatedTeachers = filteredTeachers.slice(startIndex, startIndex + teachersPerPage);
+  const paginatedTeachers = filteredTeachers.slice(
+    startIndex,
+    startIndex + teachersPerPage
+  );
 
   // After done editing current Teacher or adding New Teacher
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -179,8 +214,13 @@ export default function TeachersTab({
     e.preventDefault();
     if (editingTeacher) {
       const id = editingTeacher.id;
-      const updated = await api.put<Types.Teacher>(`${ENDPOINTS.teachers}/${id}`, { ...newTeacher });
-      setRows((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
+      const updated = await api.put<Types.Teacher>(
+        `${ENDPOINTS.teachers}/${id}`,
+        { ...newTeacher }
+      );
+      setRows((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, ...updated } : t))
+      );
       setEditingTeacher(null);
       resetForm();
       setIsFormOpen(false);
@@ -193,14 +233,6 @@ export default function TeachersTab({
     setIsFormOpen(false);
   };
 
-  const handleAddClick = () => {
-    setEditingTeacher(null);
-    resetForm();
-    setIsFormOpen(true);
-  };
-
-
-  // Opening form, and allow editing
   const handleEditClick = (teacher: Types.Teacher) => {
     // Set editing teacher is passing Teacher
     setEditingTeacher(teacher);
@@ -226,14 +258,20 @@ export default function TeachersTab({
     setIsFormOpen(true);
   };
 
-  const handleDeleteClick = (teacher: Types.Teacher) => {
-    if (window.confirm(`Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}?`)) {
-      console.log('Delete teacher:', teacher.id);
-      // Calling onDelete()
-      onDelete(teacher.id);
-    }
-    // else, cancel
-    else return 
+  const handleDeleteClick = async (teacher: Types.Teacher) => {
+    const ok = window.confirm(
+      `Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}?`
+    );
+    if (!ok) return;
+    await api.delete<{ ok: boolean; uid: string }>(
+      `${ENDPOINTS.teachers}/${teacher.id}`
+    );
+    setRows((prev) => {
+      const next = prev.filter((t) => t.id !== teacher.id);
+      const maxPage = Math.max(1, Math.ceil(next.length / teachersPerPage));
+      if (currentPage > maxPage) setCurrentPage(maxPage);
+      return next;
+    });
   };
 
   const handleAssignClass = (teacherId: string) => {
@@ -245,12 +283,11 @@ export default function TeachersTab({
     if (!showAssignClass || !selectedClass) return;
     const id = showAssignClass;
 
-    await api.post<{ ok: boolean }>(
-      `${ENDPOINTS.teachers}/${id}/assign`,
-      { classId: selectedClass }
-    );
+    await api.post<{ ok: boolean }>(`${ENDPOINTS.teachers}/${id}/assign`, {
+      classId: selectedClass,
+    });
 
-    setRows(prev =>
+    setRows((prev) =>
       prev.map((t) => (t.id === id ? { ...t, classId: selectedClass } : t))
     );
     setShowAssignClass(null);
@@ -268,12 +305,49 @@ export default function TeachersTab({
     ].filter(Boolean) as string[];
     return parts.join(", ");
   };
+  
+  // To handle View by locations or all locations
+  const handleTeacherView = (selectedView: string) => {
+    if (selectedView !== defaultLocationView) {
+      setRows(teachers.filter((row) => row.locationId === selectedView))
+      return;
+    } else {
+      setRows(teachers);
+      return;
+    } 
+  };
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-3xl font-bold text-gray-800">Teachers</h2>
+          <div className="flex justify-between gap-4">
+            <h2 className="text-3xl font-bold text-gray-800">Teachers</h2>
+            {/* Location scope */}
+            <select
+              className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              value={locationView}
+              onChange={(e) => {
+                const selectedView = e.target.value;
+                // 1. Update value
+                setLocationView(selectedView);
+                // 2. Update Teachers View
+                handleTeacherView(selectedView);
+              }}
+              required
+            >
+              <option value="" disabled>
+                Select a view location
+              </option>
+              {(locations ?? []).map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+              {/* Default all locations: all ids */}
+              <option value={defaultLocationView}>All locations</option>
+            </select>
+          </div>
           <button
             onClick={handleAddClick}
             className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
@@ -314,26 +388,43 @@ export default function TeachersTab({
       {paginatedTeachers.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
           {paginatedTeachers.map((teacher) => (
-            <div key={teacher.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5">
+            <div
+              key={teacher.id}
+              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5"
+            >
               <div className="mb-4">
                 <div className="flex items-baseline gap-2 mb-1">
-                  <h3 className="text-xl font-bold text-gray-900 truncate">{teacher.email}</h3>
+                  <h3 className="text-xl font-bold text-gray-900 truncate">
+                    {teacher.email}
+                  </h3>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">{teacher.firstName} {teacher.lastName}</span>
+                  <span className="text-sm text-gray-500">
+                    {teacher.firstName} {teacher.lastName}
+                  </span>
                   <span className="text-gray-300">•</span>
-                  <span className="text-sm font-medium text-gray-700">{teacher.phone}</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {teacher.phone}
+                  </span>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-gray-700 text-sm">
-                    <span>📍</span>
-                    <span className="truncate">{getLocationLabel(teacher.locationId)}</span>
+                <span>📍</span>
+                <span className="truncate">
+                  {getLocationLabel(teacher.locationId)}
+                </span>
               </div>
               <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
-                <div className="text-xs text-gray-500 leading-relaxed"> <span>🏠</span> {formatAddress(teacher)}</div>
+                <div className="text-xs text-gray-500 leading-relaxed">
+                  {" "}
+                  <span>🏠</span> {formatAddress(teacher)}
+                </div>
                 <div className="text-sm text-gray-400">
                   <div>Status: {teacher.status}</div>
-                  {String(teacher.startDate)}{teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
+                  {String(teacher.startDate)}
+                  {teacher.endDate
+                    ? ` → ${String(teacher.endDate)}`
+                    : " → Present"}
                 </div>
               </div>
               <div className="flex gap-2">
@@ -362,8 +453,14 @@ export default function TeachersTab({
       ) : (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
           <div className="text-gray-400 text-6xl mb-4">👥</div>
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">No teachers found</h3>
-          <p className="text-gray-500">{searchTerm ? "Try adjusting your search terms" : "Get started by adding your first teacher"}</p>
+          <h3 className="text-xl font-semibold text-gray-600 mb-2">
+            No teachers found
+          </h3>
+          <p className="text-gray-500">
+            {searchTerm
+              ? "Try adjusting your search terms"
+              : "Get started by adding your first teacher"}
+          </p>
         </div>
       )}
 
@@ -372,7 +469,11 @@ export default function TeachersTab({
           <button
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1 ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"}`}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
+              currentPage === 1
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+            }`}
           >
             ← Previous
           </button>
@@ -381,16 +482,26 @@ export default function TeachersTab({
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"}`}
+                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
+                  currentPage === page
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                }`}
               >
                 {page}
               </button>
             ))}
           </div>
           <button
-            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+            }
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"}`}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
+              currentPage === totalPages
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+            }`}
           >
             Next →
           </button>
@@ -412,10 +523,12 @@ export default function TeachersTab({
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <div>
                 <h3 className="text-2xl font-bold text-gray-800">
-                  {editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}
+                  {editingTeacher ? "Edit Teacher" : "Add New Teacher"}
                 </h3>
                 {isDraftRestored && !editingTeacher && (
-                  <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ Draft restored
+                  </p>
                 )}
               </div>
               <button
@@ -433,75 +546,95 @@ export default function TeachersTab({
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">First Name *</span>
+                    <span className="text-gray-700 font-medium mb-1 block">
+                      First Name *
+                    </span>
                     <input
                       type="text"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="First Name"
                       value={newTeacher.firstName}
-                      onChange={(e) => updateTeacher({firstName: e.target.value })}
+                      onChange={(e) =>
+                        updateTeacher({ firstName: e.target.value })
+                      }
                       required
                     />
                   </label>
                   <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Last Name *</span>
+                    <span className="text-gray-700 font-medium mb-1 block">
+                      Last Name *
+                    </span>
                     <input
                       type="text"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Last Name"
                       value={newTeacher.lastName}
-                      onChange={(e) => updateTeacher({lastName: e.target.value })}
+                      onChange={(e) =>
+                        updateTeacher({ lastName: e.target.value })
+                      }
                       required
                     />
                   </label>
                 </div>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Location *</span>
+                  <span className="text-gray-700 font-medium mb-1 block">
+                    Location *
+                  </span>
                   <select
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     value={newTeacher.locationId}
-                    onChange={(e) => updateTeacher({locationId: e.target.value })}
+                    onChange={(e) =>
+                      updateTeacher({ locationId: e.target.value })
+                    }
                     required
                     disabled={(locations ?? []).length <= 1} // disable if single
                   >
                     {(locations ?? []).length > 1 && (
-                      <option value="" disabled>Select a location</option>
+                      <option value="" disabled>
+                        Select a location
+                      </option>
                     )}
-                    {(locations ?? []).map(l => (
-                      <option key={l.id} value={l.id}>{l.name || l.id}</option>
+                    {(locations ?? []).map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name || l.id}
+                      </option>
                     ))}
                   </select>
                 </label>
 
                 {/*  Email and phone number*/}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Email *</span>
+                    <span className="text-gray-700 font-medium mb-1 block">
+                      Email *
+                    </span>
                     <input
                       type="email"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Email"
                       value={newTeacher.email}
-                      onChange={(e) => updateTeacher({email: e.target.value })}
+                      onChange={(e) => updateTeacher({ email: e.target.value })}
                       required
                     />
                   </label>
 
                   <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Phone Number *</span>
+                    <span className="text-gray-700 font-medium mb-1 block">
+                      Phone Number *
+                    </span>
                     <input
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="e.g. 403 111 2284"
                       value={newTeacher.phone}
-                      onChange={(e) => updateTeacher({phone: e.target.value })}
+                      onChange={(e) => updateTeacher({ phone: e.target.value })}
                       required
                     />
                   </label>
                 </div>
 
                 <div className="block">
-                  <AutoCompleteAddress 
+                  <AutoCompleteAddress
                     onAddressChanged={handleAddressChange}
                     addressValues={newTeacherAddressValues}
                   />
@@ -510,39 +643,54 @@ export default function TeachersTab({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Status */}
                   <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Status *</span>
+                    <span className="text-gray-700 font-medium mb-1 block">
+                      Status *
+                    </span>
                     <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newTeacher.status}
-                    onChange={(e) => updateTeacher({status: e.target.value as Types.TeacherStatus})}
-                    required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      value={newTeacher.status}
+                      onChange={(e) =>
+                        updateTeacher({
+                          status: e.target.value as Types.TeacherStatus,
+                        })
+                      }
+                      required
                     >
                       <option disabled>Select status</option>
                       <option value={Types.TeacherStatus.New}>New</option>
                       <option value={Types.TeacherStatus.Active}>Active</option>
-                      <option value={Types.TeacherStatus.Inactive}>Inactive</option>
-      
+                      <option value={Types.TeacherStatus.Inactive}>
+                        Inactive
+                      </option>
                     </select>
                   </label>
 
                   <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Start Date *</span>
+                    <span className="text-gray-700 font-medium mb-1 block">
+                      Start Date *
+                    </span>
                     <input
                       type="date"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newTeacher.startDate}
-                      onChange={(e) => updateTeacher({startDate: e.target.value })}
+                      onChange={(e) =>
+                        updateTeacher({ startDate: e.target.value })
+                      }
                       required
                     />
                   </label>
                   <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">End Date</span>
+                    <span className="text-gray-700 font-medium mb-1 block">
+                      End Date
+                    </span>
                     <input
                       type="date"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="End Date (optional)"
                       value={newTeacher.endDate || ""}
-                      onChange={(e) => updateTeacher({endDate: e.target.value || undefined })}
+                      onChange={(e) =>
+                        updateTeacher({ endDate: e.target.value || undefined })
+                      }
                     />
                   </label>
                 </div>
@@ -607,7 +755,9 @@ export default function TeachersTab({
 
             <div className="p-6">
               <label className="block mb-4">
-                <span className="text-gray-700 font-medium mb-2 block">Select Class</span>
+                <span className="text-gray-700 font-medium mb-2 block">
+                  Select Class
+                </span>
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
