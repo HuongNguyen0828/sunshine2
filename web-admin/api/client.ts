@@ -72,14 +72,14 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
     return {} as T;
   }
 
-  // Else parse response as JSON
-  if (res.status === 200) {
+  // Else parse response as JSON (200 OK, 201 Created, etc.)
+  if (res.status >= 200 && res.status < 300) {
     const data = await res.json();
     return (data as T);
   }
 
-  // // If none of the above, throw an error to satisfy return type
-  // throw new Error(`Unhandled response status: ${res.status}`);
+  // If none of the above, throw an error to satisfy return type
+  throw new Error(`Unhandled response status: ${res.status}`);
 }
 
 const api = {

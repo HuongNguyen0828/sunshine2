@@ -7,7 +7,7 @@ export interface ScheduleData {
   activityTitle: string;
   activityDescription: string;
   activityMaterials: string;
-  classId: string;
+  classId: string | null; // null = applies to all classes
 }
 
 export interface Schedule extends ScheduleData {

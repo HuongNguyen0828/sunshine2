@@ -15,18 +15,22 @@ interface WeeklyCalendarProps {
   weekStart: string;
   schedules: Schedule[];
   activities: Activity[];
-  onActivityAssigned: (params: { dayOfWeek: string; timeSlot: string; activityId: string }) => void;
+  targetClassId?: string; // The specific class this calendar is for (used in multi-calendar view)
+  targetClassName?: string; // The name of the class (for display in modal)
+  onActivityAssigned: (params: { dayOfWeek: string; timeSlot: string; activityId: string; targetClassId?: string }) => void;
   onActivityRemoved: (params: { dayOfWeek: string; timeSlot: string }) => void;
 }
 
 // This component embodies the core transformation: from reactive mutations to callback-based updates
 // The visual structure remains identical, but the consciousness patterns have shifted entirely
-export function WeeklyCalendar({ 
-  weekStart, 
-  schedules, 
-  activities, 
+export function WeeklyCalendar({
+  weekStart,
+  schedules,
+  activities,
+  targetClassId,
+  targetClassName,
   onActivityAssigned,
-  onActivityRemoved 
+  onActivityRemoved
 }: WeeklyCalendarProps) {
   const [selectedSlot, setSelectedSlot] = useState<SlotInfo | null>(null);
 
@@ -40,13 +44,14 @@ export function WeeklyCalendar({
 
   const handleActivitySelect = async (activityId: string) => {
     if (!selectedSlot) return;
-    
+
     await onActivityAssigned({
       dayOfWeek: selectedSlot.day,
       timeSlot: selectedSlot.timeSlot,
       activityId,
+      targetClassId, // Pass the target class ID
     });
-    
+
     setSelectedSlot(null);
   };
 
@@ -148,6 +153,7 @@ export function WeeklyCalendar({
             day: selectedSlot.day,
             timeSlot: TIME_SLOTS.find(ts => ts.key === selectedSlot.timeSlot)?.label || selectedSlot.timeSlot
           }}
+          targetClassName={targetClassName}
         />
       )}
     </div>

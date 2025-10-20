@@ -6,7 +6,6 @@ export interface Activity {
   title: string;
   description: string;
   materials: string;
-  classId?: string; // "all" for all classes, or specific class ID
   userId?: string; // Optional for local state
   _creationTime?: number; // Optional timestamp
 }
