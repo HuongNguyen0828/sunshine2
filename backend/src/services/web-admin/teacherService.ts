@@ -3,14 +3,57 @@ import type { Teacher } from "../../../../shared/types/type";
 import { TeacherStatus } from "../../../../shared/types/type";
 import { db } from "../../lib/firebase";
 import { UserRole } from "../../models/user";
-import { checkingIfEmailIsUnique, updateEmailFirebaseAuth, deleteUserFirebaseAuth } from "../authService";
+import { daycareLocationIds, checkingIfEmailIsUnique, updateEmailFirebaseAuth, deleteUserFirebaseAuth } from "../authService";
 
 // Collections
 const classesRef  = db.collection("classes");
 const usersRef    = db.collection("users");
 
+/*
+=================== Need Plug in case locationId passing from login admin with locationId = ['*'];Meaning 
+1. Fetching all teacher data of all location under that daycareProvider/ daycareId
+2. Adding allow multiple locations option
+3. Deleting/ Updating is affecting for only that location only
+*/
+
+
 // List all teachers
-export const getAllTeachers = async (locationId: string): Promise<Teacher[]> => {
+export const getAllTeachers = async (daycareId: string, locationId: string): Promise<Teacher[]> => {
+  // Case when locationId = '*', use daycareId to take all locations Id of that daycare
+  if (locationId === '*') {
+    // Get all locations of that daycare
+    const locationIds = await daycareLocationIds(daycareId);
+    // If return empty location
+    if (locationIds.length === 0) {
+    console.log("No locations found for this provider");
+    return [];
+    }
+
+    // Else, 
+    // Firestore 'in' operator can only take up to 30 values
+    const chunks = [];
+    while (locationIds.length) {
+      chunks.push(locationIds.splice(0, 30));
+    }
+
+    const teachers: Teacher[] = [];
+
+    for (const idsChunk of chunks) {
+      const snapshot = await db.collection('users')
+        .where('locationId', 'in', idsChunk) // match location
+        .where('role', '==', UserRole.Teacher) // match role
+        .get();
+      
+      snapshot.forEach((doc) => {
+        teachers.push({id: doc.id, ...(doc.data() as any)} as Teacher);
+      });
+    }
+
+    return teachers;
+  }
+
+
+  // else, when locationId is exactly match
   const snap = await usersRef
     .where("locationId", "==", locationId)
     .where("role", "==", UserRole.Teacher) // only teachers

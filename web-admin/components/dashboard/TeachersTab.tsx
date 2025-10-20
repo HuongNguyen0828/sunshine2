@@ -13,6 +13,8 @@ import type { NewTeacherInput } from "@/types/forms";
 import AutoCompleteAddress, { Address } from "@/components/AutoCompleteAddress";
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
+import {fetchLocationsLite, type LocationLite } from "@/services/useLocationsAPI";
+import { data } from "react-router-dom";
 
 export default function TeachersTab({
   teachers,
@@ -34,6 +36,24 @@ export default function TeachersTab({
     const [rows, setRows] = useState<Types.Teacher[]>(teachers);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [locations, setLocations] = useState<LocationLite[]>([]); // daycare locations
+
+
+  const fetchDaycareLocations = async() => {
+    const dataLocations = await fetchLocationsLite();
+    dataLocations && setLocations(dataLocations);
+  }
+  // Fetching the locations on first mount
+  useEffect(() => {
+    fetchDaycareLocations();
+  }, []); 
+
+  // Allow Teachers of different Locations 
+  const getLocationLabel = (locId?: string) => {
+    if (!locId) return "—";
+    const found = (locations ?? []).find((l) => l.id === locId);
+    return found?.name || locId;
+  };
 
   // Restore draft when form opens
   useEffect(() => {
@@ -293,8 +313,12 @@ export default function TeachersTab({
                   <span className="text-sm font-medium text-gray-700">{teacher.phone}</span>
                 </div>
               </div>
+              <div className="flex items-center gap-2 text-gray-700 text-sm">
+                    <span>📍</span>
+                    <span className="truncate">{getLocationLabel(teacher.locationId)}</span>
+              </div>
               <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
-                <div className="text-xs text-gray-500 leading-relaxed">{formatAddress(teacher)}</div>
+                <div className="text-xs text-gray-500 leading-relaxed"> <span>🏠</span> {formatAddress(teacher)}</div>
                 <div className="text-xs text-gray-400">
                   {String(teacher.startDate)}{teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
                 </div>
