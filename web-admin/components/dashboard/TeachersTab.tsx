@@ -21,15 +21,13 @@ export default function TeachersTab({
   newTeacher,
   setNewTeacher,
   onAdd,
-  onDelete,
-  onUpdate
+  locations,
 }: {
   teachers: Types.Teacher[];
   newTeacher: NewTeacherInput;
   setNewTeacher: React.Dispatch<React.SetStateAction<NewTeacherInput>>;
   onAdd: () => void;
-  onDelete: (id: string) => void,
-  onUpdate: (id: string, newTeacherInfo: Partial<NewTeacherInput>) => void;
+  locations: LocationLite[];
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,17 +37,7 @@ export default function TeachersTab({
   const [selectedClass, setSelectedClass] = useState('');
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [locations, setLocations] = useState<LocationLite[]>([]); // daycare locations
 
-
-  const fetchDaycareLocations = async() => {
-    const dataLocations = await fetchLocationsLite();
-    dataLocations && setLocations(dataLocations);
-  }
-  // Fetching the locations on first mount
-  useEffect(() => {
-    fetchDaycareLocations();
-  }, []); 
 
   // Allow Teachers of different Locations 
   const getLocationLabel = (locId?: string) => {
@@ -449,7 +437,7 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="First Name"
                       value={newTeacher.firstName}
-                      onChange={(e) => setNewTeacher({ ...newTeacher, firstName: e.target.value })}
+                      onChange={(e) => updateTeacher({firstName: e.target.value })}
                       required
                     />
                   </label>
@@ -460,7 +448,7 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Last Name"
                       value={newTeacher.lastName}
-                      onChange={(e) => setNewTeacher({ ...newTeacher, lastName: e.target.value })}
+                      onChange={(e) => updateTeacher({lastName: e.target.value })}
                       required
                     />
                   </label>
@@ -470,8 +458,8 @@ export default function TeachersTab({
                   <span className="text-gray-700 font-medium mb-1 block">Location *</span>
                   <select
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newTeacher.locationId ?? ""}
-                    onChange={(e) => setNewTeacher({ ...newTeacher, locationId: e.target.value })}
+                    value={newTeacher.locationId}
+                    onChange={(e) => updateTeacher({locationId: e.target.value })}
                     required
                     disabled={(locations ?? []).length <= 1} // disable if single
                   >
@@ -491,7 +479,7 @@ export default function TeachersTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Email"
                     value={newTeacher.email}
-                    onChange={(e) => setNewTeacher({ ...newTeacher, email: e.target.value })}
+                    onChange={(e) => updateTeacher({email: e.target.value })}
                     required
                   />
                 </label>
@@ -502,7 +490,7 @@ export default function TeachersTab({
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="e.g. 403 111 2284"
                     value={newTeacher.phone}
-                    onChange={(e) => setNewTeacher({ ...newTeacher, phone: e.target.value })}
+                    onChange={(e) => updateTeacher({phone: e.target.value })}
                     required
                   />
                 </label>
@@ -522,7 +510,7 @@ export default function TeachersTab({
                       type="date"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newTeacher.startDate}
-                      onChange={(e) => setNewTeacher({ ...newTeacher, startDate: e.target.value })}
+                      onChange={(e) => updateTeacher({startDate: e.target.value })}
                       required
                     />
                   </label>
@@ -533,7 +521,7 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="End Date (optional)"
                       value={newTeacher.endDate || ""}
-                      onChange={(e) => setNewTeacher({ ...newTeacher, endDate: e.target.value || undefined })}
+                      onChange={(e) => updateTeacher({endDate: e.target.value || undefined })}
                     />
                   </label>
                 </div>
