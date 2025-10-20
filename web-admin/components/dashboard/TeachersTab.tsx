@@ -246,25 +246,6 @@ export default function TeachersTab({
     });
   };
 
-  const handleAssignClass = (teacherId: string) => {
-    setShowAssignClass(teacherId);
-    setSelectedClass("");
-  };
-
-  const handleSaveClass = async () => {
-    if (!showAssignClass || !selectedClass) return;
-    const id = showAssignClass;
-
-    await api.post<{ ok: boolean }>(`${ENDPOINTS.teachers}/${id}/assign`, {
-      classId: selectedClass,
-    });
-
-    setRows((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, classId: selectedClass } : t))
-    );
-    setShowAssignClass(null);
-    setSelectedClass("");
-  };
 
   const formatAddress = (teacher: Types.Teacher) => {
     const parts = [
@@ -279,7 +260,7 @@ export default function TeachersTab({
   };
   
   // To handle View by locations or all locations
-  const handleTeacherView = (selectedView: string) => {
+  const handleView = (selectedView: string) => {
     if (selectedView !== defaultLocationView) {
       setRows(teachers.filter((row) => row.locationId === selectedView))
       return;
@@ -304,7 +285,7 @@ export default function TeachersTab({
                 // 1. Update value
                 setLocationView(selectedView);
                 // 2. Update Teachers View
-                handleTeacherView(selectedView);
+                handleView(selectedView);
               }}
               required
             >
@@ -401,7 +382,6 @@ export default function TeachersTab({
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => handleAssignClass(teacher.id)}
                   className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
                 >
                   Assign
@@ -696,70 +676,6 @@ export default function TeachersTab({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {showAssignClass && (
-        <div
-          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
-          onClick={() => {
-            setShowAssignClass(null);
-            setSelectedClass("");
-          }}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-800">Assign Class</h3>
-              <button
-                onClick={() => {
-                  setShowAssignClass(null);
-                  setSelectedClass("");
-                }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6">
-              <label className="block mb-4">
-                <span className="text-gray-700 font-medium mb-2 block">
-                  Select Class
-                </span>
-                <select
-                  value={selectedClass}
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">-- Select a class --</option>
-                  <option value="class1">Class 1 (Placeholder)</option>
-                  <option value="class2">Class 2 (Placeholder)</option>
-                  <option value="class3">Class 3 (Placeholder)</option>
-                </select>
-              </label>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowAssignClass(null);
-                    setSelectedClass("");
-                  }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveClass}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
