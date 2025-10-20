@@ -1,11 +1,12 @@
-// @shared/api/client.ts
+// web-admin/api/client.ts
 "use client";
 
 import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
 import Cookies from "js-cookie";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
-// First: Wait for Firebase Auth to initialize and get current user
+
+/** Wait until Firebase Auth is initialized and a user (if any) is available. */
 async function waitUser(): Promise<User | null> {
   const auth = getAuth();
   if (auth.currentUser) return auth.currentUser;
@@ -24,22 +25,18 @@ async function waitUser(): Promise<User | null> {
   });
 }
 
-// Then, fallbacke to Cookies to get idToken if user already login in and page reload/ open in new tab/window/close and re-open tab/etc.
+/** Get an ID token from Firebase Auth or fallback to cookies. */
 async function getIdToken(): Promise<string | null> {
-  // Case login and user is currentUser
   const user = await waitUser();
-  if (user) return user.getIdToken(); // This is idToken from Firebase Auth SDK
-
-  // Case Fallback to Cookies
+  if (user) return user.getIdToken();
   const idToken = Cookies.get("idToken");
-  console.log("Fallback to Cookies idToken:", idToken);
-  return idToken ?? null; // This is idToken stored in Cookies
+  return idToken ?? null;
 }
 
-
-
+/** Core HTTP request wrapper that always returns a value for 2xx responses. */
 async function request<T>(path: string, init?: RequestInit, authRequired = true): Promise<T> {
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+
   const headers: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -47,10 +44,6 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
   };
 
   if (authRequired) {
-    // const u = await waitUser();
-    // const token = u ? await u.getIdToken() : null;
-
-    // Token is wrapped: Either from Firebase Auth SDK or from Cookies
     const token = await getIdToken();
     if (!token) throw new Error("Not authenticated");
     headers.Authorization = `Bearer ${token}`;
@@ -58,28 +51,48 @@ async function request<T>(path: string, init?: RequestInit, authRequired = true)
 
   const res = await fetch(url, { ...init, headers });
 
-  // If response not ok, throw error with status and message from response if any
   if (!res.ok) {
     let msg = `${res.status} ${res.statusText}`;
     try {
       const j = await res.json();
-      if (j?.message) msg = `${res.status} — ${JSON.stringify(j)}`;
-    } catch {}
+      if (j && typeof j === "object" && "message" in j) {
+        msg = `${res.status} — ${JSON.stringify(j)}`;
+      }
+    } catch {
+      /* ignore json parsing error */
+    }
     throw new Error(msg);
   }
-  // Handle empty response (e.g. DELETE), with no content returned
-  if (res.status === 204) {
-    return {} as T;
+
+  // Handle no-content responses (204/205 or explicit empty body)
+  if (res.status === 204 || res.status === 205) {
+    return undefined as unknown as T;
   }
 
-  // Else parse response as JSON
-  if (res.status === 200) {
+  // If content-length is 0 or missing body, treat as empty
+  const contentLength = res.headers.get("content-length");
+  if (contentLength === "0") {
+    return undefined as unknown as T;
+  }
+
+  // Prefer JSON when content-type indicates JSON
+  const contentType = res.headers.get("content-type") ?? "";
+  const isJson = contentType.toLowerCase().includes("application/json");
+
+  if (isJson) {
+    // Covers 200, 201, 202, 206... when JSON body exists
     const data = await res.json();
-    return (data as T);
+    return data as T;
   }
 
-  // // If none of the above, throw an error to satisfy return type
-  // throw new Error(`Unhandled response status: ${res.status}`);
+  // Fallback: try text; if empty, return undefined; else unsafe-cast
+  const text = await res.text();
+  if (!text) {
+    return undefined as unknown as T;
+  }
+  // If server returned non-JSON text but caller expects T, we still return something.
+  // Callers should define T accordingly or server should return JSON.
+  return text as unknown as T;
 }
 
 const api = {
