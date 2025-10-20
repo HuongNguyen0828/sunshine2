@@ -11,3 +11,15 @@ export interface UserClaims {
     classroomId?: string; // Optional for teachers
     childrenId?: string; // Optional for parents
 }
+
+export type UserProfile = {
+  role?: string;
+  email?: string;
+  daycareId?: string;
+  locationId?: string;
+};
+
+export type AdminScope =
+  | { kind: "all" }
+  | { kind: "location"; id: string }
+  | { kind: "daycare"; daycareId: string };
