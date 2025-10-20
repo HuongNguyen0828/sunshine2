@@ -10,9 +10,10 @@ import { useState, useEffect } from "react";
 import { WeeklyCalendar } from "./WeeklyCalendar";
 import { ActivityLibrary } from "./ActivityLibrary";
 import { ActivityForm } from "./ActivityForm";
-import { MockSchedulerAPI } from "@/lib/scheduler-mock-data";
 import type { Activity, Schedule } from "@/types/scheduler";
 import type { Class } from "../../../shared/types/type";
+import { fetchClasses } from "@/services/useClassesAPI";
+import * as SchedulerAPI from "@/services/useSchedulerAPI";
 
 // This component represents the consciousness transplant - taking the original
 // scheduler's reactive patterns and adapting them to local state management
@@ -32,22 +33,49 @@ export function WeeklyScheduler() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>("all");
 
-  // Load initial data - replacing Convex useQuery with async state management
+  // Load initial data - using real Firebase backend
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [activitiesData, schedulesData] = await Promise.all([
-          MockSchedulerAPI.listActivities(),
-          MockSchedulerAPI.getWeekSchedule(currentWeek)
+        const [schedulesData, classesData] = await Promise.all([
+          SchedulerAPI.fetchSchedules(currentWeek, selectedClassId),
+          fetchClasses()
         ]);
-        setActivities(activitiesData);
-        setSchedules(schedulesData);
-        // Mock classes data - replace with real API call when backend is ready
-        setClasses([
-          { id: '1', name: 'Toddlers', capacity: 15, volume: 12, ageStart: 2, ageEnd: 3 },
-          { id: '2', name: 'Preschool', capacity: 20, volume: 18, ageStart: 3, ageEnd: 5 },
-          { id: '3', name: 'Kindergarten', capacity: 25, volume: 22, ageStart: 5, ageEnd: 6 },
-        ] as Class[]);
+
+        // Convert schedules to activities for library display
+        const uniqueActivities = new Map<string, Activity>();
+        schedulesData.forEach(schedule => {
+          const key = `${schedule.activityTitle}-${schedule.classId}`;
+          if (!uniqueActivities.has(key)) {
+            uniqueActivities.set(key, {
+              id: key,
+              title: schedule.activityTitle,
+              description: schedule.activityDescription,
+              materials: schedule.activityMaterials,
+              classId: schedule.classId,
+              userId: schedule.userId,
+            });
+          }
+        });
+
+        setActivities(Array.from(uniqueActivities.values()));
+        setSchedules(schedulesData.map(s => ({
+          id: s.id,
+          userId: s.userId,
+          weekStart: s.weekStart,
+          dayOfWeek: s.dayOfWeek,
+          timeSlot: s.timeSlot,
+          activityId: `${s.activityTitle}-${s.classId}`,
+          activity: {
+            id: `${s.activityTitle}-${s.classId}`,
+            title: s.activityTitle,
+            description: s.activityDescription,
+            materials: s.activityMaterials,
+            classId: s.classId,
+            userId: s.userId,
+          }
+        })));
+        setClasses(classesData || []);
       } catch (error) {
         console.error('Error loading scheduler data:', error);
       } finally {
@@ -56,7 +84,7 @@ export function WeeklyScheduler() {
     };
 
     loadData();
-  }, [currentWeek]);
+  }, [currentWeek, selectedClassId]);
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     const current = new Date(currentWeek);
@@ -75,7 +103,11 @@ export function WeeklyScheduler() {
 
   const handleActivityCreated = async (activityData: Omit<Activity, 'id' | '_creationTime' | 'userId'>) => {
     try {
-      const newActivity = await MockSchedulerAPI.createActivity(activityData);
+      // Just add to local state - activities are created when scheduled
+      const newActivity: Activity = {
+        ...activityData,
+        id: `${activityData.title}-${activityData.classId}`,
+      };
       setActivities(prev => [newActivity, ...prev]);
       setShowActivityForm(false);
     } catch (error) {
@@ -85,7 +117,10 @@ export function WeeklyScheduler() {
 
   const handleActivityDeleted = async (id: string) => {
     try {
-      await MockSchedulerAPI.removeActivity(id);
+      // Delete all schedules using this activity
+      const schedulesToDelete = schedules.filter(s => s.activityId === id);
+      await Promise.all(schedulesToDelete.map(s => SchedulerAPI.deleteSchedule(s.id)));
+
       setActivities(prev => prev.filter(a => a.id !== id));
       setSchedules(prev => prev.filter(s => s.activityId !== id));
     } catch (error) {
@@ -99,16 +134,48 @@ export function WeeklyScheduler() {
     activityId: string;
   }) => {
     try {
-      const newSchedule = await MockSchedulerAPI.assignActivity({
+      // Find the activity to get its details
+      const activity = activities.find(a => a.id === params.activityId);
+      if (!activity) {
+        console.error('Activity not found:', params.activityId);
+        return;
+      }
+
+      // Check if there's already a schedule for this slot
+      const existingSchedule = schedules.find(s =>
+        s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot
+      );
+
+      // Delete existing schedule if any
+      if (existingSchedule) {
+        await SchedulerAPI.deleteSchedule(existingSchedule.id);
+      }
+
+      // Create new schedule with activity data embedded
+      const newSchedule = await SchedulerAPI.createSchedule({
         weekStart: currentWeek,
-        ...params
+        dayOfWeek: params.dayOfWeek,
+        timeSlot: params.timeSlot,
+        activityTitle: activity.title,
+        activityDescription: activity.description,
+        activityMaterials: activity.materials,
+        classId: activity.classId || "all",
       });
+
       setSchedules(prev => {
         // Remove existing schedule for this slot, add new one
         const filtered = prev.filter(s =>
           !(s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot)
         );
-        return [...filtered, newSchedule];
+        return [...filtered, {
+          id: newSchedule.id,
+          userId: newSchedule.userId,
+          weekStart: newSchedule.weekStart,
+          dayOfWeek: newSchedule.dayOfWeek,
+          timeSlot: newSchedule.timeSlot,
+          activityId: params.activityId,
+          activity,
+        }];
       });
     } catch (error) {
       console.error('Error assigning activity:', error);
@@ -120,13 +187,14 @@ export function WeeklyScheduler() {
     timeSlot: string;
   }) => {
     try {
-      await MockSchedulerAPI.removeFromSchedule({
-        weekStart: currentWeek,
-        ...params
-      });
-      setSchedules(prev => prev.filter(s =>
-        !(s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot)
-      ));
+      const scheduleToRemove = schedules.find(s =>
+        s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot
+      );
+
+      if (scheduleToRemove) {
+        await SchedulerAPI.deleteSchedule(scheduleToRemove.id);
+        setSchedules(prev => prev.filter(s => s.id !== scheduleToRemove.id));
+      }
     } catch (error) {
       console.error('Error removing activity from schedule:', error);
     }
