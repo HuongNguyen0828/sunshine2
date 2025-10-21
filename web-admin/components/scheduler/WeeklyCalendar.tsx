@@ -7,6 +7,7 @@
 'use client';
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ActivitySelector } from "./ActivitySelector";
 import type { Activity, Schedule, SlotInfo } from "@/types/scheduler";
 import { WEEKDAYS, TIME_SLOTS } from "@/types/scheduler";
@@ -189,20 +190,29 @@ export function WeeklyCalendar({
                   className="min-h-[140px] p-2 border-t border-gray-200 hover:bg-gray-50 transition-colors"
                 >
                   <div className="h-full flex flex-col gap-2">
-                    {/* Activity pills - stacked vertically */}
-                    {slotSchedules.map((schedule) => (
-                      <div
-                        key={schedule.id}
-                        onDragOver={(e) => handleDragOver(e, schedule)}
-                        onDrop={(e) => handleDrop(e, schedule)}
-                        className={`group relative rounded-lg px-3 py-2 transition-all ${
-                          openMenuId === schedule.id ? '' : 'hover:scale-[1.02] hover:shadow-md'
-                        } ${draggedSchedule?.id === schedule.id ? 'opacity-50' : ''}`}
-                        style={{
-                          backgroundColor: schedule.activity?.color + '20',
-                          borderLeft: `4px solid ${schedule.activity?.color}`,
-                        }}
-                      >
+                    {/* Activity pills - stacked vertically with Framer Motion */}
+                    <AnimatePresence mode="popLayout">
+                      {slotSchedules.map((schedule) => (
+                        <motion.div
+                          key={schedule.id}
+                          layoutId={schedule.id}
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          transition={{
+                            layout: { type: "spring", damping: 25, stiffness: 300 },
+                            opacity: { duration: 0.2 },
+                          }}
+                          onDragOver={(e) => handleDragOver(e, schedule)}
+                          onDrop={(e) => handleDrop(e, schedule)}
+                          className={`group relative rounded-lg px-3 py-2 ${
+                            openMenuId === schedule.id ? '' : 'hover:scale-[1.02] hover:shadow-md'
+                          } ${draggedSchedule?.id === schedule.id ? 'opacity-50' : ''}`}
+                          style={{
+                            backgroundColor: schedule.activity?.color + '20',
+                            borderLeft: `4px solid ${schedule.activity?.color}`,
+                          }}
+                        >
                         <div className="flex items-start justify-between gap-2">
                           <div
                             draggable
@@ -251,8 +261,9 @@ export function WeeklyCalendar({
                             )}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
 
                     {/* Add activity button */}
                     <button
