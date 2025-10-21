@@ -195,9 +195,9 @@ export function WeeklyCalendar({
                         key={schedule.id}
                         onDragOver={(e) => handleDragOver(e, schedule)}
                         onDrop={(e) => handleDrop(e, schedule)}
-                        className={`group relative rounded-lg px-3 py-2 transition-all hover:scale-[1.02] hover:shadow-md ${
-                          draggedSchedule?.id === schedule.id ? 'opacity-50' : ''
-                        }`}
+                        className={`group relative rounded-lg px-3 py-2 transition-all ${
+                          openMenuId === schedule.id ? '' : 'hover:scale-[1.02] hover:shadow-md'
+                        } ${draggedSchedule?.id === schedule.id ? 'opacity-50' : ''}`}
                         style={{
                           backgroundColor: schedule.activity?.color + '20',
                           borderLeft: `4px solid ${schedule.activity?.color}`,
@@ -235,9 +235,14 @@ export function WeeklyCalendar({
 
                             {/* Dropdown menu - backdrop is at calendar root level */}
                             {openMenuId === schedule.id && (
-                              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[110] min-w-[120px]">
+                              <div
+                                className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[110] min-w-[120px]"
+                                onMouseEnter={() => setDraggedSchedule(null)}
+                                onMouseOver={(e) => e.stopPropagation()}
+                              >
                                 <button
                                   onClick={(e) => handleDeleteSchedule(e, schedule.id)}
+                                  onMouseEnter={(e) => e.stopPropagation()}
                                   className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                 >
                                   Delete
