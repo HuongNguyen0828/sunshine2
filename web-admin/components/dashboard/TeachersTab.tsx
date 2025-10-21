@@ -42,6 +42,8 @@ export default function TeachersTab({
   const [selectedClass, setSelectedClass] = useState("");
   const [rows, setRows] = useState<Types.Teacher[]>(teachers);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
+
+  // Debounce timer ref for autosave
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Location view Teacher
@@ -145,7 +147,8 @@ export default function TeachersTab({
     startIndex + teachersPerPage
   );
 
-  const resetForm = () => {
+  // Reset form fields to initial state
+  const resetForm = useCallback(() => {
     setNewTeacher({
       firstName: "",
       lastName: "",
@@ -162,31 +165,67 @@ export default function TeachersTab({
       status: Types.TeacherStatus.New,
       isRegistered: false,
     });
+  }, [setNewTeacher]);
+
+  // Clear draft, optionally reset form fields
+  const clearDraft = useCallback(
+    (resetFields = false) => {
+      sessionStorage.removeItem("teacher-form-draft");
+      setIsDraftRestored(false);
+      if (resetFields) resetForm();
+    },
+    [resetForm]
+  );
+
+  const handleAddressChange = useCallback(
+    (a: Address) => {
+      updateTeacher({
+        address1: a.address1,
+        address2: a.address2,
+        city: a.city,
+        province: a.province,
+        country: a.country,
+        postalcode: a.postalcode,
+      });
+    },
+    [updateTeacher]
+  );
+
+  // Handle load address to form when editing: setNewTeacher with value of current Address
+  // Passing Current address value back to input value
+  const newTeacherAddressValues: Address = {
+    address1: newTeacher.address1 || "",
+    address2: newTeacher.address2 || "",
+    city: newTeacher.city || "",
+    province: newTeacher.province || "",
+    country: newTeacher.country || "",
+    postalcode: newTeacher.postalcode || "",
   };
+
+  const filteredTeachers = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return rows.filter(
+      (t) =>
+        (t.firstName ?? "").toLowerCase().includes(term) ||
+        (t.lastName ?? "").toLowerCase().includes(term) ||
+        (t.email ?? "").toLowerCase().includes(term)
+    );
+  }, [rows, searchTerm]);
+
+  const teachersPerPage = 6;
+  const totalPages = Math.max(1, Math.ceil(filteredTeachers.length / teachersPerPage));
+  const startIndex = (currentPage - 1) * teachersPerPage;
+  const paginatedTeachers = filteredTeachers.slice(startIndex, startIndex + teachersPerPage);
 
   const handleAddClick = () => {
     setEditingTeacher(null);
-    setNewTeacher({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      address1: "",
-      address2: "",
-      city: "",
-      province: "",
-      country: "",
-      postalcode: "",
-      startDate: "",
-      endDate: undefined,
-      status: Types.TeacherStatus.New,
-      isRegistered: false,
-    });
+    resetForm();
     setIsFormOpen(true);
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (editingTeacher) {
       const id = editingTeacher.id;
       const updated = await api.put<Types.Teacher>(
@@ -198,13 +237,14 @@ export default function TeachersTab({
       );
       setEditingTeacher(null);
       resetForm();
-      setIsFormOpen(false);
-      return;
     } else {
+      // Delegate create flow to parent (which likely refreshes upstream state)
       onAdd();
-      setIsFormOpen(false);
+      resetForm();
     }
-    clearDraft(); // Clear draft after successful submission
+
+    // Always remove stored draft after successful submit
+    clearDraft();
     setIsFormOpen(false);
   };
 
@@ -248,14 +288,8 @@ export default function TeachersTab({
 
 
   const formatAddress = (teacher: Types.Teacher) => {
-    const parts = [
-      teacher.address2,
-      teacher.address1,
-      teacher.city,
-      teacher.province,
-      teacher.country,
-      teacher.postalcode,
-    ].filter(Boolean) as string[];
+    const parts = [teacher.address2, teacher.address1, teacher.city, teacher.province, teacher.country, teacher.postalcode]
+      .filter(Boolean) as string[];
     return parts.join(", ");
   };
   
@@ -308,6 +342,7 @@ export default function TeachersTab({
             <span className="text-lg">+</span> Add Teacher
           </button>
         </div>
+
         <div className="flex items-center gap-3 mb-4">
           <div className="flex-1 relative">
             <input
@@ -380,6 +415,7 @@ export default function TeachersTab({
                     : " → Present"}
                 </div>
               </div>
+
               <div className="flex gap-2">
                 <button
                   className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
@@ -662,7 +698,7 @@ export default function TeachersTab({
                 {!editingTeacher && (
                   <button
                     type="button"
-                    onClick={clearDraft}
+                    onClick={() => clearDraft(true)} // also reset fields
                     className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
                   >
                     Clear Draft

@@ -1,16 +1,14 @@
 // web-admin/app/dashboard/[uid]/page.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useTransition } from "react";
 import AppHeader from "@/components/AppHeader";
 import SidebarNav from "@/components/dashboard/SidebarNav";
 import Overview from "@/components/dashboard/Overview";
 import ParentsTab from "@/components/dashboard/ParentsTab";
 import ClassesTab from "@/components/dashboard/ClassesTab";
 import SchedulerLabsTab from "@/components/dashboard/SchedulerLabsTab";
-import ChildrenTab, {
-  type NewChildInput as ChildFormInput,
-} from "@/components/dashboard/ChildrenTab";
+import ChildrenTab, { type NewChildInput as ChildFormInput } from "@/components/dashboard/ChildrenTab";
 import { dash } from "@/styles/dashboard";
 import { useAuth } from "@/lib/auth";
 import * as Types from "../../../../shared/types/type";
@@ -18,10 +16,7 @@ import type { Tab, NewParentInput, NewClassInput, NewTeacherInput } from "@/type
 import swal from "sweetalert2";
 import { fetchTeachers, addTeacher } from "@/services/useTeachersAPI";
 import { fetchClasses } from "@/services/useClassesAPI";
-import {
-  fetchLocationsLite,
-  type LocationLite,
-} from "@/services/useLocationsAPI";
+import { fetchLocationsLite, type LocationLite } from "@/services/useLocationsAPI";
 import {
   fetchChildren as fetchChildrenAPI,
   addChild as addChildAPI,
@@ -31,10 +26,12 @@ import {
   unassignChildFromClass,
   linkParentToChildByEmail,
   unlinkParentFromChild,
-  fetchParentsLiteByIds, 
+  fetchParentsLiteByIds,
   type NewChildInput as APIChildInput,
 } from "@/services/useChildrenAPI";
 import TeachersTab from "@/components/dashboard/TeachersTab";
+
+/* ---------------- utils ---------------- */
 
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null;
@@ -69,7 +66,6 @@ function readDaycareId(u: unknown): string | undefined {
   }
   return undefined;
 }
-
 function collectLocationIds(u: unknown): string[] {
   if (!isRecord(u)) return [];
   const locs = new Set<string>();
@@ -82,7 +78,6 @@ function collectLocationIds(u: unknown): string[] {
   }
   return Array.from(locs);
 }
-
 function getAdminScopeFromUser(u: unknown): AdminScope {
   const daycareId = readDaycareId(u);
   const locs = new Set(collectLocationIds(u));
@@ -107,6 +102,8 @@ function getErrorMessage(e: unknown, fallback: string): string {
   return fallback;
 }
 
+/* ---------------- page ---------------- */
+
 export default function AdminDashboard() {
   const { signOutUser, currentUser, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -116,10 +113,12 @@ export default function AdminDashboard() {
   const [locations, setLocations] = useState<LocationLite[]>([]);
   const [children, setChildren] = useState<Types.Child[]>([]);
   const [parents, setParents] = useState<Types.Parent[]>([]);
-  const [dataLoading, setDataLoading] = useState<boolean>(true);
   const [parentLites, setParentLites] = useState<Array<{ id: string; firstName?: string; lastName?: string; email?: string }>>([]);
 
-  // Forms state (lifted to parent so tabs can read/write)
+  const [initialLoading, setInitialLoading] = useState<boolean>(true);
+  const [, startTransition] = useTransition();
+
+  /* forms */
   const [newTeacher, setNewTeacher] = useState<NewTeacherInput>({
     firstName: "",
     lastName: "",
@@ -173,61 +172,79 @@ export default function AdminDashboard() {
 
   const scope = useMemo<AdminScope>(() => getAdminScopeFromUser(currentUser), [currentUser]);
 
+  /* ---------- initial fetch ---------- */
 
-const refreshAll = useCallback(async () => {
-  setDataLoading(true);
-  try {
-    const childrenQuery =
-      scope.mode === "fixed"
-        ? { locationId: scope.fixedLocationId }
-        : scope.daycareId
-        ? { daycareId: scope.daycareId }
-        : {};
+  const initialFetchAll = useCallback(async () => {
+    setInitialLoading(true);
+    try {
+      const childrenQuery =
+        scope.mode === "fixed"
+          ? { locationId: scope.fixedLocationId }
+          : scope.daycareId
+          ? { daycareId: scope.daycareId }
+          : {};
 
-    const [tchs, clss, locs, kids] = await Promise.all([
-      fetchTeachers(),
-      fetchClasses(),
-      fetchLocationsLite(),
-      fetchChildrenAPI(childrenQuery),
-    ]);
+      const [tchs, clss, locs, kids] = await Promise.all([fetchTeachers(), fetchClasses(), fetchLocationsLite(), fetchChildrenAPI(childrenQuery)]);
 
-    const filteredLocs =
-      scope.mode === "fixed"
-        ? (locs ?? []).filter((l) => l.id === scope.fixedLocationId)
-        : (locs ?? []);
+      const filteredLocs =
+        scope.mode === "fixed"
+          ? (locs ?? []).filter((l) => l.id === scope.fixedLocationId)
+          : (locs ?? []);
 
-    setTeachers(tchs ?? []);
-    setClasses(clss ?? []);
-    setLocations(filteredLocs);
-    setChildren(kids ?? []);
+      setTeachers(tchs ?? []);
+      setClasses(clss ?? []);
+      setLocations(filteredLocs);
+      setChildren(kids ?? []);
 
-    // ✅ parents 라이트 로드
-    const parentIds = Array.from(
-      new Set(
-        (kids ?? []).flatMap((c) => Array.isArray(c.parentId) ? c.parentId : [])
-      )
-    );
-    const lites = await fetchParentsLiteByIds(parentIds);
-    setParentLites(lites);
-  } catch (e) {
-    console.error(e);
-    await swal.fire({
-      icon: "error",
-      title: "Failed to load",
-      text: "Could not fetch teachers/classes/locations/children.",
-    });
-  } finally {
-    setDataLoading(false);
-  }
-}, [scope.mode, scope.fixedLocationId, scope.daycareId]);
+      const parentIds = Array.from(new Set((kids ?? []).flatMap((c) => (Array.isArray(c.parentId) ? c.parentId : []))));
+      const lites = await fetchParentsLiteByIds(parentIds);
+      setParentLites(lites);
+    } catch (e) {
+      console.error(e);
+      await swal.fire({ icon: "error", title: "Failed to load", text: "Could not fetch teachers/classes/locations/children." });
+    } finally {
+      setInitialLoading(false);
+    }
+  }, [scope.mode, scope.fixedLocationId, scope.daycareId]);
 
   useEffect(() => {
     if (authLoading || !currentUser) return;
-    refreshAll();
-  }, [authLoading, currentUser, refreshAll]);
+    initialFetchAll();
+  }, [authLoading, currentUser, initialFetchAll]);
 
-  const hasDaycareId = (l: LocationLite): l is LocationLite & { daycareId: string } =>
-    typeof (l as { daycareId?: unknown }).daycareId === "string";
+  /* ---------- lightweight background refreshers ---------- */
+
+  const refetchChildrenLite = useCallback(async () => {
+    try {
+      const childrenQuery =
+        scope.mode === "fixed"
+          ? { locationId: scope.fixedLocationId }
+          : scope.daycareId
+          ? { daycareId: scope.daycareId }
+          : {};
+      const fresh = await fetchChildrenAPI(childrenQuery);
+      setChildren(fresh ?? []);
+
+      const parentIds = Array.from(new Set((fresh ?? []).flatMap((c) => (Array.isArray(c.parentId) ? c.parentId : []))));
+      const lites = await fetchParentsLiteByIds(parentIds);
+      setParentLites(lites);
+    } catch (e) {
+      console.error("Background children refresh failed", e);
+    }
+  }, [scope.mode, scope.fixedLocationId, scope.daycareId]);
+
+  const refetchClassesLite = useCallback(async () => {
+    try {
+      const clss = await fetchClasses();
+      setClasses(clss ?? []);
+    } catch (e) {
+      console.error("Background classes refresh failed", e);
+    }
+  }, []);
+
+  /* ---------- helpers ---------- */
+
+  const hasDaycareId = (l: LocationLite): l is LocationLite & { daycareId: string } => typeof (l as { daycareId?: unknown }).daycareId === "string";
 
   const filteredLocations = useMemo<LocationLite[]>(() => {
     if (scope.mode === "fixed") return locations.filter((l) => l.id === scope.fixedLocationId);
@@ -244,25 +261,32 @@ const refreshAll = useCallback(async () => {
     }
   }, [scope.mode, scope.fixedLocationId]);
 
+  /* ---------- teachers ---------- */
+
   const handleAddTeacher = async () => {
-      await addTeacher(newTeacher);
-      // Refresh from server to get latest data,in the background
-      await refreshAll(); 
-      // Reset form
-      setNewTeacher({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        address1: "",
-        address2: "",
-        city: "", 
-        province: "",
-        country: "", 
-        startDate: "",
-        endDate: undefined,
-      });
+    await addTeacher(newTeacher);
+    startTransition(() => {
+      initialFetchAll();
+    });
+    setNewTeacher({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      address1: "",
+      address2: "",
+      city: "",
+      province: "",
+      country: "",
+      postalcode: "",
+      classIds: [],
+      locationId: "",
+      startDate: "",
+      endDate: undefined,
+    });
   };
+
+  /* ---------- children (optimistic) ---------- */
 
   const createChild = async (input: ChildFormInput): Promise<Types.Child | null> => {
     const payload: APIChildInput = {
@@ -276,49 +300,152 @@ const refreshAll = useCallback(async () => {
       notes: input.notes?.trim() || undefined,
       enrollmentStatus: input.enrollmentStatus ?? computeStatus(input.parentId, input.classId),
     };
-    await addChildAPI(payload);
-    await refreshAll();
-    setNewChild({
-      firstName: "",
-      lastName: "",
-      birthDate: "",
-      parentId: [],
-      classId: "",
-      locationId: "",
-      notes: "",
-      enrollmentStatus: Types.EnrollmentStatus.New,
+
+    try {
+      const created = await addChildAPI(payload);
+
+      if (created) {
+        setChildren((prev) => [created, ...prev]);
+        if (created.classId) {
+          setClasses((prev) =>
+            prev.map((c) => (c.id === created.classId ? { ...c, volume: Math.max(0, (c.volume ?? 0) + 1) } : c))
+          );
+        }
+      } else {
+        startTransition(() => {
+          refetchChildrenLite();
+          refetchClassesLite();
+        });
+      }
+    } finally {
+      setNewChild({
+        firstName: "",
+        lastName: "",
+        birthDate: "",
+        parentId: [],
+        classId: "",
+        locationId: "",
+        notes: "",
+        enrollmentStatus: Types.EnrollmentStatus.New,
+      });
+    }
+
+    startTransition(() => {
+      refetchChildrenLite();
+      refetchClassesLite();
     });
+
     return null;
   };
 
-  const updateChild = async (
-    id: string,
-    patch: Partial<ChildFormInput>
-  ): Promise<Types.Child | null> => {
-    await updateChildAPI(id, {
-      firstName: patch.firstName?.trim(),
-      lastName: patch.lastName?.trim(),
-      birthDate: patch.birthDate,
-      parentId: Array.isArray(patch.parentId) ? patch.parentId : undefined,
-      locationId: scope.mode === "fixed" ? scope.fixedLocationId : patch.locationId?.trim(),
-      notes: patch.notes?.trim(),
-      enrollmentStatus: patch.enrollmentStatus,
-      classId: patch.classId,
+  const updateChild = async (id: string, patch: Partial<ChildFormInput>): Promise<Types.Child | null> => {
+    try {
+      const res = await updateChildAPI(id, {
+        firstName: patch.firstName?.trim(),
+        lastName: patch.lastName?.trim(),
+        birthDate: patch.birthDate,
+        parentId: Array.isArray(patch.parentId) ? patch.parentId : undefined,
+        locationId: scope.mode === "fixed" ? scope.fixedLocationId : patch.locationId?.trim(),
+        notes: patch.notes?.trim(),
+        enrollmentStatus: patch.enrollmentStatus,
+        classId: patch.classId,
+      });
+
+      if (res && typeof res === "object") {
+        const updated = res as Types.Child;
+
+        const prevChild = children.find(c => c.id === id);
+        const prevClassId = prevChild?.classId;
+        const nextClassId = updated.classId;
+
+        setChildren(prev => prev.map(c => (c.id === id ? { ...c, ...updated } : c)));
+
+        if (prevClassId !== nextClassId) {
+          if (prevClassId) {
+            setClasses(prev =>
+              prev.map(cls =>
+                cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls
+              )
+            );
+          }
+          if (nextClassId) {
+            setClasses(prev =>
+              prev.map(cls =>
+                cls.id === nextClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) + 1) } : cls
+              )
+            );
+          }
+        }
+      } else {
+        startTransition(() => {
+          refetchChildrenLite();
+          refetchClassesLite();
+        });
+      }
+    } catch (e) {
+      const msg = getErrorMessage(e, "Failed to update child.");
+      alert(msg);
+      return null;
+    }
+
+    startTransition(() => {
+      refetchChildrenLite();
     });
-    await refreshAll();
+
     return null;
   };
 
   const deleteChild = async (id: string): Promise<boolean> => {
-    await deleteChildAPI(id);
-    await refreshAll();
-    return true;
+    try {
+      const target = children.find((c) => c.id === id);
+      await deleteChildAPI(id);
+
+      setChildren((prev) => prev.filter((c) => c.id !== id));
+      if (target?.classId) {
+        setClasses((prev) =>
+          prev.map((cls) => (cls.id === target.classId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls))
+        );
+      }
+
+      startTransition(() => {
+        refetchChildrenLite();
+        refetchClassesLite();
+      });
+
+      return true;
+    } catch (e) {
+      const msg = getErrorMessage(e, "Failed to delete child.");
+      alert(msg);
+      return false;
+    }
   };
 
   const onAssignChild = async (childId: string, classId: string) => {
     try {
       await assignChildToClass(childId, classId);
-      await refreshAll();
+
+      const prevChild = children.find((c) => c.id === childId);
+      const hadParent = (prevChild?.parentId?.length ?? 0) > 0;
+
+      setChildren((prev) =>
+        prev.map((c) =>
+          c.id === childId
+            ? {
+                ...c,
+                classId,
+                enrollmentStatus: hadParent ? Types.EnrollmentStatus.Active : Types.EnrollmentStatus.Waitlist,
+              }
+            : c
+        )
+      );
+
+      setClasses((prev) => prev.map((cls) => (cls.id === classId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) + 1) } : cls)));
+
+      startTransition(() => {
+        refetchChildrenLite();
+        refetchClassesLite();
+      });
+
       return true;
     } catch (e: unknown) {
       const msg = getErrorMessage(e, "Failed to assign child. Please try again.");
@@ -329,8 +456,34 @@ const refreshAll = useCallback(async () => {
 
   const onUnassignChild = async (childId: string) => {
     try {
+      const prevChild = children.find((c) => c.id === childId);
+      const prevClassId = prevChild?.classId;
+
       await unassignChildFromClass(childId);
-      await refreshAll();
+
+      setChildren((prev) =>
+        prev.map((c) =>
+          c.id === childId
+            ? {
+                ...c,
+                classId: undefined,
+                enrollmentStatus: (c.parentId?.length ?? 0) > 0 ? Types.EnrollmentStatus.Waitlist : Types.EnrollmentStatus.New,
+              }
+            : c
+        )
+      );
+
+      if (prevClassId) {
+        setClasses((prev) =>
+          prev.map((cls) => (cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls))
+        );
+      }
+
+      startTransition(() => {
+        refetchChildrenLite();
+        refetchClassesLite();
+      });
+
       return true;
     } catch {
       alert("Failed to unassign child. Please try again.");
@@ -341,7 +494,30 @@ const refreshAll = useCallback(async () => {
   const onLinkParentByEmail = async (childId: string, email: string) => {
     try {
       await linkParentToChildByEmail(childId, email);
-      await refreshAll();
+
+      const foundParent = parentLites.find((p) => (p.email ?? "").toLowerCase() === email.toLowerCase());
+      if (foundParent) {
+        setChildren((prev) =>
+          prev.map((c) =>
+            c.id === childId
+              ? {
+                  ...c,
+                  parentId: Array.from(new Set([...(c.parentId ?? []), foundParent.id])),
+                  enrollmentStatus: c.classId ? Types.EnrollmentStatus.Active : Types.EnrollmentStatus.Waitlist,
+                }
+              : c
+          )
+        );
+      } else {
+        startTransition(() => {
+          refetchChildrenLite();
+        });
+      }
+
+      startTransition(() => {
+        refetchChildrenLite();
+      });
+
       return true;
     } catch (e: unknown) {
       const msg = getErrorMessage(e, "Failed to link parent by email.");
@@ -353,13 +529,34 @@ const refreshAll = useCallback(async () => {
   const onUnlinkParent = async (childId: string, parentUserId: string) => {
     try {
       await unlinkParentFromChild(childId, parentUserId);
-      await refreshAll();
+
+      setChildren((prev) =>
+        prev.map((c) => {
+          if (c.id !== childId) return c;
+          const nextParentIds = (c.parentId ?? []).filter((pid) => pid !== parentUserId);
+          const nextStatus = c.classId
+            ? nextParentIds.length > 0
+              ? Types.EnrollmentStatus.Active
+              : Types.EnrollmentStatus.Waitlist
+            : nextParentIds.length > 0
+            ? Types.EnrollmentStatus.Waitlist
+            : Types.EnrollmentStatus.New;
+          return { ...c, parentId: nextParentIds, enrollmentStatus: nextStatus };
+        })
+      );
+
+      startTransition(() => {
+        refetchChildrenLite();
+      });
+
       return true;
     } catch {
       alert("Failed to unlink parent.");
       return false;
     }
   };
+
+  /* ---------- parents (local demo) ---------- */
 
   const addParent = () => {
     const parent: Types.Parent = {
@@ -385,20 +582,21 @@ const refreshAll = useCallback(async () => {
     });
   };
 
-  const onClassCreated = (created: Types.Class) =>
-    setClasses((prev) => [created, ...prev]);
-  const onClassUpdated = (updated: Types.Class) =>
-    setClasses((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
-  const onClassDeleted = (id: string) =>
-    setClasses((prev) => prev.filter((c) => c.id !== id));
+  /* ---------- classes passthrough ---------- */
+
+  const onClassCreated = (created: Types.Class) => setClasses((prev) => [created, ...prev]);
+  const onClassUpdated = (updated: Types.Class) => setClasses((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+  const onClassDeleted = (id: string) => setClasses((prev) => prev.filter((c) => c.id !== id));
   const onClassAssigned = async () => {
-    await refreshAll();
+    startTransition(() => {
+      refetchClassesLite();
+    });
   };
 
-  if (authLoading || dataLoading) {
-    return (
-        <div>Loading</div>
-    );
+  /* ---------- render ---------- */
+
+  if (authLoading || initialLoading) {
+    return <div>Loading</div>;
   }
 
   return (
@@ -419,14 +617,9 @@ const refreshAll = useCallback(async () => {
           <SidebarNav active={activeTab} onChange={setActiveTab} />
           <main style={dash.main}>
             {activeTab === "overview" && (
-              <Overview
-                teacherCount={teachers.length}
-                childCount={children.length}
-                parentCount={parents.length}
-                classCount={classes.length}
-              />
+              <Overview teacherCount={teachers.length} childCount={children.length} parentCount={parents.length} classCount={classes.length} />
             )}
-            
+
             {activeTab === "teachers" && (
               <TeachersTab
                 teachers={teachers}
@@ -458,14 +651,7 @@ const refreshAll = useCallback(async () => {
               />
             )}
 
-            {activeTab === "parents" && (
-              <ParentsTab
-                parents={parents}
-                newParent={newParent}
-                setNewParent={setNewParent}
-                onAdd={addParent}
-              />
-            )}
+            {activeTab === "parents" && <ParentsTab parents={parents} newParent={newParent} setNewParent={setNewParent} onAdd={addParent} />}
 
             {activeTab === "classes" && (
               <ClassesTab

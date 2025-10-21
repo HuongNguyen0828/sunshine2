@@ -1,3 +1,4 @@
+// web-admin/services/useClassesAPI.ts
 "use client";
 
 import * as Types from "../../shared/types/type"; // align path with other files
@@ -23,6 +24,18 @@ function normalizeTeacherIds(ids: unknown): string[] {
     }
   }
   return Array.from(out);
+}
+
+/** Build a query string from a record of params (ignores undefined/empty). */
+function buildQS(params: Record<string, string | number | boolean | undefined>): string {
+  const usp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v === undefined) return;
+    if (typeof v === "string" && v.trim() === "") return;
+    usp.set(k, String(v));
+  });
+  const s = usp.toString();
+  return s ? `?${s}` : "";
 }
 
 /* =========================
@@ -103,11 +116,25 @@ export type TeacherLite = {
   role?: string;
   status?: string;
   classIds?: string[];
+  locationId?: string; // used to enforce same-location UI guards
 };
 
-export async function fetchTeachers(): Promise<TeacherLite[]> {
+/**
+ * GET /api/users/teachers
+ * Optional filters:
+ * - locationId: only teachers within this location
+ * - classId: only teachers assigned to this class (server also derives location from class if needed)
+ */
+export async function fetchTeachers(opts?: {
+  locationId?: string;
+  classId?: string;
+}): Promise<TeacherLite[]> {
   try {
-    const items = await api.get<TeacherLite[]>(ENDPOINTS.teachers);
+    const qs = buildQS({
+      locationId: opts?.locationId,
+      classId: opts?.classId,
+    });
+    const items = await api.get<TeacherLite[]>(`${ENDPOINTS.teachers}${qs}`);
     return items ?? [];
   } catch (err) {
     console.error(err);
@@ -122,11 +149,26 @@ export type TeacherCandidate = {
   email?: string;
   status?: string;
   classIds?: string[];
+  locationId?: string; // used to enforce same-location UI guards
 };
 
-export async function fetchTeacherCandidates(onlyNew = true): Promise<TeacherCandidate[]> {
+/**
+ * GET /api/users/teacher-candidates
+ * Optional filters:
+ * - onlyNew (default true)
+ * - locationId or classId (server enforces scope and filters by location)
+ */
+export async function fetchTeacherCandidates(opts?: {
+  onlyNew?: boolean;
+  locationId?: string;
+  classId?: string;
+}): Promise<TeacherCandidate[]> {
   try {
-    const qs = onlyNew ? "?onlyNew=true" : "?onlyNew=false";
+    const qs = buildQS({
+      onlyNew: opts?.onlyNew ?? true,
+      locationId: opts?.locationId,
+      classId: opts?.classId,
+    });
     const items = await api.get<TeacherCandidate[]>(`${ENDPOINTS.teacherCandidates}${qs}`);
     return items ?? [];
   } catch (err) {
@@ -139,6 +181,10 @@ export async function fetchTeacherCandidates(onlyNew = true): Promise<TeacherCan
    Assign teachers
    ========================= */
 
+/**
+ * POST /api/classes/:id/assign-teachers
+ * Server enforces teacher.locationId === class.locationId.
+ */
 export async function assignTeachersToClass(
   classId: string,
   teacherIds: string[]
