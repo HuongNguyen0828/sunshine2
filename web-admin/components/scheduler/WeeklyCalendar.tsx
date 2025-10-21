@@ -144,7 +144,15 @@ export function WeeklyCalendar({
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm relative">
+      {/* Invisible backdrop when any menu is open - renders at calendar level */}
+      {openMenuId && (
+        <div
+          className="fixed inset-0 z-[100]"
+          onClick={() => setOpenMenuId(null)}
+        />
+      )}
+
       {/* Calendar Grid - preserving the exact visual structure from original */}
       <div className="grid grid-cols-6 divide-x divide-gray-200">
         {/* Time column header */}
@@ -220,27 +228,21 @@ export function WeeklyCalendar({
                           <div className="relative">
                             <button
                               onClick={(e) => handleMenuToggle(e, schedule.id)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 text-xs p-1 hover:bg-white rounded cursor-pointer"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 text-xs p-1 hover:bg-white rounded cursor-pointer z-[110]"
                             >
                               ⋮⋮
                             </button>
 
-                            {/* Invisible backdrop - closes menu when clicking outside */}
+                            {/* Dropdown menu - backdrop is at calendar root level */}
                             {openMenuId === schedule.id && (
-                              <>
-                                <div
-                                  className="fixed inset-0 z-[5]"
-                                  onClick={() => setOpenMenuId(null)}
-                                />
-                                <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[15] min-w-[120px]">
-                                  <button
-                                    onClick={(e) => handleDeleteSchedule(e, schedule.id)}
-                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              </>
+                              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[110] min-w-[120px]">
+                                <button
+                                  onClick={(e) => handleDeleteSchedule(e, schedule.id)}
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                >
+                                  Delete
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
