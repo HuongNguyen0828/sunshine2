@@ -1,3 +1,4 @@
+// web-admin/components/dashboard/ClassesTab.tsx
 "use client";
 
 import * as Types from "../../../shared/types/type";
@@ -25,8 +26,20 @@ type Props = {
   onAssigned?: () => Promise<void> | void;
 };
 
+/** Narrowing helper for optional status. */
 function hasStatus(obj: unknown): obj is { status?: string } {
   return typeof obj === "object" && obj !== null && "status" in obj;
+}
+
+/** Narrowing helper for optional locationId without using any. */
+function hasLocationId(obj: unknown): obj is { locationId?: string } {
+  return typeof obj === "object" && obj !== null && "locationId" in obj;
+}
+
+/** Resolve class by id. */
+function getClassById(list: Types.Class[], id?: string | null): Types.Class | undefined {
+  if (!id) return undefined;
+  return list.find(c => c.id === id);
 }
 
 export default function ClassesTab({
@@ -40,6 +53,7 @@ export default function ClassesTab({
   onDeleted,
   onAssigned,
 }: Props) {
+  // UI state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [capacityFilter, setCapacityFilter] =
@@ -47,15 +61,18 @@ export default function ClassesTab({
   const [currentPage, setCurrentPage] = useState(1);
   const [editingClass, setEditingClass] = useState<Types.Class | null>(null);
 
+  // Assign modal state
   const [showAssignTeachers, setShowAssignTeachers] = useState<string | null>(null);
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
   const [teacherOptions, setTeacherOptions] = useState<TeacherCandidate[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
 
+  // Draft autosave for "Add Class" form
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Restore draft when opening "Add" (not for edit)
   useEffect(() => {
     if (isFormOpen && !editingClass) {
       const draft = sessionStorage.getItem("class-form-draft");
@@ -64,17 +81,21 @@ export default function ClassesTab({
           const parsed = JSON.parse(draft);
           setNewClass(parsed);
           setIsDraftRestored(true);
-        } catch {}
+        } catch {
+          /* ignore */
+        }
       }
     }
   }, [isFormOpen, editingClass, setNewClass]);
 
+  // Cleanup debounce timer
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, []);
 
+  /** Local form updater with debounced draft save for "Add" */
   const updateClass = useCallback(
     (updates: Partial<NewClassInput>) => {
       setNewClass(prev => {
@@ -91,16 +112,14 @@ export default function ClassesTab({
     [editingClass, setNewClass]
   );
 
+  /** Clear local draft (optionally reset fields) */
   const clearDraft = useCallback(
     (resetFields = false) => {
       sessionStorage.removeItem("class-form-draft");
       setIsDraftRestored(false);
-
-      // also reset form fields when requested
       if (resetFields) {
         setNewClass({
           name: "",
-          // if you prefer empty string instead of first location, change to ""
           locationId: (locations ?? [])[0]?.id ?? "",
           capacity: 0,
           volume: 0,
@@ -113,6 +132,7 @@ export default function ClassesTab({
     [locations, setNewClass]
   );
 
+  /** Capacity helpers */
   const getCapacityStatus = (volume: number, capacity: number) => {
     if (capacity <= 0) return "available";
     const percentage = (volume / capacity) * 100;
@@ -120,22 +140,24 @@ export default function ClassesTab({
     if (percentage < 90) return "nearly-full";
     return "full";
   };
-
   const getCapacityColor = (status: string) =>
     status === "available" ? "bg-green-500" : status === "nearly-full" ? "bg-yellow-500" : "bg-red-500";
 
+  /** Location label helper */
   const getLocationLabel = (locId?: string) => {
     if (!locId) return "—";
     const found = (locations ?? []).find(l => l.id === locId);
     return found?.name || locId;
   };
 
+  /** Initials for avatars */
   const getTeacherInitials = (firstName?: string, lastName?: string) => {
     const a = (firstName?.trim()?.[0] ?? "").toUpperCase();
     const b = (lastName?.trim()?.[0] ?? "").toUpperCase();
     return (a + b) || "T";
   };
 
+  /** Client-side search/filter */
   const filteredClasses = useMemo(() => {
     return classes.filter(cls => {
       const locName = (locations ?? []).find(l => l.id === cls.locationId)?.name || "";
@@ -150,11 +172,13 @@ export default function ClassesTab({
     });
   }, [classes, locations, searchTerm, capacityFilter]);
 
+  // Pagination
   const classesPerPage = 6;
   const totalPages = Math.max(1, Math.ceil(filteredClasses.length / classesPerPage));
   const startIndex = (currentPage - 1) * classesPerPage;
   const paginatedClasses = filteredClasses.slice(startIndex, startIndex + classesPerPage);
 
+  /** Create / Update class submit */
   async function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -192,6 +216,7 @@ export default function ClassesTab({
     setIsFormOpen(false);
   }
 
+  /** Open Add modal */
   function handleAddClick() {
     if ((locations ?? []).length === 0) {
       alert("No locations available. Please create a location first.");
@@ -210,6 +235,7 @@ export default function ClassesTab({
     setIsFormOpen(true);
   }
 
+  /** Open Edit modal */
   function handleEditClick(cls: Types.Class) {
     setEditingClass(cls);
     setNewClass({
@@ -224,6 +250,7 @@ export default function ClassesTab({
     setIsFormOpen(true);
   }
 
+  /** Delete a class */
   async function handleDeleteClick(cls: Types.Class) {
     const ok = window.confirm(`Delete class "${cls.name}"?`);
     if (!ok) return;
@@ -231,18 +258,29 @@ export default function ClassesTab({
     if (success) onDeleted?.(cls.id);
   }
 
+  /**
+   * Open Assign modal.
+   * Fetch teacher candidates filtered by this class's location (server-enforced).
+   */
   async function openAssign(classId: string) {
     setShowAssignTeachers(classId);
     setLoadingCandidates(true);
     try {
-      const candidates = await fetchTeacherCandidates(true);
+      const cls = getClassById(classes, classId);
+
+      const candidates = await fetchTeacherCandidates({
+        onlyNew: true,
+        classId, // server derives location and enforces scope
+        // locationId: cls?.locationId, // optional explicit filter
+      });
       setTeacherOptions(candidates);
 
-      const cls = classes.find(c => c.id === classId);
+      // Preselect currently assigned teachers
       const pre: string[] = Array.isArray((cls as unknown as { teacherIds?: string[] })?.teacherIds)
         ? ((cls as unknown as { teacherIds?: string[] }).teacherIds as string[])
         : teachers.filter(t => (t.classIds || []).includes(classId)).map(t => t.id);
 
+      // Ensure currently assigned (non-New) teachers appear in the list
       const candidateIds = new Set(candidates.map(c => c.id));
       const extras: TeacherCandidate[] = [];
       for (const id of pre) {
@@ -258,17 +296,23 @@ export default function ClassesTab({
               email: fromProps.email,
               status,
               classIds: fromProps.classIds ?? [],
+              locationId: hasLocationId(fromProps) ? fromProps.locationId : undefined,
             });
           }
         }
       }
       if (extras.length > 0) setTeacherOptions(prev => [...prev, ...extras]);
+
       setSelectedTeachers(pre);
     } finally {
       setLoadingCandidates(false);
     }
   }
 
+  /**
+   * Save assignment.
+   * Backend strictly enforces teacher.locationId === class.locationId.
+   */
   async function handleSaveTeachers() {
     if (!showAssignTeachers || isAssigning) return;
     try {
@@ -286,6 +330,7 @@ export default function ClassesTab({
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Header + Filters */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-3xl font-bold text-gray-800">Classes</h2>
@@ -359,6 +404,7 @@ export default function ClassesTab({
         )}
       </div>
 
+      {/* Cards */}
       {paginatedClasses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {paginatedClasses.map(cls => {
@@ -466,6 +512,7 @@ export default function ClassesTab({
         </div>
       )}
 
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2">
           <button
@@ -506,6 +553,7 @@ export default function ClassesTab({
         </div>
       )}
 
+      {/* Add/Edit modal */}
       {isFormOpen && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
@@ -665,6 +713,7 @@ export default function ClassesTab({
         </div>
       )}
 
+      {/* Assign Teachers modal */}
       {showAssignTeachers && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
@@ -691,7 +740,9 @@ export default function ClassesTab({
             </div>
 
             <div className="p-6">
-              <p className="text-gray-600 text-sm mb-4">Select teachers to assign to this class:</p>
+              <p className="text-gray-600 text-sm mb-4">
+                Select teachers for this class. Only teachers from the same location are shown.
+              </p>
 
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {loadingCandidates ? (
@@ -727,7 +778,9 @@ export default function ClassesTab({
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     No teachers available
-                    <div className="text-xs mt-1">Try saving with an empty selection to auto-assign NEW teachers.</div>
+                    <div className="text-xs mt-1">
+                      Save with an empty selection to auto-assign NEW teachers in this location.
+                    </div>
                   </div>
                 )}
               </div>
