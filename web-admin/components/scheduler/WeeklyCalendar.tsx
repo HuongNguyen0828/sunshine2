@@ -97,6 +97,11 @@ export function WeeklyCalendar({
   };
 
   const handleDragStart = (e: React.DragEvent, schedule: Schedule) => {
+    // Don't start drag if menu is open
+    if (openMenuId === schedule.id) {
+      e.preventDefault();
+      return;
+    }
     e.stopPropagation();
     setDraggedSchedule(schedule);
     e.dataTransfer.effectAllowed = 'move';
@@ -212,7 +217,7 @@ export function WeeklyCalendar({
                           </div>
 
                           {/* Menu button with dropdown */}
-                          <div className="relative">
+                          <div className="relative" onMouseDown={(e) => e.stopPropagation()}>
                             <button
                               onClick={(e) => handleMenuToggle(e, schedule.id)}
                               className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 text-xs p-1 hover:bg-white rounded cursor-pointer"
@@ -220,9 +225,13 @@ export function WeeklyCalendar({
                               ⋮⋮
                             </button>
 
-                            {/* Dropdown menu */}
+                            {/* Dropdown menu - blocks all events to prevent drag underneath */}
                             {openMenuId === schedule.id && (
-                              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[120px]">
+                              <div
+                                className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[120px]"
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onDragStart={(e) => e.preventDefault()}
+                              >
                                 <button
                                   onClick={(e) => handleDeleteSchedule(e, schedule.id)}
                                   className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
