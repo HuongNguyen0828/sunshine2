@@ -180,12 +180,9 @@ export function WeeklyCalendar({
                     {slotSchedules.map((schedule) => (
                       <div
                         key={schedule.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, schedule)}
                         onDragOver={(e) => handleDragOver(e, schedule)}
                         onDrop={(e) => handleDrop(e, schedule)}
-                        onDragEnd={handleDragEnd}
-                        className={`group relative rounded-lg px-3 py-2 cursor-move transition-all hover:scale-[1.02] hover:shadow-md ${
+                        className={`group relative rounded-lg px-3 py-2 transition-all hover:scale-[1.02] hover:shadow-md ${
                           draggedSchedule?.id === schedule.id ? 'opacity-50' : ''
                         }`}
                         style={{
@@ -195,7 +192,10 @@ export function WeeklyCalendar({
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div
-                            className="flex-1 min-w-0"
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, schedule)}
+                            onDragEnd={handleDragEnd}
+                            className="flex-1 min-w-0 cursor-move"
                             onClick={() => handleSlotClick(day, timeSlot.key)}
                           >
                             <h4
@@ -215,7 +215,7 @@ export function WeeklyCalendar({
                           <div className="relative">
                             <button
                               onClick={(e) => handleMenuToggle(e, schedule.id)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 text-xs p-1 hover:bg-white rounded"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 text-xs p-1 hover:bg-white rounded cursor-pointer"
                             >
                               ⋮⋮
                             </button>
