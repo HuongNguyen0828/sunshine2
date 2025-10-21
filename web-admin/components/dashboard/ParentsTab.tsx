@@ -29,7 +29,14 @@ export default function ParentsTab({
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Restore draft when form opens
+  // Debounced save cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+
+  // Restore draft when form opens (add mode only)
   useEffect(() => {
     if (isFormOpen && !editingParent) {
       const draft = sessionStorage.getItem('parent-form-draft');
@@ -45,30 +52,59 @@ export default function ParentsTab({
     }
   }, [isFormOpen, editingParent, setNewParent]);
 
-  // Helper to update form and save draft
-  const updateParent = useCallback((updates: Partial<NewParentInput>) => {
-    setNewParent(prev => {
-      const updated = { ...prev, ...updates };
+  // Update form and persist a draft (debounced)
+  const updateParent = useCallback(
+    (updates: Partial<NewParentInput>) => {
+      setNewParent(prev => {
+        const updated = { ...prev, ...updates };
 
-      // Save to sessionStorage with debounce
-      if (!editingParent) {
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
+        // Only save draft in add mode
+        if (!editingParent) {
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+          }
+          saveTimeoutRef.current = setTimeout(() => {
+            sessionStorage.setItem('parent-form-draft', JSON.stringify(updated));
+          }, 500);
         }
-        saveTimeoutRef.current = setTimeout(() => {
-          sessionStorage.setItem('parent-form-draft', JSON.stringify(updated));
-        }, 500);
-      }
 
-      return updated;
+        return updated;
+      });
+    },
+    [editingParent, setNewParent]
+  );
+
+  // Reset form fields to initial values
+  const resetForm = useCallback(() => {
+    setNewParent({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      childIds: [],
+      street: '',
+      city: '',
+      province: '',
+      country: '',
+      // If your NewParentInput uses required strings, keep empty string.
+      // If optional, empty string is still safe for UI.
+      emergencyContact: '',
+      updatedAt: '',
+      preferredLanguage: '',
     });
-  }, [editingParent, setNewParent]);
+  }, [setNewParent]);
 
-  // Clear draft
-  const clearDraft = useCallback(() => {
-    sessionStorage.removeItem('parent-form-draft');
-    setIsDraftRestored(false);
-  }, []);
+  // Clear draft (and optionally reset form fields)
+  const clearDraft = useCallback(
+    (resetFields = false) => {
+      sessionStorage.removeItem('parent-form-draft');
+      setIsDraftRestored(false);
+      if (resetFields) {
+        resetForm();
+      }
+    },
+    [resetForm]
+  );
 
   // Filter parents based on search
   const filteredParents = parents.filter(parent =>
@@ -80,38 +116,22 @@ export default function ParentsTab({
 
   // Pagination logic
   const parentsPerPage = 6;
-  const totalPages = Math.ceil(filteredParents.length / parentsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredParents.length / parentsPerPage));
   const startIndex = (currentPage - 1) * parentsPerPage;
   const paginatedParents = filteredParents.slice(startIndex, startIndex + parentsPerPage);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingParent) {
+      // Replace with your real update flow if available
       console.log('Update parent:', { ...editingParent, ...newParent });
       setEditingParent(null);
       resetForm();
     } else {
       onAdd();
     }
-    clearDraft(); // Clear draft after successful submission
+    clearDraft(); // remove stored draft after submit
     setIsFormOpen(false);
-  };
-
-  const resetForm = () => {
-    setNewParent({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      childIds: [],
-      street: '',
-      city: '',
-      province: '',
-      country: '',
-      emergencyContact: undefined,
-      updatedAt: undefined,
-      preferredLanguage: undefined,
-    });
   };
 
   const handleAddClick = () => {
@@ -132,15 +152,16 @@ export default function ParentsTab({
       city: parent.city,
       province: parent.province,
       country: parent.country,
-      emergencyContact: parent.emergencyContact,
-      updatedAt: parent.updatedAt,
-      preferredLanguage: parent.preferredLanguage,
+      emergencyContact: parent.emergencyContact ?? '',
+      updatedAt: parent.updatedAt ?? '',
+      preferredLanguage: parent.preferredLanguage ?? '',
     });
     setIsFormOpen(true);
   };
 
   const handleDeleteClick = (parent: Types.Parent) => {
     if (window.confirm(`Are you sure you want to delete ${parent.firstName} ${parent.lastName}?`)) {
+      // Replace with your real delete flow
       console.log('Delete parent:', parent.id);
     }
   };
@@ -496,9 +517,10 @@ export default function ParentsTab({
                 {!editingParent && (
                   <button
                     type="button"
-                    onClick={clearDraft}
+                    onClick={() => clearDraft(true)}
                     className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
                   >
+                    {/* reset fields too */}
                     Clear Draft
                   </button>
                 )}
