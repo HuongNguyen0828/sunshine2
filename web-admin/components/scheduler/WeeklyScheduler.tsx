@@ -207,6 +207,70 @@ export function WeeklyScheduler() {
     }
   };
 
+  const handleScheduleDeleted = async (scheduleId: string) => {
+    try {
+      await SchedulerAPI.deleteSchedule(scheduleId);
+      setSchedulesData(prev => prev.filter(s => s.id !== scheduleId));
+      setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+    }
+  };
+
+  const handleScheduleReordered = async (
+    scheduleId: string,
+    newOrder: number,
+    dayOfWeek: string,
+    timeSlot: string
+  ) => {
+    try {
+      // Get all schedules in the same slot
+      const slotSchedules = schedules.filter(
+        s => s.dayOfWeek === dayOfWeek && s.timeSlot === timeSlot
+      ).sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      const draggedSchedule = slotSchedules.find(s => s.id === scheduleId);
+      if (!draggedSchedule) return;
+
+      const oldOrder = draggedSchedule.order;
+
+      // Reorder locally for immediate feedback
+      const reordered = slotSchedules.map(s => {
+        if (s.id === scheduleId) {
+          return { ...s, order: newOrder };
+        }
+        // Shift others
+        if (oldOrder < newOrder) {
+          // Moving down
+          if (s.order > oldOrder && s.order <= newOrder) {
+            return { ...s, order: s.order - 1 };
+          }
+        } else {
+          // Moving up
+          if (s.order >= newOrder && s.order < oldOrder) {
+            return { ...s, order: s.order + 1 };
+          }
+        }
+        return s;
+      });
+
+      // Update local state
+      setSchedules(prev => {
+        const filtered = prev.filter(
+          s => !(s.dayOfWeek === dayOfWeek && s.timeSlot === timeSlot)
+        );
+        return [...filtered, ...reordered];
+      });
+
+      // TODO: Add backend API to update order
+      // For now, we'll need to delete and recreate schedules in new order
+      // This is a limitation we can improve later with a PATCH endpoint
+
+    } catch (error) {
+      console.error('Error reordering schedule:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -304,6 +368,8 @@ export function WeeklyScheduler() {
                   targetClassName={cls.name}
                   onActivityAssigned={handleActivityAssigned}
                   onActivityRemoved={handleActivityRemoved}
+                  onScheduleDeleted={handleScheduleDeleted}
+                  onScheduleReordered={handleScheduleReordered}
                 />
               </div>
             );
@@ -318,6 +384,8 @@ export function WeeklyScheduler() {
           targetClassName={classes.find(c => c.id === selectedClassId)?.name}
           onActivityAssigned={handleActivityAssigned}
           onActivityRemoved={handleActivityRemoved}
+          onScheduleDeleted={handleScheduleDeleted}
+          onScheduleReordered={handleScheduleReordered}
         />
       )}
 

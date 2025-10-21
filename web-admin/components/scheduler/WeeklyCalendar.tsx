@@ -19,6 +19,8 @@ interface WeeklyCalendarProps {
   targetClassName?: string; // The name of the class (for display in modal)
   onActivityAssigned: (params: { dayOfWeek: string; timeSlot: string; activityId: string; targetClassId?: string }) => void;
   onActivityRemoved: (params: { dayOfWeek: string; timeSlot: string }) => void;
+  onScheduleDeleted: (scheduleId: string) => void;
+  onScheduleReordered: (scheduleId: string, newOrder: number, dayOfWeek: string, timeSlot: string) => void;
 }
 
 // This component embodies the core transformation: from reactive mutations to callback-based updates
@@ -30,9 +32,13 @@ export function WeeklyCalendar({
   targetClassId,
   targetClassName,
   onActivityAssigned,
-  onActivityRemoved
+  onActivityRemoved,
+  onScheduleDeleted,
+  onScheduleReordered
 }: WeeklyCalendarProps) {
   const [selectedSlot, setSelectedSlot] = useState<SlotInfo | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [draggedSchedule, setDraggedSchedule] = useState<Schedule | null>(null);
 
   const getSchedulesForSlot = (day: string, timeSlot: string) => {
     return schedules
@@ -72,11 +78,64 @@ export function WeeklyCalendar({
     const date = new Date(weekStart);
     const dayIndex = WEEKDAYS.indexOf(day as any);
     date.setDate(date.getDate() + dayIndex);
-    
+
     return {
       name: day.charAt(0).toUpperCase() + day.slice(1),
       date: date.getDate(),
     };
+  };
+
+  const handleMenuToggle = (e: React.MouseEvent, scheduleId: string) => {
+    e.stopPropagation();
+    setOpenMenuId(openMenuId === scheduleId ? null : scheduleId);
+  };
+
+  const handleDeleteSchedule = (e: React.MouseEvent, scheduleId: string) => {
+    e.stopPropagation();
+    onScheduleDeleted(scheduleId);
+    setOpenMenuId(null);
+  };
+
+  const handleDragStart = (e: React.DragEvent, schedule: Schedule) => {
+    e.stopPropagation();
+    setDraggedSchedule(schedule);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetSchedule: Schedule) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!draggedSchedule || draggedSchedule.id === targetSchedule.id) return;
+
+    // Only allow reordering within the same slot
+    if (draggedSchedule.dayOfWeek === targetSchedule.dayOfWeek &&
+        draggedSchedule.timeSlot === targetSchedule.timeSlot) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetSchedule: Schedule) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!draggedSchedule || draggedSchedule.id === targetSchedule.id) return;
+
+    // Only allow reordering within the same slot
+    if (draggedSchedule.dayOfWeek === targetSchedule.dayOfWeek &&
+        draggedSchedule.timeSlot === targetSchedule.timeSlot) {
+      onScheduleReordered(
+        draggedSchedule.id,
+        targetSchedule.order,
+        targetSchedule.dayOfWeek,
+        targetSchedule.timeSlot
+      );
+    }
+
+    setDraggedSchedule(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedSchedule(null);
   };
 
   return (
@@ -121,15 +180,24 @@ export function WeeklyCalendar({
                     {slotSchedules.map((schedule) => (
                       <div
                         key={schedule.id}
-                        className="group relative rounded-lg px-3 py-2 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md"
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, schedule)}
+                        onDragOver={(e) => handleDragOver(e, schedule)}
+                        onDrop={(e) => handleDrop(e, schedule)}
+                        onDragEnd={handleDragEnd}
+                        className={`group relative rounded-lg px-3 py-2 cursor-move transition-all hover:scale-[1.02] hover:shadow-md ${
+                          draggedSchedule?.id === schedule.id ? 'opacity-50' : ''
+                        }`}
                         style={{
                           backgroundColor: schedule.activity?.color + '20',
                           borderLeft: `4px solid ${schedule.activity?.color}`,
                         }}
-                        onClick={() => handleSlotClick(day, timeSlot.key)}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
+                          <div
+                            className="flex-1 min-w-0"
+                            onClick={() => handleSlotClick(day, timeSlot.key)}
+                          >
                             <h4
                               className="font-medium text-sm truncate"
                               style={{ color: schedule.activity?.color }}
@@ -142,9 +210,27 @@ export function WeeklyCalendar({
                               </p>
                             )}
                           </div>
-                          {/* Drag handle - for future drag-drop */}
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 text-xs">
-                            ⋮⋮
+
+                          {/* Menu button with dropdown */}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => handleMenuToggle(e, schedule.id)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 text-xs p-1 hover:bg-white rounded"
+                            >
+                              ⋮⋮
+                            </button>
+
+                            {/* Dropdown menu */}
+                            {openMenuId === schedule.id && (
+                              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[120px]">
+                                <button
+                                  onClick={(e) => handleDeleteSchedule(e, schedule.id)}
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
