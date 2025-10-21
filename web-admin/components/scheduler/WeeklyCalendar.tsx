@@ -41,6 +41,7 @@ export function WeeklyCalendar({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [draggedSchedule, setDraggedSchedule] = useState<Schedule | null>(null);
   const [dragPreviewPosition, setDragPreviewPosition] = useState<{ x: number; y: number } | null>(null);
+  const [dropIndicatorPosition, setDropIndicatorPosition] = useState<{ scheduleId: string; position: 'before' | 'after' } | null>(null);
 
   const getSchedulesForSlot = (day: string, timeSlot: string) => {
     return schedules
@@ -118,12 +119,24 @@ export function WeeklyCalendar({
   const handleDragOver = (e: React.DragEvent, targetSchedule: Schedule) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!draggedSchedule || draggedSchedule.id === targetSchedule.id) return;
+    if (!draggedSchedule || draggedSchedule.id === targetSchedule.id) {
+      setDropIndicatorPosition(null);
+      return;
+    }
 
     // Only allow reordering within the same slot
     if (draggedSchedule.dayOfWeek === targetSchedule.dayOfWeek &&
         draggedSchedule.timeSlot === targetSchedule.timeSlot) {
       e.dataTransfer.dropEffect = 'move';
+
+      // Calculate if we should show indicator before or after this pill
+      const rect = e.currentTarget.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      const position = e.clientY < midpoint ? 'before' : 'after';
+
+      setDropIndicatorPosition({ scheduleId: targetSchedule.id, position });
+    } else {
+      setDropIndicatorPosition(null);
     }
   };
 
@@ -155,6 +168,7 @@ export function WeeklyCalendar({
   const handleDragEnd = () => {
     setDraggedSchedule(null);
     setDragPreviewPosition(null);
+    setDropIndicatorPosition(null);
   };
 
   return (
@@ -239,31 +253,44 @@ export function WeeklyCalendar({
                     {/* Activity pills - stacked vertically with Framer Motion */}
                     <AnimatePresence mode="popLayout">
                       {slotSchedules.map((schedule) => (
-                        <motion.div
-                          key={schedule.id}
-                          layoutId={schedule.id}
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{
-                            opacity: draggedSchedule?.id === schedule.id ? 0.3 : 1,
-                            y: 0,
-                            scale: draggedSchedule?.id === schedule.id ? 0.95 : 1,
-                          }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{
-                            layout: { type: "spring", damping: 25, stiffness: 300 },
-                            opacity: { duration: 0.15 },
-                            scale: { duration: 0.15 },
-                          }}
-                          onDragOver={(e) => handleDragOver(e, schedule)}
-                          onDrop={(e) => handleDrop(e, schedule)}
-                          className={`group relative rounded-lg px-3 py-2 ${
-                            openMenuId === schedule.id ? '' : 'hover:scale-[1.02] hover:shadow-md'
-                          }`}
-                          style={{
-                            backgroundColor: schedule.activity?.color + '20',
-                            borderLeft: `4px solid ${schedule.activity?.color}`,
-                          }}
-                        >
+                        <div key={schedule.id} className="relative">
+                          {/* Drop indicator line - shows BEFORE this pill */}
+                          {dropIndicatorPosition?.scheduleId === schedule.id &&
+                            dropIndicatorPosition.position === 'before' && (
+                            <motion.div
+                              initial={{ opacity: 0, scaleX: 0 }}
+                              animate={{ opacity: 1, scaleX: 1 }}
+                              className="absolute -top-1 left-0 right-0 h-[3px] bg-blue-500 rounded-full z-10"
+                              style={{
+                                boxShadow: '0 0 8px rgba(59, 130, 246, 0.6)',
+                              }}
+                            />
+                          )}
+
+                          <motion.div
+                            layoutId={schedule.id}
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{
+                              opacity: draggedSchedule?.id === schedule.id ? 0.3 : 1,
+                              y: 0,
+                              scale: draggedSchedule?.id === schedule.id ? 0.95 : 1,
+                            }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            transition={{
+                              layout: { type: "spring", damping: 25, stiffness: 300 },
+                              opacity: { duration: 0.15 },
+                              scale: { duration: 0.15 },
+                            }}
+                            onDragOver={(e) => handleDragOver(e, schedule)}
+                            onDrop={(e) => handleDrop(e, schedule)}
+                            className={`group relative rounded-lg px-3 py-2 ${
+                              openMenuId === schedule.id ? '' : 'hover:scale-[1.02] hover:shadow-md'
+                            }`}
+                            style={{
+                              backgroundColor: schedule.activity?.color + '20',
+                              borderLeft: `4px solid ${schedule.activity?.color}`,
+                            }}
+                          >
                         <div className="flex items-start justify-between gap-2">
                           <div
                             draggable
@@ -313,7 +340,21 @@ export function WeeklyCalendar({
                             )}
                           </div>
                         </div>
-                        </motion.div>
+                          </motion.div>
+
+                          {/* Drop indicator line - shows AFTER this pill */}
+                          {dropIndicatorPosition?.scheduleId === schedule.id &&
+                            dropIndicatorPosition.position === 'after' && (
+                            <motion.div
+                              initial={{ opacity: 0, scaleX: 0 }}
+                              animate={{ opacity: 1, scaleX: 1 }}
+                              className="absolute -bottom-1 left-0 right-0 h-[3px] bg-blue-500 rounded-full z-10"
+                              style={{
+                                boxShadow: '0 0 8px rgba(59, 130, 246, 0.6)',
+                              }}
+                            />
+                          )}
+                        </div>
                       ))}
                     </AnimatePresence>
 
