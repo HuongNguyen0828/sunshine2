@@ -621,7 +621,13 @@ export default function AdminDashboard() {
             )}
 
             {activeTab === "teachers" && (
-              <TeachersTab teachers={teachers} newTeacher={newTeacher} setNewTeacher={setNewTeacher} onAdd={handleAddTeacher} />
+              <TeachersTab
+                teachers={teachers}
+                newTeacher={newTeacher}
+                setNewTeacher={setNewTeacher}
+                onAdd={handleAddTeacher}
+                locations={filteredLocations}
+              />
             )}
 
             {activeTab === "children" && (

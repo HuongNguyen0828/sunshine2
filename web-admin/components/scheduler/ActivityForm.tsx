@@ -6,39 +6,37 @@
  */
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { Activity } from "@/types/scheduler";
-import { useFormDraft } from "@/hooks/useFormDraft";
+import type { Class } from "../../../shared/types/type";
 
 interface ActivityFormProps {
   onClose: () => void;
   onActivityCreated: (activity: Omit<Activity, 'id' | '_creationTime' | 'userId'>) => void;
+  classes: Class[];
 }
 
 // This component shifts from Convex mutations to callback patterns
 // The form experience remains identical, but the data flow consciousness changes completely
-export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) {
+// Predefined color palette for activities
+const ACTIVITY_COLORS = [
+  { name: 'Blue', value: '#3B82F6', bg: 'bg-blue-500' },
+  { name: 'Green', value: '#10B981', bg: 'bg-green-500' },
+  { name: 'Yellow', value: '#F59E0B', bg: 'bg-yellow-500' },
+  { name: 'Purple', value: '#8B5CF6', bg: 'bg-purple-500' },
+  { name: 'Pink', value: '#EC4899', bg: 'bg-pink-500' },
+  { name: 'Red', value: '#EF4444', bg: 'bg-red-500' },
+  { name: 'Indigo', value: '#6366F1', bg: 'bg-indigo-500' },
+  { name: 'Teal', value: '#14B8A6', bg: 'bg-teal-500' },
+];
+
+export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [materials, setMaterials] = useState("");
+  const [color, setColor] = useState(ACTIVITY_COLORS[0].value);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Form draft management
-  const { isDraftRestored, saveDraft, clearDraft } = useFormDraft({
-    formKey: 'activity-form',
-    initialData: { title: "", description: "", materials: "" },
-    onRestore: (draft) => {
-      setTitle(draft.title || "");
-      setDescription(draft.description || "");
-      setMaterials(draft.materials || "");
-    },
-  });
-
-  // Helper to save draft
-  const saveFormDraft = useCallback(() => {
-    saveDraft({ title, description, materials });
-  }, [title, description, materials, saveDraft]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,9 +54,9 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
         title: title.trim(),
         description: description.trim(),
         materials: materials.trim(),
+        color,
       });
 
-      clearDraft(); // Clear draft after successful submission
       // Success! Parent will handle the close
     } catch (error) {
       console.error('Error creating activity:', error);
@@ -77,9 +75,6 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
               <h3 className="text-lg font-semibold text-gray-900">
                 Create New Activity
               </h3>
-              {isDraftRestored && (
-                <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
-              )}
             </div>
             <button
               onClick={onClose}
@@ -106,7 +101,7 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
               type="text"
               id="title"
               value={title}
-              onChange={(e) => { setTitle(e.target.value); saveFormDraft(); }}
+              onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               placeholder="e.g., Story Time, Art & Crafts"
               required
@@ -121,7 +116,7 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
             <textarea
               id="description"
               value={description}
-              onChange={(e) => { setDescription(e.target.value); saveFormDraft(); }}
+              onChange={(e) => setDescription(e.target.value)}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
               placeholder="Describe the activity and learning objectives..."
@@ -137,11 +132,42 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
               type="text"
               id="materials"
               value={materials}
-              onChange={(e) => { setMaterials(e.target.value); saveFormDraft(); }}
+              onChange={(e) => setMaterials(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               placeholder="e.g., Crayons, paper, glue sticks"
               disabled={isSubmitting}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Activity Color
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {ACTIVITY_COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setColor(c.value)}
+                  disabled={isSubmitting}
+                  className={`
+                    relative h-12 rounded-lg transition-all
+                    ${c.bg}
+                    ${color === c.value
+                      ? 'ring-2 ring-offset-2 ring-gray-900 scale-105'
+                      : 'hover:scale-105 opacity-80 hover:opacity-100'
+                    }
+                  `}
+                  title={c.name}
+                >
+                  {color === c.value && (
+                    <span className="absolute inset-0 flex items-center justify-center text-white text-xl font-bold">
+                      ✓
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -152,14 +178,6 @@ export function ActivityForm({ onClose, onActivityCreated }: ActivityFormProps) 
               disabled={isSubmitting}
             >
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={clearDraft}
-              className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm"
-              disabled={isSubmitting}
-            >
-              Clear Draft
             </button>
             <button
               type="submit"

@@ -3,12 +3,19 @@
 
 import e, { Request, Response } from "express";
 import * as TeacherService from "../../services/web-admin/teacherService";
+import { daycareLocationIds } from "../../services/authService";
+
 
 // POST /api/teachers
 // Create a new teacher
 export const addTeacher = async (req: Request, res: Response) => { 
   // Extract loationId and the teacher data from req.user and req.body
   const locationId = req.user?.locationId;
+  const daycareId = req.user?.daycareId;
+
+  if (!daycareId) {
+    return res.status(400).json({message: "Daycare missing from current Admin  profile"});
+  }
 
   // Check locationId exists
   if (!locationId) {
@@ -22,7 +29,7 @@ export const addTeacher = async (req: Request, res: Response) => {
 
   // Else, create the teacher
   try {
-    const created = await TeacherService.addTeacher(locationId, teacherData);
+    const created = await TeacherService.addTeacher(teacherData);
     // Case null returned: email already exists
     if (!created) {
       throw new Error("Email already exists");
@@ -37,15 +44,19 @@ export const addTeacher = async (req: Request, res: Response) => {
 // GET /api/teachers
 // List all teachers
 export const getAllTeachers = async (req: Request, res: Response) => {
-  // Extract locationId from req.user (set by authMiddleware)
+  // Extract locationId and daycareId from req.user (set by authMiddleware)
   const locationId = req.user?.locationId;
+  const daycareId = req.user?.daycareId;
+  if (!daycareId) {
+    return res.status(400).json({message: "Daycare missing from user profile"});
+  }
   if (!locationId) {
     return res.status(400).json({message: "Location missing from user profile"});
   }
 
-  // Else, get all teachers only of that location
+  // Else, get all teachers only of that daycare and location
   try {
-    const teachers = await TeacherService.getAllTeachers(locationId);
+    const teachers = await TeacherService.getAllTeachers(daycareId, locationId);
     return res.status(200).json(teachers);
   } catch (e: any) {
     return res.status(500).json({ message: e?.message || "Failed to fetch teachers" });
@@ -78,6 +89,15 @@ export const updateTeacher = async (req: Request, res: Response) => {
     return res.status(400).json({message: "Location missing from current Admin profile"});
   }
   
+  const daycareId = req.user?.daycareId;
+
+  if (!daycareId) {
+    return res.status(400).json({message: "Daycare missing from current Admin  profile"});
+  }
+  // Get the list of location Id: 
+  const locationIds = await daycareLocationIds(daycareId);
+
+
   try {
     const id = req.params.id;
     if (!id) return res.status(400).json({ message: "id required" });
@@ -86,9 +106,12 @@ export const updateTeacher = async (req: Request, res: Response) => {
     const teacher = await TeacherService.getTeacherById(id);
     if (!teacher) return res.status(404).json({ message: "Teacher not found" });
 
-    // Check if teacher belongs to admin's location
-    if (teacher.locationId !== locationId) {
-      return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
+    if (!teacher.locationId) {
+      return res.status(403).json({ message: "Teacher data is missing location" });
+    }
+    // Check if teacher belongs to admin's location list
+    if (!locationIds.includes(teacher.locationId)) {
+      return res.status(403).json({ message: "Forbidden: cannot edit teacher from another location" });
     }
 
     const updated = await TeacherService.updateTeacher(id, req.body);

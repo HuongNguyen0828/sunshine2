@@ -15,6 +15,7 @@ interface ActivitySelectorProps {
   onRemove: () => void;
   onClose: () => void;
   slotInfo: SlotInfo;
+  targetClassName?: string; // Name of the class this activity is being assigned to
 }
 
 // This component preserves its modal interaction patterns but adapts to new data types
@@ -25,7 +26,8 @@ export function ActivitySelector({
   onSelect,
   onRemove,
   onClose,
-  slotInfo
+  slotInfo,
+  targetClassName
 }: ActivitySelectorProps) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -96,6 +98,13 @@ export function ActivitySelector({
         </div>
 
         <div className="p-6 border-t border-gray-200">
+          {targetClassName && (
+            <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-900">
+                <span className="font-medium">Assigning to:</span> {targetClassName}
+              </p>
+            </div>
+          )}
           <button
             onClick={onClose}
             className="w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

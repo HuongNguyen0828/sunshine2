@@ -214,3 +214,9 @@ export async function findDaycareAndLocationByEmail(email: string | null): Promi
     return null;
   }
 }
+
+// Get all locationId of a daycare by known daycareId
+export async function daycareLocationIds(daycareId: string): Promise<string[]> {
+  const snap = await db.collection(`daycareProvider/${daycareId}/locations`).get();
+  return snap.docs.map((d) => d.id);
+}

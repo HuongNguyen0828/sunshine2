@@ -9,6 +9,11 @@ export const sharedStyles: Record<string, CSSProperties> = {
     boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
     marginBottom: "2rem",
   },
+  address1AndPostal: {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "space-between"  
+  }, 
   input: {
     display: "block",
     width: "100%",
