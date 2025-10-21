@@ -91,10 +91,27 @@ export default function ClassesTab({
     [editingClass, setNewClass]
   );
 
-  const clearDraft = useCallback(() => {
-    sessionStorage.removeItem("class-form-draft");
-    setIsDraftRestored(false);
-  }, []);
+  const clearDraft = useCallback(
+    (resetFields = false) => {
+      sessionStorage.removeItem("class-form-draft");
+      setIsDraftRestored(false);
+
+      // also reset form fields when requested
+      if (resetFields) {
+        setNewClass({
+          name: "",
+          // if you prefer empty string instead of first location, change to ""
+          locationId: (locations ?? [])[0]?.id ?? "",
+          capacity: 0,
+          volume: 0,
+          ageStart: 0,
+          ageEnd: 0,
+          classroom: "",
+        });
+      }
+    },
+    [locations, setNewClass]
+  );
 
   const getCapacityStatus = (volume: number, capacity: number) => {
     if (capacity <= 0) return "available";
@@ -629,7 +646,7 @@ export default function ClassesTab({
                 {!editingClass && (
                   <button
                     type="button"
-                    onClick={clearDraft}
+                    onClick={() => clearDraft(true)}
                     className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
                   >
                     Clear Draft
