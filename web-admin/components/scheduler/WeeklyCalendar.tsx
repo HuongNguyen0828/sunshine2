@@ -192,14 +192,23 @@ export function WeeklyCalendar({
           }}
         >
           <motion.div
-            initial={{ scale: 1.05, rotate: 3 }}
-            animate={{ scale: 1.05, rotate: 3 }}
+            initial={{ scale: 0.9, rotate: 0, opacity: 0 }}
+            animate={{
+              scale: 1.08,
+              rotate: 5,
+              opacity: 0.95,
+            }}
+            transition={{
+              type: "spring",
+              damping: 15,
+              stiffness: 200,
+            }}
             className="rounded-lg px-3 py-2 shadow-2xl border-2"
             style={{
               backgroundColor: draggedSchedule.activity?.color,
               borderColor: draggedSchedule.activity?.color,
-              opacity: 0.9,
               minWidth: '200px',
+              filter: 'brightness(1.1)',
             }}
           >
             <h4 className="font-medium text-sm text-white truncate">
@@ -260,9 +269,15 @@ export function WeeklyCalendar({
                             <motion.div
                               initial={{ opacity: 0, scaleX: 0 }}
                               animate={{ opacity: 1, scaleX: 1 }}
+                              exit={{ opacity: 0, scaleX: 0 }}
+                              transition={{
+                                type: "spring",
+                                damping: 20,
+                                stiffness: 300,
+                              }}
                               className="absolute -top-1 left-0 right-0 h-[3px] bg-blue-500 rounded-full z-10"
                               style={{
-                                boxShadow: '0 0 8px rgba(59, 130, 246, 0.6)',
+                                boxShadow: '0 0 12px rgba(59, 130, 246, 0.8)',
                               }}
                             />
                           )}
@@ -275,16 +290,26 @@ export function WeeklyCalendar({
                               y: 0,
                               scale: draggedSchedule?.id === schedule.id ? 0.95 : 1,
                             }}
-                            exit={{ opacity: 0, scale: 0.8 }}
+                            exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
+                            whileHover={
+                              openMenuId === schedule.id || draggedSchedule?.id === schedule.id
+                                ? {}
+                                : { scale: 1.02, transition: { duration: 0.15 } }
+                            }
                             transition={{
-                              layout: { type: "spring", damping: 25, stiffness: 300 },
+                              layout: {
+                                type: "spring",
+                                damping: 25,
+                                stiffness: 400,
+                                mass: 0.8,
+                              },
                               opacity: { duration: 0.15 },
                               scale: { duration: 0.15 },
                             }}
                             onDragOver={(e) => handleDragOver(e, schedule)}
                             onDrop={(e) => handleDrop(e, schedule)}
                             className={`group relative rounded-lg px-3 py-2 ${
-                              openMenuId === schedule.id ? '' : 'hover:scale-[1.02] hover:shadow-md'
+                              openMenuId === schedule.id || draggedSchedule?.id === schedule.id ? '' : 'shadow-sm'
                             }`}
                             style={{
                               backgroundColor: schedule.activity?.color + '20',
@@ -348,9 +373,15 @@ export function WeeklyCalendar({
                             <motion.div
                               initial={{ opacity: 0, scaleX: 0 }}
                               animate={{ opacity: 1, scaleX: 1 }}
+                              exit={{ opacity: 0, scaleX: 0 }}
+                              transition={{
+                                type: "spring",
+                                damping: 20,
+                                stiffness: 300,
+                              }}
                               className="absolute -bottom-1 left-0 right-0 h-[3px] bg-blue-500 rounded-full z-10"
                               style={{
-                                boxShadow: '0 0 8px rgba(59, 130, 246, 0.6)',
+                                boxShadow: '0 0 12px rgba(59, 130, 246, 0.8)',
                               }}
                             />
                           )}
@@ -359,13 +390,16 @@ export function WeeklyCalendar({
                     </AnimatePresence>
 
                     {/* Add activity button */}
-                    <button
+                    <motion.button
                       onClick={() => handleSlotClick(day, timeSlot.key)}
-                      className="flex items-center justify-center gap-1 px-3 py-2 text-xs text-gray-500 border-2 border-dashed border-gray-200 rounded-lg hover:border-gray-300 hover:text-gray-700 hover:bg-white transition-all"
+                      whileHover={{ scale: 1.02, borderColor: 'rgb(156, 163, 175)' }}
+                      whileTap={{ scale: 0.98 }}
+                      transition={{ type: "spring", damping: 15, stiffness: 300 }}
+                      className="flex items-center justify-center gap-1 px-3 py-2 text-xs text-gray-500 border-2 border-dashed border-gray-200 rounded-lg hover:text-gray-700 hover:bg-white transition-colors"
                     >
                       <span className="text-base">+</span>
                       <span>Add activity</span>
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
               );
