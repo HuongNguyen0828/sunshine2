@@ -42,6 +42,8 @@ export default function TeachersTab({
   const [selectedClass, setSelectedClass] = useState("");
   const [rows, setRows] = useState<Types.Teacher[]>(teachers);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
+
+  // Debounce timer ref for autosave
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [phoneError, setPhoneError] = useState<String>("");
 
@@ -57,7 +59,19 @@ export default function TeachersTab({
     return found?.name || locId;
   };
 
-  // Restore draft when form opens
+  // Keep internal rows in sync if parent prop changes
+  useEffect(() => {
+    setRows(teachers);
+  }, [teachers]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+
+  // Restore draft when form opens (only in Add mode)
   useEffect(() => {
     if (isFormOpen && !editingTeacher) {
       const draft = sessionStorage.getItem("teacher-form-draft");
@@ -73,22 +87,17 @@ export default function TeachersTab({
     }
   }, [isFormOpen, editingTeacher, setNewTeacher]);
 
-  // Helper to update form and save draft
+  // Helper to update form and save draft (debounced)
   const updateTeacher = useCallback(
     (updates: Partial<NewTeacherInput>) => {
       setNewTeacher((prev) => {
         const updated = { ...prev, ...updates };
 
-        // Save to sessionStorage with debounce
+        // Save to sessionStorage with debounce (Add mode only by default)
         if (!editingTeacher) {
-          if (saveTimeoutRef.current) {
-            clearTimeout(saveTimeoutRef.current);
-          }
+          if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
           saveTimeoutRef.current = setTimeout(() => {
-            sessionStorage.setItem(
-              "teacher-form-draft",
-              JSON.stringify(updated)
-            );
+            sessionStorage.setItem("teacher-form-draft", JSON.stringify(updated));
           }, 500);
         }
 
@@ -98,12 +107,35 @@ export default function TeachersTab({
     [editingTeacher, setNewTeacher]
   );
 
-  // Clear draft
-  const clearDraft = useCallback(() => {
-    sessionStorage.removeItem("teacher-form-draft");
-    setIsDraftRestored(false);
-    resetForm(); // clear the form at the same time
-  }, []);
+  // Reset form fields to initial state
+  const resetForm = useCallback(() => {
+    setNewTeacher({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      address1: "",
+      address2: "",
+      city: "",
+      province: "",
+      country: "",
+      postalcode: "",
+      startDate: "",
+      endDate: undefined,
+      status: Types.TeacherStatus.New,
+      isRegistered: false,
+    });
+  }, [setNewTeacher]);
+
+  // Clear draft, optionally reset form fields
+  const clearDraft = useCallback(
+    (resetFields = false) => {
+      sessionStorage.removeItem("teacher-form-draft");
+      setIsDraftRestored(false);
+      if (resetFields) resetForm();
+    },
+    [resetForm]
+  );
 
   const handleAddressChange = useCallback(
     (a: Address) => {
@@ -122,117 +154,60 @@ export default function TeachersTab({
   // Handle load address to form when editing: setNewTeacher with value of current Address
   // Passing Current address value back to input value
   const newTeacherAddressValues: Address = {
-    address1: newTeacher.address1,
-    address2: newTeacher.address2,
-    city: newTeacher.city,
-    province: newTeacher.province,
-    country: newTeacher.country,
-    postalcode: newTeacher?.postalcode,
+    address1: newTeacher.address1 || "",
+    address2: newTeacher.address2 || "",
+    city: newTeacher.city || "",
+    province: newTeacher.province || "",
+    country: newTeacher.country || "",
+    postalcode: newTeacher.postalcode || "",
   };
 
   const filteredTeachers = useMemo(() => {
     const term = searchTerm.toLowerCase();
     return rows.filter(
       (t) =>
-        t.firstName?.toLowerCase().includes(term) ||
-        t.lastName?.toLowerCase().includes(term) ||
-        t.email?.toLowerCase().includes(term)
+        (t.firstName ?? "").toLowerCase().includes(term) ||
+        (t.lastName ?? "").toLowerCase().includes(term) ||
+        (t.email ?? "").toLowerCase().includes(term)
     );
   }, [rows, searchTerm]);
 
   const teachersPerPage = 6;
-  const totalPages = Math.ceil(filteredTeachers.length / teachersPerPage) || 1;
+  const totalPages = Math.max(1, Math.ceil(filteredTeachers.length / teachersPerPage));
   const startIndex = (currentPage - 1) * teachersPerPage;
   const paginatedTeachers = filteredTeachers.slice(
     startIndex,
     startIndex + teachersPerPage
   );
 
-  // After done editing current Teacher or adding New Teacher
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingTeacher) {
-      console.log('Update teacher:', { ...editingTeacher, ...newTeacher });
-
-      // Find the only info that is updating: currently (editingTeacher) => new (newTeacher)      
-      // Case: no changes, do nothing
-      if (JSON.stringify(newTeacher) === JSON.stringify(editingTeacher)) return;
-
-      // Else, collect only changed fileds; is type Parital<Types.Teacher> with Teacher ID
-      const teacherId = editingTeacher.id;
-      const newInfo = Object.fromEntries((Object.keys(newTeacher) as (keyof NewTeacherInput)[])
-        .filter((key) => newTeacher[key] !== editingTeacher[key])
-        .map((key) => [key, newTeacher[key]])
-      ) as Partial<NewTeacherInput>;
-
-      // Call onUpdate();
-      onUpdate(teacherId, newInfo);
-
-
-      // After upating Teacher new Info
-      setEditingTeacher(null);
-      // Reset form to empty state
-      setNewTeacher({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        address1: "",
-        address2: "",
-        city: "",
-        province: "",
-        country: "",
-        postalcode: "",
-        startDate: "",
-        endDate: undefined,
-      });
-    } else {
-      onAdd();
-    }
-    clearDraft(); // Clear draft after successful submission
-    setIsFormOpen(false);
-  };
-
   const handleAddClick = () => {
     setEditingTeacher(null);
-    setNewTeacher({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      address1: "",
-      address2: "",
-      city: "",
-      province: "",
-      country: "",
-      postalcode: "",
-      startDate: "",
-      endDate: undefined,
-      status: Types.TeacherStatus.New,
-      isRegistered: false,
-    });
+    resetForm();
+    setIsFormOpen(true);
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (editingTeacher) {
       const id = editingTeacher.id;
-      const updated = await api.put<Types.Teacher>(
-        `${ENDPOINTS.teachers}/${id}`,
-        { ...newTeacher }
-      );
-      setRows((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...updated } : t))
-      );
+
+      // NOTE: Adapt to your API client’s return shape if needed
+      const updated = await api.put<Types.Teacher>(`${ENDPOINTS.teachers}/${id}`, { ...newTeacher });
+
+      // Optimistically update the row in the local list
+      setRows((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
+
       setEditingTeacher(null);
       resetForm();
-      setIsFormOpen(false);
-      return;
     } else {
+      // Delegate create flow to parent (which likely refreshes upstream state)
       onAdd();
-      setIsFormOpen(false);
+      resetForm();
     }
-    await onAdd();
+
+    // Always remove stored draft after successful submit
+    clearDraft();
     setIsFormOpen(false);
   };
 
@@ -266,9 +241,9 @@ export default function TeachersTab({
       `Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}?`
     );
     if (!ok) return;
-    await api.delete<{ ok: boolean; uid: string }>(
-      `${ENDPOINTS.teachers}/${teacher.id}`
-    );
+
+    await api.delete<{ ok: boolean; uid: string }>(`${ENDPOINTS.teachers}/${teacher.id}`);
+
     setRows((prev) => {
       const next = prev.filter((t) => t.id !== teacher.id);
       const maxPage = Math.max(1, Math.ceil(next.length / teachersPerPage));
@@ -277,16 +252,26 @@ export default function TeachersTab({
     });
   };
 
+  const handleAssignClass = (teacherId: string) => {
+    setShowAssignClass(teacherId);
+    setSelectedClass("");
+  };
+
+  const handleSaveClass = async () => {
+    if (!showAssignClass || !selectedClass) return;
+    const id = showAssignClass;
+
+    await api.post<{ ok: boolean }>(`${ENDPOINTS.teachers}/${id}/assign`, { classId: selectedClass });
+
+    // Optimistically update the assigned class in local rows
+    setRows((prev) => prev.map((t) => (t.id === id ? { ...t, classId: selectedClass } : t)));
+    setShowAssignClass(null);
+    setSelectedClass("");
+  };
 
   const formatAddress = (teacher: Types.Teacher) => {
-    const parts = [
-      teacher.address2,
-      teacher.address1,
-      teacher.city,
-      teacher.province,
-      teacher.country,
-      teacher.postalcode,
-    ].filter(Boolean) as string[];
+    const parts = [teacher.address2, teacher.address1, teacher.city, teacher.province, teacher.country, teacher.postalcode]
+      .filter(Boolean) as string[];
     return parts.join(", ");
   };
 
@@ -354,6 +339,7 @@ export default function TeachersTab({
             <span className="text-lg">+</span> Add Teacher
           </button>
         </div>
+
         <div className="flex items-center gap-3 mb-4">
           <div className="flex-1 relative">
             <input
@@ -407,24 +393,15 @@ export default function TeachersTab({
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-gray-700 text-sm">
-                <span>📍</span>
-                <span className="truncate">
-                  {getLocationLabel(teacher.locationId)}
-                </span>
-              </div>
+
               <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
-                <div className="text-xs text-gray-500 leading-relaxed">
-                  <span>🏠</span> {formatAddress(teacher)}
-                </div>
-                <div className="text-sm text-gray-400">
-                  <div>Status: {teacher.status}</div>
+                <div className="text-xs text-gray-500 leading-relaxed">{formatAddress(teacher)}</div>
+                <div className="text-xs text-gray-400">
                   {String(teacher.startDate)}
-                  {teacher.endDate
-                    ? ` → ${String(teacher.endDate)}`
-                    : " → Present"}
+                  {teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
                 </div>
               </div>
+
               <div className="flex gap-2">
                 <button
                   className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
@@ -466,10 +443,9 @@ export default function TeachersTab({
           <button
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
-              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-              }`}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
+              currentPage === 1 ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+            }`}
           >
             ← Previous
           </button>
@@ -478,10 +454,9 @@ export default function TeachersTab({
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-                  }`}
+                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
+                  currentPage === page ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                }`}
               >
                 {page}
               </button>
@@ -492,10 +467,9 @@ export default function TeachersTab({
               setCurrentPage((prev) => Math.min(totalPages, prev + 1))
             }
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
-              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-              }`}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
+              currentPage === totalPages ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+            }`}
           >
             Next →
           </button>
@@ -519,11 +493,7 @@ export default function TeachersTab({
                 <h3 className="text-2xl font-bold text-gray-800">
                   {editingTeacher ? "Edit Teacher" : "Add New Teacher"}
                 </h3>
-                {isDraftRestored && !editingTeacher && (
-                  <p className="text-xs text-green-600 mt-1">
-                    ✓ Draft restored
-                  </p>
-                )}
+                {isDraftRestored && !editingTeacher && <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>}
               </div>
               <button
                 onClick={() => {
@@ -548,9 +518,7 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="First Name"
                       value={newTeacher.firstName}
-                      onChange={(e) =>
-                        updateTeacher({ firstName: e.target.value })
-                      }
+                      onChange={(e) => updateTeacher({ firstName: e.target.value })}
                       required
                     />
                   </label>
@@ -563,24 +531,20 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Last Name"
                       value={newTeacher.lastName}
-                      onChange={(e) =>
-                        updateTeacher({ lastName: e.target.value })
-                      }
+                      onChange={(e) => updateTeacher({ lastName: e.target.value })}
                       required
                     />
                   </label>
                 </div>
 
                 <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Location *
-                  </span>
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newTeacher.locationId}
-                    onChange={(e) =>
-                      updateTeacher({ locationId: e.target.value })
-                    }
+                  <span className="text-gray-700 font-medium mb-1 block">Email *</span>
+                  <input
+                    type="email"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Email"
+                    value={newTeacher.email}
+                    onChange={(e) => updateTeacher({ email: e.target.value })}
                     required
                     disabled={(locations ?? []).length <= 1} // disable if single
                   >
@@ -597,41 +561,20 @@ export default function TeachersTab({
                   </select>
                 </label>
 
-                {/*  Email and phone number*/}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">
-                      Email *
-                    </span>
-                    <input
-                      type="email"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Email"
-                      value={newTeacher.email}
-                      onChange={(e) => updateTeacher({ email: e.target.value })}
-                      required
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">
-                      Phone Number * <span className="text-red-500 text-sm">{phoneError}</span>
-                    </span>
-                    <input
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g. 403 111 2284"
-                      value={newTeacher.phone}
-                      onChange={(e) => handlePhoneChange(e)}
-                      required
-                    />
-                  </label>
-                </div>
+                <label className="block">
+                  <span className="text-gray-700 font-medium mb-1 block">Phone Number *</span>
+                  <input
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 403 111 2284"
+                    value={newTeacher.phone}
+                    onChange={(e) => updateTeacher({ phone: e.target.value })}
+                    required
+                  />
+                </label>
 
                 <div className="block">
-                  <AutoCompleteAddress
-                    onAddressChanged={handleAddressChange}
-                    addressValues={newTeacherAddressValues}
-                  />
+                  <span className="text-gray-700 font-medium mb-1 block">Address *</span>
+                  <AutoCompleteAddress onAddressChanged={handleAddressChange} addressValues={newTeacherAddressValues} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -667,9 +610,7 @@ export default function TeachersTab({
                       type="date"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={newTeacher.startDate}
-                      onChange={(e) =>
-                        updateTeacher({ startDate: e.target.value })
-                      }
+                      onChange={(e) => updateTeacher({ startDate: e.target.value })}
                       required
                     />
                   </label>
@@ -682,9 +623,7 @@ export default function TeachersTab({
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="End Date (optional)"
                       value={newTeacher.endDate || ""}
-                      onChange={(e) =>
-                        updateTeacher({ endDate: e.target.value || undefined })
-                      }
+                      onChange={(e) => updateTeacher({ endDate: e.target.value || undefined })}
                     />
                   </label>
                 </div>
@@ -704,7 +643,7 @@ export default function TeachersTab({
                 {!editingTeacher && (
                   <button
                     type="button"
-                    onClick={clearDraft}
+                    onClick={() => clearDraft(true)} // also reset fields
                     className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
                   >
                     Clear Draft
@@ -718,6 +657,69 @@ export default function TeachersTab({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showAssignClass && (
+        <div
+          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
+          onClick={() => {
+            setShowAssignClass(null);
+            setSelectedClass("");
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-800">Assign Class</h3>
+              <button
+                onClick={() => {
+                  setShowAssignClass(null);
+                  setSelectedClass("");
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6">
+              <label className="block mb-4">
+                <span className="text-gray-700 font-medium mb-2 block">Select Class</span>
+                {/* Replace options with real classes; this is a placeholder UI */}
+                <select
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Select a class --</option>
+                  <option value="class1">Class 1 (Placeholder)</option>
+                  <option value="class2">Class 2 (Placeholder)</option>
+                  <option value="class3">Class 3 (Placeholder)</option>
+                </select>
+              </label>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowAssignClass(null);
+                    setSelectedClass("");
+                  }}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveClass}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
