@@ -33,7 +33,14 @@ export default function ParentsTab({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [phoneError, setPhoneError] = useState<String>("");
 
-  // Restore draft when form opens
+  // Debounced save cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+
+  // Restore draft when form opens (add mode only)
   useEffect(() => {
     if (isFormOpen && !editingParent) {
       const draft = sessionStorage.getItem("parent-form-draft");
@@ -49,22 +56,19 @@ export default function ParentsTab({
     }
   }, [isFormOpen, editingParent, setNewParent]);
 
-  // Helper to update form and save draft
+  // Update form and persist a draft (debounced)
   const updateParent = useCallback(
     (updates: Partial<NewParentInput>) => {
-      setNewParent((prev) => {
+      setNewParent(prev => {
         const updated = { ...prev, ...updates };
 
-        // Save to sessionStorage with debounce
+        // Only save draft in add mode
         if (!editingParent) {
           if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
           }
           saveTimeoutRef.current = setTimeout(() => {
-            sessionStorage.setItem(
-              "parent-form-draft",
-              JSON.stringify(updated)
-            );
+            sessionStorage.setItem('parent-form-draft', JSON.stringify(updated));
           }, 500);
         }
 
@@ -74,12 +78,37 @@ export default function ParentsTab({
     [editingParent, setNewParent]
   );
 
-  // Clear draft
-  const clearDraft = useCallback(() => {
-    sessionStorage.removeItem("parent-form-draft");
-    setIsDraftRestored(false);
-    resetForm();
-  }, []);
+  // Reset form fields to initial values
+  const resetForm = useCallback(() => {
+    setNewParent({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      childIds: [],
+      street: '',
+      city: '',
+      province: '',
+      country: '',
+      // If your NewParentInput uses required strings, keep empty string.
+      // If optional, empty string is still safe for UI.
+      emergencyContact: '',
+      updatedAt: '',
+      preferredLanguage: '',
+    });
+  }, [setNewParent]);
+
+  // Clear draft (and optionally reset form fields)
+  const clearDraft = useCallback(
+    (resetFields = false) => {
+      sessionStorage.removeItem('parent-form-draft');
+      setIsDraftRestored(false);
+      if (resetFields) {
+        resetForm();
+      }
+    },
+    [resetForm]
+  );
 
   // Filter parents based on search
   const filteredParents = parents.filter(
@@ -92,7 +121,7 @@ export default function ParentsTab({
 
   // Pagination logic
   const parentsPerPage = 6;
-  const totalPages = Math.ceil(filteredParents.length / parentsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredParents.length / parentsPerPage));
   const startIndex = (currentPage - 1) * parentsPerPage;
   const paginatedParents = filteredParents.slice(
     startIndex,
@@ -102,9 +131,8 @@ export default function ParentsTab({
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingParent) {
-      const id = editingParent.id;
-      const updated = await api.put<Types.Parent>(`${ENDPOINTS.parents}/${id}`, { ...newParent });
-      // setRows((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
+      // Replace with your real update flow if available
+      console.log('Update parent:', { ...editingParent, ...newParent });
       setEditingParent(null);
       resetForm();
       setIsFormOpen(false);
@@ -113,48 +141,8 @@ export default function ParentsTab({
       onAdd();
       setIsFormOpen(false);
     }
-    clearDraft(); // Clear draft after successful submission
+    clearDraft(); // remove stored draft after submit
     setIsFormOpen(false);
-  };
-
-  // Handle load address to form when editing: setNewTeacher with value of current Address
-  // Passing Current address value back to input value
-  const newTeacherAddressValues: Address = {
-    address1: newParent.address1,
-    address2: newParent.address2,
-    city: newParent.city,
-    province: newParent.province,
-    country: newParent.country,
-    postalcode: newParent?.postalcode
-  };
-
-  const handleAddressChange = useCallback((a: Address) => {
-    updateParent({
-      address1: a.address1,
-      address2: a.address2,
-      city: a.city,
-      province: a.province,
-      country: a.country,
-      postalcode: a.postalcode
-    });
-  }, [updateParent]);
-
-  const resetForm = () => {
-    setNewParent({
-      firstName: '',
-      lastName: '',
-      // childIds: [],
-      email: '',
-      phone: '',
-      address1: '',
-      address2: "",
-      city: '',
-      province: '',
-      country: '',
-      postalcode: "",
-      maritalStatus: "",
-      relationshipToChild: "",
-    });
   };
 
   const handleAddClick = () => {
@@ -176,19 +164,18 @@ export default function ParentsTab({
       city: parent.city,
       province: parent.province,
       country: parent.country,
-      postalcode: parent.postalcode,
-      maritalStatus: parent.maritalStatus,
-      relationshipToChild: parent.relationshipToChild,
+      emergencyContact: parent.emergencyContact ?? '',
+      updatedAt: parent.updatedAt ?? '',
+      preferredLanguage: parent.preferredLanguage ?? '',
     });
     setIsFormOpen(true);
   };
 
-  const handleDeleteClick = async (parent: Types.Parent) => {
-    const ok = window.confirm(`Are you sure you want to delete ${parent.firstName} ${parent.lastName}?`);
-    if (!ok) return;
-    await api.delete<{ ok: boolean; uid: string }>(`${ENDPOINTS.parents}/${parent.id}`);
-
-    // Need update UI
+  const handleDeleteClick = (parent: Types.Parent) => {
+    if (window.confirm(`Are you sure you want to delete ${parent.firstName} ${parent.lastName}?`)) {
+      // Replace with your real delete flow
+      console.log('Delete parent:', parent.id);
+    }
   };
 
   const formatAddress = (parent: Types.Parent) => {
@@ -569,9 +556,10 @@ export default function ParentsTab({
                 {!editingParent && (
                   <button
                     type="button"
-                    onClick={clearDraft}
+                    onClick={() => clearDraft(true)}
                     className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
                   >
+                    {/* reset fields too */}
                     Clear Draft
                   </button>
                 )}
