@@ -40,6 +40,7 @@ export function WeeklyCalendar({
   const [selectedSlot, setSelectedSlot] = useState<SlotInfo | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [draggedSchedule, setDraggedSchedule] = useState<Schedule | null>(null);
+  const [dragPreviewPosition, setDragPreviewPosition] = useState<{ x: number; y: number } | null>(null);
 
   const getSchedulesForSlot = (day: string, timeSlot: string) => {
     return schedules
@@ -105,7 +106,13 @@ export function WeeklyCalendar({
     }
     e.stopPropagation();
     setDraggedSchedule(schedule);
+    setDragPreviewPosition({ x: e.clientX, y: e.clientY });
     e.dataTransfer.effectAllowed = 'move';
+
+    // Create custom drag image (invisible - we'll use our own preview)
+    const img = new Image();
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    e.dataTransfer.setDragImage(img, 0, 0);
   };
 
   const handleDragOver = (e: React.DragEvent, targetSchedule: Schedule) => {
@@ -140,8 +147,14 @@ export function WeeklyCalendar({
     setDraggedSchedule(null);
   };
 
+  const handleDrag = (e: React.DragEvent) => {
+    if (e.clientX === 0 && e.clientY === 0) return; // Ignore final drag event
+    setDragPreviewPosition({ x: e.clientX, y: e.clientY });
+  };
+
   const handleDragEnd = () => {
     setDraggedSchedule(null);
+    setDragPreviewPosition(null);
   };
 
   return (
@@ -152,6 +165,39 @@ export function WeeklyCalendar({
           className="fixed inset-0 z-[100]"
           onClick={() => setOpenMenuId(null)}
         />
+      )}
+
+      {/* Drag preview - follows cursor */}
+      {draggedSchedule && dragPreviewPosition && (
+        <div
+          className="fixed pointer-events-none z-[200]"
+          style={{
+            left: dragPreviewPosition.x,
+            top: dragPreviewPosition.y,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <motion.div
+            initial={{ scale: 1.05, rotate: 3 }}
+            animate={{ scale: 1.05, rotate: 3 }}
+            className="rounded-lg px-3 py-2 shadow-2xl border-2"
+            style={{
+              backgroundColor: draggedSchedule.activity?.color,
+              borderColor: draggedSchedule.activity?.color,
+              opacity: 0.9,
+              minWidth: '200px',
+            }}
+          >
+            <h4 className="font-medium text-sm text-white truncate">
+              {draggedSchedule.activity?.title}
+            </h4>
+            {draggedSchedule.activity?.description && (
+              <p className="text-xs text-white/80 line-clamp-1 mt-0.5">
+                {draggedSchedule.activity.description}
+              </p>
+            )}
+          </motion.div>
+        </div>
       )}
 
       {/* Calendar Grid - preserving the exact visual structure from original */}
@@ -197,17 +243,22 @@ export function WeeklyCalendar({
                           key={schedule.id}
                           layoutId={schedule.id}
                           initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
+                          animate={{
+                            opacity: draggedSchedule?.id === schedule.id ? 0.3 : 1,
+                            y: 0,
+                            scale: draggedSchedule?.id === schedule.id ? 0.95 : 1,
+                          }}
                           exit={{ opacity: 0, scale: 0.8 }}
                           transition={{
                             layout: { type: "spring", damping: 25, stiffness: 300 },
-                            opacity: { duration: 0.2 },
+                            opacity: { duration: 0.15 },
+                            scale: { duration: 0.15 },
                           }}
                           onDragOver={(e) => handleDragOver(e, schedule)}
                           onDrop={(e) => handleDrop(e, schedule)}
                           className={`group relative rounded-lg px-3 py-2 ${
                             openMenuId === schedule.id ? '' : 'hover:scale-[1.02] hover:shadow-md'
-                          } ${draggedSchedule?.id === schedule.id ? 'opacity-50' : ''}`}
+                          }`}
                           style={{
                             backgroundColor: schedule.activity?.color + '20',
                             borderLeft: `4px solid ${schedule.activity?.color}`,
@@ -217,6 +268,7 @@ export function WeeklyCalendar({
                           <div
                             draggable
                             onDragStart={(e) => handleDragStart(e, schedule)}
+                            onDrag={handleDrag}
                             onDragEnd={handleDragEnd}
                             className="flex-1 min-w-0 cursor-move"
                             onClick={() => handleSlotClick(day, timeSlot.key)}
