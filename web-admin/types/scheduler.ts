@@ -6,6 +6,7 @@ export interface Activity {
   title: string;
   description: string;
   materials: string;
+  color: string; // hex color code for activity pill
   userId?: string; // Optional for local state
   _creationTime?: number; // Optional timestamp
 }
@@ -18,6 +19,7 @@ export interface Schedule {
   timeSlot: string; // "morning", "mid-morning", "afternoon"
   activityId: string;
   activity?: Activity | null; // Populated activity reference
+  order: number; // order within the time slot (0 = first, 1 = second, etc.)
 }
 
 // UI-specific types for the scheduler

@@ -56,6 +56,7 @@ export function WeeklyScheduler() {
               title: schedule.activityTitle,
               description: schedule.activityDescription,
               materials: schedule.activityMaterials,
+              color: schedule.color || '#3B82F6', // Default to blue if no color
               userId: schedule.userId,
             });
           }
@@ -69,11 +70,13 @@ export function WeeklyScheduler() {
           dayOfWeek: s.dayOfWeek,
           timeSlot: s.timeSlot,
           activityId: s.activityTitle,
+          order: s.order || 0,
           activity: {
             id: s.activityTitle,
             title: s.activityTitle,
             description: s.activityDescription,
             materials: s.activityMaterials,
+            color: s.color || '#3B82F6',
             userId: s.userId,
           }
         })));
@@ -145,15 +148,11 @@ export function WeeklyScheduler() {
         return;
       }
 
-      // Check if there's already a schedule for this slot
-      const existingSchedule = schedules.find(s =>
+      // Calculate the next order position for this slot
+      const existingSchedulesInSlot = schedules.filter(s =>
         s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot
       );
-
-      // Delete existing schedule if any
-      if (existingSchedule) {
-        await SchedulerAPI.deleteSchedule(existingSchedule.id);
-      }
+      const nextOrder = existingSchedulesInSlot.length;
 
       // Create new schedule with activity data embedded
       // Use targetClassId if provided (from multi-calendar view), otherwise use selectedClassId
@@ -167,31 +166,23 @@ export function WeeklyScheduler() {
         activityDescription: activity.description,
         activityMaterials: activity.materials,
         classId: assignToClassId,
+        color: activity.color,
+        order: nextOrder,
       });
 
-      // Update raw backend data
-      setSchedulesData(prev => {
-        const filtered = prev.filter(s =>
-          !(s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot)
-        );
-        return [...filtered, newSchedule];
-      });
+      // Update raw backend data - add to existing schedules, don't replace
+      setSchedulesData(prev => [...prev, newSchedule]);
 
-      setSchedules(prev => {
-        // Remove existing schedule for this slot, add new one
-        const filtered = prev.filter(s =>
-          !(s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot)
-        );
-        return [...filtered, {
-          id: newSchedule.id,
-          userId: newSchedule.userId,
-          weekStart: newSchedule.weekStart,
-          dayOfWeek: newSchedule.dayOfWeek,
-          timeSlot: newSchedule.timeSlot,
-          activityId: params.activityId,
-          activity,
-        }];
-      });
+      setSchedules(prev => [...prev, {
+        id: newSchedule.id,
+        userId: newSchedule.userId,
+        weekStart: newSchedule.weekStart,
+        dayOfWeek: newSchedule.dayOfWeek,
+        timeSlot: newSchedule.timeSlot,
+        activityId: params.activityId,
+        activity,
+        order: nextOrder,
+      }]);
     } catch (error) {
       console.error('Error assigning activity:', error);
     }
@@ -213,6 +204,70 @@ export function WeeklyScheduler() {
       }
     } catch (error) {
       console.error('Error removing activity from schedule:', error);
+    }
+  };
+
+  const handleScheduleDeleted = async (scheduleId: string) => {
+    try {
+      await SchedulerAPI.deleteSchedule(scheduleId);
+      setSchedulesData(prev => prev.filter(s => s.id !== scheduleId));
+      setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+    }
+  };
+
+  const handleScheduleReordered = async (
+    scheduleId: string,
+    newOrder: number,
+    dayOfWeek: string,
+    timeSlot: string
+  ) => {
+    try {
+      // Get all schedules in the same slot
+      const slotSchedules = schedules.filter(
+        s => s.dayOfWeek === dayOfWeek && s.timeSlot === timeSlot
+      ).sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      const draggedSchedule = slotSchedules.find(s => s.id === scheduleId);
+      if (!draggedSchedule) return;
+
+      const oldOrder = draggedSchedule.order;
+
+      // Reorder locally for immediate feedback
+      const reordered = slotSchedules.map(s => {
+        if (s.id === scheduleId) {
+          return { ...s, order: newOrder };
+        }
+        // Shift others
+        if (oldOrder < newOrder) {
+          // Moving down
+          if (s.order > oldOrder && s.order <= newOrder) {
+            return { ...s, order: s.order - 1 };
+          }
+        } else {
+          // Moving up
+          if (s.order >= newOrder && s.order < oldOrder) {
+            return { ...s, order: s.order + 1 };
+          }
+        }
+        return s;
+      });
+
+      // Update local state
+      setSchedules(prev => {
+        const filtered = prev.filter(
+          s => !(s.dayOfWeek === dayOfWeek && s.timeSlot === timeSlot)
+        );
+        return [...filtered, ...reordered];
+      });
+
+      // TODO: Add backend API to update order
+      // For now, we'll need to delete and recreate schedules in new order
+      // This is a limitation we can improve later with a PATCH endpoint
+
+    } catch (error) {
+      console.error('Error reordering schedule:', error);
     }
   };
 
@@ -313,6 +368,8 @@ export function WeeklyScheduler() {
                   targetClassName={cls.name}
                   onActivityAssigned={handleActivityAssigned}
                   onActivityRemoved={handleActivityRemoved}
+                  onScheduleDeleted={handleScheduleDeleted}
+                  onScheduleReordered={handleScheduleReordered}
                 />
               </div>
             );
@@ -327,6 +384,8 @@ export function WeeklyScheduler() {
           targetClassName={classes.find(c => c.id === selectedClassId)?.name}
           onActivityAssigned={handleActivityAssigned}
           onActivityRemoved={handleActivityRemoved}
+          onScheduleDeleted={handleScheduleDeleted}
+          onScheduleReordered={handleScheduleReordered}
         />
       )}
 
