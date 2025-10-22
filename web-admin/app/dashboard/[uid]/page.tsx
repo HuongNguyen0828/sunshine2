@@ -31,6 +31,7 @@ import {
 } from "@/services/useChildrenAPI";
 import TeachersTab from "@/components/dashboard/TeachersTab";
 import { addParent, fetchParents } from "@/services/useParentsAPI";
+import { type NewParentInputWithChildId } from "@/services/useParentsAPI";
 
 /* ---------------- utils ---------------- */
 
@@ -118,6 +119,7 @@ export default function AdminDashboard() {
 
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [, startTransition] = useTransition();
+  const [createdChildId, setcreatedChildId] = useState<string | null>(null); /// Initally, chidId is null, To later link with parent
 
   /* forms */
   const [newTeacher, setNewTeacher] = useState<NewTeacherInput>({
@@ -312,6 +314,8 @@ export default function AdminDashboard() {
       const created = await addChildAPI(payload);
 
       if (created) {
+        setcreatedChildId(created.id); // Get childId in success response, to attach to current Added parent
+        setcreatedChildId
         setChildren((prev) => [created, ...prev]);
         if (created.classId) {
           setClasses((prev) =>
@@ -563,8 +567,16 @@ export default function AdminDashboard() {
     }
   };
 
+  // Handle Add NewParent, PASSING child.id here
   const handleAddParent = async () => {
-    await addParent(newParent);
+    // Only when child is successfully created
+    if (!createdChildId) {
+      alert("Failed add Parent: due to fail add Child");
+      return; // Return, do nothing
+    }
+
+    const newParentWithChildId: NewParentInputWithChildId = { ...newParent, childIds: [createdChildId] };
+    await addParent(newParentWithChildId); // With passing childId created by success API call  create new Child
     // Refresh from server to get latest data,in the background
     await initialFetchAll();
     // Reset form
@@ -650,8 +662,10 @@ export default function AdminDashboard() {
                 onCreated={(c) => console.log("created child", c?.id)}
                 onUpdated={(c) => console.log("updated child", c?.id)}
                 onDeleted={(id) => console.log("deleted child", id)}
+                // Parent
                 newParent={newParent}
                 setNewParent={setNewParent}
+                onAddParent={handleAddParent}
               />
             )}
 

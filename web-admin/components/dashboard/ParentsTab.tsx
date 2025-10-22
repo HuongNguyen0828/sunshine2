@@ -115,7 +115,6 @@ export default function ParentsTab({
       return;
     } else {
       onAdd();
-      setIsFormOpen(false);
     }
     clearDraft(); // remove stored draft after submit
     setIsFormOpen(false);
