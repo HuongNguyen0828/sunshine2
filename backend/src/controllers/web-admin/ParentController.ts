@@ -22,14 +22,14 @@ export const addParent = async (req: Request, res: Response) => {
     return res.status(400).json({message: "Location missing from current Admin  profile"});
   }
   // Check body exists
-  const parentData = req.body;
-  if (!parentData) {
-    return res.status(400).json({ message: "Parent data required" });
+  const parentDataAndChildId = req.body;
+  if (!parentDataAndChildId) {
+    return res.status(400).json({ message: "Bakend: Parent data and ChildId required" });
   }
 
   // Else, create the teacher
   try {
-    const created = await ParentService.addParent(parentData);
+    const created = await ParentService.addParent(parentDataAndChildId);
     // Case null returned: email already exists
     if (!created) {
       throw new Error("Email already exists");

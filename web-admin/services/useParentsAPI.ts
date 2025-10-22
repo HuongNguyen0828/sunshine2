@@ -16,13 +16,16 @@ export async function fetchParents(): Promise<Types.Parent[]> {
   }
 }
 
-export async function addParent(newParent: NewParentInput): Promise<Types.Parent> {
+// Passing Parent Input with ChildId
+export type NewParentInputWithChildId = NewParentInput & {childIds: string[]};
+export async function addParent(NewParentInputWithChildId: NewParentInputWithChildId): Promise<Types.Parent> {
   try {
-    const parent = await api.post<Types.Parent>(ENDPOINTS.parents, { ...newParent });
+    alert("Adding Parent");
+    const parent = await api.post<Types.Parent>(ENDPOINTS.parents, { ...NewParentInputWithChildId }); // with createdChildId
     swal.fire({
           icon: "success",
           title: "New Parent",
-          text: `Successfully added ${newParent.firstName} ${newParent.lastName}`,
+          text: `Successfully added ${NewParentInputWithChildId.firstName} ${NewParentInputWithChildId.lastName}`,
         });
     return parent;
   } catch (err: unknown) {

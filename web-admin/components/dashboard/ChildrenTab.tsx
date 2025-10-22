@@ -18,15 +18,6 @@ import Typography from "@mui/material/Typography";
 import { NewParentInput } from "@/types/forms";
 
 
-const steps = [
-  "Child infomation", // 0
-  "Parent 1 infomation", // 1
-  "Parent 2 infomation", //2
-  "Emergency contact", // 3
-  "Review", // 5
-  "Sumit", // 6
-];
-
 /** UI form input used when creating/updating a child */
 export type NewChildInput = {
   firstName: string;
@@ -65,6 +56,7 @@ type Props = {
 
   newParent: NewParentInput;
   setNewParent: React.Dispatch<React.SetStateAction<NewParentInput>>
+  onAddParent: () => void;
 };
 
 /* ---------------- helpers ---------------- */
@@ -372,7 +364,9 @@ export default function ChildrenTab({
   onDeleted,
 
   newParent,
-  setNewParent
+  setNewParent,
+  onAddParent,
+
 }: Props) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingChild, setEditingChild] = useState<Types.Child | null>(null);
@@ -384,6 +378,12 @@ export default function ChildrenTab({
 
 
   // =========================Progress bar
+  const steps = [
+    "Child infomation", // 0
+    "Parent 1 infomation", // 1
+    "Parent 2 infomation", //2 (*Optional)
+    "Review and Submit", // 3
+  ];
   const [activeStep, setActiveStep] = useState(0); // Start with form 0 (Child infomation)
   const [skipped, setSkipped] = useState(new Set<number>()); // using imutable list of number
   // =======================Done Progress bar
@@ -403,7 +403,9 @@ export default function ChildrenTab({
 
   /// ================From ParentTab
   const [phoneError, setPhoneError] = useState<String>("");
+  const [colorChangeError, setColorChangeError] = useState<string>(""); // Initially no error
   const [editingParent, setEditingParent] = useState<Types.Parent | null>(null);
+  const [secondParent, setSecondParent] = useState<NewParentInput | null>(null); // Initially Parent2 is null (optional)
 
 
 
@@ -444,38 +446,222 @@ export default function ChildrenTab({
       sessionStorage.removeItem(DRAFT_KEY);
       setIsDraftRestored(false);
 
-      if (resetFields) {
-        setNewChild({
-          firstName: "",
-          lastName: "",
-          birthDate: "",
-          parentId: [],
-          classId: "",
-          locationId: locations?.[0]?.id ?? "",
-          notes: "",
-          enrollmentStatus: Types.EnrollmentStatus.New,
-        });
-      }
-    },
-    [locations, setNewChild]
-  );
+  //============ Progress bar
+  // Identify which step is optional
+  const isStepOptional = (step: number) => {
+    // Optional for Medical Concerned and Alergies
+    const optional = 2;
+    return step === optional;
+  };
 
-  const handleAddClick = useCallback(() => {
-    if ((locations ?? []).length === 0) {
-      alert("No locations available. Please create a location first.");
-      return;
+  // Track if optional step is passed
+  const isStepSkipped = (step: number) => {
+    return skipped.has(step);
+  };
+  // Add this validation function near your other helpers
+  const validateCurrentStep = (step: number): boolean => {
+    switch (step) {
+      case 0: // Child Information
+        if (!newChild.firstName.trim()) {
+          alert("First name is required");
+          setColorChangeError(newChild.firstName);
+          return false;
+        }
+        if (!newChild.lastName.trim()) {
+          alert("Last name is required");
+          setColorChangeError(newChild.lastName)
+          return false;
+        }
+        if (!newChild.birthDate) {
+          alert("Birth date is required");
+          return false;
+        }
+        if (!newChild.locationId) {
+          alert("Location is required");
+          return false;
+        }
+        if (!newChild.enrollmentStatus) {
+          alert("Enrollment status is required");
+          return false;
+        }
+        return true;
+
+      case 1: // Parent 1 Information
+        if (!newParent.firstName.trim()) {
+          alert("Parent first name is required");
+          return false;
+        }
+        if (!newParent.lastName.trim()) {
+          alert("Parent last name is required");
+          return false;
+        }
+        if (!newParent.email.trim()) {
+          alert("Parent email is required");
+          return false;
+        }
+        if (!newParent.phone.trim() || phoneError) {
+          alert("Valid phone number is required");
+          return false;
+        }
+        if (!newParent.maritalStatus) {
+          alert("Marital status is required");
+          return false;
+        }
+        if (!newParent.relationshipToChild) {
+          alert("Relationship to child is required");
+          return false;
+        }
+        return true;
+
+      case 2: // Parent 2 Information (optional, but if filled, validate)
+        // Only validate if any field is filled (since it's optional)
+        const hasAnyParent2Data =
+          newParent.firstName.trim() ||
+          newParent.lastName.trim() ||
+          newParent.email.trim() ||
+          newParent.phone.trim();
+
+        if (hasAnyParent2Data) {
+          if (!newParent.firstName.trim()) {
+            alert("Parent 2 first name is required if other fields are filled");
+            return false;
+          }
+          if (!newParent.lastName.trim()) {
+            alert("Parent 2 last name is required if other fields are filled");
+            return false;
+          }
+          if (!newParent.email.trim()) {
+            alert("Parent 2 email is required if other fields are filled");
+            return false;
+          }
+          if (!newParent.phone.trim() || phoneError) {
+            alert("Valid parent 2 phone number is required if other fields are filled");
+            return false;
+          }
+        }
+        return true;
+
+      case 3: // Review - no validation needed
+        return true;
+
+      default:
+        return true;
     }
-    setEditingChild(null);
+  };
+
+  // Handle click Next
+  const handleNext = () => {
+    // Checking if form is validated
+    if (!validateCurrentStep(activeStep)) return;
+    // Initially, skipped = empty or just new Set();
+    let newSkipped = skipped;
+    // If at Optional step
+    if (isStepSkipped(activeStep)) {
+      newSkipped = new Set(newSkipped.values());
+      newSkipped.delete(activeStep);
+    }
+
+    // Increase next step
+    setActiveStep((prev) => prev + 1);
+    setSkipped(newSkipped);
+
+    // If step === 2 (entering 2nd parent) => setSecondParent = newParent
+    if (activeStep === 2) {
+      setSecondParent(newParent);
+    }
+
+    // Save data into temporary variable, Then Call API backend, when submit
+
+
+  };
+
+  // Handle click Back
+  const handleBack = () => {
+    setActiveStep((prev) => prev - 1);
+  };
+
+  const handleSkip = () => {
+    if (!isStepOptional(activeStep)) {
+      // You probably want to guard against something like this,
+      // it should never occur unless someone's actively trying to break something.
+      throw new Error("You can't skip a step that isn't optional.");
+    }
+    setActiveStep((prev) => prev + 1);
+    setSkipped((prev) => {
+      const newSkipped = new Set(prev.values());
+      newSkipped.add(activeStep);
+      return newSkipped;
+    });
+    // If SKIP, then Parent2 is null
+    setSecondParent(null);
+  };
+
+  // Start all over agaim
+  const handleReset = () => {
+    setActiveStep(0);
+  };
+
+  // ========================== done progress bar
+
+  // Filter children based on search
+  const filteredChildren = childrenData.filter((child) => {
+    const searchLower = searchTerm.toLowerCase();
+    const parentNames = parents
+      .filter((p) => child.parentId.includes(p.id))
+      .map((p) => `${p.firstName} ${p.lastName}`)
+      .join(" ");
+    return (
+      child.firstName.toLowerCase().includes(searchLower) ||
+      child.lastName.toLowerCase().includes(searchLower) ||
+      parentNames.toLowerCase().includes(searchLower) ||
+      child.enrollmentStatus.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const resetForm = () => {
+    // Reset child
     setNewChild({
       firstName: "",
       lastName: "",
       birthDate: "",
       parentId: [],
       classId: "",
-      locationId: locations[0]?.id ?? "",
-      notes: "",
+      // enrollmentDate: "", was removed as automatic by assigning Class. !!!!!
       enrollmentStatus: Types.EnrollmentStatus.New,
+      locationId: "",
+      notes: "",
     });
+    // Reset Parent
+    setNewParent({
+      firstName: '',
+      lastName: '',
+      // childIds: [],
+      email: '',
+      phone: '',
+      address1: '',
+      address2: "",
+      city: '',
+      province: '',
+      country: '',
+      postalcode: "",
+      maritalStatus: "",
+      relationshipToChild: "",
+    });
+  };
+
+  const handleAddClick = useCallback(() => {
+    if ((locations ?? []).length === 0) {
+      alert("No locations available. Please create a location first.");
+      return;
+    }
+    // 1. Child
+    setEditingChild(null);
+
+    // 2. Parent
+    setEditingParent(null);
+
+    // Clear the form both forms
+    resetForm();
     setIsFormOpen(true);
   }, [locations, setNewChild]);
 
@@ -519,7 +705,10 @@ export default function ChildrenTab({
       });
       if (updated) onUpdated?.(updated);
       setEditingChild(null);
+
+      // Adding new Child W/ Parent
     } else {
+      // 1. Child
       const created = await createChild({
         firstName: newChild.firstName.trim(),
         lastName: newChild.lastName.trim(),
@@ -530,21 +719,18 @@ export default function ChildrenTab({
         notes: newChild.notes?.trim() || undefined,
         enrollmentStatus: newChild.enrollmentStatus,
       });
-      if (created) onCreated?.(created);
+      alert(created);
+      if (created) {
+        onCreated?.(created);
+      }
+      // 2. Parent 1 and 2: passing ChildId ?? in the main
+      onAddParent();
     }
 
-    setNewChild({
-      firstName: "",
-      lastName: "",
-      birthDate: "",
-      parentId: [],
-      classId: "",
-      locationId: "",
-      notes: "",
-      enrollmentStatus: Types.EnrollmentStatus.New,
-    });
+    resetForm();
     clearDraft();
     setIsFormOpen(false);
+    handleReset(); // to back to inital step;
   }
 
   async function handleDeleteClick(child: Types.Child) {
@@ -592,10 +778,7 @@ export default function ChildrenTab({
   const pageItems = filtered.slice(start, start + perPage);
 
 
-
-
-
-  ///////======= Parent 
+  ///////================= Parent 
   // Handle Phone Number
   const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -655,6 +838,17 @@ export default function ChildrenTab({
     });
   }, [updateParent]);
 
+  const formatAddress = (parent: Types.Parent) => {
+    const parts = [
+      parent.address2,
+      parent.address1,
+      parent.city,
+      parent.province,
+      parent.country,
+      parent.postalcode,
+    ].filter(Boolean) as string[];
+    return parts.join(", ");
+  };
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -1189,18 +1383,19 @@ export default function ChildrenTab({
         {
           isFormOpen && (
             <div
-              className="fixed h-full inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-2 z-50"
+              // item-start instead of item-center: so the top stays fixed. 
+              className="fixed h-full inset-0 bg-white/30 backdrop-blur-md flex items-start justify-center p-2 z-50"
               onClick={() => {
                 setIsFormOpen(false);
                 setEditingChild(null);
               }}
             >
               <div
-                className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+                className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[100vh] overflow-y-auto border border-gray-100"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="sticky top-0">
-                  <div className="bg-white border-b border-gray-200 px-2 py-2 flex justify-between items-center">
+                  <div className="bg-white border-b border-gray-200 px-2 py-1 flex justify-between items-center">
                     <h3 className="text-2xl font-bold text-gray-800">
                       {editingChild ? "Edit Child" : "Add New Child"}
                     </h3>
@@ -1246,130 +1441,138 @@ export default function ChildrenTab({
                 <form onSubmit={handleFormSubmit} className="p-6">
                   {activeStep === 0 && (
                     // Child Information
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <label className="block">
-                        <span className="text-gray-700 font-medium mb-1 block">
-                          First Name *
-                        </span>
-                        <input
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          value={newChild.firstName}
-                          onChange={(e) => updateDraft({ firstName: e.target.value })}
-                          required
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-gray-700 font-medium mb-1 block">
-                          Last Name *
-                        </span>
-                        <input
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          value={newChild.lastName}
-                          onChange={(e) => updateDraft({ lastName: e.target.value })}
-                          required
-                        />
-                      </label>
+                    <div className="space-y-4">
+                      <h2 className="text-2xl font-semibold text-gray-800 border-b pb-1">
+                        Child Information
+                      </h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label className="block">
+                          <span className="text-gray-700 font-medium mb-1 block">
+                            First Name *
+                          </span>
+                          <input
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            value={newChild.firstName}
+                            onChange={(e) => updateDraft({ firstName: e.target.value })}
+                            required
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-gray-700 font-medium mb-1 block">
+                            Last Name *
+                          </span>
+                          <input
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            value={newChild.lastName}
+                            onChange={(e) => updateDraft({ lastName: e.target.value })}
+                            required
+                          />
+                        </label>
 
-                      <label className="block">
-                        <span className="text-gray-700 font-medium mb-1 block">Gender *</span>
-                        <div className="flex gap-4">
-                          <label>
-                            <input
-                              type="radio"
-                              name="gender"
-                              value="👦"
-                              checked={gender === "👦"}
-                              onChange={(e) => setGender(e.target.value)}
-                            />
-                            Boy
-                          </label>
+                        <label className="block">
+                          <span className="text-gray-700 font-medium mb-1 block">Gender *</span>
+                          <div className="flex gap-4">
+                            <label>
+                              <input
+                                type="radio"
+                                name="gender"
+                                value="👦"
+                                checked={gender === "👦"}
+                                onChange={(e) => setGender(e.target.value)}
+                              />
+                              Boy
+                            </label>
 
-                          <label>
-                            <input
-                              type="radio"
-                              name="gender"
-                              value="👧"
-                              checked={gender === "👧"}
-                              onChange={(e) => setGender(e.target.value)}
-                            />
-                            Girl
-                          </label>
-                        </div>
-                      </label>
+                            <label>
+                              <input
+                                type="radio"
+                                name="gender"
+                                value="👧"
+                                checked={gender === "👧"}
+                                onChange={(e) => setGender(e.target.value)}
+                              />
+                              Girl
+                            </label>
+                          </div>
+                        </label>
 
-                      <label className="block">
-                        <span className="text-gray-700 font-medium mb-1 block">Birth Date *</span>
-                        <input
-                          type="date"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          value={newChild.birthDate}
-                          onChange={(e) => updateDraft({ birthDate: e.target.value })}
-                          required
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-gray-700 font-medium mb-1 block">
-                          Location *
-                        </span>
-                        <select
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          value={newChild.locationId ?? ""}
-                          onChange={(e) => updateDraft({ locationId: e.target.value })}
-                          required
-                          disabled={(locations ?? []).length <= 1}
-                        >
-                          {(locations ?? []).length > 1 && (
-                            <option value="" disabled>
-                              Select a location
+                        <label className="block">
+                          <span className="text-gray-700 font-medium mb-1 block">Birth Date *</span>
+                          <input
+                            type="date"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            value={newChild.birthDate}
+                            onChange={(e) => updateDraft({ birthDate: e.target.value })}
+                            required
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-gray-700 font-medium mb-1 block">
+                            Location *
+                          </span>
+                          <select
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            value={newChild.locationId ?? ""}
+                            onChange={(e) => updateDraft({ locationId: e.target.value })}
+                            required
+                            disabled={(locations ?? []).length <= 1}
+                          >
+                            {(locations ?? []).length > 1 && (
+                              <option value="" disabled>
+                                Select a location
+                              </option>
+                            )}
+                            {(locations ?? []).map((l) => (
+                              <option key={l.id} value={l.id}>
+                                {l.name || l.id}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block">
+                          <span className="text-gray-700 font-medium mb-1 block">
+                            Status *
+                          </span>
+                          <select
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            value={newChild.enrollmentStatus ?? Types.EnrollmentStatus.New}
+                            onChange={(e) => updateDraft({ enrollmentStatus: e.target.value as Types.EnrollmentStatus })}
+                            required
+                          >
+                            <option value={Types.EnrollmentStatus.New}>New</option>
+                            <option value={Types.EnrollmentStatus.Waitlist}>
+                              Waitlist
                             </option>
-                          )}
-                          {(locations ?? []).map((l) => (
-                            <option key={l.id} value={l.id}>
-                              {l.name || l.id}
+                            <option value={Types.EnrollmentStatus.Active}>
+                              Active
                             </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="block">
-                        <span className="text-gray-700 font-medium mb-1 block">
-                          Status *
-                        </span>
-                        <select
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          value={newChild.enrollmentStatus ?? Types.EnrollmentStatus.New}
-                          onChange={(e) => updateDraft({ enrollmentStatus: e.target.value as Types.EnrollmentStatus })}
-                          required
-                        >
-                          <option value={Types.EnrollmentStatus.New}>New</option>
-                          <option value={Types.EnrollmentStatus.Waitlist}>
-                            Waitlist
-                          </option>
-                          <option value={Types.EnrollmentStatus.Active}>
-                            Active
-                          </option>
-                          <option value={Types.EnrollmentStatus.Withdraw}>
-                            Withdraw
-                          </option>
-                        </select>
-                      </label>
-                      <label className="block md:col-span-2">
-                        <span className="text-gray-700 font-medium mb-1 block">
-                          Notes
-                        </span>
-                        <textarea
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                          value={newChild.notes ?? ""}
-                          onChange={(e) => updateDraft({ notes: e.target.value })}
-                          placeholder="Allergies / Special needs / Subsidy status / Remarks"
-                        />
-                      </label>
+                            <option value={Types.EnrollmentStatus.Withdraw}>
+                              Withdraw
+                            </option>
+                          </select>
+                        </label>
+                        <label className="block md:col-span-2">
+                          <span className="text-gray-700 font-medium mb-1 block">
+                            Notes
+                          </span>
+                          <textarea
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            value={newChild.notes ?? ""}
+                            onChange={(e) => updateDraft({ notes: e.target.value })}
+                            placeholder="Allergies / Special needs / Subsidy status / Remarks"
+                          />
+                        </label>
+                      </div>
                     </div>
                   )}
 
 
                   {/* Parent 1 and 2 info */}
-                  {(activeStep === 1 )&& (
+                  {(activeStep === 1 || activeStep === 2) && (
                     <div className="space-y-4">
+                      <h2 className="text-2xl font-semibold text-gray-800 border-b pb-1">
+                        {activeStep === 1 ? "Parent 1 infomation" : "Parent 2 infomation"}
+                      </h2>
                       {/* Firstname - Lastname */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <label className="block">
@@ -1386,7 +1589,7 @@ export default function ChildrenTab({
                             required
                           />
                         </label>
-      
+
                         <label className="block">
                           <span className="text-gray-700 font-medium mb-1 block">
                             Last Name *
@@ -1402,10 +1605,10 @@ export default function ChildrenTab({
                           />
                         </label>
                       </div>
-      
+
                       {/* Email - Phone number */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      
+
                         <label className="block">
                           <span className="text-gray-700 font-medium mb-1 block">
                             Email *
@@ -1419,7 +1622,7 @@ export default function ChildrenTab({
                             required
                           />
                         </label>
-      
+
                         <label className="block">
                           <span className="text-gray-700 font-medium mb-1 block">
                             Phone *  <span className="text-red-500 text-sm">{phoneError}</span>
@@ -1433,14 +1636,14 @@ export default function ChildrenTab({
                           />
                         </label>
                       </div>
-      
+
                       <div className="block">
                         <AutoCompleteAddress
                           onAddressChanged={handleAddressChange}
                           addressValues={newTeacherAddressValues}
                         />
                       </div>
-      
+
                       {/* Maritual Status and relationship to kid */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <label className="block">
@@ -1463,7 +1666,7 @@ export default function ChildrenTab({
                             <option value="Divorced">Divorced</option>
                           </select>
                         </label>
-      
+
                         <label className="block">
                           <span className="text-gray-700 font-medium mb-1 block">
                             Relationship to child*
@@ -1487,9 +1690,71 @@ export default function ChildrenTab({
                     </div>
                   )}
 
+                  {/* Review SUMMARY before forms is submitted or reset */}
+                  {(activeStep === 3 || activeStep === 4) && (
+                    // View all Child and Parent Info
+                    <div className="space-y-6">
+                      <h2 className="text-2xl font-semibold text-gray-800 border-b pb-2">
+                        Review Information
+                      </h2>
+
+                      {/* 🧒 Child Information */}
+                      <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                        <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
+                          👶 Child Information
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                          <p><span className="font-semibold">First Name:</span> {newChild.firstName || "-"}</p>
+                          <p><span className="font-semibold">Last Name:</span> {newChild.lastName || "-"}</p>
+                          <p><span className="font-semibold">Gender:</span> {gender === "👧" ? "👧 Girl" : "👦 Boy"}</p>
+                          <p><span className="font-semibold">Birth Date:</span> {newChild.birthDate || "-"}</p>
+                          <p><span className="font-semibold">Location:</span> {locations?.find(l => l.id === newChild.locationId)?.name || "-"}</p>
+                          <p><span className="font-semibold">Status:</span> {newChild.enrollmentStatus}</p>
+                          <p className="md:col-span-2">
+                            <span className="font-semibold">Notes:</span> {newChild.notes || "None"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 👨‍👩‍👧 Parent 1 Information */}
+                      <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                        <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
+                          👩 Parent 1 Information
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                          <p><span className="font-semibold">First Name:</span> {newParent.firstName || "-"}</p>
+                          <p><span className="font-semibold">Last Name:</span> {newParent.lastName || "-"}</p>
+                          <p><span className="font-semibold">Email:</span> {newParent.email || "-"}</p>
+                          <p><span className="font-semibold">Phone:</span> {newParent.phone || "-"}</p>
+                          <p><span className="font-semibold">Address:</span> {newTeacherAddressValues?.address1 || "-"}</p>
+                          <p><span className="font-semibold">Marital Status:</span> {newParent.maritalStatus || "-"}</p>
+                          <p><span className="font-semibold">Relationship to Child:</span> {newParent.relationshipToChild || "-"}</p>
+                        </div>
+                      </div>
+
+                      {/* Optionally: Parent 2 */}
+                      {secondParent && (
+                        <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                          <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
+                            👨 Parent 2 Information
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                            <p><span className="font-semibold">First Name:</span> {secondParent.firstName || "-"}</p>
+                            <p><span className="font-semibold">Last Name:</span> {secondParent.lastName || "-"}</p>
+                            <p><span className="font-semibold">Email:</span> {secondParent.email || "-"}</p>
+                            <p><span className="font-semibold">Phone:</span> {secondParent.phone || "-"}</p>
+                            <p><span className="font-semibold">Marital Status:</span> {secondParent.maritalStatus || "-"}</p>
+                            <p><span className="font-semibold">Relationship to Child:</span> {secondParent.relationshipToChild || "-"}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+
 
                   {/*  Control of the Stepper and Status*/}
-                  {activeStep === steps.length ? (
+                  {activeStep === (steps.length - 1) ? (
                     <React.Fragment>
                       <Box sx={{ display: "flex", flexDirection: "row", pt: 1, fontWeight: "bold" }}>
                         <Typography sx={{}}>
@@ -1557,7 +1822,7 @@ export default function ChildrenTab({
                       }
 
                       // Disable button when not complete step
-                      disabled={activeStep !== steps.length}
+                      disabled={activeStep !== (steps.length - 1)}
                     >
                       {editingChild ? "Update Child" : "Submit"}
                     </button>

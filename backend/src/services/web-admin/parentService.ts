@@ -24,7 +24,7 @@ const usersRef = db.collection("users");
 3. Deleting/ Updating is affecting for only that location only
 */
 
-// List all parents
+// List all parents of THAT child
 export const getAllParents = async (
   daycareId: string,
   locationId: string
