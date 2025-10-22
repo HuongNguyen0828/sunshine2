@@ -107,6 +107,14 @@ export default function TeachersTab({
     [editingTeacher, setNewTeacher]
   );
 
+  // Clear draft
+  const clearDraft = useCallback(() => {
+    sessionStorage.removeItem("teacher-form-draft");
+    setIsDraftRestored(false);
+    resetForm(); // clear the form at the same time
+  }, []);
+
+
   // Reset form fields to initial state
   const resetForm = useCallback(() => {
     setNewTeacher({
@@ -127,15 +135,6 @@ export default function TeachersTab({
     });
   }, [setNewTeacher]);
 
-  // Clear draft, optionally reset form fields
-  const clearDraft = useCallback(
-    (resetFields = false) => {
-      sessionStorage.removeItem("teacher-form-draft");
-      setIsDraftRestored(false);
-      if (resetFields) resetForm();
-    },
-    [resetForm]
-  );
 
   const handleAddressChange = useCallback(
     (a: Address) => {

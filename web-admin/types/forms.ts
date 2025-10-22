@@ -7,20 +7,6 @@ export type Tab = 'overview' | 'teachers' | 'children' | 'parents' | 'classes' |
 // New item input shapes for controlled forms (no `any`)
 export type NewTeacherInput = Omit<Types.Teacher, 'id' | 'role'>;
 
-export interface NewChildInput {
-  firstName: string;
-  lastName: string;
-  birthDate: string;
-  parentIdsCsv: string;
-  classId: string;
-  allergies?: string;
-  specialNeeds?: string;
-  subsidyStatus?: string;
-  enrollmentDate: string;
-  enrollmentStatus: Types.Child['enrollmentStatus'];
-  endDate?: string;
-}
-
 export type NewParentInput = Omit<Types.Parent, 'id' | 'role' | 'childIds'>;
 
 // NOTE: Keep `capcity` to match your current Types.Class (typo in schema)
