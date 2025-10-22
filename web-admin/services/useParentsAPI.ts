@@ -20,7 +20,6 @@ export async function fetchParents(): Promise<Types.Parent[]> {
 export type NewParentInputWithChildId = NewParentInput & {childIds: string[]};
 export async function addParent(NewParentInputWithChildId: NewParentInputWithChildId): Promise<Types.Parent> {
   try {
-    alert("Adding Parent");
     const parent = await api.post<Types.Parent>(ENDPOINTS.parents, { ...NewParentInputWithChildId }); // with createdChildId
     swal.fire({
           icon: "success",

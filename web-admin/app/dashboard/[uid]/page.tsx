@@ -149,20 +149,20 @@ export default function AdminDashboard() {
     notes: "",
     enrollmentStatus: Types.EnrollmentStatus.New,
   });
-  const [newParent, setNewParent] = useState<NewParentInput>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    address1: "",
-    address2: "",
-    city: "",
-    province: "",
-    country: "",
-    postalcode: "",
-    maritalStatus: "",
-    relationshipToChild: ""
-  });
+  // const [newParent, setNewParent] = useState<NewParentInput>({
+  //   firstName: "",
+  //   lastName: "",
+  //   email: "",
+  //   phone: "",
+  //   address1: "",
+  //   address2: "",
+  //   city: "",
+  //   province: "",
+  //   country: "",
+  //   postalcode: "",
+  //   maritalStatus: "",
+  //   relationshipToChild: ""
+  // });
   const [newClass, setNewClass] = useState<NewClassInput>({
     name: "",
     locationId: "",
@@ -297,55 +297,50 @@ export default function AdminDashboard() {
 
   /* ---------- children (optimistic) ---------- */
 
-  const createChild = async (input: ChildFormInput): Promise<Types.Child | null> => {
+  const createChild = async (parent1: NewParentInput, parent2: NewParentInput | null): Promise<Types.Child | null> => {
     const payload: APIChildInput = {
-      firstName: input.firstName.trim(),
-      lastName: input.lastName.trim(),
-      birthDate: input.birthDate,
-      parentId: Array.isArray(input.parentId) ? input.parentId : [],
-      classId: input.classId?.trim() || undefined,
-      locationId: scope.mode === "fixed" ? scope.fixedLocationId : input.locationId?.trim(),
+      firstName: newChild.firstName.trim(),
+      lastName: newChild.lastName.trim(),
+      birthDate: newChild.birthDate,
+      parentId: Array.isArray(newChild.parentId) ? newChild.parentId : [],
+      classId: newChild.classId?.trim() || undefined,
+      locationId: scope.mode === "fixed" ? scope.fixedLocationId : newChild.locationId?.trim(),
       daycareId: scope.daycareId,
-      notes: input.notes?.trim() || undefined,
-      enrollmentStatus: input.enrollmentStatus ?? computeStatus(input.parentId, input.classId),
+      notes: newChild.notes?.trim() || undefined,
+      enrollmentStatus: newChild.enrollmentStatus ?? computeStatus(newChild.parentId, newChild.classId),
     };
 
     try {
       const created = await addChildAPI(payload);
+      alert(`Child created: ${created?.id}`);
 
       if (created) {
-        setcreatedChildId(created.id); // Get childId in success response, to attach to current Added parent
-        setcreatedChildId
+        // Create Parent 1 with the new child ID
+        await handleAddParent(parent1, created.id);
+
+        // Create Parent 2 if exists
+        if (parent2) {
+          await handleAddParent(parent2, created.id);
+        }
+
         setChildren((prev) => [created, ...prev]);
         if (created.classId) {
           setClasses((prev) =>
             prev.map((c) => (c.id === created.classId ? { ...c, volume: Math.max(0, (c.volume ?? 0) + 1) } : c))
           );
         }
-      } else {
-        startTransition(() => {
-          refetchChildrenLite();
-          refetchClassesLite();
-        });
+
+        // Refresh data
+        await refetchChildrenLite();
+        await refetchClassesLite();
+
+        return created;
       }
-    } finally {
-      setNewChild({
-        firstName: "",
-        lastName: "",
-        birthDate: "",
-        parentId: [],
-        classId: "",
-        locationId: "",
-        notes: "",
-        enrollmentStatus: Types.EnrollmentStatus.New,
-      });
+    } catch (error: any) {
+      console.error(error.message);
+      alert("Failed to create child and parents");
+      return null;
     }
-
-    startTransition(() => {
-      refetchChildrenLite();
-      refetchClassesLite();
-    });
-
     return null;
   };
 
@@ -568,32 +563,19 @@ export default function AdminDashboard() {
   };
 
   // Handle Add NewParent, PASSING child.id here
-  const handleAddParent = async () => {
-    // Only when child is successfully created
-    if (!createdChildId) {
-      alert("Failed add Parent: due to fail add Child");
-      return; // Return, do nothing
+  const handleAddParent = async (parentData: NewParentInput, childId: string) => {
+    if (!childId) {
+      alert("Failed to add Parent: missing child ID");
+      return;
     }
 
-    const newParentWithChildId: NewParentInputWithChildId = { ...newParent, childIds: [createdChildId] };
-    await addParent(newParentWithChildId); // With passing childId created by success API call  create new Child
-    // Refresh from server to get latest data,in the background
-    await initialFetchAll();
-    // Reset form
-    setNewParent({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      address1: "",
-      address2: "",
-      city: "",
-      province: "",
-      country: "",
-      postalcode: "",
-      maritalStatus: "",
-      relationshipToChild: ""
-    });
+    alert(`Adding parent for child: ${childId}`);
+    const newParentWithChildId: NewParentInputWithChildId = {
+      ...parentData,
+      childIds: [childId]
+    };
+
+    await addParent(newParentWithChildId);
   };
 
   /* ---------- classes passthrough ---------- */
@@ -662,14 +644,11 @@ export default function AdminDashboard() {
                 onCreated={(c) => console.log("created child", c?.id)}
                 onUpdated={(c) => console.log("updated child", c?.id)}
                 onDeleted={(id) => console.log("deleted child", id)}
-                // Parent
-                newParent={newParent}
-                setNewParent={setNewParent}
-                onAddParent={handleAddParent}
+              // Parent
               />
             )}
 
-            {
+            {/* {
               activeTab === "parents" && (
                 <ParentsTab
                   parents={parents}
@@ -677,8 +656,8 @@ export default function AdminDashboard() {
                   setNewParent={setNewParent}
                   onAdd={handleAddParent}
                 />
-              )
-            }
+              ) */}
+            {/* } */}
 
             {
               activeTab === "classes" && (

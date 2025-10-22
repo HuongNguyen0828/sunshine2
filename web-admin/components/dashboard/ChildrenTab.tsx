@@ -5,6 +5,7 @@ import * as Types from "../../../shared/types/type";
 import { useState, useEffect, useCallback, useRef, useMemo, ChangeEvent } from "react";
 import type { LocationLite } from "@/services/useLocationsAPI";
 import AutoCompleteAddress, { Address } from "../AutoCompleteAddress";
+import ParentForm from "./ParentForm";
 
 // For Stepper: Choosing linear bar
 //Steppers convey progress through numbered steps. It provides a wizard-like workflow.
@@ -43,7 +44,7 @@ type Props = {
   locations: LocationLite[];
   newChild: NewChildInput;
   setNewChild: React.Dispatch<React.SetStateAction<NewChildInput>>;
-  createChild: (input: NewChildInput) => Promise<Types.Child | null>;
+  createChild: (parent1: NewParentInput, parent2: NewParentInput | null) => Promise<Types.Child | null>;
   updateChild: (
     id: string,
     patch: Partial<NewChildInput>
@@ -58,9 +59,6 @@ type Props = {
   onUpdated?: (c: Types.Child) => void;
   onDeleted?: (id: string) => void;
 
-  newParent: NewParentInput;
-  setNewParent: React.Dispatch<React.SetStateAction<NewParentInput>>
-  onAddParent: () => void;
 };
 
 /* ---------------- helpers ---------------- */
@@ -368,10 +366,6 @@ export default function ChildrenTab({
   onUpdated,
   onDeleted,
 
-  newParent,
-  setNewParent,
-  onAddParent,
-
 }: Props) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingChild, setEditingChild] = useState<Types.Child | null>(null);
@@ -407,10 +401,25 @@ export default function ChildrenTab({
 
 
   /// ================From ParentTab
-  const [phoneError, setPhoneError] = useState<String>("");
+  const [phoneError, setPhoneError] = useState<string>("");
   const [colorChangeError, setColorChangeError] = useState<string>(""); // Initially no error
   const [editingParent, setEditingParent] = useState<Types.Parent | null>(null);
-  const [secondParent, setSecondParent] = useState<NewParentInput | null>(null); // Initially Parent2 is null (optional)
+  const [parent1, setParent1] = useState<NewParentInput>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    address1: '',
+    address2: "",
+    city: '',
+    province: '',
+    country: '',
+    postalcode: "",
+    maritalStatus: "",
+    relationshipToChild: "",
+  });
+
+  const [parent2, setParent2] = useState<NewParentInput | null>(null);
 
 
 
@@ -495,27 +504,27 @@ export default function ChildrenTab({
         return true;
 
       case 1: // Parent 1 Information
-        if (!newParent.firstName.trim()) {
+        if (!parent1.firstName.trim()) {
           alert("Parent first name is required");
           return false;
         }
-        if (!newParent.lastName.trim()) {
+        if (!parent1.lastName.trim()) {
           alert("Parent last name is required");
           return false;
         }
-        if (!newParent.email.trim()) {
+        if (!parent1.email.trim()) {
           alert("Parent email is required");
           return false;
         }
-        if (!newParent.phone.trim() || phoneError) {
+        if (!parent1.phone.trim() || phoneError) {
           alert("Valid phone number is required");
           return false;
         }
-        if (!newParent.maritalStatus) {
+        if (!parent1.maritalStatus) {
           alert("Marital status is required");
           return false;
         }
-        if (!newParent.relationshipToChild) {
+        if (!parent1.relationshipToChild) {
           alert("Relationship to child is required");
           return false;
         }
@@ -524,25 +533,25 @@ export default function ChildrenTab({
       case 2: // Parent 2 Information (optional, but if filled, validate)
         // Only validate if any field is filled (since it's optional)
         const hasAnyParent2Data =
-          newParent.firstName.trim() ||
-          newParent.lastName.trim() ||
-          newParent.email.trim() ||
-          newParent.phone.trim();
+          parent2?.firstName.trim() ||
+          parent2?.lastName.trim() ||
+          parent2?.email.trim() ||
+          parent2?.phone.trim();
 
         if (hasAnyParent2Data) {
-          if (!newParent.firstName.trim()) {
+          if (!parent2?.firstName.trim()) {
             alert("Parent 2 first name is required if other fields are filled");
             return false;
           }
-          if (!newParent.lastName.trim()) {
+          if (!parent2.lastName.trim()) {
             alert("Parent 2 last name is required if other fields are filled");
             return false;
           }
-          if (!newParent.email.trim()) {
+          if (!parent2.email.trim()) {
             alert("Parent 2 email is required if other fields are filled");
             return false;
           }
-          if (!newParent.phone.trim() || phoneError) {
+          if (!parent2.phone.trim() || phoneError) {
             alert("Valid parent 2 phone number is required if other fields are filled");
             return false;
           }
@@ -573,14 +582,23 @@ export default function ChildrenTab({
     setActiveStep((prev) => prev + 1);
     setSkipped(newSkipped);
 
-    // If step === 2 (entering 2nd parent) => setSecondParent = newParent
-    if (activeStep === 2) {
-      setSecondParent(newParent);
+    if (activeStep === 2) { // set Parent2 is not null
+      setParent2({
+        firstName: '',
+        lastName: '',
+        // childIds: [],
+        email: '',
+        phone: '',
+        address1: '',
+        address2: "",
+        city: '',
+        province: '',
+        country: '',
+        postalcode: "",
+        maritalStatus: "",
+        relationshipToChild: "",
+      })
     }
-
-    // Save data into temporary variable, Then Call API backend, when submit
-
-
   };
 
   // Handle click Back
@@ -600,8 +618,8 @@ export default function ChildrenTab({
       newSkipped.add(activeStep);
       return newSkipped;
     });
-    // If SKIP, then Parent2 is null
-    setSecondParent(null);
+    // SetParent2 = null
+    setParent2(null);
   };
 
   // Start all over agaim
@@ -640,7 +658,22 @@ export default function ChildrenTab({
       notes: "",
     });
     // Reset Parent
-    setNewParent({
+    setParent1({
+      firstName: '',
+      lastName: '',
+      // childIds: [],
+      email: '',
+      phone: '',
+      address1: '',
+      address2: "",
+      city: '',
+      province: '',
+      country: '',
+      postalcode: "",
+      maritalStatus: "",
+      relationshipToChild: "",
+    });
+    setParent2({
       firstName: '',
       lastName: '',
       // childIds: [],
@@ -717,24 +750,11 @@ export default function ChildrenTab({
       // Adding new Child W/ Parent
     } else {
       // 1. Child
-      const created = await createChild({
-        firstName: newChild.firstName.trim(),
-        lastName: newChild.lastName.trim(),
-        birthDate: newChild.birthDate,
-        parentId: Array.isArray(newChild.parentId) ? newChild.parentId : [],
-        classId: newChild.classId?.trim() || undefined,
-        locationId: trimmedLoc || undefined,
-        notes: newChild.notes?.trim() || undefined,
-        enrollmentStatus: newChild.enrollmentStatus,
-      });
-      alert(created);
+      const created = await createChild(parent1, parent2);
       if (created) {
         onCreated?.(created);
       }
-      // 2. Parent 1 and 2: passing ChildId ?? in the main
-      onAddParent();
     }
-
     resetForm();
     clearDraft();
     setIsFormOpen(false);
@@ -786,26 +806,10 @@ export default function ChildrenTab({
   const pageItems = filtered.slice(start, start + perPage);
 
 
-  ///////================= Parent 
-  // Handle Phone Number
-  const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Update value
-    updateParent({ phone: value });
-
-    // Check value
-    const phoneRegex = /^\d{10}$/; // 10 digits
-    if (!phoneRegex.test(value)) {
-      setPhoneError("Phone number must be 10 digits");
-    } else {
-      setPhoneError("");
-    }
-  }
-
   // Update form and persist a draft (debounced)
-  const updateParent = useCallback(
+  const updateParent1 = useCallback(
     (updates: Partial<NewParentInput>) => {
-      setNewParent(prev => {
+      setParent1(prev => {
         const updated = { ...prev, ...updates };
 
         // Only save draft in add mode
@@ -814,49 +818,69 @@ export default function ChildrenTab({
             clearTimeout(saveTimeoutRef.current);
           }
           saveTimeoutRef.current = setTimeout(() => {
-            sessionStorage.setItem('parent-form-draft', JSON.stringify(updated));
+            sessionStorage.setItem('parent1-form-draft', JSON.stringify(updated));
           }, 500);
         }
 
         return updated;
       });
     },
-    [editingParent, setNewParent]
+    [editingParent, setParent1]
   );
 
-  // Handle load address to form when editing: setNewTeacher with value of current Address
-  // Passing Current address value back to input value
-  const newTeacherAddressValues: Address = {
-    address1: newParent.address1,
-    address2: newParent.address2,
-    city: newParent.city,
-    province: newParent.province,
-    country: newParent.country,
-    postalcode: newParent?.postalcode
-  };
+  // Update form and persist a draft (debounced)
+  const updateParent2 = useCallback(
+    (updates: Partial<NewParentInput>) => {
+      setParent2(prev => {
+        if (!prev) {
+          // Initialize parent2 if it doesn't exist
+          const newParent2: NewParentInput = {
+            firstName: '',
+            lastName: '',
+            email: '',
+            phone: '',
+            address1: '',
+            address2: "",
+            city: '',
+            province: '',
+            country: '',
+            postalcode: "",
+            maritalStatus: "",
+            relationshipToChild: "",
+            ...updates
+          };
 
-  const handleAddressChange = useCallback((a: Address) => {
-    updateParent({
-      address1: a.address1,
-      address2: a.address2,
-      city: a.city,
-      province: a.province,
-      country: a.country,
-      postalcode: a.postalcode
-    });
-  }, [updateParent]);
+          // Save draft
+          if (!editingParent) {
+            if (saveTimeoutRef.current) {
+              clearTimeout(saveTimeoutRef.current);
+            }
+            saveTimeoutRef.current = setTimeout(() => {
+              sessionStorage.setItem('parent2-form-draft', JSON.stringify(newParent2));
+            }, 500);
+          }
 
-  const formatAddress = (parent: Types.Parent) => {
-    const parts = [
-      parent.address2,
-      parent.address1,
-      parent.city,
-      parent.province,
-      parent.country,
-      parent.postalcode,
-    ].filter(Boolean) as string[];
-    return parts.join(", ");
-  };
+          return newParent2;
+        }
+
+        const updated = { ...prev, ...updates };
+
+        // Only save draft in add mode
+        if (!editingParent) {
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+          }
+          saveTimeoutRef.current = setTimeout(() => {
+            sessionStorage.setItem('parent2-form-draft', JSON.stringify(updated));
+          }, 500);
+        }
+
+        return updated;
+      });
+    },
+    [editingParent, setParent2]
+  );
+
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -1208,119 +1232,25 @@ export default function ChildrenTab({
                       <h2 className="text-2xl font-semibold text-gray-800 border-b pb-1">
                         {activeStep === 1 ? "Parent 1 infomation" : "Parent 2 infomation"}
                       </h2>
-                      {/* Firstname - Lastname */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <label className="block">
-                          <span className="text-gray-700 font-medium mb-1 block">
-                            First Name *
-                          </span>
-                          <input
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                            placeholder="First Name"
-                            value={newParent.firstName}
-                            onChange={(e) =>
-                              updateParent({ firstName: e.target.value })
-                            }
-                            required
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="text-gray-700 font-medium mb-1 block">
-                            Last Name *
-                          </span>
-                          <input
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                            placeholder="Last Name"
-                            value={newParent.lastName}
-                            onChange={(e) =>
-                              updateParent({ lastName: e.target.value })
-                            }
-                            required
-                          />
-                        </label>
-                      </div>
-
-                      {/* Email - Phone number */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                        <label className="block">
-                          <span className="text-gray-700 font-medium mb-1 block">
-                            Email *
-                          </span>
-                          <input
-                            type="email"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                            placeholder="Email"
-                            value={newParent.email}
-                            onChange={(e) => updateParent({ email: e.target.value })}
-                            required
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="text-gray-700 font-medium mb-1 block">
-                            Phone *  <span className="text-red-500 text-sm">{phoneError}</span>
-                          </span>
-                          <input
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                            placeholder="Phone"
-                            value={newParent.phone}
-                            onChange={(e) => handlePhoneChange(e)}
-                            required
-                          />
-                        </label>
-                      </div>
-
-                      <div className="block">
-                        <AutoCompleteAddress
-                          onAddressChanged={handleAddressChange}
-                          addressValues={newTeacherAddressValues}
+                      {/* Use parent1 for step 1, parent2 for step 2 */}
+                      {activeStep === 1 ? (
+                        <ParentForm
+                          parent={parent1}
+                          updateParent={updateParent1}
+                          phoneError={phoneError}
+                          setPhoneError={setPhoneError}
                         />
-                      </div>
+                      ) : (
+                        parent2 && (
+                          <ParentForm
+                            parent={parent2}
+                            updateParent={updateParent2}
+                            phoneError={phoneError}
+                            setPhoneError={setPhoneError}
+                          />
+                        )
+                      )}
 
-                      {/* Maritual Status and relationship to kid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <label className="block">
-                          <span className="text-gray-700 font-medium mb-1 block">
-                            Marital Status *
-                          </span>
-                          <select
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            value={newParent.maritalStatus}
-                            onChange={(e) =>
-                              updateParent({ maritalStatus: e.target.value })
-                            }
-                            required
-                          >
-                            <option value="" disabled>Select status</option>
-                            <option value="Married">Married</option>
-                            <option value="Separated">Separated</option>
-                            <option value="Single">Single</option>
-                            <option value="Common Law">Common Law</option>
-                            <option value="Divorced">Divorced</option>
-                          </select>
-                        </label>
-
-                        <label className="block">
-                          <span className="text-gray-700 font-medium mb-1 block">
-                            Relationship to child*
-                          </span>
-                          <select
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            value={newParent.relationshipToChild}
-                            onChange={(e) =>
-                              updateParent({ relationshipToChild: e.target.value })
-                            }
-                            required
-                          >
-                            <option value="" disabled>Select relationship</option>
-                            <option value="Mother">Mother</option>
-                            <option value="Father">Father</option>
-                            <option value="Guardian">Guardian</option>
-                          </select>
-                        </label>
-                      </div>
                       {/* Removing AssignClass Manually in input form   */}
                     </div>
                   )}
@@ -1357,29 +1287,29 @@ export default function ChildrenTab({
                           👩 Parent 1 Information
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-                          <p><span className="font-semibold">First Name:</span> {newParent.firstName || "-"}</p>
-                          <p><span className="font-semibold">Last Name:</span> {newParent.lastName || "-"}</p>
-                          <p><span className="font-semibold">Email:</span> {newParent.email || "-"}</p>
-                          <p><span className="font-semibold">Phone:</span> {newParent.phone || "-"}</p>
-                          <p><span className="font-semibold">Address:</span> {newTeacherAddressValues?.address1 || "-"}</p>
-                          <p><span className="font-semibold">Marital Status:</span> {newParent.maritalStatus || "-"}</p>
-                          <p><span className="font-semibold">Relationship to Child:</span> {newParent.relationshipToChild || "-"}</p>
+                          <p><span className="font-semibold">First Name:</span> {parent1.firstName || "-"}</p>
+                          <p><span className="font-semibold">Last Name:</span> {parent1.lastName || "-"}</p>
+                          <p><span className="font-semibold">Email:</span> {parent1.email || "-"}</p>
+                          <p><span className="font-semibold">Phone:</span> {parent1.phone || "-"}</p>
+                          <p><span className="font-semibold">Address:</span> {parent1?.address1 || "-"}</p>
+                          <p><span className="font-semibold">Marital Status:</span> {parent1.maritalStatus || "-"}</p>
+                          <p><span className="font-semibold">Relationship to Child:</span> {parent1.relationshipToChild || "-"}</p>
                         </div>
                       </div>
 
                       {/* Optionally: Parent 2 */}
-                      {secondParent && (
+                      {parent2 && (
                         <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
                           <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
                             👨 Parent 2 Information
                           </h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
-                            <p><span className="font-semibold">First Name:</span> {secondParent.firstName || "-"}</p>
-                            <p><span className="font-semibold">Last Name:</span> {secondParent.lastName || "-"}</p>
-                            <p><span className="font-semibold">Email:</span> {secondParent.email || "-"}</p>
-                            <p><span className="font-semibold">Phone:</span> {secondParent.phone || "-"}</p>
-                            <p><span className="font-semibold">Marital Status:</span> {secondParent.maritalStatus || "-"}</p>
-                            <p><span className="font-semibold">Relationship to Child:</span> {secondParent.relationshipToChild || "-"}</p>
+                            <p><span className="font-semibold">First Name:</span> {parent2.firstName || "-"}</p>
+                            <p><span className="font-semibold">Last Name:</span> {parent2.lastName || "-"}</p>
+                            <p><span className="font-semibold">Email:</span> {parent2.email || "-"}</p>
+                            <p><span className="font-semibold">Phone:</span> {parent2.phone || "-"}</p>
+                            <p><span className="font-semibold">Marital Status:</span> {parent2.maritalStatus || "-"}</p>
+                            <p><span className="font-semibold">Relationship to Child:</span> {parent2.relationshipToChild || "-"}</p>
                           </div>
                         </div>
                       )}
