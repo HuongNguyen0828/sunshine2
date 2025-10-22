@@ -33,7 +33,14 @@ export default function ParentsTab({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [phoneError, setPhoneError] = useState<String>("");
 
-  // Restore draft when form opens
+  // Debounced save cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+
+  // Restore draft when form opens (add mode only)
   useEffect(() => {
     if (isFormOpen && !editingParent) {
       const draft = sessionStorage.getItem("parent-form-draft");
@@ -49,22 +56,19 @@ export default function ParentsTab({
     }
   }, [isFormOpen, editingParent, setNewParent]);
 
-  // Helper to update form and save draft
+  // Update form and persist a draft (debounced)
   const updateParent = useCallback(
     (updates: Partial<NewParentInput>) => {
-      setNewParent((prev) => {
+      setNewParent(prev => {
         const updated = { ...prev, ...updates };
 
-        // Save to sessionStorage with debounce
+        // Only save draft in add mode
         if (!editingParent) {
           if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
           }
           saveTimeoutRef.current = setTimeout(() => {
-            sessionStorage.setItem(
-              "parent-form-draft",
-              JSON.stringify(updated)
-            );
+            sessionStorage.setItem('parent-form-draft', JSON.stringify(updated));
           }, 500);
         }
 
@@ -92,7 +96,7 @@ export default function ParentsTab({
 
   // Pagination logic
   const parentsPerPage = 6;
-  const totalPages = Math.ceil(filteredParents.length / parentsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredParents.length / parentsPerPage));
   const startIndex = (currentPage - 1) * parentsPerPage;
   const paginatedParents = filteredParents.slice(
     startIndex,
@@ -113,7 +117,7 @@ export default function ParentsTab({
       onAdd();
       setIsFormOpen(false);
     }
-    clearDraft(); // Clear draft after successful submission
+    clearDraft(); // remove stored draft after submit
     setIsFormOpen(false);
   };
 
@@ -569,9 +573,10 @@ export default function ParentsTab({
                 {!editingParent && (
                   <button
                     type="button"
-                    onClick={clearDraft}
+                    onClick={() => clearDraft(true)}
                     className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
                   >
+                    {/* reset fields too */}
                     Clear Draft
                   </button>
                 )}

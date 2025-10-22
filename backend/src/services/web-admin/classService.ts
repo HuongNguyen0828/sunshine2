@@ -34,12 +34,13 @@ type Teacher = {
   role?: string;     // "teacher"
   status?: string;   // "New" | "Active" | ...
   classIds?: string[];
+  locationId?: string; // REQUIRED for location-safe assignment
 };
 
 /** Admin scope model - UNIFIED: single location only */
 type AdminScope =
   | { kind: "all" }
-  | { kind: "location"; id: string }      // single fixed location
+  | { kind: "location"; id: string }
   | { kind: "daycare"; daycareId: string };
 
 /* ------------------------------------------
@@ -50,19 +51,16 @@ class AppError extends Error {
     super(message);
   }
 }
-
 class ForbiddenError extends AppError {
   constructor(message = "Forbidden: location is not within admin scope") {
     super(403, message);
   }
 }
-
 class NotFoundError extends AppError {
   constructor(message = "Resource not found") {
     super(404, message);
   }
 }
-
 class BadRequestError extends AppError {
   constructor(message = "Bad request") {
     super(400, message);
@@ -82,9 +80,7 @@ function isTimestamp(v: unknown): v is FirebaseFirestore.Timestamp {
 function tsToISO(
   v: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue
 ): string {
-  if (isTimestamp(v)) {
-    return v.toDate().toISOString();
-  }
+  if (isTimestamp(v)) return v.toDate().toISOString();
   return new Date(0).toISOString();
 }
 
@@ -108,9 +104,7 @@ function classDocToDTO(id: string, data: ClassDocDB): Types.Class {
 /** Split array into chunks (for Firestore 'in' limit of 10). */
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    out.push(arr.slice(i, i + size));
-  }
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
 }
 
@@ -143,96 +137,56 @@ async function resolveDaycareLocationIds(daycareId: string): Promise<string[]> {
   return snap.docs.map((d) => d.id);
 }
 
-/**
- * UNIFIED: Ensure a specific location is allowed by admin scope.
- * locationId is REQUIRED.
- */
+/** Ensure a specific location is allowed by admin scope (locationId is REQUIRED). */
 async function ensureLocationAllowed(scope: AdminScope, locationId: string): Promise<void> {
-  // locationId is required - validate it exists and is not empty
-  if (!locationId || !locationId.trim()) {
-    throw new BadRequestError("Location ID is required");
-  }
-
-  // If scope is "all", any location is allowed
+  if (!locationId || !locationId.trim()) throw new BadRequestError("Location ID is required");
   if (scope.kind === "all") return;
 
-  // If scope is fixed to one location, must match exactly
   if (scope.kind === "location") {
-    if (scope.id !== locationId) {
-      throw new ForbiddenError();
-    }
+    if (scope.id !== locationId) throw new ForbiddenError();
     return;
   }
 
-  // scope.kind === "daycare": verify that this location belongs to daycare
   const locSnap = await db
     .collection(`daycareProvider/${scope.daycareId}/locations`)
     .doc(locationId)
     .get();
-  
-  if (!locSnap.exists) {
-    throw new ForbiddenError();
-  }
+  if (!locSnap.exists) throw new ForbiddenError();
 }
 
-/**
- * UNIFIED: Validate location exists.
- * Uses collectionGroup for "all" scope, direct path for scoped access.
- */
+/** Validate that a location exists. */
 async function assertLocationExists(locationId: string, scope: AdminScope): Promise<void> {
-  if (!locationId || !locationId.trim()) {
-    throw new NotFoundError("Location not found");
-  }
+  if (!locationId || !locationId.trim()) throw new NotFoundError("Location not found");
 
   if (scope.kind === "daycare") {
-    // Check within daycare's locations subcollection
-    const ref = db
-      .collection(`daycareProvider/${scope.daycareId}/locations`)
-      .doc(locationId);
+    const ref = db.collection(`daycareProvider/${scope.daycareId}/locations`).doc(locationId);
     const snap = await ref.get();
-    if (!snap.exists) {
-      throw new NotFoundError("Location not found");
-    }
+    if (!snap.exists) throw new NotFoundError("Location not found");
     return;
   }
 
-  if (scope.kind === "location") {
-    // Already validated in ensureLocationAllowed
-    return;
-  }
+  if (scope.kind === "location") return; // already validated
 
-  // scope.kind === "all" - use collectionGroup to find anywhere
   const cg = await db
     .collectionGroup("locations")
     .where(admin.firestore.FieldPath.documentId(), "==", locationId)
     .limit(1)
     .get();
-  
-  if (cg.empty) {
-    throw new NotFoundError("Location not found");
-  }
+  if (cg.empty) throw new NotFoundError("Location not found");
 }
 
 /** Query classes by a set of location ids, handling Firestore 'in' batching. */
 async function queryByLocationIds(ids: string[]) {
-  if (ids.length === 0) {
-    return [] as FirebaseFirestore.QueryDocumentSnapshot[];
-  }
+  if (ids.length === 0) return [] as FirebaseFirestore.QueryDocumentSnapshot[];
 
-  // Parallel execution for better performance
   const batches = chunk(ids, 10);
   const snapshots = await Promise.all(
-    batches.map(group =>
-      db.collection("classes")
-        .where("locationId", "in", group)
-        .orderBy("name")
-        .get()
+    batches.map((group) =>
+      db.collection("classes").where("locationId", "in", group).orderBy("name").get()
     )
   );
 
-  const allDocs = snapshots.flatMap(qs => qs.docs);
-
-  // Deduplicate by id (defensive)
+  const allDocs = snapshots.flatMap((qs) => qs.docs);
   const seen = new Set<string>();
   const unique: typeof allDocs = [];
   for (const doc of allDocs) {
@@ -250,9 +204,7 @@ async function queryClassesByScope(scope: AdminScope) {
     const snap = await db.collection("classes").orderBy("name").get();
     return snap.docs;
   }
-  
   if (scope.kind === "location") {
-    // Single location - direct query
     const snap = await db
       .collection("classes")
       .where("locationId", "==", scope.id)
@@ -260,10 +212,19 @@ async function queryClassesByScope(scope: AdminScope) {
       .get();
     return snap.docs;
   }
-  
-  // scope.kind === "daycare"
   const locIds = await resolveDaycareLocationIds(scope.daycareId);
   return queryByLocationIds(locIds);
+}
+
+/** Helper: read class and return its locationId (throws if missing). */
+async function getClassLocationId(classId: string): Promise<string> {
+  const classRef = db.collection("classes").doc(classId);
+  const classSnap = await classRef.get();
+  if (!classSnap.exists) throw new NotFoundError("Class not found");
+  const cls = classSnap.data() as ClassDocDB;
+  const loc = (cls.locationId ?? "").trim();
+  if (!loc) throw new BadRequestError("Class has no locationId");
+  return loc;
 }
 
 /* ------------------------------------------
@@ -280,20 +241,18 @@ export async function listClasses(uid?: string): Promise<Types.Class[]> {
 /** Create a class with scope and location validation. Returns DTO. */
 export async function createClass(input: Types.Class, uid?: string): Promise<Types.Class> {
   const { name, capacity, volume, ageStart, ageEnd, locationId, classroom } = input;
-  
-  // Validate required fields (locationId is REQUIRED)
+
   if (!name || capacity == null || volume == null || ageStart == null || ageEnd == null || !locationId) {
     throw new BadRequestError("Missing required fields (name, capacity, volume, ageStart, ageEnd, locationId)");
   }
 
-  // Permission check
   const scope = await loadAdminScope(uid);
   await ensureLocationAllowed(scope, locationId);
   await assertLocationExists(locationId, scope);
 
   const payload: ClassDocDB = {
     name,
-    locationId, // REQUIRED
+    locationId,
     capacity,
     volume,
     ageStart,
@@ -319,22 +278,15 @@ export async function updateClassById(
 
   const ref = db.collection("classes").doc(id);
   const doc = await ref.get();
-  
   if (!doc.exists) throw new NotFoundError("Class not found");
 
   const current = doc.data() as ClassDocDB;
-
-  // locationId is REQUIRED - use current if not provided
   const nextLocationId = input.locationId ?? current.locationId;
-  if (!nextLocationId) {
-    throw new BadRequestError("Location ID is required");
-  }
+  if (!nextLocationId) throw new BadRequestError("Location ID is required");
 
-  // Permission check
   const scope = await loadAdminScope(uid);
   await ensureLocationAllowed(scope, nextLocationId);
 
-  // If location is being changed, validate new location exists
   if (input.locationId && input.locationId !== current.locationId) {
     await assertLocationExists(input.locationId, scope);
   }
@@ -361,40 +313,62 @@ export async function deleteClassById(id: string, uid?: string): Promise<void> {
 
   const ref = db.collection("classes").doc(id);
   const doc = await ref.get();
-  
   if (!doc.exists) throw new NotFoundError("Class not found");
 
   const cls = doc.data() as ClassDocDB;
 
-  // Permission check
   const scope = await loadAdminScope(uid);
   await ensureLocationAllowed(scope, cls.locationId);
 
-  // Use transaction for atomic cleanup
   await db.runTransaction(async (tx) => {
-    // Find all users with this class
     const usersSnap = await db
       .collection("users")
       .where("classIds", "array-contains", id)
       .get();
 
-    // Remove class from all users
     usersSnap.forEach((u) => {
       const d = u.data() as { classIds?: string[] };
       const curr = Array.isArray(d.classIds) ? d.classIds : [];
       tx.update(u.ref, { classIds: curr.filter((c) => c !== id) });
     });
 
-    // Delete the class
     tx.delete(ref);
   });
 }
 
-/** List teacher candidates (role=teacher, optionally status=New). */
-export async function listTeacherCandidates(onlyNew = true): Promise<(Teacher & { id: string })[]> {
-  let q = db.collection("users").where("role", "==", "teacher");
+/**
+ * List teacher candidates with location guard.
+ * - If locationId is provided, enforce it.
+ * - Else if classId is provided, derive locationId from the class.
+ * - Enforces admin scope against resolved locationId.
+ */
+export async function listTeacherCandidates(opts?: {
+  onlyNew?: boolean;
+  locationId?: string;
+  classId?: string;
+  uid?: string;
+}): Promise<(Teacher & { id: string })[]> {
+  const onlyNew = opts?.onlyNew ?? true;
+
+  // Resolve target location (locationId > classId -> location)
+  let targetLocationId = (opts?.locationId ?? "").trim();
+  if (!targetLocationId && opts?.classId) {
+    targetLocationId = await getClassLocationId(opts.classId);
+  }
+  if (!targetLocationId) throw new BadRequestError("locationId or classId is required");
+
+  // Scope check
+  const scope = await loadAdminScope(opts?.uid);
+  await ensureLocationAllowed(scope, targetLocationId);
+
+  // Query teachers by location (+ optional status)
+  let q: FirebaseFirestore.Query = db
+    .collection("users")
+    .where("role", "==", "teacher")
+    .where("locationId", "==", targetLocationId);
+
   if (onlyNew) q = q.where("status", "==", "New");
-  
+
   const snap = await q.get();
   return snap.docs.map((d) => {
     const data = d.data() as Teacher;
@@ -406,13 +380,15 @@ export async function listTeacherCandidates(onlyNew = true): Promise<(Teacher & 
       role: data.role,
       status: data.status,
       classIds: Array.isArray(data.classIds) ? data.classIds : [],
+      locationId: data.locationId ?? undefined,
     };
   });
 }
 
 /**
- * Assign teachers to a class.
- * - If teacherIds omitted/empty: auto-pick users with role=teacher & status=New.
+ * Assign teachers to a class (location-safe).
+ * - Enforces teacher.locationId === class.locationId.
+ * - If teacherIds omitted/empty: auto-pick users with role=teacher & status=New in the same location as class.
  * - On assigning, set users/{id}.status = "Active".
  * - Returns the diff result (assigned/unassigned/ignoredInvalid).
  */
@@ -425,82 +401,82 @@ export async function assignTeachersToClass(
 
   const classRef = db.collection("classes").doc(classId);
   const classSnap = await classRef.get();
-  
   if (!classSnap.exists) throw new NotFoundError("Class not found");
 
   const cls = classSnap.data() as ClassDocDB;
+  const classLoc = (cls.locationId ?? "").trim();
+  if (!classLoc) throw new BadRequestError("Class has no locationId");
 
-  // Permission check based on class.locationId
+  // Scope check based on class location
   const scope = await loadAdminScope(uid);
-  await ensureLocationAllowed(scope, cls.locationId);
+  await ensureLocationAllowed(scope, classLoc);
 
-  // Normalize / auto-pick
+  // Normalize candidateIds
   let candidateIds: string[] =
     Array.isArray(teacherIds) && teacherIds.length
       ? Array.from(new Set(teacherIds.map((s) => s.trim()).filter((s) => s.length > 0)))
       : [];
 
+  // Auto-pick "New" teachers in the same location as the class
   if (candidateIds.length === 0) {
     const elig = await db
       .collection("users")
       .where("role", "==", "teacher")
       .where("status", "==", "New")
+      .where("locationId", "==", classLoc)
       .get();
     candidateIds = elig.docs.map((d) => d.id);
   }
-  
+
   if (candidateIds.length === 0) {
     return { assigned: [], unassigned: [], ignoredInvalid: [], classId };
   }
 
-  // Validate user existence & role
-  const userSnaps = await Promise.all(
-    candidateIds.map((id) => db.collection("users").doc(id).get())
-  );
-  
+  // Validate existence, role, and location match
+  const userSnaps = await Promise.all(candidateIds.map((id) => db.collection("users").doc(id).get()));
+
   const validIds: string[] = [];
   const invalid: string[] = [];
-  
+
   userSnaps.forEach((snap, i) => {
     const id = candidateIds[i];
     if (!snap.exists) {
       invalid.push(id);
       return;
     }
-    const data = snap.data() as { role?: string } | undefined;
-    if (data?.role === "teacher") {
-      validIds.push(id);
-    } else {
-      invalid.push(id);
-    }
+    const data = snap.data() as Teacher | undefined;
+    const roleOk = data?.role === "teacher";
+    const locOk = (data?.locationId ?? "").trim() === classLoc;
+    if (roleOk && locOk) validIds.push(id);
+    else invalid.push(id);
   });
-  
+
   if (validIds.length === 0) {
     return { assigned: [], unassigned: [], ignoredInvalid: invalid, classId };
   }
 
-  // Current assignment state (users where classIds contains classId)
+  // Compute diff with current assignments
   const currentAssignedSnap = await db
     .collection("users")
     .where("classIds", "array-contains", classId)
     .get();
-  
+
   const current = new Set(currentAssignedSnap.docs.map((d) => d.id));
   const selected = new Set(validIds);
 
   const toAdd = validIds.filter((id) => !current.has(id));
   const toRemove = [...current].filter((id) => !selected.has(id));
 
-  // Transaction for atomic updates
+  // Atomic updates
   await db.runTransaction(async (tx) => {
     if (toAdd.length) {
-      tx.update(classRef, { 
-        teacherIds: admin.firestore.FieldValue.arrayUnion(...toAdd) 
+      tx.update(classRef, {
+        teacherIds: admin.firestore.FieldValue.arrayUnion(...toAdd),
       });
     }
     if (toRemove.length) {
-      tx.update(classRef, { 
-        teacherIds: admin.firestore.FieldValue.arrayRemove(...toRemove) 
+      tx.update(classRef, {
+        teacherIds: admin.firestore.FieldValue.arrayRemove(...toRemove),
       });
     }
 
@@ -508,14 +484,14 @@ export async function assignTeachersToClass(
       const uRef = db.collection("users").doc(id);
       tx.update(uRef, {
         classIds: admin.firestore.FieldValue.arrayUnion(classId),
-        status: "Active", // set to Active upon assignment
+        status: "Active",
       });
     }
 
     for (const id of toRemove) {
       const uRef = db.collection("users").doc(id);
-      tx.update(uRef, { 
-        classIds: admin.firestore.FieldValue.arrayRemove(classId) 
+      tx.update(uRef, {
+        classIds: admin.firestore.FieldValue.arrayRemove(classId),
       });
     }
   });
