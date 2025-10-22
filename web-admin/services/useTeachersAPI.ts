@@ -1,28 +1,28 @@
 "use client";
 
-import * as Types from "@shared/types/type";
+import * as Types from "../../shared/types/type";
 import { NewTeacherInput } from "@/types/forms";
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
 import swal from "sweetalert2";
 
-export async function fetchTeachers(): Promise<Types.Teacher[] | null> {
+export async function fetchTeachers(): Promise<Types.Teacher[]> {
   try {
     const teachers = await api.get<Types.Teacher[]>(ENDPOINTS.teachers);
     return teachers;
   } catch (err: unknown) {
     console.error(err);
-    return null;
+    throw err;
   }
 }
 
-export async function addTeacher(newTeacher: NewTeacherInput): Promise<Types.Teacher | null> {
+export async function addTeacher(newTeacher: NewTeacherInput): Promise<Types.Teacher> {
   try {
     const teacher = await api.post<Types.Teacher>(ENDPOINTS.teachers, { ...newTeacher });
     swal.fire({
           icon: "success",
           title: "New Teacher",
-          text: `Successfully added`,
+          text: `Successfully added ${newTeacher.firstName} ${newTeacher.lastName}`,
         });
     return teacher;
   } catch (err: unknown) {
@@ -39,7 +39,7 @@ export async function addTeacher(newTeacher: NewTeacherInput): Promise<Types.Tea
 export async function updateTeacher(
   id: string,
   payload: NewTeacherInput
-): Promise<Types.Teacher | null> {
+): Promise<Types.Teacher> {
   try {
       console.log(id);
     const teacher = await api.put<Types.Teacher>(`${ENDPOINTS.teachers}/${id}`, { ...payload });
@@ -53,7 +53,7 @@ export async function updateTeacher(
 
 export async function deleteTeacher(
   id: string
-): Promise<{ ok: boolean; uid: string } | null> {
+): Promise<{ ok: boolean; uid: string}>  {
   try {
     const res = await api.delete<{ ok: boolean; uid: string }>(`${ENDPOINTS.teachers}/${id}`);
     return res;
@@ -66,7 +66,7 @@ export async function deleteTeacher(
 export async function assignTeacherToClass(
   id: string,
   classId: string
-): Promise<{ ok: boolean } | null> {
+): Promise<{ ok: boolean }> {
   try {
     const res = await api.post<{ ok: boolean }>(`${ENDPOINTS.teachers}/${id}/assign`, { classId });
     return res;

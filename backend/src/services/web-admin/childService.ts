@@ -484,14 +484,14 @@ export async function assignChildToClass(
     const cap = Math.max(0, cls.capacity ?? 0);
     const vol = Math.max(0, cls.volume ?? 0);
     if (vol >= cap) {
-      throw errorWithStatus("Class is full", 409);
+      throw errorWithStatus("Class is full", 409); // Can also have guard checking from frontend before shifting to backend
     }
 
-    const nextStatus = computeStatus(child.parentId, classId);
+    const nextStatus = computeStatus(child.parentId, classId); // Update both parent and child status
 
     tx.update(classRef, { volume: vol + 1 });
     tx.update(childRef, {
-      classId,
+      classId,                       // Children just go for 1 class at a time, update this class to other class. 
       locationId: cls.locationId ?? child.locationId,
       enrollmentStatus: nextStatus,
       enrollmentDate:

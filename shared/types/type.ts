@@ -232,23 +232,22 @@ export type UpdateChildProfileInput = Partial<Pick<
 export type ChildDTO = Child;
 
 export type Parent = {
-  id: string;
+  id?: string; // Make optionall as 
   firstName: string;
   lastName: string;
   email: string;           // username for login
-  role: "parent";          // fixed as Parent
+  role?: "parent";          // fixed as Parent
   phone: string;
-  passwordHash: string;    // storing hash directly for simplicity
-  childIds: string[];      // children associated with this parent
-  street: string;
+  childIds?: string[];      // children associated with this parent
+  address1: string;
+  address2?: string;
   city: string;
   province: string;
   country: string;
-  emergencyContact?: string;
-  createdAt: string; // ISO date string
-  updatedAt?: string; // ISO date string
-  preferredLanguage?: string; // e.g., "en", "fr"
-};
+  postalcode?: string;
+  maritalStatus: string;
+  relationshipToChild: string;
+}
 
 export type Entry = {
   id: string;

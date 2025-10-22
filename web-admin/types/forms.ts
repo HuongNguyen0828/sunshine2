@@ -21,7 +21,7 @@ export interface NewChildInput {
   endDate?: string;
 }
 
-export type NewParentInput = Omit<Types.Parent, 'id' | 'role' | 'createdAt'>;
+export type NewParentInput = Omit<Types.Parent, 'id' | 'role' | 'childIds'>;
 
 // NOTE: Keep `capcity` to match your current Types.Class (typo in schema)
 export interface NewClassInput {

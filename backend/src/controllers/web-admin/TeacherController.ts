@@ -1,7 +1,7 @@
 // Controller functions for handling teacher-related requests
 // All handlers call service-layer functions and shape HTTP responses.
 
-import e, { Request, Response } from "express";
+import { Request, Response } from "express";
 import * as TeacherService from "../../services/web-admin/teacherService";
 import { daycareLocationIds } from "../../services/authService";
 

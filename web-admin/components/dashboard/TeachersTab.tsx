@@ -8,7 +8,7 @@
 "use client";
 
 import * as Types from "../../../shared/types/type";
-import { useCallback, useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
 import type { NewTeacherInput } from "@/types/forms";
 import AutoCompleteAddress, { Address } from "@/components/AutoCompleteAddress";
 import api from "@/api/client";
@@ -43,6 +43,8 @@ export default function TeachersTab({
   const [rows, setRows] = useState<Types.Teacher[]>(teachers);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [phoneError, setPhoneError] = useState<String>("");
+
 
   // Location view Teacher
   const defaultLocationView: string = "all";
@@ -100,6 +102,7 @@ export default function TeachersTab({
   const clearDraft = useCallback(() => {
     sessionStorage.removeItem("teacher-form-draft");
     setIsDraftRestored(false);
+    resetForm(); // clear the form at the same time
   }, []);
 
   const handleAddressChange = useCallback(
@@ -286,7 +289,7 @@ export default function TeachersTab({
     ].filter(Boolean) as string[];
     return parts.join(", ");
   };
-  
+
   // To handle View by locations or all locations
   const handleView = (selectedView: string) => {
     if (selectedView !== defaultLocationView) {
@@ -295,8 +298,23 @@ export default function TeachersTab({
     } else {
       setRows(teachers);
       return;
-    } 
+    }
   };
+
+  // Handle Phone Number
+  const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Update value
+    updateTeacher({ phone: value });
+
+    // Check value
+    const phoneRegex = /^\d{10}$/; // 10 digits
+    if (!phoneRegex.test(value)) {
+      setPhoneError("Phone must be 10 digits");
+    } else {
+      setPhoneError("");
+    }
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -397,7 +415,6 @@ export default function TeachersTab({
               </div>
               <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
                 <div className="text-xs text-gray-500 leading-relaxed">
-                  {" "}
                   <span>🏠</span> {formatAddress(teacher)}
                 </div>
                 <div className="text-sm text-gray-400">
@@ -449,11 +466,10 @@ export default function TeachersTab({
           <button
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              currentPage === 1
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              }`}
           >
             ← Previous
           </button>
@@ -462,11 +478,10 @@ export default function TeachersTab({
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
-                  currentPage === page
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-                }`}
+                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                  }`}
               >
                 {page}
               </button>
@@ -477,11 +492,10 @@ export default function TeachersTab({
               setCurrentPage((prev) => Math.min(totalPages, prev + 1))
             }
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              currentPage === totalPages
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              }`}
           >
             Next →
           </button>
@@ -601,13 +615,13 @@ export default function TeachersTab({
 
                   <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">
-                      Phone Number *
+                      Phone Number * <span className="text-red-500 text-sm">{phoneError}</span>
                     </span>
                     <input
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="e.g. 403 111 2284"
                       value={newTeacher.phone}
-                      onChange={(e) => updateTeacher({ phone: e.target.value })}
+                      onChange={(e) => handlePhoneChange(e)}
                       required
                     />
                   </label>
