@@ -143,7 +143,7 @@ export async function fetchParentsLiteByIds(ids: string[]): Promise<ParentLite[]
   return out;
 }
 
-export async function addChild(input: NewChildInput): Promise<Types.Child | null> {
+export async function addChild(input: NewChildInput): Promise<Types.Child> {
   const parentId = normArr(input.parentId);
   const classId = normStr(input.classId);
   const status = input.enrollmentStatus ?? computeStatus(parentId, classId);
@@ -160,8 +160,14 @@ export async function addChild(input: NewChildInput): Promise<Types.Child | null
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
-  const ref = await addDoc(collection(db, CHILDREN), payload);
-  return toChild(ref.id, payload);
+  try {
+    const ref = await addDoc(collection(db, CHILDREN), payload);
+    alert(`from Han ${ref.id}`) 
+    return toChild(ref.id, payload);
+  } catch (error: any) {
+    throw error;
+  }
+  
 }
 
 export async function updateChild(
