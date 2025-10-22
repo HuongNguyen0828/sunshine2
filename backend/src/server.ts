@@ -13,6 +13,7 @@ import locationRoutes from "./routes/web-admin/LocationRoutes";
 import usersRoutes from "./routes/web-admin/UsersRoutes";
 import childRoutes from "./routes/web-admin/ChildRoutes";
 import schedulerRoutes from "./routes/web-admin/SchedulerRoutes";
+import parentRoutes from "./routes/web-admin/parentRoutes";
 
 const app = express();
 
@@ -76,6 +77,7 @@ app.use("/api/locations", locationRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/children", childRoutes);
 app.use("/api/schedules", schedulerRoutes);
+app.use("/api/parents", parentRoutes)
 
 const PORT = Number(process.env.PORT) || 5001;
 app.listen(PORT, "0.0.0.0", () => {

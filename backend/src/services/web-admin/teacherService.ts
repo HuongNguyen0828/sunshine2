@@ -53,7 +53,7 @@ export const getAllTeachers = async (daycareId: string, locationId: string): Pro
   }
 
 
-  // else, when locationId is exactly match
+  // else, case when locationId is exactly match
   const snap = await usersRef
     .where("locationId", "==", locationId)
     .where("role", "==", UserRole.Teacher) // only teachers
@@ -170,16 +170,28 @@ export const deleteTeacher = async (id: string): Promise<boolean> => {
 
 // Assign a teacher to a class (bidirectional), returns success boolean
 export const assignTeacherToClass = async (id: string, classId: string): Promise<boolean> => {
-  const teacherRef = usersRef.doc(id);
+  // Get Teacher by id field, not doc id
+  const teacherRef = usersRef
+    .where("id", "==", id);
+  const doc = await teacherRef.get();
+  const teacherDoc = doc.docs[0];
+
+  // Get Class by doc id
   const classRef   = classesRef.doc(classId);
 
-  const [tSnap, cSnap] = await Promise.all([teacherRef.get(), classRef.get()]);
+  const [tSnap, cSnap] = await Promise.all([teacherDoc, classRef.get()]);
+  // Either 1 of them cannot found, return false
   if (!tSnap.exists || !cSnap.exists) return false;
 
+  // Else, ... update classId and teacherId return choose
   const batch = db.batch();
-  batch.set(teacherRef, { classId }, { merge: true });
-  batch.set(classRef, { teacherId: id }, { merge: true });
+  batch.set(teacherDoc.ref, { classId }, { merge: true }); // Check the array, not object
+  batch.set(classRef, { teacherId: id }, { merge: true }); // Check the array, not object
   await batch.commit();
 
   return true;
 };
+
+/**
+ * Toggle UnassignParentToChild: is handle gracely in deleteParent service
+ */

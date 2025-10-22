@@ -31,10 +31,11 @@ import {
   unassignChildFromClass,
   linkParentToChildByEmail,
   unlinkParentFromChild,
-  fetchParentsLiteByIds, 
+  fetchParentsLiteByIds,
   type NewChildInput as APIChildInput,
 } from "@/services/useChildrenAPI";
 import TeachersTab from "@/components/dashboard/TeachersTab";
+import { addParent, fetchParents } from "@/services/useParentsAPI";
 
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null;
@@ -152,14 +153,14 @@ export default function AdminDashboard() {
     lastName: "",
     email: "",
     phone: "",
-    childIds: [],
-    street: "",
+    address1: "",
+    address2: "",
     city: "",
     province: "",
     country: "",
-    emergencyContact: "",
-    updatedAt: "",
-    preferredLanguage: "",
+    postalcode: "",
+    maritalStatus: "",
+    relationshipToChild: ""
   });
   const [newClass, setNewClass] = useState<NewClassInput>({
     name: "",
@@ -174,52 +175,54 @@ export default function AdminDashboard() {
   const scope = useMemo<AdminScope>(() => getAdminScopeFromUser(currentUser), [currentUser]);
 
 
-const refreshAll = useCallback(async () => {
-  setDataLoading(true);
-  try {
-    const childrenQuery =
-      scope.mode === "fixed"
-        ? { locationId: scope.fixedLocationId }
-        : scope.daycareId
-        ? { daycareId: scope.daycareId }
-        : {};
+  const refreshAll = useCallback(async () => {
+    setDataLoading(true);
+    try {
+      const childrenQuery =
+        scope.mode === "fixed"
+          ? { locationId: scope.fixedLocationId }
+          : scope.daycareId
+            ? { daycareId: scope.daycareId }
+            : {};
 
-    const [tchs, clss, locs, kids] = await Promise.all([
-      fetchTeachers(),
-      fetchClasses(),
-      fetchLocationsLite(),
-      fetchChildrenAPI(childrenQuery),
-    ]);
+      const [tchs, clss, locs, kids, prnts] = await Promise.all([
+        fetchTeachers(),
+        fetchClasses(),
+        fetchLocationsLite(),
+        fetchChildrenAPI(childrenQuery),
+        fetchParents(),
+      ]);
 
-    const filteredLocs =
-      scope.mode === "fixed"
-        ? (locs ?? []).filter((l) => l.id === scope.fixedLocationId)
-        : (locs ?? []);
+      const filteredLocs =
+        scope.mode === "fixed"
+          ? (locs ?? []).filter((l) => l.id === scope.fixedLocationId)
+          : (locs ?? []);
 
-    setTeachers(tchs ?? []);
-    setClasses(clss ?? []);
-    setLocations(filteredLocs);
-    setChildren(kids ?? []);
+      setTeachers(tchs ?? []);
+      setClasses(clss ?? []);
+      setLocations(filteredLocs);
+      setChildren(kids ?? []);
+      setParents(prnts ?? []);
 
-    // ✅ parents 라이트 로드
-    const parentIds = Array.from(
-      new Set(
-        (kids ?? []).flatMap((c) => Array.isArray(c.parentId) ? c.parentId : [])
-      )
-    );
-    const lites = await fetchParentsLiteByIds(parentIds);
-    setParentLites(lites);
-  } catch (e) {
-    console.error(e);
-    await swal.fire({
-      icon: "error",
-      title: "Failed to load",
-      text: "Could not fetch teachers/classes/locations/children.",
-    });
-  } finally {
-    setDataLoading(false);
-  }
-}, [scope.mode, scope.fixedLocationId, scope.daycareId]);
+      // ✅ parents 라이트 로드
+      const parentIds = Array.from(
+        new Set(
+          (kids ?? []).flatMap((c) => Array.isArray(c.parentId) ? c.parentId : [])
+        )
+      );
+      const lites = await fetchParentsLiteByIds(parentIds);
+      setParentLites(lites);
+    } catch (e) {
+      console.error(e);
+      await swal.fire({
+        icon: "error",
+        title: "Failed to load",
+        text: "Could not fetch teachers/classes/locations/children.",
+      });
+    } finally {
+      setDataLoading(false);
+    }
+  }, [scope.mode, scope.fixedLocationId, scope.daycareId]);
 
   useEffect(() => {
     if (authLoading || !currentUser) return;
@@ -245,23 +248,23 @@ const refreshAll = useCallback(async () => {
   }, [scope.mode, scope.fixedLocationId]);
 
   const handleAddTeacher = async () => {
-      await addTeacher(newTeacher);
-      // Refresh from server to get latest data,in the background
-      await refreshAll(); 
-      // Reset form
-      setNewTeacher({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        address1: "",
-        address2: "",
-        city: "", 
-        province: "",
-        country: "", 
-        startDate: "",
-        endDate: undefined,
-      });
+    await addTeacher(newTeacher);
+    // Refresh from server to get latest data,in the background
+    await refreshAll();
+    // Reset form
+    setNewTeacher({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      address1: "",
+      address2: "",
+      city: "",
+      province: "",
+      country: "",
+      startDate: "",
+      endDate: undefined,
+    });
   };
 
   const createChild = async (input: ChildFormInput): Promise<Types.Child | null> => {
@@ -361,27 +364,24 @@ const refreshAll = useCallback(async () => {
     }
   };
 
-  const addParent = () => {
-    const parent: Types.Parent = {
-      id: String(parents.length + 1),
-      role: "parent",
-      createdAt: new Date().toISOString(),
-      ...newParent,
-    };
-    setParents((p) => [parent, ...p]);
+  const handleAddParent = async () => {
+    await addParent(newParent);
+    // Refresh from server to get latest data,in the background
+    await refreshAll();
+    // Reset form
     setNewParent({
       firstName: "",
       lastName: "",
       email: "",
       phone: "",
-      childIds: [],
-      street: "",
+      address1: "",
+      address2: "",
       city: "",
       province: "",
       country: "",
-      emergencyContact: "",
-      updatedAt: "",
-      preferredLanguage: "",
+      postalcode: "",
+      maritalStatus: "",
+      relationshipToChild: ""
     });
   };
 
@@ -397,7 +397,7 @@ const refreshAll = useCallback(async () => {
 
   if (authLoading || dataLoading) {
     return (
-        <div>Loading</div>
+      <div>Loading</div>
     );
   }
 
@@ -426,7 +426,7 @@ const refreshAll = useCallback(async () => {
                 classCount={classes.length}
               />
             )}
-            
+
             {activeTab === "teachers" && (
               <TeachersTab
                 teachers={teachers}
@@ -463,7 +463,7 @@ const refreshAll = useCallback(async () => {
                 parents={parents}
                 newParent={newParent}
                 setNewParent={setNewParent}
-                onAdd={addParent}
+                onAdd={handleAddParent}
               />
             )}
 

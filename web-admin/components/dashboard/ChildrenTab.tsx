@@ -231,6 +231,7 @@ export default function ChildrenTab({
   const clearDraft = useCallback(() => {
     sessionStorage.removeItem("child-form-draft");
     setIsDraftRestored(false);
+    resetForm(); // clear the form at the same time
   }, []);
 
   //============ Progress bar
