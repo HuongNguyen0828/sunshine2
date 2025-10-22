@@ -107,48 +107,6 @@ export default function TeachersTab({
     resetForm(); // clear the form at the same time
   }, []);
 
-  const handleAddressChange = useCallback(
-    (a: Address) => {
-      updateTeacher({
-        address1: a.address1,
-        address2: a.address2,
-        city: a.city,
-        province: a.province,
-        country: a.country,
-        postalcode: a.postalcode,
-      });
-    },
-    [updateTeacher]
-  );
-
-  // Handle load address to form when editing: setNewTeacher with value of current Address
-  // Passing Current address value back to input value
-  const newTeacherAddressValues: Address = {
-    address1: newTeacher.address1,
-    address2: newTeacher.address2,
-    city: newTeacher.city,
-    province: newTeacher.province,
-    country: newTeacher.country,
-    postalcode: newTeacher?.postalcode,
-  };
-
-  const filteredTeachers = useMemo(() => {
-    const term = searchTerm.toLowerCase();
-    return rows.filter(
-      (t) =>
-        t.firstName?.toLowerCase().includes(term) ||
-        t.lastName?.toLowerCase().includes(term) ||
-        t.email?.toLowerCase().includes(term)
-    );
-  }, [rows, searchTerm]);
-
-  const teachersPerPage = 6;
-  const totalPages = Math.ceil(filteredTeachers.length / teachersPerPage) || 1;
-  const startIndex = (currentPage - 1) * teachersPerPage;
-  const paginatedTeachers = filteredTeachers.slice(
-    startIndex,
-    startIndex + teachersPerPage
-  );
 
   // Reset form fields to initial state
   const resetForm = useCallback(() => {
@@ -170,15 +128,6 @@ export default function TeachersTab({
     });
   }, [setNewTeacher]);
 
-  // Clear draft, optionally reset form fields
-  const clearDraft = useCallback(
-    (resetFields = false) => {
-      sessionStorage.removeItem("teacher-form-draft");
-      setIsDraftRestored(false);
-      if (resetFields) resetForm();
-    },
-    [resetForm]
-  );
 
   const handleAddressChange = useCallback(
     (a: Address) => {

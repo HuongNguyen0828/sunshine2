@@ -299,16 +299,6 @@ export default function ParentsTab({
                     {formatAddress(parent)}
                   </span>
                 </div>
-
-                {/* REMOVE (Assigning Parent to Child manually), to be auto */}
-                {/* <div className="flex items-start gap-2">
-                  <span className="text-xs text-gray-500">Children:</span>
-                  <span className="text-xs text-gray-700">
-                    {parent.childIds.length > 0
-                      ? `${parent.childIds.length} child(ren)`
-                      : "None"}
-                  </span>
-                </div> */}
               </div>
 
               {/* Action Buttons */}
@@ -536,27 +526,7 @@ export default function ParentsTab({
                     </select>
                   </label>
                 </div>
-
-
-
-                {/* <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Child IDs
-                  </span>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
-                    placeholder="Comma separated child IDs (optional)"
-                    value={newParent.childIds.join(", ")}
-                    onChange={(e) =>
-                      updateParent({
-                        childIds: e.target.value
-                          .split(",")
-                          .map((s) => s.trim())
-                          .filter(Boolean),
-                      })
-                    }
-                  />
-                </label> */}
+                {/* Removing AssignClass Manually in input form   */}
               </div>
 
               <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
@@ -573,7 +543,7 @@ export default function ParentsTab({
                 {!editingParent && (
                   <button
                     type="button"
-                    onClick={() => clearDraft(true)}
+                    onClick={() => clearDraft()}
                     className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
                   >
                     {/* reset fields too */}

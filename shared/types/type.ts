@@ -180,6 +180,7 @@ export type Child = {
   firstName: string;
   lastName: string;
   birthDate: string; // ISO date (yyyy-mm-dd)
+  // gender: string,
 
   /** Parent linkage (user ids from users collection with role="parent") */
   parentId: string[];
@@ -187,7 +188,7 @@ export type Child = {
   /** Placement info */
   classId?: string;    // assigned class id (optional)
   locationId?: string; // location scope id
-  daycareId: string;   // always required, injected from current admin
+  daycareId?: string;   // always required, injected from current admin
 
   /** Enrollment lifecycle (computed) */
   enrollmentStatus: EnrollmentStatus; // computed by backend

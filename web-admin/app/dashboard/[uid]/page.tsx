@@ -650,6 +650,8 @@ export default function AdminDashboard() {
                 onCreated={(c) => console.log("created child", c?.id)}
                 onUpdated={(c) => console.log("updated child", c?.id)}
                 onDeleted={(id) => console.log("deleted child", id)}
+                newParent={newParent}
+                setNewParent={setNewParent}
               />
             )}
 
