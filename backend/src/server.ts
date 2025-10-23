@@ -1,7 +1,5 @@
-
 // backend/src/server.ts
-import "dotenv/config"; // must be first
-
+import "dotenv/config";
 
 import express from "express";
 import cors from "cors";
@@ -15,7 +13,12 @@ import childRoutes from "./routes/web-admin/ChildRoutes";
 import schedulerRoutes from "./routes/web-admin/SchedulerRoutes";
 import parentRoutes from "./routes/web-admin/parentRoutes";
 
+// mobile
+import mobileRegistrationRoutes from "./routes/mobile/registrationRoutes";
+
 const app = express();
+
+app.set("trust proxy", true);
 
 app.use(
   cors({
@@ -25,14 +28,14 @@ app.use(
       "http://localhost:8081",
     ],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], // Allow PATCH
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
 app.use(express.json());
 
-// Request logging middleware
+// request log
 app.use((req, res, next) => {
   console.log("\n📥 Incoming Request:");
   console.log(`  Method: ${req.method}`);
@@ -46,7 +49,6 @@ app.use((req, res, next) => {
     console.log(`  Body:`, req.body);
   }
 
-  // Capture response
   const originalSend = res.send;
   res.send = function (data) {
     console.log("📤 Outgoing Response:");
@@ -61,15 +63,11 @@ app.use((req, res, next) => {
   next();
 });
 
-
-// === Basic routes ===
-
-
-// Simple health checks
+// health
 app.get("/", (_req, res) => res.send("Server is running!"));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// --- API routes (ALL under /api/*) ---
+// admin/web-admin routes
 app.use("/api/auth", authRoutes);
 app.use("/api/teachers", teacherRoutes);
 app.use("/api/classes", classRoutes);
@@ -78,6 +76,14 @@ app.use("/api/users", usersRoutes);
 app.use("/api/children", childRoutes);
 app.use("/api/schedules", schedulerRoutes);
 app.use("/api/parents", parentRoutes)
+
+// mobile routes
+app.use("/api/mobile", mobileRegistrationRoutes);
+
+// 404
+app.use((req, res) => {
+  res.status(404).json({ ok: false, message: "Not found" });
+});
 
 const PORT = Number(process.env.PORT) || 5001;
 app.listen(PORT, "0.0.0.0", () => {
