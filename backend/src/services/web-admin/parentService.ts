@@ -95,8 +95,29 @@ export const addParent = async (
   const id = docRef.id;
   await docRef.update({ id });
 
+  // Update current child with newaddedParent id: Child doc with parentId.push(parentId)
+  /// 1. As childIds is list, the newLy added childId = childIds[length -1] or the last childId
+  const parentDocRef = docRef.get();
+  const parentData = (await parentDocRef).data();
+
+  const  childIds = parentData?.childIds;
+  const newlyAddedChildId = childIds[childIds.length - 1];;
+
+  // 2. Find the child with newlyAddedChildId
+  const childRef = db.collection("children").doc(newlyAddedChildId);
+  // 3. Update parentId list to add parentId
+  // 3.1 Extract parentId data, modify it
+  const childDataRef = childRef.get();
+  const childData = (await childDataRef).data();
+  const parentIdFromChildDoc = childData?.parentId;
+  // 3.3 NOT using parent doc id, but parent.id field
+  const parentIdField = parentData?.id;
+  const modifiedParenId = [...parentIdFromChildDoc, parentIdField]; /// modifying current Array, NOT parenIdFromChildDoc.push(id); as this is creating new array
+  // 3.2 Update the modifed ParentId into childRef doc
+  const ok = await childRef.update({parentId: modifiedParenId })
+  if (!ok) throw Error ("Failed to update ParentId inside Children collection");
   // return parent
-  return { id: docRef.id, ...(parent as any) } as Parent;
+  return { id, ...(parent as any) } as Parent;
 };
 
 /**
