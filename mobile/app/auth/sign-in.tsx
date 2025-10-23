@@ -1,3 +1,4 @@
+// mobile/auth/sign-in.tsx
 import { useState, useMemo } from "react";
 import {
   View,
@@ -16,13 +17,32 @@ import { signIn } from "@/lib/auth";
 import { colors } from "@/constants/color";
 import { signInStyles as s } from "@/styles/screens/signIn";
 
+const norm = (v: string) => v.trim().toLowerCase();
+
+function prettyError(code?: string, message?: string) {
+  switch (code) {
+    case "auth/invalid-email":
+      return "Invalid email format.";
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+      return "Incorrect email or password.";
+    case "auth/user-disabled":
+      return "Account is disabled. Contact support.";
+    case "auth/user-not-found":
+      return "No account found with that email.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Try again later.";
+    default:
+      return message || "Sign-in failed. Please try again.";
+  }
+}
+
 export default function SignIn() {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Simple validation: email format and min password length
   const valid = useMemo(() => {
     const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
     return okEmail && pw.length >= 6;
@@ -30,18 +50,19 @@ export default function SignIn() {
 
   const onSubmit = async () => {
     if (!valid || loading) return;
-
-    // Login in try-catch blog
     try {
       setErr(null);
       setLoading(true);
-      await signIn(email, pw);
-      router.replace("/"); // got to index
+
+      const user = await signIn(norm(email), pw);
+      const token = await user.getIdTokenResult(true);
+      const role = (token.claims?.role as string | undefined) || "";
+
+      if (role === "teacher") router.replace("/teacher" as any);
+      else if (role === "parent") router.replace("/parent" as any);
+      else router.replace("/" as any);
     } catch (e: any) {
-
-      const msg = e.message;
-      setErr(msg);
-
+      setErr(prettyError(e?.code, e?.message));
     } finally {
       setLoading(false);
     }
@@ -49,28 +70,17 @@ export default function SignIn() {
 
   return (
     <View style={s.page}>
-      {/* Keep inputs visible when the keyboard shows */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* Space-between keeps the hero visually near the bottom */}
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={s.content}
-        >
-          {/* Top: header + form */}
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
           <View>
-            {/* Header: logo + title */}
             <View style={s.header}>
-              <Image
-                source={require("../../assets/images/logo.png")}
-                style={s.logo}
-              />
+              <Image source={require("../../assets/images/logo.png")} style={s.logo} />
               <Text style={s.title}>Sign in</Text>
             </View>
 
-            {/* Form block */}
             <View style={s.form}>
               <TextInput
                 placeholder="Email"
@@ -79,6 +89,7 @@ export default function SignIn() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 textContentType="emailAddress"
+                autoCorrect={false}
                 placeholderTextColor={colors.textDim}
                 style={s.input}
               />
@@ -99,26 +110,20 @@ export default function SignIn() {
                 disabled={!valid || loading}
                 style={[s.button, (!valid || loading) && s.buttonDisabled]}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={s.buttonText}>Sign in</Text>
-                )}
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.buttonText}>Sign in</Text>}
               </Pressable>
 
               <Link href="/auth/register" asChild>
                 <TouchableOpacity style={s.linkWrap}>
-                  <Text>New parent? <Text style={s.linkText}>Create account</Text></Text>
+                  <Text>
+                    New parent? <Text style={s.linkText}>Create account</Text>
+                  </Text>
                 </TouchableOpacity>
               </Link>
             </View>
           </View>
 
-          {/* Bottom hero image: not flush with the edge */}
-          <Image
-            source={require("../../assets/images/welcome.jpg")}
-            style={s.heroBottom}
-          />
+          <Image source={require("../../assets/images/welcome.jpg")} style={s.heroBottom} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
