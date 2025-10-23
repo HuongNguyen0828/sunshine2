@@ -1,3 +1,4 @@
+// mobile/app/auth/register.tsx
 import { useMemo, useState } from "react";
 import {
   View,
@@ -10,10 +11,16 @@ import {
   Platform,
 } from "react-native";
 import { Link, router } from "expo-router";
-import { registerUser } from "@/lib/auth";
+import { registerWithPassword } from "@/lib/auth";
 import { signInStyles as s } from "@/styles/screens/signIn";
 
+const norm = (v: string) => v.trim().toLowerCase();
 
+function prettyRegisterError(message?: string) {
+  // registerWithPassword throws user-friendly messages already.
+  // Keep a fallback here just in case.
+  return message || "Registration failed. Please try again.";
+}
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -35,11 +42,17 @@ export default function Register() {
     try {
       setErr(null);
       setLoading(true);
-      await registerUser(name, email, pw);
-      router.replace("/");
+
+      const user = await registerWithPassword(name.trim(), norm(email), pw);
+
+      const token = await user.getIdTokenResult(true);
+      const role = (token.claims?.role as string | undefined) || "";
+
+      if (role === "teacher") router.replace("/teacher" as any);
+      else if (role === "parent") router.replace("/parent" as any);
+      else router.replace("/" as any);
     } catch (e: any) {
-      const m = e?.message || "Something is not catched";
-      setErr(m);
+      setErr(prettyRegisterError(e?.message));
     } finally {
       setLoading(false);
     }
@@ -50,7 +63,6 @@ export default function Register() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1 }}
     >
-      
       <View
         style={{
           flex: 1,
@@ -61,10 +73,7 @@ export default function Register() {
         }}
       >
         <View style={s.header}>
-          <Image
-            source={require("../../assets/images/logo.png")}
-            style={s.logo}
-          />
+          <Image source={require("../../assets/images/logo.png")} style={s.logo} />
           <Text style={s.title}>Create new Account</Text>
         </View>
 
@@ -73,6 +82,7 @@ export default function Register() {
             placeholder="Full name"
             value={name}
             onChangeText={setName}
+            autoCorrect={false}
             style={{
               borderWidth: 1,
               borderColor: "#ddd",
@@ -87,6 +97,7 @@ export default function Register() {
             autoCapitalize="none"
             keyboardType="email-address"
             textContentType="emailAddress"
+            autoCorrect={false}
             style={{
               borderWidth: 1,
               borderColor: "#ddd",
@@ -99,7 +110,7 @@ export default function Register() {
             value={pw}
             onChangeText={setPw}
             secureTextEntry
-            textContentType="password"
+            textContentType="newPassword"
             style={{
               borderWidth: 1,
               borderColor: "#ddd",
@@ -146,12 +157,12 @@ export default function Register() {
         <View style={{ alignItems: "center", marginTop: 8, gap: 6 }}>
           <Link href="/auth/sign-in" asChild>
             <Pressable>
-              <Text >Already have an account? <Text style={s.linkText}>Sign in</Text></Text>
+              <Text>
+                Already have an account? <Text style={s.linkText}>Sign in</Text>
+              </Text>
             </Pressable>
           </Link>
         </View>
-
-      
       </View>
     </KeyboardAvoidingView>
   );
