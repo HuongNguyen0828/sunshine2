@@ -1,4 +1,3 @@
-// mobile/auth/sign-in.tsx
 import { useState, useMemo } from "react";
 import {
   View,
@@ -58,9 +57,13 @@ export default function SignIn() {
       const token = await user.getIdTokenResult(true);
       const role = (token.claims?.role as string | undefined) || "";
 
-      if (role === "teacher") router.replace("/teacher" as any);
-      else if (role === "parent") router.replace("/parent" as any);
-      else router.replace("/" as any);
+      if (role === "teacher") {
+        router.replace("/(teacher)/(tabs)/dashboard"); //  internal path
+      } else if (role === "parent") {
+        router.replace("/(parent)/(tabs)/dashboard");  //  internal path
+      } else {
+        router.replace("/");
+      }
     } catch (e: any) {
       setErr(prettyError(e?.code, e?.message));
     } finally {

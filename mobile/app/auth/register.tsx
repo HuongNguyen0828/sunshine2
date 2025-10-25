@@ -17,8 +17,7 @@ import { signInStyles as s } from "@/styles/screens/signIn";
 const norm = (v: string) => v.trim().toLowerCase();
 
 function prettyRegisterError(message?: string) {
-  // registerWithPassword throws user-friendly messages already.
-  // Keep a fallback here just in case.
+  // registerWithPassword already throws user-friendly messages.
   return message || "Registration failed. Please try again.";
 }
 
@@ -43,14 +42,21 @@ export default function Register() {
       setErr(null);
       setLoading(true);
 
+      // 1) Register (precheck + auth + completeRegistration inside)
       const user = await registerWithPassword(name.trim(), norm(email), pw);
 
+      // 2) Read role from custom claims and navigate to INTERNAL path
       const token = await user.getIdTokenResult(true);
       const role = (token.claims?.role as string | undefined) || "";
 
-      if (role === "teacher") router.replace("/teacher" as any);
-      else if (role === "parent") router.replace("/parent" as any);
-      else router.replace("/" as any);
+      if (role === "teacher") {
+        router.replace("/(teacher)/(tabs)/dashboard");   //  internal path
+      } else if (role === "parent") {
+        router.replace("/(parent)/(tabs)/dashboard");    //  internal path
+      } else {
+        // Fallback: let index route it (rare)
+        router.replace("/");
+      }
     } catch (e: any) {
       setErr(prettyRegisterError(e?.message));
     } finally {
@@ -83,12 +89,7 @@ export default function Register() {
             value={name}
             onChangeText={setName}
             autoCorrect={false}
-            style={{
-              borderWidth: 1,
-              borderColor: "#ddd",
-              padding: 12,
-              borderRadius: 10,
-            }}
+            style={{ borderWidth: 1, borderColor: "#ddd", padding: 12, borderRadius: 10 }}
           />
           <TextInput
             placeholder="Email"
@@ -98,12 +99,7 @@ export default function Register() {
             keyboardType="email-address"
             textContentType="emailAddress"
             autoCorrect={false}
-            style={{
-              borderWidth: 1,
-              borderColor: "#ddd",
-              padding: 12,
-              borderRadius: 10,
-            }}
+            style={{ borderWidth: 1, borderColor: "#ddd", padding: 12, borderRadius: 10 }}
           />
           <TextInput
             placeholder="Password (min 6)"
@@ -111,12 +107,7 @@ export default function Register() {
             onChangeText={setPw}
             secureTextEntry
             textContentType="newPassword"
-            style={{
-              borderWidth: 1,
-              borderColor: "#ddd",
-              padding: 12,
-              borderRadius: 10,
-            }}
+            style={{ borderWidth: 1, borderColor: "#ddd", padding: 12, borderRadius: 10 }}
           />
           <TextInput
             placeholder="Confirm password"
@@ -124,12 +115,7 @@ export default function Register() {
             onChangeText={setPw2}
             secureTextEntry
             textContentType="password"
-            style={{
-              borderWidth: 1,
-              borderColor: "#ddd",
-              padding: 12,
-              borderRadius: 10,
-            }}
+            style={{ borderWidth: 1, borderColor: "#ddd", padding: 12, borderRadius: 10 }}
           />
         </View>
 
