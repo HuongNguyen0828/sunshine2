@@ -1,4 +1,3 @@
-// mobile/app/index.tsx
 import { useEffect, useRef, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
@@ -12,18 +11,17 @@ export default function Index() {
   useEffect(() => {
     const off = onUserChanged(async (u) => {
       if (!u) {
-        router.replace("/auth/sign-in" as any);
+        router.replace("/auth/sign-in");
         setReady(true);
         return;
       }
-
       try {
-        // Force refresh to pick up latest custom claims after registration
+        // refresh to get latest custom claims after registration
         await u.getIdToken(true);
         let token = await u.getIdTokenResult();
         let role = (token.claims?.role as string | undefined) || "";
 
-        // If claims not yet propagated, retry once
+        // if claims not yet propagated, retry once
         if (!role && !retried.current) {
           retried.current = true;
           await u.getIdToken(true);
@@ -32,24 +30,21 @@ export default function Index() {
         }
 
         if (role === "teacher") {
-          router.replace("/(teacher)/(tabs)/dashboard" as any);
+          router.replace("/(teacher)/(tabs)/dashboard"); //  go to internal path
         } else if (role === "parent") {
-          router.replace("/(parent)/(tabs)/dashboard" as any);
+          router.replace("/(parent)/(tabs)/dashboard");  //  go to internal path
         } else {
-          // No role → not allowed on mobile. Sign out and bounce to sign in.
           await signOutUser();
-          router.replace("/auth/sign-in" as any);
+          router.replace("/auth/sign-in");
         }
-
         setReady(true);
       } catch (e) {
         console.error("Bootstrap routing error:", e);
         await signOutUser();
-        router.replace("/auth/sign-in" as any);
+        router.replace("/auth/sign-in");
         setReady(true);
       }
     });
-
     return () => off();
   }, []);
 
