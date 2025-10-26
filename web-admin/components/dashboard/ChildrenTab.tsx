@@ -115,7 +115,6 @@ type ChildCardProps = {
   child: Types.Child;
   classes: Types.Class[];
   parent1And2: Types.Parent[];
-  parents: Types.Parent[];
   locations: LocationLite[];
   onEdit: (c: Types.Child) => void;
   onDelete: (c: Types.Child) => void;
@@ -129,7 +128,6 @@ function ChildCard({
   child,
   classes,
   parent1And2,
-  parents,
   locations,
   onEdit,
   onDelete,
@@ -199,17 +197,18 @@ function ChildCard({
           </div>
         )}
 
-        {child.parentId && child.parentId.length > 0 && parent1And2 ? (
+        {parent1And2 ? (
           <div className="text-xs text-gray-600">
+            {/* Add debug info */}
+            <div className="text-red-500 text-xs">
+              Debug: {parent1And2.length} parents found
+            </div>
             {parent1And2.map((eachParent, index) => {
-              console.log("Here Paren1 and Parent 2", parent1And2);
-
               const childRelationship = eachParent.childRelationships.filter((relationship) => relationship.childId === child.id)[0].relationship;
               const firstname = eachParent.firstName;
               const lastname = eachParent.lastName;
               return <div key={index}>{childRelationship}: {firstname} {lastname}</div>
-            })
-            }
+            })}
 
           </div>
         ) : (
@@ -381,12 +380,7 @@ export default function ChildrenTab({
   const [linkChildId, setLinkChildId] = useState<string | null>(null);
   const [parentEmail, setParentEmail] = useState<string>("");
 
-
-  /// ================From ParentTab
-  const [phoneError, setPhoneError] = useState<string>("");
-  const [colorChangeError, setColorChangeError] = useState<string>(""); // Initially no error
-  const [editingParent, setEditingParent] = useState<Types.Parent | null>(null);
-  const [parent1, setParent1] = useState<NewParentInput>({
+  const initalParentValues: NewParentInput = {
     firstName: '',
     lastName: '',
     email: '',
@@ -399,9 +393,14 @@ export default function ChildrenTab({
     postalcode: "",
     maritalStatus: "",
     newChildRelationship: "",
-  });
+  }
+  /// ================From ParentTab
+  const [phoneError, setPhoneError] = useState<string>("");
+  const [colorChangeError, setColorChangeError] = useState<string>(""); // Initially no error
+  const [editingParent, setEditingParent] = useState<Types.Parent | null>(null);
+  const [parent1, setParent1] = useState<NewParentInput>(initalParentValues);
 
-  const [parent2, setParent2] = useState<NewParentInput | null>(null);
+  const [parent2, setParent2] = useState<NewParentInput | null>(initalParentValues); // Null when skip
 
 
   // Restore draft when form opens
@@ -442,6 +441,7 @@ export default function ChildrenTab({
     sessionStorage.removeItem("child-form-draft");
     setIsDraftRestored(false);
     resetForm(); // clear the form at the same time
+    setActiveStep(0); // reset the step
   }, []);
 
   //============ Progress bar
@@ -622,36 +622,8 @@ export default function ChildrenTab({
       notes: "",
     });
     // Reset Parent
-    setParent1({
-      firstName: '',
-      lastName: '',
-      // childIds: [],
-      email: '',
-      phone: '',
-      address1: '',
-      address2: "",
-      city: '',
-      province: '',
-      country: '',
-      postalcode: "",
-      maritalStatus: "",
-      newChildRelationship: "",
-    });
-    setParent2({
-      firstName: '',
-      lastName: '',
-      // childIds: [],
-      email: '',
-      phone: '',
-      address1: '',
-      address2: "",
-      city: '',
-      province: '',
-      country: '',
-      postalcode: "",
-      maritalStatus: "",
-      newChildRelationship: "",
-    });
+    setParent1(initalParentValues);
+    setParent2(initalParentValues);
   };
 
   const handleAddClick = useCallback(() => {
@@ -844,6 +816,60 @@ export default function ChildrenTab({
     [editingParent, setParent2]
   );
 
+  const addressValuesParen1: Address = {
+    address1: parent1.address1,
+    address2: parent1.address2,
+    city: parent1.city,
+    province: parent1.province,
+    country: parent1.country,
+    postalcode: parent1.postalcode
+  };
+
+  // Address parent possible null
+  const addressValuesParen2: Address = parent2 ? {
+    address1: parent2.address1,
+    address2: parent2.address2,
+    city: parent2.city,
+    province: parent2.province,
+    country: parent2.country,
+    postalcode: parent2.postalcode
+  } : {
+    address1: "",
+    address2: "",
+    city: "",
+    province: "",
+    country: "",
+    postalcode: "",
+  };
+
+
+
+  const handleAddressChange1 = useCallback((a: Address) => {
+    // Case updating parent1
+    updateParent1({
+      address1: a.address1,
+      address2: a.address2,
+      city: a.city,
+      province: a.province,
+      country: a.country,
+      postalcode: a.postalcode
+    });
+  }, [updateParent1])
+
+  // Case updating parent2, if parent2 is not null
+  const handleAddressChange2 = useCallback((a: Address) => {
+    if (addressValuesParen2) {
+      updateParent2({
+        address1: a.address1,
+        address2: a.address2,
+        city: a.city,
+        province: a.province,
+        country: a.country,
+        postalcode: a.postalcode
+      });
+    }
+  }, [updateParent2]);
+
 
   // Identify parent 1 and parent 2 for each child
   const parentLookup = useMemo(() =>
@@ -854,7 +880,7 @@ export default function ChildrenTab({
     [parents]); // Only recalculate when parents change
 
   const childrenWithParents = useMemo(() =>
-    pageItems.map(child => ({
+    children.map(child => ({
       ...child,
       parent1And2: child.parentId
         .map(parentId => parentLookup[parentId])
@@ -956,7 +982,6 @@ export default function ChildrenTab({
                 child={child}
                 classes={classes}
                 parent1And2={child.parent1And2}
-                parents={parents}
                 locations={locations}
                 onEdit={handleEditClick}
                 onDelete={handleDeleteClick}
@@ -1220,6 +1245,8 @@ export default function ChildrenTab({
                           updateParent={updateParent1}
                           phoneError={phoneError}
                           setPhoneError={setPhoneError}
+                          address={addressValuesParen1}
+                          handleAddressChange={() => handleAddressChange1}
                         />
                       ) : (
                         parent2 && (
@@ -1228,10 +1255,11 @@ export default function ChildrenTab({
                             updateParent={updateParent2}
                             phoneError={phoneError}
                             setPhoneError={setPhoneError}
+                            address={addressValuesParen2}
+                            handleAddressChange={handleAddressChange2}
                           />
                         )
                       )}
-
                       {/* Removing AssignClass Manually in input form   */}
                     </div>
                   )}
@@ -1246,9 +1274,17 @@ export default function ChildrenTab({
 
                       {/* 🧒 Child Information */}
                       <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
-                        <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
-                          👶 Child Information
-                        </h3>
+                        <div className="flex justify-between items-center gap-4 ">
+                          <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
+                            👶 Child Information
+                          </h3>
+                          <button
+                            className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                          >
+                            Edit
+                          </button>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
                           <p><span className="font-semibold">First Name:</span> {newChild.firstName || "-"}</p>
                           <p><span className="font-semibold">Last Name:</span> {newChild.lastName || "-"}</p>
@@ -1264,35 +1300,58 @@ export default function ChildrenTab({
 
                       {/* 👨‍👩‍👧 Parent 1 Information */}
                       <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
-                        <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
-                          👩 Parent 1 Information
-                        </h3>
+                        <div className="flex justify-between items-center gap-4 ">
+                          <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
+                            👩 Parent 1 Information
+                          </h3>
+                          <button
+                            className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                          >
+                            Edit
+                          </button>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
                           <p><span className="font-semibold">First Name:</span> {parent1.firstName || "-"}</p>
                           <p><span className="font-semibold">Last Name:</span> {parent1.lastName || "-"}</p>
                           <p><span className="font-semibold">Email:</span> {parent1.email || "-"}</p>
                           <p><span className="font-semibold">Phone:</span> {parent1.phone || "-"}</p>
-                          <p><span className="font-semibold">Address:</span> {parent1?.address1 || "-"}</p>
+                          <p><span className="font-semibold">Address:</span> {parent1.address1 + parent1.city + parent1.postalcode || "-"}</p>
                           <p><span className="font-semibold">Marital Status:</span> {parent1.maritalStatus || "-"}</p>
                           <p><span className="font-semibold">Relationship to Child:</span> {parent1.newChildRelationship || "-"}</p>
                         </div>
                       </div>
 
                       {/* Optionally: Parent 2 */}
-                      {parent2 && (
+                      {parent2 ? (
                         <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
-                          <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
-                            👨 Parent 2 Information
-                          </h3>
+                          <div className="flex justify-between items-center gap-4 ">
+                            <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
+                              👨 Parent 2 Information
+                            </h3>
+                            <button
+                              className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                            >
+                              Edit
+                            </button>
+                          </div>
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
                             <p><span className="font-semibold">First Name:</span> {parent2.firstName || "-"}</p>
                             <p><span className="font-semibold">Last Name:</span> {parent2.lastName || "-"}</p>
                             <p><span className="font-semibold">Email:</span> {parent2.email || "-"}</p>
                             <p><span className="font-semibold">Phone:</span> {parent2.phone || "-"}</p>
+                            <p><span className="font-semibold">Address:</span> {parent2?.address1 + parent2.city + parent2.postalcode || "-"}</p>
                             <p><span className="font-semibold">Marital Status:</span> {parent2.maritalStatus || "-"}</p>
                             <p><span className="font-semibold">Relationship to Child:</span> {parent2.newChildRelationship || "-"}</p>
                           </div>
                         </div>
+                      ) : (
+                        <button
+                          className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                        >
+                          Add Parent
+                        </button>
                       )}
                     </div>
                   )}

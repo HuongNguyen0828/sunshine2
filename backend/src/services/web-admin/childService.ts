@@ -451,7 +451,7 @@ export async function addChildWithParents(
       
       const parent2Payload = {
         ...parent2,
-        idDoc: parent2Id,
+        docId: parent2Id,
         id: parent2Id,
         locationId: child.locationId, // Location of parent could be multipule!!!!!!!!!!!!
         role: "parent" as const,
