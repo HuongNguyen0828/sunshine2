@@ -7,11 +7,15 @@ export default function ParentForm({
     updateParent,
     phoneError,
     setPhoneError,
+    address,
+    handleAddressChange
 }: {
     parent: NewParentInput;
     updateParent: (updates: Partial<NewParentInput>) => void;
     phoneError: string;
     setPhoneError: React.Dispatch<React.SetStateAction<string>>;
+    address: Address | null;
+    handleAddressChange: (a: Address) => void;
 }) {
 
     const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -26,25 +30,6 @@ export default function ParentForm({
         }
     };
 
-    const addressValues: Address = {
-        address1: parent.address1,
-        address2: parent.address2,
-        city: parent.city,
-        province: parent.province,
-        country: parent.country,
-        postalcode: parent.postalcode
-    };
-
-    const handleAddressChange = useCallback((a: Address) => {
-        updateParent({
-            address1: a.address1,
-            address2: a.address2,
-            city: a.city,
-            province: a.province,
-            country: a.country,
-            postalcode: a.postalcode
-        });
-    }, [updateParent]);
 
     return (
         <>
@@ -104,7 +89,7 @@ export default function ParentForm({
             <div className="block">
                 <AutoCompleteAddress
                     onAddressChanged={handleAddressChange}
-                    addressValues={addressValues}
+                    addressValues={address}
                 />
             </div>
 
