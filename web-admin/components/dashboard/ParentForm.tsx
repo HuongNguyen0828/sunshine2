@@ -6,7 +6,7 @@ export default function ParentForm({
     parent,
     updateParent,
     phoneError,
-    setPhoneError
+    setPhoneError,
 }: {
     parent: NewParentInput;
     updateParent: (updates: Partial<NewParentInput>) => void;
@@ -131,8 +131,8 @@ export default function ParentForm({
                     <span className="text-gray-700 font-medium mb-1 block">Relationship to child*</span>
                     <select
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        value={parent.relationshipToChild}
-                        onChange={(e) => updateParent({ relationshipToChild: e.target.value })}
+                        value={parent.newChildRelationship}
+                        onChange={(e) => updateParent({ newChildRelationship: e.target.value })}
                         required
                     >
                         <option value="" disabled>Select relationship</option>

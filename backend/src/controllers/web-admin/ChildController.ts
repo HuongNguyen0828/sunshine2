@@ -44,35 +44,79 @@ function fail(res: Response, err: unknown, fallbackMsg: string, fallbackCode = 5
 
 /* ---------------- controllers ---------------- */
 
-// GET /admin/children
+// // GET /admin/children
+// export async function getChildren(req: AuthRequest, res: Response) {
+//   try {
+//     const filters = {
+//       classId: s(req.query.classId),
+//       status: s(req.query.status) as EnrollmentStatus | undefined,
+//       parentId: s(req.query.parentUserId),
+//     };
+//     const items = await Svc.listChildren(req.user?.uid, filters);
+//     return ok(res, items);
+//   } catch (e) {
+//     console.error("[getChildren]", e);
+//     return fail(res, e, "Failed to load children");
+//   }
+// }
+
 export async function getChildren(req: AuthRequest, res: Response) {
-  try {
-    const filters = {
-      classId: s(req.query.classId),
-      status: s(req.query.status) as EnrollmentStatus | undefined,
-      parentId: s(req.query.parentUserId),
-    };
-    const items = await Svc.listChildren(req.user?.uid, filters);
-    return ok(res, items);
-  } catch (e) {
-    console.error("[getChildren]", e);
-    return fail(res, e, "Failed to load children");
-  }
+  // Extract locationId and daycareId from req.user (set by authMiddleware)
+    const locationId = req.user?.locationId;
+    const daycareId = req.user?.daycareId;
+    if (!daycareId) {
+      return res.status(400).json({message: "Daycare missing from user profile"});
+    }
+    if (!locationId) {
+      return res.status(400).json({message: "Location missing from user profile"});
+    }
+  
+    // Else, get all children only of that daycare and location
+    try {
+      const children = await Svc.getAllChildren(daycareId, locationId);
+      return res.status(200).json(children);
+    } catch (e: any) {
+      return res.status(500).json({ message: e?.message || "Failed to fetch Children" });
+    }
 }
+
 
 // POST /admin/children
 export async function addChild(req: AuthRequest, res: Response) {
-  try {
-    const enrollmentStatus = parseStatus((req.body ?? {}).enrollmentStatus);
-    const payload = { ...(req.body ?? {}), enrollmentStatus };
-    // Service should respect provided enrollmentStatus when present
-    const created = await Svc.createChild(payload, req.user?.uid);
-    return ok(res, created, 201);
-  } catch (e) {
-    console.error("[addChild]", e);
-    return fail(res, e, "Failed to add child");
-  }
-}
+  // Extract loationId and the parent data from req.user and req.body
+    const locationId = req.user?.locationId;
+    const daycareId = req.user?.daycareId;
+  
+    if (!daycareId) {
+      return res.status(400).json({message: "Daycare missing from current Admin  profile"});
+    }
+  
+    // Check locationId exists
+    if (!locationId) {
+      return res.status(400).json({message: "Location missing from current Admin  profile"});
+    }
+
+    // Check body exists and extract data
+    const body = req.body;
+    if (!body) {
+      return res.status(400).json({ message: "Request body required" });
+    }
+
+    // Extract child, parent1 and parent2 from req.body
+    const childData = body.child;
+    const parent1Data = body.parent1;
+    const parent2Data = body.parent2;
+  
+    // Else, create the teacher
+    try {
+      const created = await Svc.addChildWithParents(locationId, childData, parent1Data, parent2Data );
+
+      return res.status(201).json(created);
+    } catch (e: any) {
+      return res.status(500).json({ message: e?.message || "Error creating Parent" });
+    }
+  };
+  
 
 // PUT /admin/children/:id
 export async function updateChild(req: AuthRequest, res: Response) {
@@ -158,12 +202,12 @@ export async function assignChild(req: AuthRequest, res: Response) {
 }
 
 // POST /admin/children/:id/unassign
-export async function unassignChild(req: AuthRequest, res: Response) {
+export async function withdrawChildChild(req: AuthRequest, res: Response) {
   try {
     const id = s((req.params as { id?: string }).id);
     if (!id) return res.status(400).json({ message: "Missing child id" });
 
-    await Svc.unassignChild(id, req.user?.uid);
+    await Svc.withdrawChild(id, req.body);
     return ok(res, { ok: true });
   } catch (e) {
     console.error("[unassignChild]", e);

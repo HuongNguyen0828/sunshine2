@@ -180,8 +180,7 @@ export type Child = {
   firstName: string;
   lastName: string;
   birthDate: string; // ISO date (yyyy-mm-dd)
-  // gender: string,
-
+  gender: string,
   /** Parent linkage (user ids from users collection with role="parent") */
   parentId: string[];
 
@@ -192,10 +191,9 @@ export type Child = {
 
   /** Enrollment lifecycle (computed) */
   enrollmentStatus: EnrollmentStatus; // computed by backend
-  enrollmentDate?: string; // assigned automatically when class or parent linked
-
   /** Additional notes (allergies, special needs, subsidy, etc.) */
   notes?: string;
+  startDate: string;
 
   /** Audit fields (ISO) */
   createdAt?: string;
@@ -222,23 +220,29 @@ export type UpdateChildProfileInput = Partial<Pick<
 /** Response DTO from server after any mutation */
 export type ChildDTO = Child;
 
+
+type ParentChildRelationship = {
+  childId: string;
+  relationship: string; // e.g., "mother", "father", "guardian", "grandparent", etc.
+};
+
 export type Parent = {
-  id?: string; // Make optionall as 
+  id: string; // Make optionall as 
+  docId: string; // is document Id to match parentID in child
   firstName: string;
   lastName: string;
   email: string;           // username for login
   role?: "parent";          // fixed as Parent
   phone: string;
-  childIds?: string[];      // children associated with this parent
-  address1: string;
+  childRelationships: ParentChildRelationship[]; // Changed from childIds  address1: string;
   address2?: string;
   city: string;
   province: string;
   country: string;
   postalcode?: string;
   maritalStatus: string;
-  relationshipToChild: string;
-}
+  locationId?: string;
+};
 
 export type DailyReport = {
   id: string;

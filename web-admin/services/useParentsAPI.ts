@@ -17,26 +17,26 @@ export async function fetchParents(): Promise<Types.Parent[]> {
 }
 
 // Passing Parent Input with ChildId
-export type NewParentInputWithChildId = NewParentInput & {childIds: string[]};
-export async function addParent(NewParentInputWithChildId: NewParentInputWithChildId): Promise<Types.Parent> {
-  try {
-    const parent = await api.post<Types.Parent>(ENDPOINTS.parents, { ...NewParentInputWithChildId }); // with createdChildId
-    swal.fire({
-          icon: "success",
-          title: "New Parent",
-          text: `Successfully added ${NewParentInputWithChildId.firstName} ${NewParentInputWithChildId.lastName}`,
-        });
-    return parent;
-  } catch (err: unknown) {
-    // console.error(err);
-    swal.fire({
-      title: "Error",
-      text: err instanceof Error ? err.message : "Unknown error",
-      icon: "error",
-    });
-    throw err; // Rethrow the error to be handled by the caller
-  }
-}
+// export type NewParentInputWithChildId = NewParentInput & {childIds: string[]};
+// export async function addParent(NewParentInputWithChildId: NewParentInputWithChildId): Promise<Types.Parent> {
+//   try {
+//     const parent = await api.post<Types.Parent>(ENDPOINTS.parents, { ...NewParentInputWithChildId }); // with createdChildId
+//     swal.fire({
+//           icon: "success",
+//           title: "New Parent",
+//           text: `Successfully added ${NewParentInputWithChildId.firstName} ${NewParentInputWithChildId.lastName}`,
+//         });
+//     return parent;
+//   } catch (err: unknown) {
+//     // console.error(err);
+//     swal.fire({
+//       title: "Error",
+//       text: err instanceof Error ? err.message : "Unknown error",
+//       icon: "error",
+//     });
+//     throw err; // Rethrow the error to be handled by the caller
+//   }
+// }
 
 export async function updateParent(
   id: string,

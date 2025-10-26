@@ -6,40 +6,43 @@ import * as ParentService from "../../services/web-admin/parentService"
 import { daycareLocationIds } from "../../services/authService";
 
 
-// POST /api/parents
+// ADDING parent service is removed since we just want add parent followed BY  the child
+// POST /api/parents  
 // Create a new parent
-export const addParent = async (req: Request, res: Response) => { 
-  // Extract loationId and the parent data from req.user and req.body
-  const locationId = req.user?.locationId;
-  const daycareId = req.user?.daycareId;
+// export const addParent = async (req: Request, res: Response) => { 
+//   // Extract loationId and the parent data from req.user and req.body
+//   const locationId = req.user?.locationId;
+//   const daycareId = req.user?.daycareId;
 
-  if (!daycareId) {
-    return res.status(400).json({message: "Daycare missing from current Admin  profile"});
-  }
+//   if (!daycareId) {
+//     return res.status(400).json({message: "Daycare missing from current Admin  profile"});
+//   }
 
-  // Check locationId exists
-  if (!locationId) {
-    return res.status(400).json({message: "Location missing from current Admin  profile"});
-  }
-  // Check body exists
-  const parentDataAndChildId = req.body;
-  if (!parentDataAndChildId) {
-    return res.status(400).json({ message: "Bakend: Parent data and ChildId required" });
-  }
+//   // Check locationId exists
+//   if (!locationId) {
+//     return res.status(400).json({message: "Location missing from current Admin  profile"});
+//   }
+//   // Check body exists
+//   const parentDataAndChildId = req.body;
+//   if (!parentDataAndChildId) {
+//     return res.status(400).json({ message: "Bakend: Parent data and ChildId required" });
+//   }
 
-  // Else, create the teacher
-  try {
-    const created = await ParentService.addParent(parentDataAndChildId);
-    // Case null returned: email already exists
-    if (!created) {
-      throw new Error("Email already exists");
-    }
-    // else, return created teacher
-    return res.status(201).json(created);
-  } catch (e: any) {
-    return res.status(500).json({ message: e?.message || "Error creating Parent" });
-  }
-};
+//   // Else, create the teacher
+//   try {
+//     const created = await ParentService.addParent(parentDataAndChildId);
+//     // Case null returned: email already exists
+//     if (!created) {
+//       throw new Error("Email already exists");
+//     }
+//     // else, return created teacher
+//     return res.status(201).json(created);
+//   } catch (e: any) {
+//     return res.status(500).json({ message: e?.message || "Error creating Parent" });
+//   }
+// };
+
+
 
 // GET /api/parents
 // List all parents
@@ -54,7 +57,7 @@ export const getAllParents = async (req: Request, res: Response) => {
     return res.status(400).json({message: "Location missing from user profile"});
   }
 
-  // Else, get all teachers only of that daycare and location
+  // Else, get all parents only of that daycare and location
   try {
     const parents = await ParentService.getAllParents(daycareId, locationId);
     return res.status(200).json(parents);

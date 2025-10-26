@@ -5,7 +5,7 @@
 import { Router } from "express";
 import {
   getAllParents,
-  addParent,
+  // addParent,
   getParentById,
   updateParent,
   deleteParent,
@@ -19,7 +19,7 @@ const router = Router();
 router.use(authMiddleware);
 
 // Create
-router.post("/", authMiddleware, addParent);
+// router.post("/", authMiddleware, addParent);
 
 // Read (list)
 router.get("/", authMiddleware, getAllParents);
