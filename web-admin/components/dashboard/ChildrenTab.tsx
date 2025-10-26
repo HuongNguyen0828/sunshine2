@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, ChangeEvent } from "
 import type { LocationLite } from "@/services/useLocationsAPI";
 import AutoCompleteAddress, { Address } from "../AutoCompleteAddress";
 import ParentForm from "./ParentForm";
+import { NewChildInput } from "../../types/forms"
 
 // For Stepper: Choosing linear bar
 //Steppers convey progress through numbered steps. It provides a wizard-like workflow.
@@ -17,30 +18,24 @@ import StepLabel from "@mui/material/StepLabel";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import { NewParentInput } from "@/types/forms";
+import { returnChildWithParents } from "@/services/useChildrenAPI";
 
 
-/** UI form input used when creating/updating a child */
-export type NewChildInput = {
-  firstName: string;
-  lastName: string; // YYYY-MM-DD
-  birthDate: string;
-  parentId: string[];
-  classId?: string;
-  locationId?: string;
-  notes?: string;
-  enrollmentStatus?: Types.EnrollmentStatus;
+type ParentLite = {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
 };
 
-export type ParentLite = { id: string; firstName?: string; lastName?: string; email?: string };
-
 type Props = {
-  childrenData: Types.Child[];
+  children: Types.Child[];
   classes: Types.Class[];
-  parents: ParentLite[];
+  parents: Types.Parent[];
   locations: LocationLite[];
   newChild: NewChildInput;
   setNewChild: React.Dispatch<React.SetStateAction<NewChildInput>>;
-  createChild: (parent1: NewParentInput, parent2: NewParentInput | null) => Promise<Types.Child | null>;
+  addChild: (parent1: NewParentInput, parent2: NewParentInput | null) => Promise<returnChildWithParents | null>;
   updateChild: (
     id: string,
     patch: Partial<NewChildInput>
@@ -51,10 +46,6 @@ type Props = {
   onLinkParent?: (childId: string, parentUserId: string) => Promise<boolean> | boolean;
   onUnlinkParent?: (childId: string, parentUserId: string) => Promise<boolean> | boolean;
   onLinkParentByEmail?: (childId: string, email: string) => Promise<boolean> | boolean;
-  onCreated?: (c: Types.Child) => void;
-  onUpdated?: (c: Types.Child) => void;
-  onDeleted?: (id: string) => void;
-
 };
 
 /* ---------------- helpers ---------------- */
@@ -117,10 +108,10 @@ function isClassFull(cls?: Types.Class): boolean {
 /* ---------------- child card ---------------- */
 
 type ChildCardProps = {
-  gender: string,
   child: Types.Child;
   classes: Types.Class[];
-  parents: ParentLite[];
+  parent1And2: Types.Parent[];
+  parents: Types.Parent[];
   locations: LocationLite[];
   onEdit: (c: Types.Child) => void;
   onDelete: (c: Types.Child) => void;
@@ -131,9 +122,9 @@ type ChildCardProps = {
 };
 
 function ChildCard({
-  gender,
   child,
   classes,
+  parent1And2,
   parents,
   locations,
   onEdit,
@@ -159,7 +150,7 @@ function ChildCard({
             {child.firstName} {child.lastName}
           </h3>
           <div className="flex gap-4">
-            <span>{gender}</span>
+            <span>{child.gender}</span>
             <span className="text-xs text-gray-500">{formatAge(child.birthDate)}</span>
           </div>
         </div>
@@ -205,25 +196,24 @@ function ChildCard({
           </div>
         )}
 
-        {child.parentId && child.parentId.length > 0 ? (
+        {child.parentId && child.parentId.length > 0 && parent1And2 ? (
           <div className="text-xs text-gray-600">
-            Parents{" "}
-            {child.parentId.map((pid, idx) => {
-              const p = parents.find((pp) => pp.id === pid);
-              const label = (p ? `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() : "") || p?.email || pid;
-              return (
-                <span key={pid} className="mr-2">
-                  {label}
-                  {idx < child.parentId.length - 1 ? "," : ""}
-                </span>
-              );
-            })}
+            {parent1And2.map((eachParent, index) => {
+              console.log("Here Paren1 and Parent 2", parent1And2);
+
+              const childRelationship = eachParent.childRelationships.filter((relationship) => relationship.childId === child.id)[0].relationship;
+              const firstname = eachParent.firstName;
+              const lastname = eachParent.lastName;
+              return <div key={index}>{childRelationship}: {firstname} {lastname}</div>
+            })
+            }
+
           </div>
         ) : (
           <div className="text-xs text-gray-400">No parent linked</div>
         )}
 
-        {child.notes && <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded p-2">{child.notes}</div>}
+        {child.notes && <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded"><span className="font-bold">Note:</span> {child.notes} </div>}
       </div>
 
       <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2">
@@ -343,13 +333,13 @@ function ChildCard({
 const DRAFT_KEY = "child-form-draft";
 
 export default function ChildrenTab({
-  childrenData,
+  children,
   classes,
   parents,
   locations,
   newChild,
   setNewChild,
-  createChild,
+  addChild,
   updateChild,
   deleteChild,
   onAssign,
@@ -357,9 +347,7 @@ export default function ChildrenTab({
   onLinkParent,
   onUnlinkParent,
   onLinkParentByEmail,
-  onCreated,
-  onUpdated,
-  onDeleted,
+
 
 }: Props) {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -368,7 +356,6 @@ export default function ChildrenTab({
   const [selectedClassId, setSelectedClassId] = useState("");
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [gender, setGender] = useState<string>("👦"); // boy
 
 
   // =========================Progress bar
@@ -411,11 +398,10 @@ export default function ChildrenTab({
     country: '',
     postalcode: "",
     maritalStatus: "",
-    relationshipToChild: "",
+    newChildRelationship: "",
   });
 
   const [parent2, setParent2] = useState<NewParentInput | null>(null);
-
 
 
   // Restore draft when form opens
@@ -516,7 +502,7 @@ export default function ChildrenTab({
           alert("Marital status is required");
           return false;
         }
-        if (!parent1.relationshipToChild) {
+        if (!parent1.newChildRelationship) {
           alert("Relationship to child is required");
           return false;
         }
@@ -573,24 +559,6 @@ export default function ChildrenTab({
     // Increase next step
     setActiveStep((prev) => prev + 1);
     setSkipped(newSkipped);
-
-    if (activeStep === 2) { // set Parent2 is not null
-      setParent2({
-        firstName: '',
-        lastName: '',
-        // childIds: [],
-        email: '',
-        phone: '',
-        address1: '',
-        address2: "",
-        city: '',
-        province: '',
-        country: '',
-        postalcode: "",
-        maritalStatus: "",
-        relationshipToChild: "",
-      })
-    }
   };
 
   // Handle click Back
@@ -622,10 +590,10 @@ export default function ChildrenTab({
   // ========================== done progress bar
 
   // Filter children based on search
-  const filteredChildren = childrenData.filter((child) => {
+  const filteredChildren = children.filter((child) => {
     const searchLower = searchTerm.toLowerCase();
     const parentNames = parents
-      .filter((p) => child.parentId.includes(p.id))
+      .filter((p) => p.id && child.parentId.includes(p.id))
       .map((p) => `${p.firstName} ${p.lastName}`)
       .join(" ");
     return (
@@ -641,10 +609,11 @@ export default function ChildrenTab({
     setNewChild({
       firstName: "",
       lastName: "",
+      gender: "",
       birthDate: "",
       parentId: [],
       classId: "",
-      // enrollmentDate: "", was removed as automatic by assigning Class. !!!!!
+      startDate: "",
       enrollmentStatus: Types.EnrollmentStatus.New,
       locationId: "",
       notes: "",
@@ -663,7 +632,7 @@ export default function ChildrenTab({
       country: '',
       postalcode: "",
       maritalStatus: "",
-      relationshipToChild: "",
+      newChildRelationship: "",
     });
     setParent2({
       firstName: '',
@@ -678,7 +647,7 @@ export default function ChildrenTab({
       country: '',
       postalcode: "",
       maritalStatus: "",
-      relationshipToChild: "",
+      newChildRelationship: "",
     });
   };
 
@@ -705,11 +674,13 @@ export default function ChildrenTab({
         firstName: child.firstName,
         lastName: child.lastName,
         birthDate: child.birthDate,
+        gender: child.gender,
         parentId: child.parentId ?? [],
         classId: child.classId ?? "",
         locationId: child.locationId ?? (locations[0]?.id ?? ""),
         notes: child.notes ?? "",
         enrollmentStatus: child.enrollmentStatus ?? computeStatus(child.parentId, child.classId),
+        startDate: child.startDate
       });
       setIsFormOpen(true);
     },
@@ -729,6 +700,8 @@ export default function ChildrenTab({
       const updated = await updateChild(editingChild.id, {
         firstName: newChild.firstName.trim(),
         lastName: newChild.lastName.trim(),
+        gender: newChild.gender,
+        startDate: newChild.startDate,
         birthDate: newChild.birthDate,
         parentId: Array.isArray(newChild.parentId) ? newChild.parentId : [],
         classId: newChild.classId?.trim() || undefined,
@@ -736,16 +709,12 @@ export default function ChildrenTab({
         notes: newChild.notes?.trim() || undefined,
         enrollmentStatus: newChild.enrollmentStatus,
       });
-      if (updated) onUpdated?.(updated);
       setEditingChild(null);
 
       // Adding new Child W/ Parent
     } else {
       // 1. Child
-      const created = await createChild(parent1, parent2);
-      if (created) {
-        onCreated?.(created);
-      }
+      const created = await addChild(parent1, parent2);
     }
     resetForm();
     clearDraft();
@@ -757,7 +726,6 @@ export default function ChildrenTab({
     const ok = window.confirm(`Delete "${child.firstName} ${child.lastName}"?`);
     if (!ok) return;
     const success = await deleteChild(child.id);
-    if (success) onDeleted?.(child.id);
   }
 
   async function linkParentByEmail(childId: string, email: string): Promise<boolean> {
@@ -771,7 +739,7 @@ export default function ChildrenTab({
   }
 
   const filtered = useMemo(() => {
-    return childrenData.filter((c) => {
+    return children.filter((c) => {
       const q = searchTerm.trim().toLowerCase();
       const okSearch =
         q.length === 0 ||
@@ -790,7 +758,7 @@ export default function ChildrenTab({
       }
       return true;
     });
-  }, [childrenData, locations, searchTerm, statusFilter, classFilter]);
+  }, [children, locations, searchTerm, statusFilter, classFilter]);
 
   const perPage = 6;
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
@@ -838,7 +806,7 @@ export default function ChildrenTab({
             country: '',
             postalcode: "",
             maritalStatus: "",
-            relationshipToChild: "",
+            newChildRelationship: "",
             ...updates
           };
 
@@ -872,6 +840,24 @@ export default function ChildrenTab({
     },
     [editingParent, setParent2]
   );
+
+
+  // Identify parent 1 and parent 2 for each child
+  const parentLookup = useMemo(() =>
+    parents.reduce((acc, parent) => {
+      acc[parent.docId] = parent;
+      return acc;
+    }, {} as Record<string, Types.Parent>),
+    [parents]); // Only recalculate when parents change
+
+  const childrenWithParents = useMemo(() =>
+    pageItems.map(child => ({
+      ...child,
+      parent1And2: child.parentId
+        .map(parentId => parentLookup[parentId])
+        .filter(Boolean) // Remove undefined values
+    })),
+    [children, parentLookup]);
 
 
   return (
@@ -953,352 +939,8 @@ export default function ChildrenTab({
               ))}
             </select>
 
-          <div className="text-gray-500 text-xs whitespace-nowrap">
-            {filtered.length} of {childrenData.length}
-          </div>
-        </div>
-      </div>
-
-      {pageItems.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-          {pageItems.map((child) => (
-            <ChildCard
-              key={child.id}
-              child={child}
-              classes={classes}
-              parents={parents}
-              locations={locations}
-              onEdit={handleEditClick}
-              onDelete={handleDeleteClick}
-              onOpenAssign={(id) => {
-                setAssignChildId(id);
-                setAssignClassId("");
-              }}
-              onUnassign={onUnassign}
-              onUnlinkParent={onUnlinkParent}
-              onOpenLinkByEmail={(id) => setLinkChildId(id)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <div className="text-gray-400 text-6xl mb-4">🧒</div>
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">
-            No children found
-          </h3>
-          <p className="text-gray-500">
-            {searchTerm || statusFilter !== "all" || classFilter !== "all"
-              ? "Try adjusting your search or filter settings"
-              : "Get started by adding your first child"}
-          </p>
-        </div>
-      )}
-
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              page === 1 ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-            }`}
-          >
-            ← Previous
-          </button>
-          <div className="flex gap-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-              <button
-                key={n}
-                onClick={() => setPage(n)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
-                  page === n ? "bg-gray-800 text-white" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-                }`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              page === totalPages ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-            }`}
-          >
-            Next →
-          </button>
-        </div>
-      )}
-
-      {isFormOpen && (
-        <div
-          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
-          onClick={() => {
-            setIsFormOpen(false);
-            setEditingChild(null);
-          }}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-800">{editingChild ? "Edit Child" : "Add New Child"}</h3>
-                {isDraftRestored && !editingChild && <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>}
-              </div>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingChild(null);
-                }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleFormSubmit} className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    First Name *
-                  </span>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newChild.firstName}
-                    onChange={(e) => updateDraft({ firstName: e.target.value })}
-                    required
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Last Name *
-                  </span>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newChild.lastName}
-                    onChange={(e) => updateDraft({ lastName: e.target.value })}
-                    required
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Birth Date *</span>
-                  <input
-                    type="date"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newChild.birthDate}
-                    onChange={(e) => updateDraft({ birthDate: e.target.value })}
-                    required
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Location *
-                  </span>
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newChild.locationId ?? ""}
-                    onChange={(e) => updateDraft({ locationId: e.target.value })}
-                    required
-                    disabled={(locations ?? []).length <= 1}
-                  >
-                    {(locations ?? []).length > 1 && (
-                      <option value="" disabled>
-                        Select a location
-                      </option>
-                    )}
-                    {(locations ?? []).map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name || l.id}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Status *
-                  </span>
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newChild.enrollmentStatus ?? Types.EnrollmentStatus.New}
-                    onChange={(e) => updateDraft({ enrollmentStatus: e.target.value as Types.EnrollmentStatus })}
-                    required
-                  >
-                    <option value={Types.EnrollmentStatus.New}>New</option>
-                    <option value={Types.EnrollmentStatus.Waitlist}>
-                      Waitlist
-                    </option>
-                    <option value={Types.EnrollmentStatus.Active}>
-                      Active
-                    </option>
-                    <option value={Types.EnrollmentStatus.Withdraw}>
-                      Withdraw
-                    </option>
-                  </select>
-                </label>
-                <label className="block md:col-span-2">
-                  <span className="text-gray-700 font-medium mb-1 block">
-                    Notes
-                  </span>
-                  <textarea
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    value={newChild.notes ?? ""}
-                    onChange={(e) => updateDraft({ notes: e.target.value })}
-                    placeholder="Allergies / Special needs / Subsidy status / Remarks"
-                  />
-                </label>
-              </div>
-
-              {activeStep === steps.length ? (
-                  <React.Fragment>
-                    <Box sx={{ display: "flex", flexDirection: "row", pt: 1 , fontWeight: "bold"}}>
-                    <Typography sx={{ }}>
-                      ✔️ All steps completed
-                    </Typography>
-                      <Box sx={{ flex: "1 1 auto" }} />
-                      <Button onClick={handleReset}>Reset</Button>
-                    </Box>
-                  </React.Fragment>
-                ) : (
-                  <React.Fragment>
-                    <Box sx={{ display: "flex", flexDirection: "row", pt: 2 }}>
-                      <Button
-                        color="inherit"
-                        disabled={activeStep === 0}
-                        onClick={handleBack}
-                        sx={{ mr: 1 }}
-                      >
-                        Back
-                      </Button>
-                      <Box sx={{ flex: "1 1 auto" }} />
-                      {isStepOptional(activeStep) && (
-                        <Button
-                          color="inherit"
-                          onClick={handleSkip}
-                          sx={{ mr: 1 }}
-                        >
-                          Skip
-                        </Button>
-                      )}
-                      <Button onClick={handleNext}>
-                        {activeStep === steps.length - 1 ? "Finish" : "Next"}
-                      </Button>
-                    </Box>
-                  </React.Fragment>
-                )}
-
-              <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsFormOpen(false);
-                    setEditingChild(null);
-                  }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
-                >
-                  Cancel
-                </button>
-                {!editingChild && (
-                  <button
-                    type="button"
-                    onClick={() => clearDraft(true)}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
-                  >
-                    Clear Draft
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  className="flex-1 disabled:bg-gray-400 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
-                  title={
-                    (locations ?? []).length === 0
-                      ? "No locations available"
-                      : "Submit"
-                  }
-
-                  // Disable button when not complete step
-                  disabled={activeStep !== steps.length} 
-                >
-                  {editingChild ? "Update Child" : "Submit"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {assignChildId && (
-        <div
-          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
-          onClick={() => {
-            setAssignChildId(null);
-            setAssignClassId("");
-          }}
-        >
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100" onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">Select Class</h3>
-              <button
-                onClick={() => {
-                  setAssignChildId(null);
-                  setAssignClassId("");
-                }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg" value={assignClassId} onChange={(e) => setAssignClassId(e.target.value)}>
-                <option value="">— Choose class —</option>
-                {classes.map((c) => {
-                  const cap = classCapacityBadge(c);
-                  const full = isClassFull(c);
-                  return (
-                    <option key={c.id} value={c.id} disabled={full}>
-                      {c.name} — {cap.text}
-                    </option>
-                  );
-                })}
-              </select>
-              <div className="text-xs text-gray-500">Full classes are disabled. If a class is full, the child should remain on <b>Waitlist</b>.</div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
-              <button
-                onClick={() => {
-                  setAssignChildId(null);
-                  setAssignClassId("");
-                }}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  if (!assignChildId || !assignClassId) return;
-                  const targetClass = classes.find(
-                    (c) => c.id === assignClassId
-                  );
-                  if (isClassFull(targetClass)) {
-                    alert("This class is full. Please choose another class.");
-                    return;
-                  }
-                  const ok = await onAssign?.(assignChildId, assignClassId);
-                  if (ok) {
-                    setAssignChildId(null);
-                    setAssignClassId("");
-                  }
-                }}
-                disabled={!assignClassId}
-                className={`flex-1 ${assignClassId ? "bg-green-600 hover:bg-green-700" : "bg-green-400 cursor-not-allowed"} text-white font-medium px-4 py-2 rounded-lg`}
-              >
-                Assign
-              </button>
+            <div className="text-gray-500 text-xs whitespace-nowrap">
+              {filtered.length} of {children.length}
             </div>
           </div>
         </div>
@@ -1306,12 +948,12 @@ export default function ChildrenTab({
 
         {pageItems.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-            {pageItems.map((child) => (
+            {childrenWithParents.map((child) => (
               <ChildCard
                 key={child.id}
-                gender={gender}
                 child={child}
                 classes={classes}
+                parent1And2={child.parent1And2}
                 parents={parents}
                 locations={locations}
                 onEdit={handleEditClick}
@@ -1501,8 +1143,8 @@ export default function ChildrenTab({
                                 type="radio"
                                 name="gender"
                                 value="👦"
-                                checked={gender === "👦"}
-                                onChange={(e) => setGender(e.target.value)}
+                                checked={newChild.gender === "👦"}
+                                onChange={(e) => updateDraft({ gender: e.target.value })}
                               />
                               Boy
                             </label>
@@ -1512,8 +1154,8 @@ export default function ChildrenTab({
                                 type="radio"
                                 name="gender"
                                 value="👧"
-                                checked={gender === "👧"}
-                                onChange={(e) => setGender(e.target.value)}
+                                checked={newChild.gender === "👧"}
+                                onChange={(e) => updateDraft({ gender: e.target.value })}
                               />
                               Girl
                             </label>
@@ -1636,7 +1278,7 @@ export default function ChildrenTab({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
                           <p><span className="font-semibold">First Name:</span> {newChild.firstName || "-"}</p>
                           <p><span className="font-semibold">Last Name:</span> {newChild.lastName || "-"}</p>
-                          <p><span className="font-semibold">Gender:</span> {gender === "👧" ? "👧 Girl" : "👦 Boy"}</p>
+                          <p><span className="font-semibold">Gender:</span> {newChild.gender === "👧" ? "👧 Girl" : "👦 Boy"}</p>
                           <p><span className="font-semibold">Birth Date:</span> {newChild.birthDate || "-"}</p>
                           <p><span className="font-semibold">Location:</span> {locations?.find(l => l.id === newChild.locationId)?.name || "-"}</p>
                           <p><span className="font-semibold">Status:</span> {newChild.enrollmentStatus}</p>
@@ -1658,7 +1300,7 @@ export default function ChildrenTab({
                           <p><span className="font-semibold">Phone:</span> {parent1.phone || "-"}</p>
                           <p><span className="font-semibold">Address:</span> {parent1?.address1 || "-"}</p>
                           <p><span className="font-semibold">Marital Status:</span> {parent1.maritalStatus || "-"}</p>
-                          <p><span className="font-semibold">Relationship to Child:</span> {parent1.relationshipToChild || "-"}</p>
+                          <p><span className="font-semibold">Relationship to Child:</span> {parent1.newChildRelationship || "-"}</p>
                         </div>
                       </div>
 
@@ -1674,7 +1316,7 @@ export default function ChildrenTab({
                             <p><span className="font-semibold">Email:</span> {parent2.email || "-"}</p>
                             <p><span className="font-semibold">Phone:</span> {parent2.phone || "-"}</p>
                             <p><span className="font-semibold">Marital Status:</span> {parent2.maritalStatus || "-"}</p>
-                            <p><span className="font-semibold">Relationship to Child:</span> {parent2.relationshipToChild || "-"}</p>
+                            <p><span className="font-semibold">Relationship to Child:</span> {parent2.newChildRelationship || "-"}</p>
                           </div>
                         </div>
                       )}

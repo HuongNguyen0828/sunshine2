@@ -4,7 +4,7 @@ import type { Parent } from "../../../../shared/types/type";
 // *****Later no need as status of Parent is castcaded by the Child
 // !!!!!!!!!!Re-CONSIDER as parents have more than 1 child
 import { EnrollmentStatus } from "../../../../shared/types/type";
-import { db } from "../../lib/firebase";
+import { db, admin } from "../../lib/firebase";
 import { UserRole } from "../../models/user";
 import {
   daycareLocationIds,
@@ -72,53 +72,56 @@ export const getAllParents = async (
 };
 
 // Create Parent (returns created parent with id):
-// using id Field, NO rely on doc(id) as it CAN-NOT later on Update followed uid from Firebase Auth (middleware)
-export const addParent = async (
-  parent: Omit<Parent, "id" | "role">
-): Promise<Parent | null> => {
-  // Ensure email is unique among users
+export async function addParentAfterAddedChild(
+  parent: Omit<Parent, "id" | "role">, 
+  childId: string // Pass the child ID explicitly
+): Promise<Parent | null> {
   const isUniqueEmail = await checkingIfEmailIsUnique(parent.email);
   if (!isUniqueEmail) {
-    return null; // email already exists, return null
+    return null;
   }
-  // Adding new parent into users collection: with role, status and isRegistered flags
-  // Ensure no id field is present and locationId is set to the provided locationId, role set to Teacher
-  const docRef = await usersRef.add({
-    ...parent,
-    role: UserRole.Parent,
-    // As the first-time parent user, Should be same status as the linked child
-    // Case searching existing parent, status of parent (e.g ACTIVE) is Deffer from concurent child (e.g. NEW)
-    status: EnrollmentStatus.New, // status new by default, if user doesn't select a status
+
+  const usersRef = db.collection("users");
+  const childRef = db.collection("children").doc(childId);
+
+  // Use transaction for atomic operations
+  return await db.runTransaction(async (transaction) => {
+    // Verify child exists
+    const childDoc = await transaction.get(childRef);
+    if (!childDoc.exists) {
+      throw new Error("Child not found");
+    }
+
+    const childData = childDoc.data();
+    // If first parent, then [], no thenchildData.parentId array
+    const currentParentIds = Array.isArray(childData?.parentId) ? childData.parentId : [];
+
+    // 1. Create parent document
+    const parentRef = usersRef.doc(); // Generate ID first
+    const parentId = parentRef.id;
+
+    const parentPayload = {
+      ...parent,
+      id: parentId, // Set the id field
+      role: "parent",
+      childIds: [childId], // 2. Initialize with the known child ID: Link Child => Parent doc
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    // Update child with new parent ID
+    const updatedParentIds = [...currentParentIds, parentId];
+
+    // Perform both operations in transaction
+    transaction.set(parentRef, parentPayload);
+    transaction.update(childRef, { 
+      parentId: updatedParentIds, // 3. Link Parent ==> Child doc
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return { id: parentId, ...parent } as Parent;
   });
-
-  // Updating current Parent Doc with newly added id
-  const id = docRef.id;
-  await docRef.update({ id });
-
-  // Update current child with newaddedParent id: Child doc with parentId.push(parentId)
-  /// 1. As childIds is list, the newLy added childId = childIds[length -1] or the last childId
-  const parentDocRef = docRef.get();
-  const parentData = (await parentDocRef).data();
-
-  const  childIds = parentData?.childIds;
-  const newlyAddedChildId = childIds[childIds.length - 1];;
-
-  // 2. Find the child with newlyAddedChildId
-  const childRef = db.collection("children").doc(newlyAddedChildId);
-  // 3. Update parentId list to add parentId
-  // 3.1 Extract parentId data, modify it
-  const childDataRef = childRef.get();
-  const childData = (await childDataRef).data();
-  const parentIdFromChildDoc = childData?.parentId;
-  // 3.3 NOT using parent doc id, but parent.id field
-  const parentIdField = parentData?.id;
-  const modifiedParenId = [...parentIdFromChildDoc, parentIdField]; /// modifying current Array, NOT parenIdFromChildDoc.push(id); as this is creating new array
-  // 3.2 Update the modifed ParentId into childRef doc
-  const ok = await childRef.update({parentId: modifiedParenId })
-  if (!ok) throw Error ("Failed to update ParentId inside Children collection");
-  // return parent
-  return { id, ...(parent as any) } as Parent;
-};
+}
 
 /**
  *  Get parent by id field: not doc id

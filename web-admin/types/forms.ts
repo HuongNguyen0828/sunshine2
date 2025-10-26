@@ -7,7 +7,23 @@ export type Tab = 'overview' | 'teachers' | 'children' | 'parents' | 'classes' |
 // New item input shapes for controlled forms (no `any`)
 export type NewTeacherInput = Omit<Types.Teacher, 'id' | 'role'>;
 
-export type NewParentInput = Omit<Types.Parent, 'id' | 'role' | 'childIds'>;
+
+
+export type NewParentInput = {
+  firstName: string;
+  lastName: string;
+  email: string;           // username for login
+  phone: string;
+  newChildRelationship: string; // Changed from childIds  address1: string;
+  address1: string,
+  address2?: string;
+  city: string;
+  province: string;
+  country: string;
+  postalcode?: string;
+  maritalStatus: string;
+  locationId?: string;
+}
 
 // NOTE: Keep `capcity` to match your current Types.Class (typo in schema)
 export interface NewClassInput {
@@ -19,3 +35,17 @@ export interface NewClassInput {
   ageEnd: number;
   classroom: string,
 }
+
+/** UI form input used when creating/updating a child */
+export type NewChildInput = {
+  firstName: string;
+  lastName: string; // YYYY-MM-DD
+  gender: string;
+  birthDate: string;
+  parentId: string[];
+  classId?: string;
+  locationId?: string;
+  notes?: string;
+  enrollmentStatus?: Types.EnrollmentStatus;
+  startDate: string,
+};

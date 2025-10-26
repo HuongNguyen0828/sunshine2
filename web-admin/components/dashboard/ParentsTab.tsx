@@ -16,14 +16,14 @@ import { ENDPOINTS } from "@/api/endpoint";
 
 export default function ParentsTab({
   parents,
-  newParent,
-  setNewParent,
-  onAdd,
+  // newParent,
+  // setNewParent,
+  // onAdd,
 }: {
   parents: Types.Parent[];
-  newParent: NewParentInput;
-  setNewParent: React.Dispatch<React.SetStateAction<NewParentInput>>;
-  onAdd: () => void;
+  // newParent: NewParentInput;
+  // setNewParent: React.Dispatch<React.SetStateAction<NewParentInput>>;
+  // onAdd: () => void;
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
