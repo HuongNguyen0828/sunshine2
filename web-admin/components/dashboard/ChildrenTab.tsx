@@ -484,6 +484,12 @@ export default function ChildrenTab({
   const [parent1, setParent1] = useState<NewParentInput>(initalParentValues);
   const [parent2, setParent2] = useState<NewParentInput | null>(initalParentValues); // Null when skip
 
+  // For editing Child button (could be editing child info, parent 1 info, editing/ delete parent 2 info): pARENT1 CAN JUST  editable, no delete
+  const [isEditingChildInfo, setIsEditingChildInfo] = useState<boolean>(false);
+  const [isEditingParent1Info, setIsEditingParen1Info] = useState<boolean>(false);
+  const [isEditingParent2Info, setIsEditingParen2Info] = useState<boolean>(false);
+
+
   // Restore ALL forms draft when form opens and not in editing mode
   useEffect(() => {
     if (isFormOpen && !editingChild && !editingParent) {
@@ -616,6 +622,11 @@ export default function ChildrenTab({
           alert("Valid phone number is required");
           return false;
         }
+        // Mising checking address
+        if (!parent1.address1 || !parent1.city || !parent1.province || !parent1.country || !parent1.postalcode) {
+          alert(`Missing address fields`);
+          return false;
+        }
         if (!parent1.maritalStatus) {
           alert("Marital status is required");
           return false;
@@ -627,32 +638,37 @@ export default function ChildrenTab({
         return true;
 
       case 2: // Parent 2 Information (optional, but if filled, validate)
-        // Only validate if any field is filled (since it's optional)
-        const hasAnyParent2Data =
-          parent2?.firstName.trim() ||
-          parent2?.lastName.trim() ||
-          parent2?.email.trim() ||
-          parent2?.phone.trim();
-
-        if (hasAnyParent2Data) {
-          if (!parent2?.firstName.trim()) {
-            alert("Parent 2 first name is required if other fields are filled");
-            return false;
-          }
-          if (!parent2.lastName.trim()) {
-            alert("Parent 2 last name is required if other fields are filled");
-            return false;
-          }
-          if (!parent2.email.trim()) {
-            alert("Parent 2 email is required if other fields are filled");
-            return false;
-          }
-          if (!parent2.phone.trim() || phoneError) {
-            alert(
-              "Valid parent 2 phone number is required if other fields are filled"
-            );
-            return false;
-          }
+        // Force to validate, otherwise click Skip
+        if (!parent2?.firstName.trim()) {
+          alert("Parent 2 first name is required. Otherwise click Skip");
+          return false;
+        }
+        if (!parent2.lastName.trim()) {
+          alert("Parent 2 last name is required. Otherwise click Skip");
+          return false;
+        }
+        if (!parent2.email.trim()) {
+          alert("Parent 2 email is required. Otherwise click Skip");
+          return false;
+        }
+        if (!parent2.phone.trim() || phoneError) {
+          alert(
+            "Valid parent 2 phone number is required. Otherwise click Skip"
+          );
+          return false;
+        }
+        // Mising checking address
+        if (!parent2.address2 || !parent2.city || !parent2.province || !parent2.country || !parent2.postalcode) {
+          alert(`Missing address fields`);
+          return false;
+        }
+        if (!parent2.maritalStatus) {
+          alert("Marital status is required");
+          return false;
+        }
+        if (!parent2.newChildRelationship) {
+          alert("Relationship to child is required");
+          return false;
         }
         return true;
 
@@ -668,17 +684,15 @@ export default function ChildrenTab({
   const handleNext = () => {
     // Checking if form is validated
     if (!validateCurrentStep(activeStep)) return;
-    // Initially, skipped = empty or just new Set();
     let newSkipped = skipped;
     // If at Optional step
     if (isStepSkipped(activeStep)) {
       newSkipped = new Set(newSkipped.values());
       newSkipped.delete(activeStep);
     }
-
-    // Increase next step
     setActiveStep((prev) => prev + 1);
     setSkipped(newSkipped);
+
   };
 
   // Handle click Back
@@ -1169,9 +1183,21 @@ export default function ChildrenTab({
                 {activeStep === 0 && (
                   // Child Information
                   <div className="space-y-4">
-                    <h2 className="text-2xl font-semibold text-gray-800 border-b pb-1">
-                      Child Information
-                    </h2>
+                    <div className="flex justify-between border-b pb-1">
+                      <h2 className="text-2xl font-semibold text-gray-800">
+                        Child Information
+                      </h2>
+                      {/* Option to add new Parent or searching existing parent */}
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isEditingChildInfo}
+                          onChange={(e) => setIsEditingChildInfo(e.target.checked)}
+                        />
+                        Edit Child Information
+                      </label>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <label className="block">
                         <span className="text-gray-700 font-medium mb-1 block">
@@ -1184,6 +1210,7 @@ export default function ChildrenTab({
                             updateDraft({ firstName: e.target.value })
                           }
                           required
+                          disabled={isEditingChildInfo}
                         />
                       </label>
                       <label className="block">
@@ -1365,7 +1392,7 @@ export default function ChildrenTab({
                       />
                     )}
                     {(activeStep === 2 && addOrSearchParent2 === "addParent2") && (
-                      parent2 && (
+                      (parent2) && (
                         <ParentForm
                           parent={parent2}
                           updateParent={updateParent2}
@@ -1562,21 +1589,24 @@ export default function ChildrenTab({
                       </div>
                     ) : (
                       // Else, we have add button
-                      <button
-                        onClick={() => {
-                          setActiveStep(2); // Back to Parent2 Form
-                          setParent2(initalParentValues); // Initalize the value for parent2 instead of null
-                          // Remove skip status
-                          setSkipped((prev) => {
-                            const newSkipped = new Set(prev.values());
-                            newSkipped.delete(2);
-                            return newSkipped;
-                          });
-                        }}
-                        className="bg-blue-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
-                      >
-                        + Add Parent 2
-                      </button>
+                      <div className="flex justify-end">
+
+                        <button
+                          onClick={() => {
+                            setActiveStep(2); // Back to Parent2 Form
+                            setParent2(initalParentValues); // Initalize the value for parent2 instead of null
+                            // Remove skip status
+                            setSkipped((prev) => {
+                              const newSkipped = new Set(prev.values());
+                              newSkipped.delete(2);
+                              return newSkipped;
+                            });
+                          }}
+                          className="bg-blue-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                        >
+                          + Add Parent 2
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}

@@ -104,6 +104,7 @@ export async function addParentAfterAddedChild(
       ...parent,
       id: parentId, // Set the id field
       role: "parent",
+      // Also registered
       childIds: [childId], // 2. Initialize with the known child ID: Link Child => Parent doc
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),

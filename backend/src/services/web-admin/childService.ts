@@ -425,6 +425,7 @@ export async function addChildWithParents(
       id: parent1Id, // Id flexible for matching uid from Firebase Auth
       locationId: child.locationId, // Location of parent could be multipule!!!!!!!!!!!!
       role: "parent" as const,
+      isRegistered: false,
       childRelationships: [parent1Relationship],
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -455,6 +456,7 @@ export async function addChildWithParents(
         id: parent2Id,
         locationId: child.locationId, // Location of parent could be multipule!!!!!!!!!!!!
         role: "parent" as const,
+        isRegistered: false,
         childRelationships: [parent2Relationship],
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
