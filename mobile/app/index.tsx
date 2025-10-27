@@ -11,7 +11,7 @@ export default function Index() {
   useEffect(() => {
     const off = onUserChanged(async (u) => {
       if (!u) {
-        router.replace("/auth/sign-in");
+        router.replace("/welcome");
         setReady(true);
         return;
       }
@@ -35,13 +35,13 @@ export default function Index() {
           router.replace("/(parent)/(tabs)/dashboard");  //  go to internal path
         } else {
           await signOutUser();
-          router.replace("/auth/sign-in");
+          router.replace("/welcome");
         }
         setReady(true);
       } catch (e) {
         console.error("Bootstrap routing error:", e);
         await signOutUser();
-        router.replace("/auth/sign-in");
+        router.replace("/welcome");
         setReady(true);
       }
     });
