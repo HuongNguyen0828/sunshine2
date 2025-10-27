@@ -206,26 +206,6 @@ export default function AdminDashboard() {
       setLocations(filteredLocs);
       setChildren(childrenWParents);
       setParents(prnts);
-
-
-      // Parents is set of all (parent1 + parent 2 of each kid - is return ChildWParent.parent1, ChildWParent2 )). 
-      // Array of unique of: using flatMap intead of map()
-      //[
-      //   [parent1, parent2], // Array 1
-      //   [parent1, parent2], // Array 2
-      //   [parent1]           // Array 3
-      // ]
-      // const parentsSet = Array.from(new Set(childrenWParents.flatMap((childWParent) => {
-      //   const parent1 = childWParent.parent1;
-      //   const parent2 = childWParent.parent2;
-
-      //   // Return only non-null parent: check parent2
-      //   const parent1And2 = parent2 ? [parent1, parent2] : [parent1];
-      //   return parent1And2;
-      // })));
-
-      // setParents(parentsSet);
-
     } catch (e) {
       console.error(e);
       await swal.fire({ icon: "error", title: "Failed to load", text: "Could not fetch teachers/classes/locations/children." });
@@ -292,9 +272,13 @@ export default function AdminDashboard() {
   /* ---------- teachers ---------- */
 
   const handleAddTeacher = async () => {
+
     await addTeacher(newTeacher);
-    startTransition(() => {
-      fetchTeachers();
+    startTransition(async () => {
+      setUpdateLoading(true);
+      const tcs: Types.Teacher[] = await fetchTeachers();
+      setTeachers(tcs);
+      setUpdateLoading(false);
     });
     setNewTeacher({
       firstName: "",
@@ -312,6 +296,7 @@ export default function AdminDashboard() {
       startDate: "",
       endDate: undefined,
     });
+
   };
 
   /* ---------- children (optimistic) ---------- */
