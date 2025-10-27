@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Text, TextStyle, StyleSheet } from 'react-native';
-import { useTheme } from '@react-navigation/native';
+import { colors } from '@/constants/color';
 
 /**
  * AI assitantd: Claude Sonnet 4.5
@@ -75,14 +75,12 @@ export const Typography: React.FC<TypographyProps> = ({
   style,
   children,
 }) => {
-  const theme = useTheme();
-
   // Get variant style
   const variantStyle = styles[variant];
 
   // Build color style
   const colorStyle: TextStyle = {
-    color: color || theme.colors.text,
+    color: color || colors.text,
   };
 
   return (
