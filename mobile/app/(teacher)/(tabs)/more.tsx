@@ -133,6 +133,11 @@ export default function TeacherMore() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Gradient Background */}
+      <LinearGradient
+        colors={["#FCE7F3", "#F3E8FF", "#FFFFFF"]}
+        style={styles.gradientBackground}
+      />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Profile Header */}
         <View style={styles.profileHeader}>
@@ -247,7 +252,14 @@ export default function TeacherMore() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
+  },
+  gradientBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 450,
   },
   scrollView: {
     flex: 1,
