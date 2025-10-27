@@ -236,7 +236,7 @@ function ChildCard({
           </button>
         ) : (
           <button onClick={() => onOpenAssign(child.id)} className="px-3 py-2 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700">
-            Assign
+            Assign to Class
           </button>
         )}
 
@@ -393,6 +393,18 @@ export default function ChildrenTab({
     postalcode: "",
     maritalStatus: "",
     newChildRelationship: "",
+  };
+  const initialChildValues: NewChildInput = {
+    firstName: "",
+    lastName: "",
+    gender: "",
+    birthDate: "",
+    parentId: [],
+    classId: "",
+    startDate: "",
+    enrollmentStatus: Types.EnrollmentStatus.New,
+    locationId: "",
+    notes: "",
   }
   /// ================From ParentTab
   const [phoneError, setPhoneError] = useState<string>("");
@@ -403,21 +415,44 @@ export default function ChildrenTab({
   const [parent2, setParent2] = useState<NewParentInput | null>(initalParentValues); // Null when skip
 
 
-  // Restore draft when form opens
+  // Restore ALL forms draft when form opens and not in editing mode
   useEffect(() => {
-    if (isFormOpen && !editingChild) {
-      const raw = sessionStorage.getItem(DRAFT_KEY);
-      if (raw) {
+    if (isFormOpen && !editingChild && !editingParent) {
+      // Restore Child draft
+      const childDraft = sessionStorage.getItem("child-form-draft");
+      if (childDraft) {
         try {
-          const parsed = JSON.parse(draft) as NewChildInput;
+          const parsed = JSON.parse(childDraft) as NewChildInput;
           setNewChild(parsed);
           setIsDraftRestored(true);
         } catch {
           /* noop */
         }
       }
+
+      // Restore parent1 draft
+      const parent1Draft = sessionStorage.getItem("parent1-form-draft");
+      if (parent1Draft) {
+        try {
+          const parsed = JSON.parse(parent1Draft) as NewParentInput;
+          setParent1(parsed);
+        } catch (e) {
+          console.log("Failed to restore parent1 draft", e);
+        }
+      }
+
+      // Restore parent2 draft
+      const parent2Draft = sessionStorage.getItem("parent2-form-draft");
+      if (parent2Draft) {
+        try {
+          const parsed = JSON.parse(parent2Draft) as NewParentInput;
+          setParent2(parsed);
+        } catch (e) {
+          console.error("Failed to restore parent2 draft:", e);
+        }
+      }
     }
-  }, [isFormOpen, editingChild, setNewChild]);
+  }, [isFormOpen, editingChild, setNewChild, editingParent]);
 
   const updateDraft = useCallback(
     (patch: Partial<NewChildInput>) => {
@@ -438,10 +473,21 @@ export default function ChildrenTab({
   // Clear draft
   const clearDraft = useCallback(() => {
     sessionStorage.removeItem("child-form-draft");
+    sessionStorage.removeItem("parent1-form-draft");
+    sessionStorage.removeItem("parent2-form-draft");
     setIsDraftRestored(false);
     resetForm(); // clear the form at the same time
     setActiveStep(0); // reset the step
   }, []);
+
+  const resetForm = () => {
+    // Reset child
+    setNewChild(initialChildValues);
+    // Reset Parent
+    setParent1(initalParentValues);
+    setParent2(initalParentValues);
+    setActiveStep(0);
+  };
 
   //============ Progress bar
   // Identify which step is optional
@@ -606,24 +652,6 @@ export default function ChildrenTab({
     );
   });
 
-  const resetForm = () => {
-    // Reset child
-    setNewChild({
-      firstName: "",
-      lastName: "",
-      gender: "",
-      birthDate: "",
-      parentId: [],
-      classId: "",
-      startDate: "",
-      enrollmentStatus: Types.EnrollmentStatus.New,
-      locationId: "",
-      notes: "",
-    });
-    // Reset Parent
-    setParent1(initalParentValues);
-    setParent2(initalParentValues);
-  };
 
   const handleAddClick = useCallback(() => {
     if ((locations ?? []).length === 0) {
@@ -769,18 +797,7 @@ export default function ChildrenTab({
         if (!prev) {
           // Initialize parent2 if it doesn't exist
           const newParent2: NewParentInput = {
-            firstName: '',
-            lastName: '',
-            email: '',
-            phone: '',
-            address1: '',
-            address2: "",
-            city: '',
-            province: '',
-            country: '',
-            postalcode: "",
-            maritalStatus: "",
-            newChildRelationship: "",
+            ...initalParentValues,
             ...updates
           };
 
@@ -814,61 +831,6 @@ export default function ChildrenTab({
     },
     [editingParent, setParent2]
   );
-
-  const addressValuesParen1: Address = {
-    address1: parent1.address1,
-    address2: parent1.address2,
-    city: parent1.city,
-    province: parent1.province,
-    country: parent1.country,
-    postalcode: parent1.postalcode
-  };
-
-  // Address parent possible null
-  const addressValuesParen2: Address = parent2 ? {
-    address1: parent2.address1,
-    address2: parent2.address2,
-    city: parent2.city,
-    province: parent2.province,
-    country: parent2.country,
-    postalcode: parent2.postalcode
-  } : {
-    address1: "",
-    address2: "",
-    city: "",
-    province: "",
-    country: "",
-    postalcode: "",
-  };
-
-
-
-  const handleAddressChange1 = useCallback((a: Address) => {
-    // Case updating parent1
-    updateParent1({
-      address1: a.address1,
-      address2: a.address2,
-      city: a.city,
-      province: a.province,
-      country: a.country,
-      postalcode: a.postalcode
-    });
-  }, [updateParent1])
-
-  // Case updating parent2, if parent2 is not null
-  const handleAddressChange2 = useCallback((a: Address) => {
-    if (addressValuesParen2) {
-      updateParent2({
-        address1: a.address1,
-        address2: a.address2,
-        city: a.city,
-        province: a.province,
-        country: a.country,
-        postalcode: a.postalcode
-      });
-    }
-  }, [updateParent2]);
-
 
   // Identify parent 1 and parent 2 for each child
   const parentLookup = useMemo(() =>
@@ -1273,8 +1235,6 @@ export default function ChildrenTab({
                           updateParent={updateParent1}
                           phoneError={phoneError}
                           setPhoneError={setPhoneError}
-                          address={addressValuesParen1}
-                          handleAddressChange={() => handleAddressChange1}
                         />
                       ) : (
                         parent2 && (
@@ -1283,8 +1243,6 @@ export default function ChildrenTab({
                             updateParent={updateParent2}
                             phoneError={phoneError}
                             setPhoneError={setPhoneError}
-                            address={addressValuesParen2}
-                            handleAddressChange={handleAddressChange2}
                           />
                         )
                       )}
@@ -1307,6 +1265,7 @@ export default function ChildrenTab({
                             👶 Child Information
                           </h3>
                           <button
+                            onClick={() => setActiveStep(0)} // Back to Child form
                             className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
                           >
                             Edit
@@ -1333,6 +1292,7 @@ export default function ChildrenTab({
                             👩 Parent 1 Information
                           </h3>
                           <button
+                            onClick={() => setActiveStep(1)} // Back to modifying parent1
                             className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
                           >
                             Edit
@@ -1344,8 +1304,7 @@ export default function ChildrenTab({
                           <p><span className="font-semibold">Last Name:</span> {parent1.lastName || "-"}</p>
                           <p><span className="font-semibold">Email:</span> {parent1.email || "-"}</p>
                           <p><span className="font-semibold">Phone:</span> {parent1.phone || "-"}</p>
-                          <p><span className="font-semibold">Address:</span> {parent1.address1 + parent1.city + parent1.postalcode || "-"}</p>
-                          <p><span className="font-semibold">Marital Status:</span> {parent1.maritalStatus || "-"}</p>
+                          <p><span className="font-semibold">Address:</span> {[parent1.address1, parent1.city, parent1.postalcode].filter(Boolean).join(', ') || "-"}</p>                          <p><span className="font-semibold">Marital Status:</span> {parent1.maritalStatus || "-"}</p>
                           <p><span className="font-semibold">Relationship to Child:</span> {parent1.newChildRelationship || "-"}</p>
                         </div>
                       </div>
@@ -1358,9 +1317,26 @@ export default function ChildrenTab({
                               👨 Parent 2 Information
                             </h3>
                             <button
+                              onClick={() => setActiveStep(2)} // Backe to parent 2 form 
                               className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
                             >
                               Edit
+                            </button>
+                            {/* Delete button */}
+                            <button
+                              onClick={() => {
+                                if (window.confirm("Remove Parent 2? This action cannot reverst after done.")) {
+                                  setParent2(null);
+                                  setSkipped(prev => {
+                                    const newSkipped = new Set(prev.values());
+                                    newSkipped.add(2);
+                                    return newSkipped;
+                                  });
+                                }
+                              }}
+                              className="bg-red-100 hover:bg-red-200 text-red-600 font-medium px-4 py-2 rounded-lg transition duration-200 text-sm border border-red-200"
+                            >
+                              Remove
                             </button>
                           </div>
 
@@ -1369,16 +1345,26 @@ export default function ChildrenTab({
                             <p><span className="font-semibold">Last Name:</span> {parent2.lastName || "-"}</p>
                             <p><span className="font-semibold">Email:</span> {parent2.email || "-"}</p>
                             <p><span className="font-semibold">Phone:</span> {parent2.phone || "-"}</p>
-                            <p><span className="font-semibold">Address:</span> {parent2?.address1 + parent2.city + parent2.postalcode || "-"}</p>
-                            <p><span className="font-semibold">Marital Status:</span> {parent2.maritalStatus || "-"}</p>
+                            <p><span className="font-semibold">Address:</span> {[parent2.address1, parent2.city, parent2.postalcode].filter(Boolean).join(', ') || "-"}</p>                            <p><span className="font-semibold">Marital Status:</span> {parent2.maritalStatus || "-"}</p>
                             <p><span className="font-semibold">Relationship to Child:</span> {parent2.newChildRelationship || "-"}</p>
                           </div>
                         </div>
                       ) : (
+                        // Else, we have add button
                         <button
-                          className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                          onClick={() => {
+                            setActiveStep(2); // Back to Parent2 Form
+                            setParent2(initalParentValues); // Initalize the value for parent2 instead of null
+                            // Remove skip status
+                            setSkipped(prev => {
+                              const newSkipped = new Set(prev.values());
+                              newSkipped.delete(2);
+                              return newSkipped;
+                            });
+                          }}
+                          className="bg-blue-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
                         >
-                          Add Parent
+                          + Add Parent 2
                         </button>
                       )}
                     </div>
