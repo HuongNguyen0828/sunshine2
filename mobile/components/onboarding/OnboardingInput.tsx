@@ -182,7 +182,7 @@
 //     ```typescript
 // // Pill-shaped input with icon support
 // // Usage: <OnboardingInput icon={<Mail />} text={email} setText={setEmail} />
-import React, { cloneElement } from 'react';
+import React, { cloneElement, useState } from 'react';
 import {
   TextInput,
   View,
@@ -190,8 +190,10 @@ import {
   TextInputProps,
   StyleSheet,
   useColorScheme,
+  Pressable,
 } from 'react-native';
-import { useTheme } from '@react-navigation/native';
+import { Eye, EyeOff } from 'lucide-react-native';
+import { colors } from '@/constants/color';
 
 interface OnboardingInputProps {
   icon: JSX.Element;
@@ -210,16 +212,14 @@ export default function OnboardingInput({
   isPassword = false,
   inputProps,
 }: OnboardingInputProps) {
-  const theme = useTheme();
   const colorScheme = useColorScheme();
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-  // Color system with hex opacity codes
-  const iconColor = theme.colors.text + 'B3'; // 70% opacity
-  const textColor = theme.colors.text + 'AF'; // 68% opacity
-  const placeholderColor = theme.colors.text + '7F'; // 50% opacity
-  const backgroundColor = colorScheme === 'dark'
-    ? theme.colors.text + '15' // 15% opacity
-    : theme.colors.text + '08'; // 8% opacity
+  // Fixed color system - use actual colors instead of opacity strings
+  const iconColor = colors.palette.neutral500; // Medium gray for icons
+  const textColor = colors.palette.neutral700; // Dark gray for readable text
+  const placeholderColor = colors.palette.neutral400; // Light gray for placeholder
+  const backgroundColor = colors.palette.neutral100; // White background for inputs
 
   // Clone icon with proper color and size
   const coloredIcon = cloneElement(icon, {
@@ -238,11 +238,23 @@ export default function OnboardingInput({
         placeholderTextColor={placeholderColor}
         autoCapitalize="none"
         autoCorrect={false}
-        secureTextEntry={isPassword}
+        secureTextEntry={isPassword && !isPasswordVisible}
         value={text}
         onChangeText={setText}
         {...inputProps}
       />
+      {isPassword && (
+        <Pressable
+          onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+          style={styles.eyeButton}
+        >
+          {isPasswordVisible ? (
+            <Eye size={24} color={iconColor} />
+          ) : (
+            <EyeOff size={24} color={iconColor} />
+          )}
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -265,8 +277,15 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 19,
-    fontWeight: '600',
+    fontWeight: '400',
     paddingVertical: Platform.OS === 'ios' ? 18 : 14,
     paddingHorizontal: 20,
+  },
+  eyeButton: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
   },
 });

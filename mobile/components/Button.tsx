@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, Text, ActivityIndicator, ViewStyle, StyleSheet } from 'react-native';
-import { useTheme } from '@react-navigation/native';
+import { colors } from '@/constants/color';
 /**
  * AI assitantd: Claude Sonnet 4.5
  * 
@@ -87,12 +87,10 @@ export const Button: React.FC<ButtonProps> = ({
   disabled = false,
   style,
 }) => {
-  const theme = useTheme();
-
   // Determine colors based on variant
   const isPrimary = variant === 'primary';
-  const backgroundColor = isPrimary ? theme.colors.primary : 'transparent';
-  const textColor = isPrimary ? '#FFFFFF' : theme.colors.primary;
+  const backgroundColor = isPrimary ? colors.palette.primary500 : 'transparent';
+  const textColor = isPrimary ? '#FFFFFF' : colors.palette.primary500;
 
   return (
     <Pressable
