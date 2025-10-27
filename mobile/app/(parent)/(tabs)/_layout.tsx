@@ -59,6 +59,7 @@ export default function ParentTabs() {
           name="calendar"
           options={{
             title: "Calendar",
+            headerShown: false,
             tabBarIcon: (p) => <Ionicons name="calendar-outline" {...p} />,
           }}
         />
@@ -66,6 +67,7 @@ export default function ParentTabs() {
           name="more"
           options={{
             title: "More",
+            headerShown: false,
             tabBarIcon: (p) => (
               <Ionicons name="ellipsis-horizontal-circle-outline" {...p} />
             ),

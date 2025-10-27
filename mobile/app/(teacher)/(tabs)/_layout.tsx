@@ -60,6 +60,7 @@ export default function TeacherTabs() {
           name="calendar"
           options={{
             title: "Calendar",
+            headerShown: false,
             tabBarIcon: (p) => <Ionicons name="calendar-outline" {...p} />,
           }}
         />
