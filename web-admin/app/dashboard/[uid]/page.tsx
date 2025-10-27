@@ -123,6 +123,7 @@ export default function AdminDashboard() {
   // const [parentLites, setParentLites] = useState<Types.Parent[]>([]); //// Array of parent 1 and parent 2 extracted from Child
 
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
+  const [updateLoading, setUpdateLoading] = useState<boolean>(false); // Separate state of loading initally vs of actions
   const [, startTransition] = useTransition();
   const [createdChildId, setcreatedChildId] = useState<string | null>(null); /// Initally, chidId is null, To later link with parent
 
@@ -293,7 +294,7 @@ export default function AdminDashboard() {
   const handleAddTeacher = async () => {
     await addTeacher(newTeacher);
     startTransition(() => {
-      initialFetchAll();
+      fetchTeachers();
     });
     setNewTeacher({
       firstName: "",
@@ -316,6 +317,9 @@ export default function AdminDashboard() {
   /* ---------- children (optimistic) ---------- */
 
   const handleAddChild = async (parent1: NewParentInput, parent2: NewParentInput | null): Promise<returnChildWithParents | null> => {
+
+    setUpdateLoading(true);
+
     const child: NewChildInput = {
       firstName: newChild.firstName.trim(),
       lastName: newChild.lastName.trim(),
@@ -331,24 +335,18 @@ export default function AdminDashboard() {
 
     try {
       const created = await addChildWithParents({ child, parent1, parent2 });
-      // alert(`Child created: ${created?.id}`);
 
-      // setChildren((prev) => [created, ...prev]);
-      // if (created.classId) {
-      //   setClasses((prev) =>
-      //     prev.map((c) => (c.id === created.classId ? { ...c, volume: Math.max(0, (c.volume ?? 0) + 1) } : c))
-      //   );
-      // }
-
-      // Refresh data
-      // await refetchChildrenLite();
-      // await refetchClassesLite();
+      // Refresh data: child and parents involved;
+      await fetchChildren();
+      await fetchParents();
 
       return created;
     } catch (error: any) {
       console.error(error.message);
       alert("Failed to create child and parents");
       return null;
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
@@ -586,7 +584,7 @@ export default function AdminDashboard() {
 
   /* ---------- render ---------- */
 
-  if (authLoading || initialLoading) {
+  if (authLoading) {
     return <div>Loading</div>;
   }
 
@@ -603,6 +601,10 @@ export default function AdminDashboard() {
             </button>
           </div>
         </header>
+
+        {/*  Loading/ Updating status */}
+        {initialLoading && <div className="text-center"> Loading data ....</div>}
+        {updateLoading && <div className="text-center"> Updating data ....</div>}
 
         <div style={dash.content}>
           <SidebarNav active={activeTab} onChange={setActiveTab} />
