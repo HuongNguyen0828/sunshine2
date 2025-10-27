@@ -8,28 +8,34 @@ import Overview from "@/components/dashboard/Overview";
 import ParentsTab from "@/components/dashboard/ParentsTab";
 import ClassesTab from "@/components/dashboard/ClassesTab";
 import SchedulerLabsTab from "@/components/dashboard/SchedulerLabsTab";
-import ChildrenTab, { type NewChildInput as ChildFormInput } from "@/components/dashboard/ChildrenTab";
+import ChildrenTab from "@/components/dashboard/ChildrenTab";
 import { dash } from "@/styles/dashboard";
 import { useAuth } from "@/lib/auth";
 import * as Types from "../../../../shared/types/type";
-import type { Tab, NewParentInput, NewClassInput, NewTeacherInput } from "@/types/forms";
+import type { Tab, NewParentInput, NewClassInput, NewTeacherInput, NewChildInput } from "@/types/forms";
 import swal from "sweetalert2";
 import { fetchTeachers, addTeacher } from "@/services/useTeachersAPI";
 import { fetchClasses } from "@/services/useClassesAPI";
 import { fetchLocationsLite, type LocationLite } from "@/services/useLocationsAPI";
 import {
-  fetchChildren as fetchChildrenAPI,
-  addChild as addChildAPI,
-  updateChild as updateChildAPI,
-  deleteChildById as deleteChildAPI,
+  // fetchChildren as fetchChildrenAPI,
+  addChildWithParents,
+  fetchChildren,
+  updateChild,
+  deleteChild,
   assignChildToClass,
-  unassignChildFromClass,
-  linkParentToChildByEmail,
-  unlinkParentFromChild,
-  fetchParentsLiteByIds,
-  type NewChildInput as APIChildInput,
+  returnChildWithParents,
+  // assignChildToClass,
+  // unassignChildFromClass,
+  // linkParentToChildByEmail,
+  // unlinkParentFromChild,
+  // fetchParentsLiteByIds,
+  // type NewChildInput as APIChildInput,
 } from "@/services/useChildrenAPI";
 import TeachersTab from "@/components/dashboard/TeachersTab";
+import { fetchParents } from "@/services/useParentsAPI";
+import { type NewParentInputWithChildId } from "@/services/useParentsAPI";
+import { a } from "framer-motion/client";
 
 /* ---------------- utils ---------------- */
 
@@ -111,12 +117,15 @@ export default function AdminDashboard() {
   const [teachers, setTeachers] = useState<Types.Teacher[]>([]);
   const [classes, setClasses] = useState<Types.Class[]>([]);
   const [locations, setLocations] = useState<LocationLite[]>([]);
-  const [children, setChildren] = useState<Types.Child[]>([]);
+  const [children, setChildren] = useState<Types.Child[]>([]); // return a List of (object of child and parent1 and parent2)
   const [parents, setParents] = useState<Types.Parent[]>([]);
-  const [parentLites, setParentLites] = useState<Array<{ id: string; firstName?: string; lastName?: string; email?: string }>>([]);
+  // const [parentLites, setParentLites] = useState<Array<{ id: string; firstName?: string; lastName?: string; email?: string }>>([]);
+  // const [parentLites, setParentLites] = useState<Types.Parent[]>([]); //// Array of parent 1 and parent 2 extracted from Child
 
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
+  const [updateLoading, setUpdateLoading] = useState<boolean>(false); // Separate state of loading initally vs of actions
   const [, startTransition] = useTransition();
+  const [createdChildId, setcreatedChildId] = useState<string | null>(null); /// Initally, chidId is null, To later link with parent
 
   /* forms */
   const [newTeacher, setNewTeacher] = useState<NewTeacherInput>({
@@ -136,30 +145,32 @@ export default function AdminDashboard() {
     endDate: undefined,
   });
 
-  const [newChild, setNewChild] = useState<ChildFormInput>({
+  const [newChild, setNewChild] = useState<NewChildInput>({
     firstName: "",
     lastName: "",
+    gender: "",
     birthDate: "",
     parentId: [],
     classId: "",
     locationId: "",
     notes: "",
     enrollmentStatus: Types.EnrollmentStatus.New,
+    startDate: "",
   });
-  const [newParent, setNewParent] = useState<NewParentInput>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    childIds: [],
-    street: "",
-    city: "",
-    province: "",
-    country: "",
-    emergencyContact: "",
-    updatedAt: "",
-    preferredLanguage: "",
-  });
+  // const [newParent, setNewParent] = useState<NewParentInput>({
+  //   firstName: "",
+  //   lastName: "",
+  //   email: "",
+  //   phone: "",
+  //   address1: "",
+  //   address2: "",
+  //   city: "",
+  //   province: "",
+  //   country: "",
+  //   postalcode: "",
+  //   maritalStatus: "",
+  //   relationshipToChild: ""
+  // });
   const [newClass, setNewClass] = useState<NewClassInput>({
     name: "",
     locationId: "",
@@ -177,35 +188,31 @@ export default function AdminDashboard() {
   const initialFetchAll = useCallback(async () => {
     setInitialLoading(true);
     try {
-      const childrenQuery =
-        scope.mode === "fixed"
-          ? { locationId: scope.fixedLocationId }
-          : scope.daycareId
-          ? { daycareId: scope.daycareId }
-          : {};
-
-      const [tchs, clss, locs, kids] = await Promise.all([fetchTeachers(), fetchClasses(), fetchLocationsLite(), fetchChildrenAPI(childrenQuery)]);
+      const [tchs, clss, locs, childrenWParents, prnts] = await Promise.all([
+        fetchTeachers(),
+        fetchClasses(),
+        fetchLocationsLite(),
+        fetchChildren(),
+        fetchParents(),
+      ]);
 
       const filteredLocs =
         scope.mode === "fixed"
           ? (locs ?? []).filter((l) => l.id === scope.fixedLocationId)
           : (locs ?? []);
 
-      setTeachers(tchs ?? []);
+      setTeachers(tchs);
       setClasses(clss ?? []);
       setLocations(filteredLocs);
-      setChildren(kids ?? []);
-
-      const parentIds = Array.from(new Set((kids ?? []).flatMap((c) => (Array.isArray(c.parentId) ? c.parentId : []))));
-      const lites = await fetchParentsLiteByIds(parentIds);
-      setParentLites(lites);
+      setChildren(childrenWParents);
+      setParents(prnts);
     } catch (e) {
       console.error(e);
       await swal.fire({ icon: "error", title: "Failed to load", text: "Could not fetch teachers/classes/locations/children." });
     } finally {
       setInitialLoading(false);
     }
-  }, [scope.mode, scope.fixedLocationId, scope.daycareId]);
+  }, []);
 
   useEffect(() => {
     if (authLoading || !currentUser) return;
@@ -214,24 +221,25 @@ export default function AdminDashboard() {
 
   /* ---------- lightweight background refreshers ---------- */
 
-  const refetchChildrenLite = useCallback(async () => {
-    try {
-      const childrenQuery =
-        scope.mode === "fixed"
-          ? { locationId: scope.fixedLocationId }
-          : scope.daycareId
-          ? { daycareId: scope.daycareId }
-          : {};
-      const fresh = await fetchChildrenAPI(childrenQuery);
-      setChildren(fresh ?? []);
+  // const refetchChildrenLite = useCallback(async () => {
+  //   try {
+  //     // const childrenQuery =
+  //     //   scope.mode === "fixed"
+  //     //     ? { locationId: scope.fixedLocationId }
+  //     //     : scope.daycareId
+  //     //       ? { daycareId: scope.daycareId }
+  //     //       : {};
+  //     const fresh = await fetchChildren();
 
-      const parentIds = Array.from(new Set((fresh ?? []).flatMap((c) => (Array.isArray(c.parentId) ? c.parentId : []))));
-      const lites = await fetchParentsLiteByIds(parentIds);
-      setParentLites(lites);
-    } catch (e) {
-      console.error("Background children refresh failed", e);
-    }
-  }, [scope.mode, scope.fixedLocationId, scope.daycareId]);
+  //     const parentIds = Array.from(new Set((fresh ?? []).flatMap((c) => (Array.isArray(c.parentId) ? c.parentId : []))));
+  //     // Take only 1 match of parentId in parents list 
+  //     const parentsOfChild = parentIds.map(parentId => parents.filter(parent => parent.docId === parentId)[0]);
+  //     // const lites = await fetchParentsLiteByIds(parentIds);
+  //     setParentLites(parentsOfChild);
+  //   } catch (e) {
+  //     console.error("Background children refresh failed", e);
+  //   }
+  // }, [scope.mode, scope.fixedLocationId, scope.daycareId]);
 
   const refetchClassesLite = useCallback(async () => {
     try {
@@ -264,9 +272,13 @@ export default function AdminDashboard() {
   /* ---------- teachers ---------- */
 
   const handleAddTeacher = async () => {
+
     await addTeacher(newTeacher);
-    startTransition(() => {
-      initialFetchAll();
+    startTransition(async () => {
+      setUpdateLoading(true);
+      const tcs: Types.Teacher[] = await fetchTeachers();
+      setTeachers(tcs);
+      setUpdateLoading(false);
     });
     setNewTeacher({
       firstName: "",
@@ -284,121 +296,108 @@ export default function AdminDashboard() {
       startDate: "",
       endDate: undefined,
     });
+
   };
 
   /* ---------- children (optimistic) ---------- */
 
-  const createChild = async (input: ChildFormInput): Promise<Types.Child | null> => {
-    const payload: APIChildInput = {
-      firstName: input.firstName.trim(),
-      lastName: input.lastName.trim(),
-      birthDate: input.birthDate,
-      parentId: Array.isArray(input.parentId) ? input.parentId : [],
-      classId: input.classId?.trim() || undefined,
-      locationId: scope.mode === "fixed" ? scope.fixedLocationId : input.locationId?.trim(),
-      daycareId: scope.daycareId,
-      notes: input.notes?.trim() || undefined,
-      enrollmentStatus: input.enrollmentStatus ?? computeStatus(input.parentId, input.classId),
+  const handleAddChild = async (parent1: NewParentInput, parent2: NewParentInput | null): Promise<returnChildWithParents | null> => {
+
+    setUpdateLoading(true);
+
+    const child: NewChildInput = {
+      firstName: newChild.firstName.trim(),
+      lastName: newChild.lastName.trim(),
+      gender: newChild.gender,
+      birthDate: newChild.birthDate,
+      parentId: Array.isArray(newChild.parentId) ? newChild.parentId : [],
+      classId: newChild.classId?.trim() || undefined,
+      locationId: scope.mode === "fixed" ? scope.fixedLocationId : newChild.locationId?.trim(),
+      notes: newChild.notes?.trim() || undefined,
+      enrollmentStatus: newChild.enrollmentStatus,
+      startDate: newChild.startDate,
     };
 
     try {
-      const created = await addChildAPI(payload);
+      const created = await addChildWithParents({ child, parent1, parent2 });
 
-      if (created) {
-        setChildren((prev) => [created, ...prev]);
-        if (created.classId) {
-          setClasses((prev) =>
-            prev.map((c) => (c.id === created.classId ? { ...c, volume: Math.max(0, (c.volume ?? 0) + 1) } : c))
-          );
-        }
-      } else {
-        startTransition(() => {
-          refetchChildrenLite();
-          refetchClassesLite();
-        });
-      }
-    } finally {
-      setNewChild({
-        firstName: "",
-        lastName: "",
-        birthDate: "",
-        parentId: [],
-        classId: "",
-        locationId: "",
-        notes: "",
-        enrollmentStatus: Types.EnrollmentStatus.New,
-      });
-    }
+      // Refresh data: child and parents involved;
+      await fetchChildren();
+      await fetchParents();
 
-    startTransition(() => {
-      refetchChildrenLite();
-      refetchClassesLite();
-    });
-
-    return null;
-  };
-
-  const updateChild = async (id: string, patch: Partial<ChildFormInput>): Promise<Types.Child | null> => {
-    try {
-      const res = await updateChildAPI(id, {
-        firstName: patch.firstName?.trim(),
-        lastName: patch.lastName?.trim(),
-        birthDate: patch.birthDate,
-        parentId: Array.isArray(patch.parentId) ? patch.parentId : undefined,
-        locationId: scope.mode === "fixed" ? scope.fixedLocationId : patch.locationId?.trim(),
-        notes: patch.notes?.trim(),
-        enrollmentStatus: patch.enrollmentStatus,
-        classId: patch.classId,
-      });
-
-      if (res && typeof res === "object") {
-        const updated = res as Types.Child;
-
-        const prevChild = children.find(c => c.id === id);
-        const prevClassId = prevChild?.classId;
-        const nextClassId = updated.classId;
-
-        setChildren(prev => prev.map(c => (c.id === id ? { ...c, ...updated } : c)));
-
-        if (prevClassId !== nextClassId) {
-          if (prevClassId) {
-            setClasses(prev =>
-              prev.map(cls =>
-                cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls
-              )
-            );
-          }
-          if (nextClassId) {
-            setClasses(prev =>
-              prev.map(cls =>
-                cls.id === nextClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) + 1) } : cls
-              )
-            );
-          }
-        }
-      } else {
-        startTransition(() => {
-          refetchChildrenLite();
-          refetchClassesLite();
-        });
-      }
-    } catch (e) {
-      const msg = getErrorMessage(e, "Failed to update child.");
-      alert(msg);
+      return created;
+    } catch (error: any) {
+      console.error(error.message);
+      alert("Failed to create child and parents");
       return null;
+    } finally {
+      setUpdateLoading(false);
     }
+  };
 
-    startTransition(() => {
-      refetchChildrenLite();
-    });
+  const handleUpdateChild = async (id: string, patch: Partial<NewChildInput>): Promise<Types.Child | null> => {
+    //   try {
+    //     const res = await updateChild(id, {
+    //       firstName: patch.firstName.trim(),
+    //       lastName: patch.lastName.trim(),
+    //       gender: patch.gender,
+    //       birthDate: patch.birthDate,
+    //       parentId: Array.isArray(patch.parentId) ? patch.parentId : undefined,
+    //       locationId: scope.mode === "fixed" ? scope.fixedLocationId : patch.locationId?.trim(),
+    //       notes: patch.notes?.trim(),
+    //       enrollmentStatus: patch.enrollmentStatus,
+    //       classId: patch.classId,
+    //       startDate: patch.startDate
+    //     });
+
+    //     if (res && typeof res === "object") {
+    //       const updated = res as Types.Child;
+
+    //       const prevChild = children.find(c => c.id === id);
+    //       const prevClassId = prevChild?.classId;
+    //       const nextClassId = updated.classId;
+
+    //       setChildren(prev => prev.map(c => (c.id === id ? { ...c, ...updated } : c)));
+
+    //       if (prevClassId !== nextClassId) {
+    //         if (prevClassId) {
+    //           setClasses(prev =>
+    //             prev.map(cls =>
+    //               cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls
+    //             )
+    //           );
+    //         }
+    //         if (nextClassId) {
+    //           setClasses(prev =>
+    //             prev.map(cls =>
+    //               cls.id === nextClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) + 1) } : cls
+    //             )
+    //           );
+    //         }
+    //       }
+    //     } else {
+    //       startTransition(() => {
+    //         refetchChildrenLite();
+    //         refetchClassesLite();
+    //       });
+    //     }
+    //   } catch (e) {
+    //     const msg = getErrorMessage(e, "Failed to update child.");
+    //     alert(msg);
+    //     return null;
+    //   }
+
+    //   startTransition(() => {
+    //     refetchChildrenLite();
+    //   });
 
     return null;
   };
 
-  const deleteChild = async (id: string): Promise<boolean> => {
+  const handleDeleteChild = async (id: string): Promise<boolean> => {
     try {
       const target = children.find((c) => c.id === id);
-      await deleteChildAPI(id);
+      await deleteChild(id);
 
       setChildren((prev) => prev.filter((c) => c.id !== id));
       if (target?.classId) {
@@ -408,7 +407,7 @@ export default function AdminDashboard() {
       }
 
       startTransition(() => {
-        refetchChildrenLite();
+        // refetchChildrenLite();
         refetchClassesLite();
       });
 
@@ -431,10 +430,10 @@ export default function AdminDashboard() {
         prev.map((c) =>
           c.id === childId
             ? {
-                ...c,
-                classId,
-                enrollmentStatus: hadParent ? Types.EnrollmentStatus.Active : Types.EnrollmentStatus.Waitlist,
-              }
+              ...c,
+              classId,
+              enrollmentStatus: hadParent ? Types.EnrollmentStatus.Active : Types.EnrollmentStatus.Waitlist,
+            }
             : c
         )
       );
@@ -442,7 +441,7 @@ export default function AdminDashboard() {
       setClasses((prev) => prev.map((cls) => (cls.id === classId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) + 1) } : cls)));
 
       startTransition(() => {
-        refetchChildrenLite();
+        // refetchChildrenLite();
         refetchClassesLite();
       });
 
@@ -459,16 +458,16 @@ export default function AdminDashboard() {
       const prevChild = children.find((c) => c.id === childId);
       const prevClassId = prevChild?.classId;
 
-      await unassignChildFromClass(childId);
+      // await unassignChildFromClass(childId);
 
       setChildren((prev) =>
         prev.map((c) =>
           c.id === childId
             ? {
-                ...c,
-                classId: undefined,
-                enrollmentStatus: (c.parentId?.length ?? 0) > 0 ? Types.EnrollmentStatus.Waitlist : Types.EnrollmentStatus.New,
-              }
+              ...c,
+              classId: undefined,
+              enrollmentStatus: (c.parentId?.length ?? 0) > 0 ? Types.EnrollmentStatus.Waitlist : Types.EnrollmentStatus.New,
+            }
             : c
         )
       );
@@ -480,7 +479,7 @@ export default function AdminDashboard() {
       }
 
       startTransition(() => {
-        refetchChildrenLite();
+        // refetchChildrenLite();
         refetchClassesLite();
       });
 
@@ -493,61 +492,61 @@ export default function AdminDashboard() {
 
   const onLinkParentByEmail = async (childId: string, email: string) => {
     try {
-      await linkParentToChildByEmail(childId, email);
+      // await linkParentToChildByEmail(childId, email);
 
-      const foundParent = parentLites.find((p) => (p.email ?? "").toLowerCase() === email.toLowerCase());
-      if (foundParent) {
-        setChildren((prev) =>
-          prev.map((c) =>
-            c.id === childId
-              ? {
-                  ...c,
-                  parentId: Array.from(new Set([...(c.parentId ?? []), foundParent.id])),
-                  enrollmentStatus: c.classId ? Types.EnrollmentStatus.Active : Types.EnrollmentStatus.Waitlist,
-                }
-              : c
-          )
-        );
-      } else {
-        startTransition(() => {
-          refetchChildrenLite();
-        });
-      }
+      // const foundParent = parentLites.find((p) => (p.email ?? "").toLowerCase() === email.toLowerCase());
+      // if (foundParent) {
+      //   setChildren((prev) =>
+      //     prev.map((c) =>
+      //       c.id === childId
+      //         ? {
+      //           ...c,
+      //           parentId: Array.from(new Set([...(c.parentId ?? []), foundParent.id])),
+      //           enrollmentStatus: c.classId ? Types.EnrollmentStatus.Active : Types.EnrollmentStatus.Waitlist,
+      //         }
+      //         : c
+      //     )
+      //   );
+      //   } else {
+      //     startTransition(() => {
+      //       refetchChildrenLite();
+      //     });
+      //   }
 
-      startTransition(() => {
-        refetchChildrenLite();
-      });
+      //   startTransition(() => {
+      //     refetchChildrenLite();
+      //   });
 
-      return true;
+      //   return true;
     } catch (e: unknown) {
-      const msg = getErrorMessage(e, "Failed to link parent by email.");
-      alert(msg);
-      return false;
+      //   const msg = getErrorMessage(e, "Failed to link parent by email.");
+      //   alert(msg);
+      //   return false;
     }
   };
 
   const onUnlinkParent = async (childId: string, parentUserId: string) => {
     try {
-      await unlinkParentFromChild(childId, parentUserId);
+      // await unlinkParentFromChild(childId, parentUserId);
 
-      setChildren((prev) =>
-        prev.map((c) => {
-          if (c.id !== childId) return c;
-          const nextParentIds = (c.parentId ?? []).filter((pid) => pid !== parentUserId);
-          const nextStatus = c.classId
-            ? nextParentIds.length > 0
-              ? Types.EnrollmentStatus.Active
-              : Types.EnrollmentStatus.Waitlist
-            : nextParentIds.length > 0
-            ? Types.EnrollmentStatus.Waitlist
-            : Types.EnrollmentStatus.New;
-          return { ...c, parentId: nextParentIds, enrollmentStatus: nextStatus };
-        })
-      );
+      // setChildren((prev) =>
+      //   prev.map((c) => {
+      //     if (c.id !== childId) return c;
+      //     const nextParentIds = (c.parentId ?? []).filter((pid) => pid !== parentUserId);
+      //     const nextStatus = c.classId
+      //       ? nextParentIds.length > 0
+      //         ? Types.EnrollmentStatus.Active
+      //         : Types.EnrollmentStatus.Waitlist
+      //       : nextParentIds.length > 0
+      //         ? Types.EnrollmentStatus.Waitlist
+      //         : Types.EnrollmentStatus.New;
+      //     return { ...c, parentId: nextParentIds, enrollmentStatus: nextStatus };
+      //   })
+      // );
 
-      startTransition(() => {
-        refetchChildrenLite();
-      });
+      // startTransition(() => {
+      //   refetchChildrenLite();
+      // });
 
       return true;
     } catch {
@@ -556,31 +555,6 @@ export default function AdminDashboard() {
     }
   };
 
-  /* ---------- parents (local demo) ---------- */
-
-  const addParent = () => {
-    const parent: Types.Parent = {
-      id: String(parents.length + 1),
-      role: "parent",
-      createdAt: new Date().toISOString(),
-      ...newParent,
-    };
-    setParents((p) => [parent, ...p]);
-    setNewParent({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      childIds: [],
-      street: "",
-      city: "",
-      province: "",
-      country: "",
-      emergencyContact: "",
-      updatedAt: "",
-      preferredLanguage: "",
-    });
-  };
 
   /* ---------- classes passthrough ---------- */
 
@@ -595,7 +569,7 @@ export default function AdminDashboard() {
 
   /* ---------- render ---------- */
 
-  if (authLoading || initialLoading) {
+  if (authLoading) {
     return <div>Loading</div>;
   }
 
@@ -612,6 +586,10 @@ export default function AdminDashboard() {
             </button>
           </div>
         </header>
+
+        {/*  Loading/ Updating status */}
+        {initialLoading && <div className="text-center"> Loading data ....</div>}
+        {updateLoading && <div className="text-center"> Updating data ....</div>}
 
         <div style={dash.content}>
           <SidebarNav active={activeTab} onChange={setActiveTab} />
@@ -632,45 +610,54 @@ export default function AdminDashboard() {
 
             {activeTab === "children" && (
               <ChildrenTab
-                childrenData={children}
+                children={children}
                 classes={classes}
-                parents={parentLites}
+                parents={parents}
                 locations={filteredLocations}
                 newChild={newChild}
                 setNewChild={setNewChild}
-                createChild={createChild}
-                updateChild={updateChild}
-                deleteChild={deleteChild}
+                addChild={handleAddChild}
+                updateChild={handleUpdateChild}
+                deleteChild={handleDeleteChild}
                 onAssign={onAssignChild}
                 onUnassign={onUnassignChild}
-                onLinkParentByEmail={onLinkParentByEmail}
+                // onLinkParentByEmail={onLinkParentByEmail}
                 onUnlinkParent={onUnlinkParent}
-                onCreated={(c) => console.log("created child", c?.id)}
-                onUpdated={(c) => console.log("updated child", c?.id)}
-                onDeleted={(id) => console.log("deleted child", id)}
+              // Parent
               />
             )}
 
-            {activeTab === "parents" && <ParentsTab parents={parents} newParent={newParent} setNewParent={setNewParent} onAdd={addParent} />}
+            {/* {
+              activeTab === "parents" && (
+                <ParentsTab
+                  parents={parents}
+                // newParent={newParent}
+                // setNewParent={setNewParent}
+                // onAdd={handleAddParent}
+                />
+              )
+            } */}
 
-            {activeTab === "classes" && (
-              <ClassesTab
-                classes={classes}
-                teachers={teachers}
-                locations={filteredLocations}
-                newClass={newClass}
-                setNewClass={setNewClass}
-                onCreated={onClassCreated}
-                onUpdated={onClassUpdated}
-                onDeleted={onClassDeleted}
-                onAssigned={onClassAssigned}
-              />
-            )}
+            {
+              activeTab === "classes" && (
+                <ClassesTab
+                  classes={classes}
+                  teachers={teachers}
+                  locations={filteredLocations}
+                  newClass={newClass}
+                  setNewClass={setNewClass}
+                  onCreated={onClassCreated}
+                  onUpdated={onClassUpdated}
+                  onDeleted={onClassDeleted}
+                  onAssigned={onClassAssigned}
+                />
+              )
+            }
 
             {activeTab === "scheduler-labs" && <SchedulerLabsTab />}
-          </main>
-        </div>
-      </div>
+          </main >
+        </div >
+      </div >
     </>
   );
 }

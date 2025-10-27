@@ -1,42 +1,69 @@
 // web-admin/components/dashboard/ChildrenTab.tsx
 "use client";
-
-import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import * as React from "react";
 import * as Types from "../../../shared/types/type";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+  ChangeEvent,
+} from "react";
 import type { LocationLite } from "@/services/useLocationsAPI";
+import AutoCompleteAddress, { Address } from "../AutoCompleteAddress";
+import ParentForm from "./ParentForm";
+import { NewChildInput } from "../../types/forms";
 
-/** UI form input used when creating/updating a child */
-export type NewChildInput = {
-  firstName: string;
-  lastName: string; // YYYY-MM-DD
-  birthDate: string;
-  parentId: string[];
-  classId?: string;
-  locationId?: string;
-  notes?: string;
-  enrollmentStatus?: Types.EnrollmentStatus;
+// For Stepper: Choosing linear bar
+//Steppers convey progress through numbered steps. It provides a wizard-like workflow.
+import Box from "@mui/material/Box";
+import Stepper from "@mui/material/Stepper";
+import Step from "@mui/material/Step";
+import StepLabel from "@mui/material/StepLabel";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import { NewParentInput } from "@/types/forms";
+import { returnChildWithParents } from "@/services/useChildrenAPI";
+import { Radio } from "@mui/material";
+
+type ParentLite = {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
 };
 
-export type ParentLite = { id: string; firstName?: string; lastName?: string; email?: string };
-
 type Props = {
-  childrenData: Types.Child[];
+  children: Types.Child[];
   classes: Types.Class[];
-  parents: ParentLite[];
+  parents: Types.Parent[];
   locations: LocationLite[];
   newChild: NewChildInput;
   setNewChild: React.Dispatch<React.SetStateAction<NewChildInput>>;
-  createChild: (input: NewChildInput) => Promise<Types.Child | null>;
-  updateChild: (id: string, patch: Partial<NewChildInput>) => Promise<Types.Child | null>;
+  addChild: (
+    parent1: NewParentInput,
+    parent2: NewParentInput | null
+  ) => Promise<returnChildWithParents | null>;
+  updateChild: (
+    id: string,
+    patch: Partial<NewChildInput>
+  ) => Promise<Types.Child | null>;
   deleteChild: (id: string) => Promise<boolean>;
   onAssign?: (childId: string, classId: string) => Promise<boolean> | boolean;
   onUnassign?: (childId: string) => Promise<boolean> | boolean;
-  onLinkParent?: (childId: string, parentUserId: string) => Promise<boolean> | boolean;
-  onUnlinkParent?: (childId: string, parentUserId: string) => Promise<boolean> | boolean;
-  onLinkParentByEmail?: (childId: string, email: string) => Promise<boolean> | boolean;
-  onCreated?: (c: Types.Child) => void;
-  onUpdated?: (c: Types.Child) => void;
-  onDeleted?: (id: string) => void;
+  onLinkParent?: (
+    childId: string,
+    parentUserId: string
+  ) => Promise<boolean> | boolean;
+  onUnlinkParent?: (
+    childId: string,
+    parentUserId: string
+  ) => Promise<boolean> | boolean;
+  onLinkParentByEmail?: (
+    childId: string,
+    email: string
+  ) => Promise<boolean> | boolean;
 };
 
 /* ---------------- helpers ---------------- */
@@ -49,7 +76,9 @@ function formatAge(birthISO: string): string {
   const m = now.getMonth() - dob.getMonth();
   if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) years -= 1;
   if (years < 1) {
-    const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
+    const months =
+      (now.getFullYear() - dob.getFullYear()) * 12 +
+      (now.getMonth() - dob.getMonth());
     return `${Math.max(0, months)} mo`;
   }
   return `${years} yr`;
@@ -67,7 +96,10 @@ function getLocationLabel(locs: LocationLite[], id?: string): string {
   return found?.name || id;
 }
 
-function computeStatus(parentIds?: string[], classId?: string): Types.EnrollmentStatus {
+function computeStatus(
+  parentIds?: string[],
+  classId?: string
+): Types.EnrollmentStatus {
   const hasParent = Array.isArray(parentIds) && parentIds.length > 0;
   const hasClass = Boolean(classId);
   if (hasParent && hasClass) return Types.EnrollmentStatus.Active;
@@ -75,15 +107,19 @@ function computeStatus(parentIds?: string[], classId?: string): Types.Enrollment
   return Types.EnrollmentStatus.New;
 }
 
-function classCapacityBadge(
-  cls?: Types.Class
-): { text: string; pct: number; level: "ok" | "warn" | "full" } {
+function classCapacityBadge(cls?: Types.Class): {
+  text: string;
+  pct: number;
+  level: "ok" | "warn" | "full";
+} {
   if (!cls) return { text: "—", pct: 0, level: "ok" };
   const cap = Math.max(1, cls.capacity ?? 0);
   const v = cls.volume ?? 0;
   const pct = Math.round((v / cap) * 100);
-  if (pct >= 95 || v >= cap) return { text: `${v}/${cls.capacity} (Full)`, pct, level: "full" };
-  if (pct >= 70) return { text: `${v}/${cls.capacity} (High)`, pct, level: "warn" };
+  if (pct >= 95 || v >= cap)
+    return { text: `${v}/${cls.capacity} (Full)`, pct, level: "full" };
+  if (pct >= 70)
+    return { text: `${v}/${cls.capacity} (High)`, pct, level: "warn" };
   return { text: `${v}/${cls.capacity}`, pct, level: "ok" };
 }
 
@@ -99,20 +135,23 @@ function isClassFull(cls?: Types.Class): boolean {
 type ChildCardProps = {
   child: Types.Child;
   classes: Types.Class[];
-  parents: ParentLite[];
+  parent1And2: Types.Parent[];
   locations: LocationLite[];
-  onEdit: (c: Types.Child) => void;
+  onEdit: (c: Types.Child, parent1: Types.Parent, parent2: Types.Parent | null) => void;
   onDelete: (c: Types.Child) => void;
   onOpenAssign: (childId: string) => void;
   onUnassign?: (childId: string) => Promise<boolean> | boolean;
-  onUnlinkParent?: (childId: string, parentUserId: string) => Promise<boolean> | boolean;
+  onUnlinkParent?: (
+    childId: string,
+    parentUserId: string
+  ) => Promise<boolean> | boolean;
   onOpenLinkByEmail: (childId: string) => void;
 };
 
 function ChildCard({
   child,
   classes,
-  parents,
+  parent1And2,
   locations,
   onEdit,
   onDelete,
@@ -123,7 +162,8 @@ function ChildCard({
 }: ChildCardProps) {
   const cls = classes.find((c) => c.id === child.classId);
   const cap = classCapacityBadge(cls);
-  const status = child.enrollmentStatus ?? computeStatus(child.parentId, child.classId);
+  const status =
+    child.enrollmentStatus ?? computeStatus(child.parentId, child.classId);
 
   const [localUnlinkId, setLocalUnlinkId] = useState<string>("");
   const [localUnlinkLabel, setLocalUnlinkLabel] = useState<string>("");
@@ -136,7 +176,12 @@ function ChildCard({
           <h3 className="text-lg font-semibold text-gray-800 truncate">
             {child.firstName} {child.lastName}
           </h3>
-          <span className="text-xs text-gray-500">{formatAge(child.birthDate)}</span>
+          <div className="flex gap-4">
+            <span>{child.gender}</span>
+            <span className="text-xs text-gray-500">
+              {formatAge(child.birthDate)}
+            </span>
+          </div>
         </div>
         <div className="text-xs text-gray-500">
           Status:{" "}
@@ -145,10 +190,10 @@ function ChildCard({
               status === Types.EnrollmentStatus.Active
                 ? "text-green-600"
                 : status === Types.EnrollmentStatus.Waitlist
-                ? "text-yellow-600"
-                : status === Types.EnrollmentStatus.Withdraw
-                ? "text-red-600"
-                : "text-gray-600"
+                  ? "text-yellow-600"
+                  : status === Types.EnrollmentStatus.Withdraw
+                    ? "text-red-600"
+                    : "text-gray-600"
             }
           >
             {status}
@@ -157,10 +202,15 @@ function ChildCard({
       </div>
 
       <div className="space-y-2 mb-4">
-        <div className="text-xs text-gray-500">📍 {getLocationLabel(locations, child.locationId)}</div>
+        <div className="text-xs text-gray-500">
+          📍 {getLocationLabel(locations, child.locationId)}
+        </div>
 
         <div className="text-sm text-gray-600">
-          Class: <span className="font-medium">{classLabel(classes, child.classId)}</span>
+          Class:{" "}
+          <span className="font-medium">
+            {classLabel(classes, child.classId)}
+          </span>
         </div>
 
         {cls && (
@@ -171,26 +221,34 @@ function ChildCard({
             </div>
             <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
               <div
-                className={`h-1.5 ${
-                  cap.level === "full" ? "bg-red-500" : cap.level === "warn" ? "bg-yellow-500" : "bg-green-500"
-                }`}
+                className={`h-1.5 ${cap.level === "full"
+                  ? "bg-red-500"
+                  : cap.level === "warn"
+                    ? "bg-yellow-500"
+                    : "bg-green-500"
+                  }`}
                 style={{ width: `${cap.pct}%` }}
               />
             </div>
           </div>
         )}
 
-        {child.parentId && child.parentId.length > 0 ? (
+        {parent1And2 ? (
           <div className="text-xs text-gray-600">
-            Parents{" "}
-            {child.parentId.map((pid, idx) => {
-              const p = parents.find((pp) => pp.id === pid);
-              const label = (p ? `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() : "") || p?.email || pid;
+            {/* Add debug info */}
+            <div className="text-red-500 text-xs">
+              Debug: {parent1And2.length} parents found
+            </div>
+            {parent1And2.map((eachParent, index) => {
+              const childRelationship = eachParent.childRelationships.filter(
+                (relationship) => relationship.childId === child.id
+              )[0].relationship;
+              const firstname = eachParent.firstName;
+              const lastname = eachParent.lastName;
               return (
-                <span key={pid} className="mr-2">
-                  {label}
-                  {idx < child.parentId.length - 1 ? "," : ""}
-                </span>
+                <div key={index}>
+                  {childRelationship}: {firstname} {lastname}
+                </div>
               );
             })}
           </div>
@@ -198,11 +256,18 @@ function ChildCard({
           <div className="text-xs text-gray-400">No parent linked</div>
         )}
 
-        {child.notes && <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded p-2">{child.notes}</div>}
+        {child.notes && (
+          <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded">
+            <span className="font-bold">Note:</span> {child.notes}{" "}
+          </div>
+        )}
       </div>
 
       <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2">
-        <button onClick={() => onEdit(child)} className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50">
+        <button
+          onClick={() => onEdit(child, parent1And2[0], parent1And2[1])}
+          className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
+        >
           Edit
         </button>
         <button
@@ -212,17 +277,26 @@ function ChildCard({
           Delete
         </button>
 
-        <button onClick={() => onOpenLinkByEmail(child.id)} className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50">
+        <button
+          onClick={() => onOpenLinkByEmail(child.id)}
+          className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
+        >
           Link Parent
         </button>
 
         {child.classId ? (
-          <button onClick={() => onUnassign?.(child.id)} className="px-3 py-2 rounded-lg text-xs bg-gray-700 text-white hover:bg-gray-800">
+          <button
+            onClick={() => onUnassign?.(child.id)}
+            className="px-3 py-2 rounded-lg text-xs bg-gray-700 text-white hover:bg-gray-800"
+          >
             Unassign
           </button>
         ) : (
-          <button onClick={() => onOpenAssign(child.id)} className="px-3 py-2 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700">
-            Assign
+          <button
+            onClick={() => onOpenAssign(child.id)}
+            className="px-3 py-2 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700"
+          >
+            Assign to Class
           </button>
         )}
 
@@ -237,7 +311,9 @@ function ChildCard({
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-left pr-9 relative"
               >
                 {localUnlinkLabel ? (
-                  <span className="text-xs font-medium">{localUnlinkLabel}</span>
+                  <span className="text-xs font-medium">
+                    {localUnlinkLabel}
+                  </span>
                 ) : (
                   <span className="block leading-tight text-[11px] text-gray-500">
                     <span className="block">Select parent</span>
@@ -248,9 +324,8 @@ function ChildCard({
                   aria-hidden="true"
                   viewBox="0 0 20 20"
                   fill="currentColor"
-                  className={`pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform ${
-                    menuOpen ? "rotate-180" : ""
-                  }`}
+                  className={`pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform ${menuOpen ? "rotate-180" : ""
+                    }`}
                 >
                   <path
                     fillRule="evenodd"
@@ -272,7 +347,12 @@ function ChildCard({
                   <ul className="max-h-56 overflow-auto">
                     {child.parentId.map((pid) => {
                       const p = parents.find((pp) => pp.id === pid);
-                      const label = (p ? `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() : "") || p?.email || pid;
+                      const label =
+                        (p
+                          ? `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim()
+                          : "") ||
+                        p?.email ||
+                        pid;
                       const active = localUnlinkId === pid;
                       return (
                         <li
@@ -284,9 +364,10 @@ function ChildCard({
                             setLocalUnlinkLabel(label);
                             setMenuOpen(false);
                           }}
-                          className={`px-3 py-2 text-sm cursor-pointer break-words ${
-                            active ? "bg-gray-100 text-gray-900" : "hover:bg-gray-50 text-gray-700"
-                          }`}
+                          className={`px-3 py-2 text-sm cursor-pointer break-words ${active
+                            ? "bg-gray-100 text-gray-900"
+                            : "hover:bg-gray-50 text-gray-700"
+                            }`}
                         >
                           {label}
                         </li>
@@ -298,11 +379,14 @@ function ChildCard({
             </div>
 
             <button
-              onClick={() => localUnlinkId && onUnlinkParent?.(child.id, localUnlinkId)}
+              onClick={() =>
+                localUnlinkId && onUnlinkParent?.(child.id, localUnlinkId)
+              }
               disabled={!localUnlinkId}
-              className={`shrink-0 whitespace-nowrap px-3 py-2 rounded-lg text-xs ${
-                localUnlinkId ? "bg-white border border-gray-200 hover:bg-gray-50" : "bg-gray-200 text-gray-400 cursor-not-allowed"
-              }`}
+              className={`shrink-0 whitespace-nowrap px-3 py-2 rounded-lg text-xs ${localUnlinkId
+                ? "bg-white border border-gray-200 hover:bg-gray-50"
+                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                }`}
             >
               Unlink
             </button>
@@ -318,13 +402,13 @@ function ChildCard({
 const DRAFT_KEY = "child-form-draft";
 
 export default function ChildrenTab({
-  childrenData,
+  children,
   classes,
   parents,
   locations,
   newChild,
   setNewChild,
-  createChild,
+  addChild,
   updateChild,
   deleteChild,
   onAssign,
@@ -332,15 +416,29 @@ export default function ChildrenTab({
   onLinkParent,
   onUnlinkParent,
   onLinkParentByEmail,
-  onCreated,
-  onUpdated,
-  onDeleted,
 }: Props) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingChild, setEditingChild] = useState<Types.Child | null>(null);
+  const [showAssignClass, setShowAssignClass] = useState<string | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // =========================Progress bar
+  const steps = [
+    "Child infomation", // 0
+    "Parent 1 infomation", // 1
+    "Parent 2 infomation", //2 (*Optional)
+    "Review and Submit", // 3
+  ];
+  const [activeStep, setActiveStep] = useState(0); // Start with form 0 (Child infomation)
+  const [skipped, setSkipped] = useState(new Set<number>()); // using imutable list of number
+  // =======================Done Progress bar
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<Types.EnrollmentStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    Types.EnrollmentStatus | "all"
+  >("all");
   const [classFilter, setClassFilter] = useState<string>("all");
 
   const [page, setPage] = useState(1);
@@ -351,30 +449,88 @@ export default function ChildrenTab({
   const [linkChildId, setLinkChildId] = useState<string | null>(null);
   const [parentEmail, setParentEmail] = useState<string>("");
 
-  const [isDraftRestored, setIsDraftRestored] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const initialParentValues: NewParentInput = {
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    address1: "",
+    address2: "",
+    city: "",
+    province: "",
+    country: "",
+    postalcode: "",
+    maritalStatus: "",
+    newChildRelationship: "",
+  };
+  const initialChildValues: NewChildInput = {
+    firstName: "",
+    lastName: "",
+    gender: "",
+    birthDate: "",
+    parentId: [],
+    classId: "",
+    startDate: "",
+    enrollmentStatus: Types.EnrollmentStatus.New,
+    locationId: "",
+    notes: "",
+  };
+  /// ================From ParentTab
+  const [phoneError, setPhoneError] = useState<string>("");
+  const [colorChangeError, setColorChangeError] = useState<string>(""); // Initially no error
+  const [editingParent, setEditingParent] = useState<Types.Parent | null>(null);
+  const [addOrSearchParent1, setAddOrSearchParent1] = useState<"addParent1" | "searchParent1">("addParent1");
+  const [addOrSearchParent2, setAddOrSearchParent2] = useState<"addParent2" | "searchParent2">("addParent2");
+  const [parent1, setParent1] = useState<NewParentInput>(initialParentValues);
+  const [parent2, setParent2] = useState<NewParentInput | null>(initialParentValues); // Null when skip
 
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    };
-  }, []);
+  // For editing Child button (could be editing child info, parent 1 info, editing/ delete parent 2 info): pARENT1 CAN JUST  editable, no delete
+  const [showEditOption, setShowEditOption] = useState<boolean>(false); // To Toggle showing add option or edit option 
+  const [isEditingChildInfo, setIsEditingChildInfo] = useState<boolean>(false);
+  const [isEditingParent1Info, setIsEditingParen1Info] = useState<boolean>(false);
+  const [isEditingParent2Info, setIsEditingParen2Info] = useState<boolean>(false);
 
+
+  // Restore ALL forms draft when form opens and not in editing mode
   useEffect(() => {
-    if (isFormOpen && !editingChild) {
-      const raw = sessionStorage.getItem(DRAFT_KEY);
-      if (raw) {
+    if (isFormOpen && !editingChild && !editingParent) {
+      // Restore Child draft
+      const childDraft = sessionStorage.getItem("child-form-draft");
+      if (childDraft) {
         try {
-          const parsed = JSON.parse(raw) as NewChildInput;
+          const parsed = JSON.parse(childDraft) as NewChildInput;
           setNewChild(parsed);
           setIsDraftRestored(true);
-        } catch {
-          /* noop */
+        } catch (e) {
+          console.error("Failed to restore draft:", e);
+        }
+      }
+
+      // Restore parent1 draft
+      const parent1Draft = sessionStorage.getItem("parent1-form-draft");
+      if (parent1Draft) {
+        try {
+          const parsed = JSON.parse(parent1Draft) as NewParentInput;
+          setParent1(parsed);
+        } catch (e) {
+          console.log("Failed to restore parent1 draft", e);
+        }
+      }
+
+      // Restore parent2 draft
+      const parent2Draft = sessionStorage.getItem("parent2-form-draft");
+      if (parent2Draft) {
+        try {
+          const parsed = JSON.parse(parent2Draft) as NewParentInput;
+          setParent2(parsed);
+        } catch (e) {
+          console.error("Failed to restore parent2 draft:", e);
         }
       }
     }
-  }, [isFormOpen, editingChild, setNewChild]);
+  }, [isFormOpen, editingChild, setNewChild, editingParent]);
 
+  // Helper to update form and save draft
   const updateDraft = useCallback(
     (patch: Partial<NewChildInput>) => {
       setNewChild((prev) => {
@@ -391,60 +547,283 @@ export default function ChildrenTab({
     [editingChild, setNewChild]
   );
 
-  const clearDraft = useCallback(
-    (resetFields = false) => {
-      sessionStorage.removeItem(DRAFT_KEY);
-      setIsDraftRestored(false);
+  // Clear draft
+  const clearDraft = useCallback(() => {
+    sessionStorage.removeItem("child-form-draft");
+    sessionStorage.removeItem("parent1-form-draft");
+    sessionStorage.removeItem("parent2-form-draft");
+    setIsDraftRestored(false);
+    resetForm(); // clear the form at the same time
+    setActiveStep(0); // reset the step
+  }, []);
 
-      if (resetFields) {
-        setNewChild({
-          firstName: "",
-          lastName: "",
-          birthDate: "",
-          parentId: [],
-          classId: "",
-          locationId: locations?.[0]?.id ?? "",
-          notes: "",
-          enrollmentStatus: Types.EnrollmentStatus.New,
-        });
-      }
-    },
-    [locations, setNewChild]
-  );
+  const resetForm = () => {
+    // Reset child
+    setNewChild(initialChildValues);
+    // Reset Parent
+    setParent1(initialParentValues);
+    setParent2(initialParentValues);
+    setActiveStep(0);
+  };
+
+  //============ Progress bar
+  // Identify which step is optional
+  const isStepOptional = (step: number) => {
+    // Optional for Medical Concerned and Alergies
+    const optional = 2;
+    return step === optional;
+  };
+
+  // Track if optional step is passed
+  const isStepSkipped = (step: number) => {
+    return skipped.has(step);
+  };
+  // Add this validation function near your other helpers
+  const validateCurrentStep = (step: number): boolean => {
+    switch (step) {
+      case 0: // Child Information
+        if (!newChild.firstName.trim()) {
+          alert("First name is required");
+          setColorChangeError(newChild.firstName);
+          return false;
+        }
+        if (!newChild.lastName.trim()) {
+          alert("Last name is required");
+          setColorChangeError(newChild.lastName);
+          return false;
+        }
+        if (!newChild.birthDate) {
+          alert("Birth date is required");
+          return false;
+        }
+        if (!newChild.locationId) {
+          alert("Location is required");
+          return false;
+        }
+        if (!newChild.enrollmentStatus) {
+          alert("Enrollment status is required");
+          return false;
+        }
+        return true;
+
+      case 1: // Parent 1 Information
+        if (!parent1.firstName.trim()) {
+          alert("Parent first name is required");
+          return false;
+        }
+        if (!parent1.lastName.trim()) {
+          alert("Parent last name is required");
+          return false;
+        }
+        if (!parent1.email.trim()) {
+          alert("Parent email is required");
+          return false;
+        }
+        if (!parent1.phone.trim() || phoneError) {
+          alert("Valid phone number is required");
+          return false;
+        }
+        // Mising checking address
+        if (!parent1.address1 || !parent1.city || !parent1.province || !parent1.country || !parent1.postalcode) {
+          alert(`Missing address fields`);
+          return false;
+        }
+        if (!parent1.maritalStatus) {
+          alert("Marital status is required");
+          return false;
+        }
+        if (!parent1.newChildRelationship) {
+          alert("Relationship to child is required");
+          return false;
+        }
+        return true;
+
+      case 2: // Parent 2 Information (optional, but if filled, validate)
+        // Force to validate, otherwise click Skip
+        if (!parent2?.firstName.trim()) {
+          alert("Parent 2 first name is required. Otherwise click Skip");
+          return false;
+        }
+        if (!parent2.lastName.trim()) {
+          alert("Parent 2 last name is required. Otherwise click Skip");
+          return false;
+        }
+        if (!parent2.email.trim()) {
+          alert("Parent 2 email is required. Otherwise click Skip");
+          return false;
+        }
+        if (!parent2.phone.trim() || phoneError) {
+          alert(
+            "Valid parent 2 phone number is required. Otherwise click Skip"
+          );
+          return false;
+        }
+        // Mising checking address
+        if (!parent2.address1 || !parent2.city || !parent2.province || !parent2.country || !parent2.postalcode) {
+          alert(`Missing address fields`);
+          return false;
+        }
+        if (!parent2.maritalStatus) {
+          alert("Marital status is required");
+          return false;
+        }
+        if (!parent2.newChildRelationship) {
+          alert("Relationship to child is required");
+          return false;
+        }
+        return true;
+
+      case 3: // Review - no validation needed
+        return true;
+
+      default:
+        return true;
+    }
+  };
+
+  // Handle click Next
+  const handleNext = () => {
+    // Checking if form is validated
+    if (!validateCurrentStep(activeStep)) return;
+    let newSkipped = skipped;
+    // If at Optional step
+    if (isStepSkipped(activeStep)) {
+      newSkipped = new Set(newSkipped.values());
+      newSkipped.delete(activeStep);
+    }
+    setActiveStep((prev) => prev + 1);
+    setSkipped(newSkipped);
+
+  };
+
+  // Handle click Back
+  const handleBack = () => {
+    setActiveStep((prev) => prev - 1);
+  };
+
+  const handleSkip = () => {
+    if (!isStepOptional(activeStep)) {
+      // You probably want to guard against something like this,
+      // it should never occur unless someone's actively trying to break something.
+      throw new Error("You can't skip a step that isn't optional.");
+    }
+    setActiveStep((prev) => prev + 1);
+    setSkipped((prev) => {
+      const newSkipped = new Set(prev.values());
+      newSkipped.add(activeStep);
+      return newSkipped;
+    });
+    // SetParent2 = null
+    setParent2(null);
+  };
+
+  // Start all over agaim
+  const handleReset = () => {
+    setActiveStep(0);
+  };
+
+  // ========================== done progress bar
+
+  // Filter children based on search
+  const filteredChildren = children.filter((child) => {
+    const searchLower = searchTerm.toLowerCase();
+    const parentNames = parents
+      .filter((p) => p.id && child.parentId.includes(p.id))
+      .map((p) => `${p.firstName} ${p.lastName}`)
+      .join(" ");
+    return (
+      child.firstName.toLowerCase().includes(searchLower) ||
+      child.lastName.toLowerCase().includes(searchLower) ||
+      parentNames.toLowerCase().includes(searchLower) ||
+      child.enrollmentStatus.toLowerCase().includes(searchLower)
+    );
+  });
 
   const handleAddClick = useCallback(() => {
+    setShowEditOption(false); // To not show EditOption, but Add option
+
     if ((locations ?? []).length === 0) {
       alert("No locations available. Please create a location first.");
       return;
     }
+    // 1. Child
     setEditingChild(null);
-    setNewChild({
-      firstName: "",
-      lastName: "",
-      birthDate: "",
-      parentId: [],
-      classId: "",
-      locationId: locations[0]?.id ?? "",
-      notes: "",
-      enrollmentStatus: Types.EnrollmentStatus.New,
-    });
+
+    // 2. Parent
+    setEditingParent(null);
+
+    // Clear the form both forms
+    resetForm();
     setIsFormOpen(true);
   }, [locations, setNewChild]);
 
   const handleEditClick = useCallback(
-    (child: Types.Child) => {
-      setEditingChild(child);
+    (child: Types.Child, parent1: Types.Parent, parent2: Types.Parent | null) => {
+      // 1. To show EditOption, 
+      setShowEditOption(true);
+      // 2. To load the form
+      // 2.1 Child
       setNewChild({
         firstName: child.firstName,
         lastName: child.lastName,
         birthDate: child.birthDate,
+        gender: child.gender,
         parentId: child.parentId ?? [],
         classId: child.classId ?? "",
-        locationId: child.locationId ?? (locations[0]?.id ?? ""),
+        locationId: child.locationId ?? locations[0]?.id ?? "",
         notes: child.notes ?? "",
-        enrollmentStatus: child.enrollmentStatus ?? computeStatus(child.parentId, child.classId),
+        enrollmentStatus:
+          child.enrollmentStatus ??
+          computeStatus(child.parentId, child.classId),
+        startDate: child.startDate,
       });
+      // Set editing child
+      setEditingChild(child);
+
+      // 3. Load parent data
+      if (parent1) {
+        setParent1({
+          firstName: parent1.firstName || "",
+          lastName: parent1.lastName || "",
+          email: parent1.email || "",
+          phone: parent1.phone || "", // Fixed: was using email for phone
+          address1: parent1.address1 || "",
+          address2: parent1.address2 || "",
+          city: parent1.city || "",
+          province: parent1.province || "",
+          country: parent1.country || "", // Fixed: was using province for country
+          postalcode: parent1.postalcode || "",
+          newChildRelationship: parent1.childRelationships?.find(cr => cr.childId === child.id)?.relationship || "",
+          maritalStatus: parent1.maritalStatus || ""
+        });
+      }
+
+      if (parent2) {
+        setParent2({
+          firstName: parent2.firstName || "",
+          lastName: parent2.lastName || "",
+          email: parent2.email || "",
+          phone: parent2.phone || "", // Fixed: was using email for phone
+          address1: parent2.address1 || "",
+          address2: parent2.address2 || "",
+          city: parent2.city || "",
+          province: parent2.province || "",
+          country: parent2.country || "", // Fixed: was using province for country
+          postalcode: parent2.postalcode || "",
+          newChildRelationship: parent2.childRelationships?.find(cr => cr.childId === child.id)?.relationship || "",
+          maritalStatus: parent2.maritalStatus || ""
+        });
+      } else {
+        setParent2(null);
+      }
+
+      // Set editing states: View Mode
+      setIsEditingChildInfo(false); // Start with view mode
+      setIsEditingParen1Info(false);
+      setIsEditingParen2Info(false);
+
       setIsFormOpen(true);
+      setActiveStep(0); // Start at child info step
     },
     [locations, setNewChild]
   );
@@ -462,6 +841,8 @@ export default function ChildrenTab({
       const updated = await updateChild(editingChild.id, {
         firstName: newChild.firstName.trim(),
         lastName: newChild.lastName.trim(),
+        gender: newChild.gender,
+        startDate: newChild.startDate,
         birthDate: newChild.birthDate,
         parentId: Array.isArray(newChild.parentId) ? newChild.parentId : [],
         classId: newChild.classId?.trim() || undefined,
@@ -469,46 +850,34 @@ export default function ChildrenTab({
         notes: newChild.notes?.trim() || undefined,
         enrollmentStatus: newChild.enrollmentStatus,
       });
-      if (updated) onUpdated?.(updated);
       setEditingChild(null);
-    } else {
-      const created = await createChild({
-        firstName: newChild.firstName.trim(),
-        lastName: newChild.lastName.trim(),
-        birthDate: newChild.birthDate,
-        parentId: Array.isArray(newChild.parentId) ? newChild.parentId : [],
-        classId: newChild.classId?.trim() || undefined,
-        locationId: trimmedLoc || undefined,
-        notes: newChild.notes?.trim() || undefined,
-        enrollmentStatus: newChild.enrollmentStatus,
-      });
-      if (created) onCreated?.(created);
-    }
 
-    setNewChild({
-      firstName: "",
-      lastName: "",
-      birthDate: "",
-      parentId: [],
-      classId: "",
-      locationId: "",
-      notes: "",
-      enrollmentStatus: Types.EnrollmentStatus.New,
-    });
+      // Adding new Child W/ Parent
+    } else {
+      // 1. Child
+      const created = await addChild(parent1, parent2);
+    }
+    resetForm();
     clearDraft();
     setIsFormOpen(false);
+    handleReset(); // to back to inital step;
   }
 
   async function handleDeleteClick(child: Types.Child) {
     const ok = window.confirm(`Delete "${child.firstName} ${child.lastName}"?`);
     if (!ok) return;
     const success = await deleteChild(child.id);
-    if (success) onDeleted?.(child.id);
   }
 
-  async function linkParentByEmail(childId: string, email: string): Promise<boolean> {
-    if (onLinkParentByEmail) return !!(await onLinkParentByEmail(childId, email));
-    const parent = parents.find((p) => (p.email ?? "").toLowerCase() === email.trim().toLowerCase());
+  async function linkParentByEmail(
+    childId: string,
+    email: string
+  ): Promise<boolean> {
+    if (onLinkParentByEmail)
+      return !!(await onLinkParentByEmail(childId, email));
+    const parent = parents.find(
+      (p) => (p.email ?? "").toLowerCase() === email.trim().toLowerCase()
+    );
     if (!parent) {
       alert("Parent not found by that email.");
       return false;
@@ -517,7 +886,7 @@ export default function ChildrenTab({
   }
 
   const filtered = useMemo(() => {
-    return childrenData.filter((c) => {
+    return children.filter((c) => {
       const q = searchTerm.trim().toLowerCase();
       const okSearch =
         q.length === 0 ||
@@ -526,7 +895,8 @@ export default function ChildrenTab({
         getLocationLabel(locations, c.locationId).toLowerCase().includes(q);
       if (!okSearch) return false;
 
-      const effStatus = c.enrollmentStatus ?? computeStatus(c.parentId, c.classId);
+      const effStatus =
+        c.enrollmentStatus ?? computeStatus(c.parentId, c.classId);
       if (statusFilter !== "all" && effStatus !== statusFilter) return false;
 
       if (classFilter !== "all") {
@@ -535,12 +905,106 @@ export default function ChildrenTab({
       }
       return true;
     });
-  }, [childrenData, locations, searchTerm, statusFilter, classFilter]);
+  }, [children, locations, searchTerm, statusFilter, classFilter]);
 
   const perPage = 6;
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const start = (page - 1) * perPage;
   const pageItems = filtered.slice(start, start + perPage);
+
+  // Update form and persist a draft (debounced)
+  const updateParent1 = useCallback(
+    (updates: Partial<NewParentInput>) => {
+      setParent1((prev) => {
+        const updated = { ...prev, ...updates };
+
+        // Only save draft in add mode
+        if (!editingParent) {
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+          }
+          saveTimeoutRef.current = setTimeout(() => {
+            sessionStorage.setItem(
+              "parent1-form-draft",
+              JSON.stringify(updated)
+            );
+          }, 500);
+        }
+
+        return updated;
+      });
+    },
+    [editingParent, setParent1]
+  );
+
+  // Update form and persist a draft (debounced)
+  const updateParent2 = useCallback(
+    (updates: Partial<NewParentInput>) => {
+      setParent2((prev) => {
+        if (!prev) {
+          // Initialize parent2 if it doesn't exist
+          const newParent2: NewParentInput = {
+            ...initialParentValues,
+            ...updates,
+          };
+
+          // Save draft
+          if (!editingParent) {
+            if (saveTimeoutRef.current) {
+              clearTimeout(saveTimeoutRef.current);
+            }
+            saveTimeoutRef.current = setTimeout(() => {
+              sessionStorage.setItem(
+                "parent2-form-draft",
+                JSON.stringify(newParent2)
+              );
+            }, 500);
+          }
+
+          return newParent2;
+        }
+
+        const updated = { ...prev, ...updates };
+
+        // Only save draft in add mode
+        if (!editingParent) {
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+          }
+          saveTimeoutRef.current = setTimeout(() => {
+            sessionStorage.setItem(
+              "parent2-form-draft",
+              JSON.stringify(updated)
+            );
+          }, 500);
+        }
+
+        return updated;
+      });
+    },
+    [editingParent, setParent2]
+  );
+
+  // Identify parent 1 and parent 2 for each child
+  const parentLookup = useMemo(
+    () =>
+      parents.reduce((acc, parent) => {
+        acc[parent.docId] = parent;
+        return acc;
+      }, {} as Record<string, Types.Parent>),
+    [parents]
+  ); // Only recalculate when parents change
+
+  const childrenWithParents = useMemo(
+    () =>
+      children.map((child) => ({
+        ...child,
+        parent1And2: child.parentId
+          .map((parentId) => parentLookup[parentId])
+          .filter(Boolean), // Remove undefined values
+      })),
+    [children, parentLookup]
+  );
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -550,7 +1014,11 @@ export default function ChildrenTab({
           <button
             onClick={handleAddClick}
             className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
-            title={(locations ?? []).length === 0 ? "No locations available" : "Add child"}
+            title={
+              (locations ?? []).length === 0
+                ? "No locations available"
+                : "Add child"
+            }
           >
             <span className="text-lg">+</span>
             Add Child
@@ -618,356 +1086,856 @@ export default function ChildrenTab({
             </select>
 
             <div className="text-gray-500 text-xs whitespace-nowrap">
-              {filtered.length} of {childrenData.length}
+              {filtered.length} of {children.length}
             </div>
           </div>
         </div>
-      </div>
 
-      {pageItems.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-          {pageItems.map((child) => (
-            <ChildCard
-              key={child.id}
-              child={child}
-              classes={classes}
-              parents={parents}
-              locations={locations}
-              onEdit={handleEditClick}
-              onDelete={handleDeleteClick}
-              onOpenAssign={(id) => {
-                setAssignChildId(id);
-                setAssignClassId("");
-              }}
-              onUnassign={onUnassign}
-              onUnlinkParent={onUnlinkParent}
-              onOpenLinkByEmail={(id) => setLinkChildId(id)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <div className="text-gray-400 text-6xl mb-4">🧒</div>
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">No children found</h3>
-          <p className="text-gray-500">
-            {searchTerm || statusFilter !== "all" || classFilter !== "all"
-              ? "Try adjusting your search or filter settings"
-              : "Get started by adding your first child"}
-          </p>
-        </div>
-      )}
-
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              page === 1 ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-            }`}
-          >
-            ← Previous
-          </button>
-          <div className="flex gap-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-              <button
-                key={n}
-                onClick={() => setPage(n)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
-                  page === n ? "bg-gray-800 text-white" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-                }`}
-              >
-                {n}
-              </button>
+        {pageItems.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+            {childrenWithParents.map((child) => (
+              <ChildCard
+                key={child.id}
+                child={child}
+                classes={classes}
+                parent1And2={child.parent1And2}
+                locations={locations}
+                onEdit={handleEditClick}
+                onDelete={handleDeleteClick}
+                onOpenAssign={(id) => {
+                  setAssignChildId(id);
+                  setAssignClassId("");
+                }}
+                onUnassign={onUnassign}
+                onUnlinkParent={onUnlinkParent}
+                onOpenLinkByEmail={(id) => setLinkChildId(id)}
+              />
             ))}
           </div>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              page === totalPages ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-            }`}
-          >
-            Next →
-          </button>
-        </div>
-      )}
+        ) : (
+          <div className="bg-white rounded-lg shadow-md p-12 text-center">
+            <div className="text-gray-400 text-6xl mb-4">🧒</div>
+            <h3 className="text-xl font-semibold text-gray-600 mb-2">
+              No children found
+            </h3>
+            <p className="text-gray-500">
+              {searchTerm || statusFilter !== "all" || classFilter !== "all"
+                ? "Try adjusting your search or filter settings"
+                : "Get started by adding your first child"}
+            </p>
+          </div>
+        )}
 
-      {isFormOpen && (
-        <div
-          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
-          onClick={() => {
-            setIsFormOpen(false);
-            setEditingChild(null);
-          }}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-800">{editingChild ? "Edit Child" : "Add New Child"}</h3>
-                {isDraftRestored && !editingChild && <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>}
-              </div>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingChild(null);
-                }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleFormSubmit} className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">First Name *</span>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newChild.firstName}
-                    onChange={(e) => updateDraft({ firstName: e.target.value })}
-                    required
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Last Name *</span>
-                  <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newChild.lastName}
-                    onChange={(e) => updateDraft({ lastName: e.target.value })}
-                    required
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Birth Date *</span>
-                  <input
-                    type="date"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newChild.birthDate}
-                    onChange={(e) => updateDraft({ birthDate: e.target.value })}
-                    required
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Location *</span>
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newChild.locationId ?? ""}
-                    onChange={(e) => updateDraft({ locationId: e.target.value })}
-                    required
-                    disabled={(locations ?? []).length <= 1}
-                  >
-                    {(locations ?? []).length > 1 && (
-                      <option value="" disabled>
-                        Select a location
-                      </option>
-                    )}
-                    {(locations ?? []).map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name || l.id}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Status *</span>
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newChild.enrollmentStatus ?? Types.EnrollmentStatus.New}
-                    onChange={(e) => updateDraft({ enrollmentStatus: e.target.value as Types.EnrollmentStatus })}
-                    required
-                  >
-                    <option value={Types.EnrollmentStatus.New}>New</option>
-                    <option value={Types.EnrollmentStatus.Waitlist}>Waitlist</option>
-                    <option value={Types.EnrollmentStatus.Active}>Active</option>
-                    <option value={Types.EnrollmentStatus.Withdraw}>Withdraw</option>
-                  </select>
-                </label>
-
-                <label className="block md:col-span-2">
-                  <span className="text-gray-700 font-medium mb-1 block">Notes</span>
-                  <textarea
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    value={newChild.notes ?? ""}
-                    onChange={(e) => updateDraft({ notes: e.target.value })}
-                    placeholder="Allergies / Special needs / Subsidy status / Remarks"
-                  />
-                </label>
-              </div>
-
-              <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${page === 1
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                }`}
+            >
+              ← Previous
+            </button>
+            <div className="flex gap-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                 <button
-                  type="button"
+                  key={n}
+                  onClick={() => setPage(n)}
+                  className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${page === n
+                    ? "bg-gray-800 text-white"
+                    : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                    }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${page === totalPages
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                }`}
+            >
+              Next →
+            </button>
+          </div>
+        )}
+
+        {isFormOpen && (
+          <div
+            // item-start instead of item-center: so the top stays fixed.
+            className="fixed h-full inset-0 bg-white/30 backdrop-blur-md flex items-start justify-center p-2 z-50"
+            onClick={() => {
+              setIsFormOpen(false);
+              setEditingChild(null);
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[100vh] overflow-y-auto border border-gray-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0">
+                <div className="bg-white border-b border-gray-200 px-2 py-1 flex justify-between items-center">
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {editingChild ? "Edit Child" : "Add New Child"}
+                  </h3>
+                  <Typography
+                    sx={{
+                      mt: 2,
+                      mb: 1,
+                      fontWeight: "bold",
+                      fontSize: "1.25rem",
+                    }}
+                  >
+                    Step {activeStep + 1}
+                  </Typography>
+                  <button
+                    onClick={() => {
+                      setIsFormOpen(false);
+                      setEditingChild(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 text-2xl"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <Box sx={{ width: "100%" }}>
+                  <Stepper activeStep={activeStep}>
+                    {steps.map((label, index) => {
+                      const stepProps: { completed?: boolean } = {};
+                      const labelProps: {
+                        optional?: React.ReactNode;
+                      } = {};
+                      if (isStepOptional(index)) {
+                        labelProps.optional = (
+                          <Typography variant="caption" fontWeight="bold">
+                            *Optional
+                          </Typography>
+                        );
+                      }
+                      if (isStepSkipped(index)) {
+                        stepProps.completed = false;
+                      }
+                      return (
+                        <Step key={label} {...stepProps}>
+                          <StepLabel {...labelProps}>{label}</StepLabel>
+                        </Step>
+                      );
+                    })}
+                  </Stepper>
+                </Box>
+              </div>
+
+              {/* Main form: shown by the order or of the form */}
+              <form onSubmit={handleFormSubmit} className="p-6">
+                {activeStep === 0 && (
+                  // Child Information
+                  <div className="space-y-4">
+                    <div className="flex justify-between border-b pb-1">
+                      <h2 className="text-2xl font-semibold text-gray-800">
+                        Child Information
+                      </h2>
+                      {/* Option to edit child: only when click edit */}
+                      {showEditOption && (<label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isEditingChildInfo}
+                          onChange={(e) => setIsEditingChildInfo(e.target.checked)}
+                        />
+                        Edit Child Information
+                      </label>
+                      )}
+                    </div>
+
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <label className="block">
+                        <span className="text-gray-700 font-medium mb-1 block">
+                          First Name *
+                        </span>
+                        <input
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          value={newChild.firstName}
+                          onChange={(e) =>
+                            updateDraft({ firstName: e.target.value })
+                          }
+                          required
+                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-gray-700 font-medium mb-1 block">
+                          Last Name *
+                        </span>
+                        <input
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          value={newChild.lastName}
+                          onChange={(e) =>
+                            updateDraft({ lastName: e.target.value })
+                          }
+                          required
+                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child and doesn't toggle the Editing option to edit
+
+                        />
+                      </label>
+
+                      <label className="block">
+                        <span className="text-gray-700 font-medium mb-1 block ">
+                          Gender *
+                        </span>
+                        <div className="flex gap-4">
+                          <label>
+                            <input
+                              type="radio"
+                              name="gender"
+                              value="👦"
+                              checked={newChild.gender === "👦"}
+                              onChange={(e) =>
+                                updateDraft({ gender: e.target.value })
+                              }
+                              disabled={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                            />
+                            Boy
+                          </label>
+
+                          <label>
+                            <input
+                              type="radio"
+                              name="gender"
+                              value="👧"
+                              checked={newChild.gender === "👧"}
+                              onChange={(e) =>
+                                updateDraft({ gender: e.target.value })
+                              }
+                              disabled={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                            />
+                            Girl
+                          </label>
+                        </div>
+                      </label>
+
+                      <label className="block">
+                        <span className="text-gray-700 font-medium mb-1 block">
+                          Birth Date *
+                        </span>
+                        <input
+                          type="date"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          value={newChild.birthDate}
+                          onChange={(e) =>
+                            updateDraft({ birthDate: e.target.value })
+                          }
+                          required
+                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-gray-700 font-medium mb-1 block">
+                          Location *
+                        </span>
+                        <select
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                          value={newChild.locationId ?? ""}
+                          onChange={(e) =>
+                            updateDraft({ locationId: e.target.value })
+                          }
+                          required
+                          disabled={((locations ?? []).length <= 1) || (showEditOption && !isEditingChildInfo)}
+                        >
+                          {(locations ?? []).length > 1 && (
+                            <option value="" disabled>
+                              Select a location
+                            </option>
+                          )}
+                          {(locations ?? []).map((l) => (
+                            <option key={l.id} value={l.id}>
+                              {l.name || l.id}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="text-gray-700 font-medium mb-1 block">
+                          Status *
+                        </span>
+                        <select
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                          value={
+                            newChild.enrollmentStatus ??
+                            Types.EnrollmentStatus.New
+                          }
+                          onChange={(e) =>
+                            updateDraft({
+                              enrollmentStatus: e.target
+                                .value as Types.EnrollmentStatus,
+                            })
+                          }
+                          required
+                          disabled={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                        >
+                          <option value={Types.EnrollmentStatus.New}>
+                            New
+                          </option>
+                          <option value={Types.EnrollmentStatus.Waitlist}>
+                            Waitlist
+                          </option>
+                          <option value={Types.EnrollmentStatus.Active}>
+                            Active
+                          </option>
+                          <option value={Types.EnrollmentStatus.Withdraw}>
+                            Withdraw
+                          </option>
+                        </select>
+                      </label>
+                      <label className="block md:col-span-2">
+                        <span className="text-gray-700 font-medium mb-1 block">
+                          Notes
+                        </span>
+                        <textarea
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg read-only:bg-gray-100"
+                          value={newChild.notes ?? ""}
+                          onChange={(e) =>
+                            updateDraft({ notes: e.target.value })
+                          }
+                          placeholder="Allergies / Special needs / Subsidy status / Remarks"
+                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Parent 1 and 2 info */}
+                {(activeStep === 1 || activeStep === 2) && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between border-b pb-1">
+                      <h2 className="text-2xl font-semibold text-gray-800 ">
+                        {activeStep === 1 ? "Parent 1 infomation" : "Parent 2 infomation"}
+                      </h2>
+
+                      {/* Option to edit parent1- only when click edit from Child Card */}
+                      {showEditOption ? (
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={activeStep === 1 ? isEditingParent1Info : isEditingParent2Info}
+                            onChange={(e) => activeStep === 1 ? setIsEditingParen1Info(e.target.checked) : setIsEditingParen2Info(e.target.checked)}
+                          />
+                          {activeStep === 1 ? "Edit Parent1 Information" : "Edit Parent2 Information"}
+                        </label>
+                      ) : (
+                        // Option to add new Parent or searching existing parent 
+                        <div className="flex gap-4 ">
+                          <label className={`${((activeStep === 1 && addOrSearchParent1 === "addParent1") || (activeStep === 2 && addOrSearchParent2 === "addParent2")) ? "font-semibold" : "font-normal"}`}> {/* Option add by defaul*/}
+                            <input
+                              type="radio"
+                              name={activeStep === 1 ? "addOrSearchParent1" : "addOrSearchParent2"}
+                              value={activeStep === 1 ? "addParent1" : "addParent2"}
+                              checked={activeStep === 1 ? addOrSearchParent1 === "addParent1" : addOrSearchParent2 === "addParent2"}
+                              onChange={(e) => { activeStep === 1 ? setAddOrSearchParent1(e.target.value as "addParent1") : setAddOrSearchParent2(e.target.value as "addParent2") }}
+                            />
+                            Add new parent
+                          </label>
+                          {/* Option search */}
+                          <label className={`${((activeStep === 1 && addOrSearchParent1 === "searchParent1") || (activeStep === 2 && addOrSearchParent2 === "searchParent2")) ? "font-semibold" : "font-normal"}`}>
+
+                            <input
+                              type="radio"
+                              name={activeStep === 1 ? "addOrSearchParent1" : "addOrSearchParent2"}
+                              value={activeStep === 1 ? "searchParent1" : "searchParent2"}
+                              checked={activeStep === 1 ? addOrSearchParent1 === "searchParent1" : addOrSearchParent2 === "searchParent2"}
+                              onChange={(e) => { activeStep === 1 ? setAddOrSearchParent1(e.target.value as "searchParent1") : setAddOrSearchParent2(e.target.value as "searchParent2") }}
+                            />
+                            Search existing parents
+                          </label>
+                        </div>
+                      )}
+
+                    </div>
+
+                    {/* Use parent1 for step 1, parent2 for step 2 */}
+                    {(activeStep === 1 && addOrSearchParent1 === "addParent1") && (
+                      <ParentForm
+                        parent={parent1}
+                        updateParent={updateParent1}
+                        phoneError={phoneError}
+                        setPhoneError={setPhoneError}
+                        disabled={showEditOption && !isEditingParent1Info} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
+                      />
+                    )}
+                    {(activeStep === 2 && addOrSearchParent2 === "addParent2") && (
+                      (parent2) && (
+                        <ParentForm
+                          parent={parent2}
+                          updateParent={updateParent2}
+                          phoneError={phoneError}
+                          setPhoneError={setPhoneError}
+                          disabled={showEditOption && !isEditingParent2Info} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
+                        />
+                      )
+                    )}
+
+                    {/* Removing AssignClass Manually in input form   */}
+                  </div>
+                )}
+
+                {/* Review SUMMARY before forms is submitted or reset */}
+                {(activeStep === 3 || activeStep === 4) && (
+                  // View all Child and Parent Info
+                  <div className="space-y-6">
+                    <h2 className="text-2xl font-semibold text-gray-800 border-b pb-2">
+                      Review Information
+                    </h2>
+
+                    {/* 🧒 Child Information */}
+                    <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                      <div className="flex justify-between items-center gap-4 ">
+                        <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
+                          👶 Child Information
+                        </h3>
+                        <button
+                          onClick={() => setActiveStep(0)} // Back to Child form
+                          className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                        >
+                          Edit
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                        <p>
+                          <span className="font-semibold">First Name:</span>{" "}
+                          {newChild.firstName || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Last Name:</span>{" "}
+                          {newChild.lastName || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Gender:</span>{" "}
+                          {newChild.gender === "👧" ? "👧 Girl" : "👦 Boy"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Birth Date:</span>{" "}
+                          {newChild.birthDate || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Location:</span>{" "}
+                          {locations?.find((l) => l.id === newChild.locationId)
+                            ?.name || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Status:</span>{" "}
+                          {newChild.enrollmentStatus}
+                        </p>
+                        <p className="md:col-span-2">
+                          <span className="font-semibold">Notes:</span>{" "}
+                          {newChild.notes || "None"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 👨‍👩‍👧 Parent 1 Information */}
+                    <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                      <div className="flex justify-between items-center gap-4 ">
+                        <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
+                          👩 Parent 1 Information
+                        </h3>
+                        <button
+                          onClick={() => setActiveStep(1)} // Back to modifying parent1
+                          className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                        >
+                          Edit
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                        <p>
+                          <span className="font-semibold">First Name:</span>{" "}
+                          {parent1.firstName || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Last Name:</span>{" "}
+                          {parent1.lastName || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Email:</span>{" "}
+                          {parent1.email || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Phone:</span>{" "}
+                          {parent1.phone || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Address:</span>{" "}
+                          {[parent1.address1, parent1.city, parent1.postalcode]
+                            .filter(Boolean)
+                            .join(", ") || "-"}
+                        </p>{" "}
+                        <p>
+                          <span className="font-semibold">Marital Status:</span>{" "}
+                          {parent1.maritalStatus || "-"}
+                        </p>
+                        <p>
+                          <span className="font-semibold">
+                            Relationship to Child:
+                          </span>{" "}
+                          {parent1.newChildRelationship || "-"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Optionally: Parent 2 */}
+                    {parent2 ? (
+                      <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                        <div className="flex justify-between items-center gap-4 ">
+                          <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
+                            👨 Parent 2 Information
+                          </h3>
+                          {/* Delete button */}
+                          <button
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  "Remove Parent 2? This action cannot reverst after done."
+                                )
+                              ) {
+                                setParent2(null);
+                                setSkipped((prev) => {
+                                  const newSkipped = new Set(prev.values());
+                                  newSkipped.add(2);
+                                  return newSkipped;
+                                });
+                              }
+                            }}
+                            className="bg-red-100 hover:bg-red-200 text-red-600 font-medium px-4 py-2 rounded-lg transition duration-200 text-sm border border-red-200"
+                          >
+                            Remove
+                          </button>
+                          <button
+                            onClick={() => setActiveStep(2)} // Backe to parent 2 form
+                            className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                          >
+                            Edit
+                          </button>
+
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                          <p>
+                            <span className="font-semibold">First Name:</span>{" "}
+                            {parent2.firstName || "-"}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Last Name:</span>{" "}
+                            {parent2.lastName || "-"}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Email:</span>{" "}
+                            {parent2.email || "-"}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Phone:</span>{" "}
+                            {parent2.phone || "-"}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Address:</span>{" "}
+                            {[
+                              parent2.address1,
+                              parent2.city,
+                              parent2.postalcode,
+                            ]
+                              .filter(Boolean)
+                              .join(", ") || "-"}
+                          </p>{" "}
+                          <p>
+                            <span className="font-semibold">
+                              Marital Status:
+                            </span>{" "}
+                            {parent2.maritalStatus || "-"}
+                          </p>
+                          <p>
+                            <span className="font-semibold">
+                              Relationship to Child:
+                            </span>{" "}
+                            {parent2.newChildRelationship || "-"}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      // Else, we have add button
+                      <div className="flex justify-end">
+
+                        <button
+                          onClick={() => {
+                            setActiveStep(2); // Back to Parent2 Form
+                            setParent2(initialParentValues); // Initalize the value for parent2 instead of null
+                            // Remove skip status
+                            setSkipped((prev) => {
+                              const newSkipped = new Set(prev.values());
+                              newSkipped.delete(2);
+                              return newSkipped;
+                            });
+                          }}
+                          className="bg-blue-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                        >
+                          + Add Parent 2
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/*  Control of the Stepper and Status*/}
+                {activeStep === steps.length - 1 ? (
+                  <React.Fragment>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        pt: 1,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      <Typography sx={{}}>✔️ All steps completed</Typography>
+                      <Box sx={{ flex: "1 1 auto" }} />
+                      <Button onClick={handleReset}>Reset</Button>
+                    </Box>
+                  </React.Fragment>
+                ) : (
+                  <React.Fragment>
+                    <Box sx={{ display: "flex", flexDirection: "row", pt: 2 }}>
+                      <Button
+                        color="inherit"
+                        disabled={activeStep === 0}
+                        onClick={handleBack}
+                        sx={{ mr: 1 }}
+                      >
+                        Back
+                      </Button>
+                      <Box sx={{ flex: "1 1 auto" }} />
+                      {isStepOptional(activeStep) && (
+                        <Button
+                          color="inherit"
+                          onClick={handleSkip}
+                          sx={{ mr: 1 }}
+                        >
+                          Skip
+                        </Button>
+                      )}
+                      <Button onClick={handleNext}>
+                        {activeStep === steps.length - 1 ? "Finish" : "Next"}
+                      </Button>
+                    </Box>
+                  </React.Fragment>
+                )}
+
+                <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsFormOpen(false);
+                      setEditingChild(null);
+                    }}
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                  >
+                    Cancel
+                  </button>
+                  {!editingChild && (
+                    <button
+                      type="button"
+                      onClick={clearDraft}
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                    >
+                      Clear Draft
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="flex-1 disabled:bg-gray-400 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                    title={
+                      (locations ?? []).length === 0
+                        ? "No locations available"
+                        : "Submit"
+                    }
+                    // Disable button when not complete step
+                    disabled={activeStep !== steps.length - 1}
+                  >
+                    {editingChild ? "Update Child" : "Submit"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {assignChildId && (
+          <div
+            className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
+            onClick={() => {
+              setAssignChildId(null);
+              setAssignClassId("");
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 className="text-lg font-bold text-gray-800">
+                  Select Class
+                </h3>
+                <button
                   onClick={() => {
-                    setIsFormOpen(false);
-                    setEditingChild(null);
+                    setAssignChildId(null);
+                    setAssignClassId("");
                   }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  value={assignClassId}
+                  onChange={(e) => setAssignClassId(e.target.value)}
+                >
+                  <option value="">— Choose class —</option>
+                  {classes.map((c) => {
+                    const cap = classCapacityBadge(c);
+                    const full = isClassFull(c);
+                    return (
+                      <option key={c.id} value={c.id} disabled={full}>
+                        {c.name} — {cap.text}
+                      </option>
+                    );
+                  })}
+                </select>
+                <div className="text-xs text-gray-500">
+                  Full classes are disabled. If a class is full, the child
+                  should remain on <b>Waitlist</b>.
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
+                <button
+                  onClick={() => {
+                    setAssignChildId(null);
+                    setAssignClassId("");
+                  }}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
                 >
                   Cancel
                 </button>
-                {!editingChild && (
-                  <button
-                    type="button"
-                    onClick={() => clearDraft(true)}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
-                  >
-                    Clear Draft
-                  </button>
-                )}
                 <button
-                  type="submit"
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
-                  title={(locations ?? []).length === 0 ? "No locations available" : "Submit"}
+                  onClick={async () => {
+                    if (!assignChildId || !assignClassId) return;
+                    const targetClass = classes.find(
+                      (c) => c.id === assignClassId
+                    );
+                    if (isClassFull(targetClass)) {
+                      alert("This class is full. Please choose another class.");
+                      return;
+                    }
+                    const ok = await onAssign?.(assignChildId, assignClassId);
+                    if (ok) {
+                      setAssignChildId(null);
+                      setAssignClassId("");
+                    }
+                  }}
+                  disabled={!assignClassId}
+                  className={`flex-1 ${assignClassId
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-green-400 cursor-not-allowed"
+                    } text-white font-medium px-4 py-2 rounded-lg`}
                 >
-                  {editingChild ? "Update Child" : "Add Child"}
+                  Assign
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {assignChildId && (
-        <div
-          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
-          onClick={() => {
-            setAssignChildId(null);
-            setAssignClassId("");
-          }}
-        >
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100" onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">Select Class</h3>
-              <button
-                onClick={() => {
-                  setAssignChildId(null);
-                  setAssignClassId("");
-                }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg" value={assignClassId} onChange={(e) => setAssignClassId(e.target.value)}>
-                <option value="">— Choose class —</option>
-                {classes.map((c) => {
-                  const cap = classCapacityBadge(c);
-                  const full = isClassFull(c);
-                  return (
-                    <option key={c.id} value={c.id} disabled={full}>
-                      {c.name} — {cap.text}
-                    </option>
-                  );
-                })}
-              </select>
-              <div className="text-xs text-gray-500">Full classes are disabled. If a class is full, the child should remain on <b>Waitlist</b>.</div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
-              <button
-                onClick={() => {
-                  setAssignChildId(null);
-                  setAssignClassId("");
-                }}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  if (!assignChildId || !assignClassId) return;
-                  const targetClass = classes.find((c) => c.id === assignClassId);
-                  if (isClassFull(targetClass)) {
-                    alert("This class is full. Please choose another class.");
-                    return;
-                  }
-                  const ok = await onAssign?.(assignChildId, assignClassId);
-                  if (ok) {
-                    setAssignChildId(null);
-                    setAssignClassId("");
-                  }
-                }}
-                disabled={!assignClassId}
-                className={`flex-1 ${assignClassId ? "bg-green-600 hover:bg-green-700" : "bg-green-400 cursor-not-allowed"} text-white font-medium px-4 py-2 rounded-lg`}
-              >
-                Assign
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {linkChildId && (
-        <div
-          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
-          onClick={() => {
-            setLinkChildId(null);
-            setParentEmail("");
-          }}
-        >
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100" onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">Link Parent by Email</h3>
-              <button
-                onClick={() => {
-                  setLinkChildId(null);
-                  setParentEmail("");
-                }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6">
-              <input
-                type="email"
-                placeholder="parent@example.com"
-                value={parentEmail}
-                onChange={(e) => setParentEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-              <div className="text-xs text-gray-500 mt-2">Enter the parent&apos;s email to link their account.</div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
-              <button
-                onClick={() => {
-                  setLinkChildId(null);
-                  setParentEmail("");
-                }}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  if (!linkChildId || !parentEmail.trim()) return;
-                  const ok = await linkParentByEmail(linkChildId, parentEmail.trim());
-                  if (ok) {
+        {linkChildId && (
+          <div
+            className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
+            onClick={() => {
+              setLinkChildId(null);
+              setParentEmail("");
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 className="text-lg font-bold text-gray-800">
+                  Link Parent by Email
+                </h3>
+                <button
+                  onClick={() => {
                     setLinkChildId(null);
                     setParentEmail("");
-                  }
-                }}
-                disabled={!parentEmail.trim()}
-                className={`flex-1 ${parentEmail.trim() ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-400 cursor-not-allowed"} text-white font-medium px-4 py-2 rounded-lg`}
-              >
-                Link
-              </button>
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6">
+                <input
+                  type="email"
+                  placeholder="parent@example.com"
+                  value={parentEmail}
+                  onChange={(e) => setParentEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+                <div className="text-xs text-gray-500 mt-2">
+                  Enter the parent&apos;s email to link their account.
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
+                <button
+                  onClick={() => {
+                    setLinkChildId(null);
+                    setParentEmail("");
+                  }}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!linkChildId || !parentEmail.trim()) return;
+                    const ok = await linkParentByEmail(
+                      linkChildId,
+                      parentEmail.trim()
+                    );
+                    if (ok) {
+                      setLinkChildId(null);
+                      setParentEmail("");
+                    }
+                  }}
+                  disabled={!parentEmail.trim()}
+                  className={`flex-1 ${parentEmail.trim()
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : "bg-blue-400 cursor-not-allowed"
+                    } text-white font-medium px-4 py-2 rounded-lg`}
+                >
+                  Link
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

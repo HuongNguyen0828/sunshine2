@@ -92,16 +92,12 @@ export async function getUserByUid(uid: string) {
  * @returns : true if unique, false if exists
  */
 export async function checkingIfEmailIsUnique(email: string): Promise<Boolean> {
-  const emailLower = email.trim().toLowerCase();
-
-  const userDoc = await db.collection("users")
-    .where("email", "==", emailLower)
+  const q = await db
+    .collection("users")
+    .where("email", "==", email.trim().toLowerCase())
+    .limit(1)
     .get();
-
-    if (userDoc.empty) {
-      return true; // unique
-    }
-    return false; // exists
+  return q.empty;
 }
 /**
  * Update user email profile in Firebase Auth

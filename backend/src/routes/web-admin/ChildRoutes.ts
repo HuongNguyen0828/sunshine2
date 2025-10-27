@@ -11,31 +11,31 @@ r.use(authMiddleware);
 /** ---------- Child management ---------- **/
 
 // List all children (with optional filters)
-r.get("/children", C.getChildren);
+r.get("/", C.getChildren);
 
 // Create new child (daycareId is injected automatically)
-r.post("/children", C.addChild);
+r.post("/", C.addChild);
 
 // Update child profile (not enrollment)
-r.put("/children/:id", C.updateChild);
+r.put("/:id", C.updateChild);
 
 // Delete a child
-r.delete("/children/:id", C.deleteChild);
+r.delete("/:id", C.deleteChild);
 
 /** ---------- Parent linking ---------- **/
 
 // Link parent by email (finds parent user automatically)
-r.post("/children/:id/link-parent-by-email", C.linkParentByEmail);
+r.post("/:id/link-parent-by-email", C.linkParentByEmail);
 
 // Unlink a parent by userId
-r.post("/children/:id/unlink-parent", C.unlinkParent);
+r.post("/:id/unlink-parent", C.unlinkParent);
 
 /** ---------- Class assignment ---------- **/
 
 // Assign a child to class (with age & capacity validation)
-r.post("/children/:id/assign", C.assignChild);
+r.post("/:id/assign", C.assignChild);
 
 // Unassign a child from class
-r.post("/children/:id/unassign", C.unassignChild);
+r.post("/:id/unassign", C.withdrawChildChild);
 
 export default r;

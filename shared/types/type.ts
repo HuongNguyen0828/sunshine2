@@ -180,21 +180,20 @@ export type Child = {
   firstName: string;
   lastName: string;
   birthDate: string; // ISO date (yyyy-mm-dd)
-
+  gender: string,
   /** Parent linkage (user ids from users collection with role="parent") */
   parentId: string[];
 
   /** Placement info */
   classId?: string;    // assigned class id (optional)
   locationId?: string; // location scope id
-  daycareId: string;   // always required, injected from current admin
+  daycareId?: string;   // always required, injected from current admin
 
   /** Enrollment lifecycle (computed) */
   enrollmentStatus: EnrollmentStatus; // computed by backend
-  enrollmentDate?: string; // assigned automatically when class or parent linked
-
   /** Additional notes (allergies, special needs, subsidy, etc.) */
   notes?: string;
+  startDate: string;
 
   /** Audit fields (ISO) */
   createdAt?: string;
@@ -221,23 +220,30 @@ export type UpdateChildProfileInput = Partial<Pick<
 /** Response DTO from server after any mutation */
 export type ChildDTO = Child;
 
+
+type ParentChildRelationship = {
+  childId: string;
+  relationship: string; // e.g., "mother", "father", "guardian", "grandparent", etc.
+};
+
 export type Parent = {
-  id: string;
+  id: string; // Make optionall as 
+  docId: string; // is document Id to match parentID in child
   firstName: string;
   lastName: string;
   email: string;           // username for login
-  role: "parent";          // fixed as Parent
+  role?: "parent";          // fixed as Parent
   phone: string;
-  childIds: string[];      // children associated with this parent
-  street: string;
+  childRelationships: ParentChildRelationship[]; // Changed from childIds  address1: string;
+  address1: string;
+  address2?: string;
   city: string;
   province: string;
   country: string;
-  emergencyContact?: string;
-  createdAt: string;       // ISO date string
-  updatedAt?: string;      // ISO date string  
-  preferredLanguage?: string; // e.g., "en", "fr"
-}
+  postalcode?: string;
+  maritalStatus: string;
+  locationId?: string;
+};
 
 export type DailyReport = {
   id: string;
