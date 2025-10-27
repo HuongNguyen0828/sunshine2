@@ -108,10 +108,28 @@ export const updateTeacher = async (req: Request, res: Response) => {
     if (!teacher.locationId) {
       return res.status(403).json({ message: "Teacher data is missing location" });
     }
-    // Check if teacher belongs to admin's location list
-    if (!locationIds.includes(teacher.locationId)) {
-      return res.status(403).json({ message: "Forbidden: cannot edit teacher from another location" });
+    
+    // Checking admin permission 
+    const teacherLocation = teacher.locationId;
+    if (!teacherLocation) {
+      return res.status(403).json({ message: "Missing LocationId from teacher" });
     }
+    // Case admin owner
+    if (locationId === '*') {
+      if ( req.user) {
+        const daycaredId = req.user.daycareId;
+        const locations = await daycareLocationIds(daycaredId);
+        if (!locations.includes(teacherLocation)) {
+          return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
+        }
+      }
+    } else {
+        // Check if teacher belongs to admin's location
+      if (teacherLocation !== locationId) {
+        return res.status(403).json({ message: "Forbidden: cannot update teacher from another location" });
+      }
+    }
+    // Proceed to update
 
     const updated = await TeacherService.updateTeacher(id, req.body);
     if (!updated) return res.status(404).json({ message: "Failed to update teacher" });
@@ -142,11 +160,27 @@ export const deleteTeacher = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Teacher not found" });
     }
 
-    // Check if teacher belongs to admin's location
-    if (teacher.locationId !== locationId) {
-      return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
+    // Checking admin permission 
+    const teacherLocation = teacher.locationId;
+    if (!teacherLocation) {
+      return res.status(403).json({ message: "Missing LocationId from teacher" });
     }
-
+    // Case admin owner
+    if (locationId === '*') {
+      if ( req.user) {
+        const daycaredId = req.user.daycareId;
+        const locations = await daycareLocationIds(daycaredId);
+        if (!locations.includes(teacherLocation)) {
+          return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
+        }
+      }
+    } else {
+        // Check if teacher belongs to admin's location
+      if (teacherLocation !== locationId) {
+        return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
+      }
+    }
+    // Proceed to delete
     const ok = await TeacherService.deleteTeacher(id);
     if (!ok) return res.status(404).json({ message: "Failed to delete teacher" });
 

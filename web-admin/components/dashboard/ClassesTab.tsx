@@ -518,11 +518,10 @@ export default function ClassesTab({
           <button
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              currentPage === 1
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
                 ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                 : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-            }`}
+              }`}
           >
             ← Previous
           </button>
@@ -531,9 +530,8 @@ export default function ClassesTab({
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
-                  currentPage === page ? "bg-gray-800 text-white" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-                }`}
+                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page ? "bg-gray-800 text-white" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                  }`}
               >
                 {page}
               </button>
@@ -542,11 +540,10 @@ export default function ClassesTab({
           <button
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              currentPage === totalPages
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
                 ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                 : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-            }`}
+              }`}
           >
             Next →
           </button>
@@ -798,9 +795,8 @@ export default function ClassesTab({
                 <button
                   onClick={handleSaveTeachers}
                   disabled={isAssigning}
-                  className={`flex-1 ${
-                    isAssigning ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
-                  } text-white font-medium px-6 py-3 rounded-lg transition duration-200`}
+                  className={`flex-1 ${isAssigning ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+                    } text-white font-medium px-6 py-3 rounded-lg transition duration-200`}
                 >
                   {isAssigning ? "Saving..." : `Save (${selectedTeachers.length})`}
                 </button>
