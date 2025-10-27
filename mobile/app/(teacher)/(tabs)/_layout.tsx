@@ -34,6 +34,7 @@ export default function TeacherTabs() {
           name="dashboard"
           options={{
             title: "Teacher Dashboard",
+            headerShown: false,
             tabBarIcon: (p) => <Ionicons name="home-outline" {...p} />,
           }}
         />
@@ -66,6 +67,7 @@ export default function TeacherTabs() {
           name="more"
           options={{
             title: "More",
+            headerShown: false,
             tabBarIcon: (p) => (
               <Ionicons name="ellipsis-horizontal-circle-outline" {...p} />
             ),
