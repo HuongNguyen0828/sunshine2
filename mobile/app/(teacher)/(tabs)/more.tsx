@@ -163,15 +163,15 @@ export default function TeacherMore() {
               ]}
               onPress={card.onPress}
             >
-              <LinearGradient
-                colors={
-                  index === 0
-                    ? ['#FFF8FA', '#FFEFF3', '#FFF8FA'] // Softer pink gradient for My Class
-                    : ['#F5F9FF', '#EBF3FF', '#F5F9FF'] // Softer blue gradient for Daily Reports
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.actionCard}
+              <View
+                style={[
+                  styles.actionCard,
+                  {
+                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                    borderWidth: 1,
+                    borderColor: '#FFFFFF'
+                  }
+                ]}
               >
                 {/* Decorative corner shape */}
                 <View style={[
@@ -202,7 +202,7 @@ export default function TeacherMore() {
                   <View style={[styles.dot, { backgroundColor: index === 0 ? '#FFD6E0' : '#D6E4FF' }]} />
                   <View style={[styles.dot, styles.dotSmall, { backgroundColor: index === 0 ? '#FFE8ED' : '#E8F0FF' }]} />
                 </View>
-              </LinearGradient>
+              </View>
             </Pressable>
           ))}
         </View>
