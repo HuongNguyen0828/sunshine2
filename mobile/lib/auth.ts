@@ -1,3 +1,4 @@
+// mobile/lib/auth.ts
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -7,109 +8,146 @@ import {
   type User,
 } from "firebase/auth";
 import { auth } from "./firebase";
-import AsyncStorage from "@react-native-async-storage/async-storage"; // equivenlent to local storage in web-admin
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
-// Remove Firestore access to shift login into backend
-  // import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-  // import { db } from "./firebase";
+const BASE_URL =
+  Platform.OS === "android"
+    ? "http://10.0.2.2:5001/api/mobile"
+    : "http://localhost:5001/api/mobile";
 
-// End point varied due to emulator(EITHER iso or android ) or Real device
-const BASE_URL = Platform.OS === "android" ? "http://10.0.2.2:5000" : "http://localhost:5000";
-// For real device
-// const BASE_URL = "http://192.168.x.y:5000"; // your PC IP
+const norm = (v: string) => v.trim().toLowerCase();
+const isAllowedRole = (r?: unknown) => r === "teacher" || r === "parent";
 
-export async function registerUser(
+/** Robust POST helper that never crashes on non-JSON responses and surfaces backend reason */
+async function postJSON(
+  url: string,
+  body: unknown,
+  headers: Record<string, string> = {}
+) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+
+  let payload: any = null;
+  const text = await res.text();
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    payload = { raw: text };
+  }
+
+  if (!res.ok) {
+    const reason =
+      payload?.reason || payload?.message || payload?.raw || `HTTP ${res.status}`;
+    const err = new Error(String(reason));
+    (err as any).status = res.status;
+    (err as any).payload = payload;
+    throw err;
+  }
+  return payload;
+}
+
+function fbErr(code?: string, message?: string) {
+  switch (code) {
+    case "auth/invalid-email":
+      return "Invalid email format.";
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+      return "Incorrect email or password.";
+    case "auth/user-disabled":
+      return "Account is disabled. Contact support.";
+    case "auth/user-not-found":
+      return "No account found with that email.";
+    case "auth/too-many-requests":
+      return "Too many attempts. Try again later.";
+    default:
+      return message || "Authentication failed.";
+  }
+}
+
+/** Registration flow: precheck → create Auth user → complete → refresh claims */
+export async function registerWithPassword(
   name: string,
   email: string,
   password: string
 ) {
-  try {
-     // Step 1: check email
-    const res = await fetch(`${BASE_URL}/auth/check-email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
+  const emailLower = norm(email);
 
-    // Only respond ok is valid email: throw error for external users
-    if (!res.ok) throw new Error("Email not authorized. Your daycare need register with Sunshine");
+  // 1) backend precheck (checks: email match, role=teacher/parent, status=Active, isRegistered=false, has locationId)
+  const pre = await postJSON(`${BASE_URL}/v1/registration/precheck`, {
+    emailLower,
+  });
+  if (!pre?.allowed) {
+    const reason =
+      pre?.reason || "Registration not allowed. Contact your daycare.";
+    throw new Error(reason);
+  }
 
-    // Step 2: If valid user, create Firebase Authentication user
-    const cred = await createUserWithEmailAndPassword(
-      auth,
-      email.trim().toLowerCase(),
-      password
-    );
+  // 2) create Firebase Auth user
+  const cred = await createUserWithEmailAndPassword(auth, emailLower, password);
 
-    // Update display name
-    if (name.trim()) {
-      try {
-        await updateProfile(cred.user, { displayName: name.trim() });
-      } catch {}
+  if (name.trim()) {
+    try {
+      await updateProfile(cred.user, { displayName: name.trim() });
+    } catch {
+      // non-critical
     }
-    // Step 3: Verify role in backend, and create users collection with same uid
-      const idToken = await cred.user.getIdToken();
-      await fetch(`${BASE_URL}/auth/verify-role`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, name }),
-      });
   }
-  catch(error: any) {
-    if(error.code == "auth/email-already-in-use") throw new Error("Already existing email. Please login or use other email");
-    throw error;
+
+  // 3) complete registration (sets custom claims + marks isRegistered=true)
+  const idToken = await cred.user.getIdToken();
+  const complete = await postJSON(
+    `${BASE_URL}/v1/registration/complete`,
+    { emailLower, authUid: cred.user.uid, provider: "password" },
+    { Authorization: `Bearer ${idToken}` }
+  );
+  if (!complete?.ok) {
+    const reason = complete?.reason || "Could not finalize registration.";
+    throw new Error(reason);
   }
+
+  // 4) refresh token to pick up claims, cache role for faster boot
+  await cred.user.getIdToken(true);
+  const tok = await cred.user.getIdTokenResult();
+  const role = tok.claims?.role as string | undefined;
+
+  if (!isAllowedRole(role)) {
+    await signOut(auth);
+    throw new Error("Mobile access is limited to teacher or parent accounts.");
+  }
+
+  await AsyncStorage.setItem("userRole", role!);
+  return cred.user;
 }
 
-// Need to be in try-catch block: handle specific error
+/** Sign in: refresh claims and allow only teacher/parent */
 export async function signIn(email: string, password: string) {
   try {
-    // 1. Firebase Auth login
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+    const cred = await signInWithEmailAndPassword(auth, norm(email), password);
+    await cred.user.getIdToken(true);
+    const tok = await cred.user.getIdTokenResult();
+    const role = tok.claims?.role as string | undefined;
 
-    // 2. Get ID token
-    const idToken = await userCredential.user.getIdToken();
-
-    // 3. Call backend to get role
-    const res = await fetch(`${BASE_URL}/auth/get-mobile`, {
-      method: "GET",
-      // Input Header autherization inside Request extended
-      headers: { Authorization: `Bearer ${idToken}` },
-    });
-
-    // Case not Admin
-    if (!res.ok) {
-      // Extract message from respond: custome with role-based or general message
-      const errData = await res.json();
-      throw new Error(errData.message || "Access denied");
+    if (!isAllowedRole(role)) {
+      await signOut(auth);
+      throw new Error("Mobile access is limited to teacher or parent accounts.");
     }
-    // else, Case: Admin
-    const data = await res.json();
 
-    // 4. Store role in cache/localStorage (for reduce fetching check-role and user once they login)
-    await AsyncStorage.setItem("userRole", data.user.role);
-    // const role = await AsyncStorage.getItem("userRole");
-
-  } catch (error: any) {
-    // Error from Frontend: Firebase Auth errors with signInWithEmailAndPassword
-    if (error.code === "auth/invalid-credential")  throw new Error("Invalid Email or Password");
-    // else, error from role-base
-    throw error;
+    await AsyncStorage.setItem("userRole", role!);
+    return cred.user; // return User so callers can route by claims
+  } catch (e: any) {
+    throw new Error(fbErr(e?.code, e?.message));
   }
 }
 
 export async function signOutUser() {
   await signOut(auth);
-  // Clear user from AsyncStorage
   await AsyncStorage.removeItem("userRole");
 }
 
-// Listener when user changed instead of using AuthContext
 export function onUserChanged(cb: (user: User | null) => void) {
   return onAuthStateChanged(auth, cb);
 }
