@@ -52,6 +52,7 @@ type AddParentPayload = {
   email: string;           // username for login
   phone: string;
   newChildRelationship: string; // Changed from childIds  address1: string;
+  address1: string;
   address2?: string;
   city: string;
   province: string;
