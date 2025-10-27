@@ -245,6 +245,7 @@ export type Parent = {
   role?: "parent";          // fixed as Parent
   phone: string;
   childRelationships: ParentChildRelationship[]; // Changed from childIds  address1: string;
+  address1: string;
   address2?: string;
   city: string;
   province: string;

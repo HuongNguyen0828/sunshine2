@@ -133,7 +133,7 @@ type ChildCardProps = {
   classes: Types.Class[];
   parent1And2: Types.Parent[];
   locations: LocationLite[];
-  onEdit: (c: Types.Child) => void;
+  onEdit: (c: Types.Child, parent1: Types.Parent, parent2: Types.Parent | null) => void;
   onDelete: (c: Types.Child) => void;
   onOpenAssign: (childId: string) => void;
   onUnassign?: (childId: string) => Promise<boolean> | boolean;
@@ -261,7 +261,7 @@ function ChildCard({
 
       <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2">
         <button
-          onClick={() => onEdit(child)}
+          onClick={() => onEdit(child, parent1And2[0], parent1And2[1])}
           className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
         >
           Edit
@@ -446,7 +446,7 @@ export default function ChildrenTab({
   const [linkChildId, setLinkChildId] = useState<string | null>(null);
   const [parentEmail, setParentEmail] = useState<string>("");
 
-  const initalParentValues: NewParentInput = {
+  const initialParentValues: NewParentInput = {
     firstName: "",
     lastName: "",
     email: "",
@@ -478,10 +478,11 @@ export default function ChildrenTab({
   const [editingParent, setEditingParent] = useState<Types.Parent | null>(null);
   const [addOrSearchParent1, setAddOrSearchParent1] = useState<"addParent1" | "searchParent1">("addParent1");
   const [addOrSearchParent2, setAddOrSearchParent2] = useState<"addParent2" | "searchParent2">("addParent2");
-  const [parent1, setParent1] = useState<NewParentInput>(initalParentValues);
-  const [parent2, setParent2] = useState<NewParentInput | null>(initalParentValues); // Null when skip
+  const [parent1, setParent1] = useState<NewParentInput>(initialParentValues);
+  const [parent2, setParent2] = useState<NewParentInput | null>(initialParentValues); // Null when skip
 
   // For editing Child button (could be editing child info, parent 1 info, editing/ delete parent 2 info): pARENT1 CAN JUST  editable, no delete
+  const [showEditOption, setShowEditOption] = useState<boolean>(false); // To Toggle showing add option or edit option 
   const [isEditingChildInfo, setIsEditingChildInfo] = useState<boolean>(false);
   const [isEditingParent1Info, setIsEditingParen1Info] = useState<boolean>(false);
   const [isEditingParent2Info, setIsEditingParen2Info] = useState<boolean>(false);
@@ -556,8 +557,8 @@ export default function ChildrenTab({
     // Reset child
     setNewChild(initialChildValues);
     // Reset Parent
-    setParent1(initalParentValues);
-    setParent2(initalParentValues);
+    setParent1(initialParentValues);
+    setParent2(initialParentValues);
     setActiveStep(0);
   };
 
@@ -654,7 +655,7 @@ export default function ChildrenTab({
           return false;
         }
         // Mising checking address
-        if (!parent2.address2 || !parent2.city || !parent2.province || !parent2.country || !parent2.postalcode) {
+        if (!parent2.address1 || !parent2.city || !parent2.province || !parent2.country || !parent2.postalcode) {
           alert(`Missing address fields`);
           return false;
         }
@@ -735,6 +736,8 @@ export default function ChildrenTab({
   });
 
   const handleAddClick = useCallback(() => {
+    setShowEditOption(false); // To not show EditOption, but Add option
+
     if ((locations ?? []).length === 0) {
       alert("No locations available. Please create a location first.");
       return;
@@ -751,8 +754,11 @@ export default function ChildrenTab({
   }, [locations, setNewChild]);
 
   const handleEditClick = useCallback(
-    (child: Types.Child) => {
-      setEditingChild(child);
+    (child: Types.Child, parent1: Types.Parent, parent2: Types.Parent | null) => {
+      // 1. To show EditOption, 
+      setShowEditOption(true);
+      // 2. To load the form
+      // 2.1 Child
       setNewChild({
         firstName: child.firstName,
         lastName: child.lastName,
@@ -767,7 +773,53 @@ export default function ChildrenTab({
           computeStatus(child.parentId, child.classId),
         startDate: child.startDate,
       });
+      // Set editing child
+      setEditingChild(child);
+
+      // 3. Load parent data
+      if (parent1) {
+        setParent1({
+          firstName: parent1.firstName || "",
+          lastName: parent1.lastName || "",
+          email: parent1.email || "",
+          phone: parent1.phone || "", // Fixed: was using email for phone
+          address1: parent1.address1 || "",
+          address2: parent1.address2 || "",
+          city: parent1.city || "",
+          province: parent1.province || "",
+          country: parent1.country || "", // Fixed: was using province for country
+          postalcode: parent1.postalcode || "",
+          newChildRelationship: parent1.childRelationships?.find(cr => cr.childId === child.id)?.relationship || "",
+          maritalStatus: parent1.maritalStatus || ""
+        });
+      }
+
+      if (parent2) {
+        setParent2({
+          firstName: parent2.firstName || "",
+          lastName: parent2.lastName || "",
+          email: parent2.email || "",
+          phone: parent2.phone || "", // Fixed: was using email for phone
+          address1: parent2.address1 || "",
+          address2: parent2.address2 || "",
+          city: parent2.city || "",
+          province: parent2.province || "",
+          country: parent2.country || "", // Fixed: was using province for country
+          postalcode: parent2.postalcode || "",
+          newChildRelationship: parent2.childRelationships?.find(cr => cr.childId === child.id)?.relationship || "",
+          maritalStatus: parent2.maritalStatus || ""
+        });
+      } else {
+        setParent2(null);
+      }
+
+      // Set editing states: View Mode
+      setIsEditingChildInfo(false); // Start with view mode
+      setIsEditingParen1Info(false);
+      setIsEditingParen2Info(false);
+
       setIsFormOpen(true);
+      setActiveStep(0); // Start at child info step
     },
     [locations, setNewChild]
   );
@@ -888,7 +940,7 @@ export default function ChildrenTab({
         if (!prev) {
           // Initialize parent2 if it doesn't exist
           const newParent2: NewParentInput = {
-            ...initalParentValues,
+            ...initialParentValues,
             ...updates,
           };
 
@@ -1194,8 +1246,8 @@ export default function ChildrenTab({
                       <h2 className="text-2xl font-semibold text-gray-800">
                         Child Information
                       </h2>
-                      {/* Option to add new Parent or searching existing parent */}
-                      <label className="flex items-center gap-2">
+                      {/* Option to edit child: only when click edit */}
+                      {showEditOption && (<label className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={isEditingChildInfo}
@@ -1203,7 +1255,9 @@ export default function ChildrenTab({
                         />
                         Edit Child Information
                       </label>
+                      )}
                     </div>
+
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <label className="block">
@@ -1211,13 +1265,13 @@ export default function ChildrenTab({
                           First Name *
                         </span>
                         <input
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
                           value={newChild.firstName}
                           onChange={(e) =>
                             updateDraft({ firstName: e.target.value })
                           }
                           required
-                          disabled={isEditingChildInfo}
+                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
                         />
                       </label>
                       <label className="block">
@@ -1225,17 +1279,19 @@ export default function ChildrenTab({
                           Last Name *
                         </span>
                         <input
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
                           value={newChild.lastName}
                           onChange={(e) =>
                             updateDraft({ lastName: e.target.value })
                           }
                           required
+                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child and doesn't toggle the Editing option to edit
+
                         />
                       </label>
 
                       <label className="block">
-                        <span className="text-gray-700 font-medium mb-1 block">
+                        <span className="text-gray-700 font-medium mb-1 block ">
                           Gender *
                         </span>
                         <div className="flex gap-4">
@@ -1248,6 +1304,7 @@ export default function ChildrenTab({
                               onChange={(e) =>
                                 updateDraft({ gender: e.target.value })
                               }
+                              disabled={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
                             />
                             Boy
                           </label>
@@ -1261,6 +1318,7 @@ export default function ChildrenTab({
                               onChange={(e) =>
                                 updateDraft({ gender: e.target.value })
                               }
+                              disabled={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
                             />
                             Girl
                           </label>
@@ -1273,12 +1331,13 @@ export default function ChildrenTab({
                         </span>
                         <input
                           type="date"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
                           value={newChild.birthDate}
                           onChange={(e) =>
                             updateDraft({ birthDate: e.target.value })
                           }
                           required
+                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
                         />
                       </label>
                       <label className="block">
@@ -1286,13 +1345,13 @@ export default function ChildrenTab({
                           Location *
                         </span>
                         <select
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
                           value={newChild.locationId ?? ""}
                           onChange={(e) =>
                             updateDraft({ locationId: e.target.value })
                           }
                           required
-                          disabled={(locations ?? []).length <= 1}
+                          disabled={((locations ?? []).length <= 1) || (showEditOption && !isEditingChildInfo)}
                         >
                           {(locations ?? []).length > 1 && (
                             <option value="" disabled>
@@ -1311,7 +1370,7 @@ export default function ChildrenTab({
                           Status *
                         </span>
                         <select
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
                           value={
                             newChild.enrollmentStatus ??
                             Types.EnrollmentStatus.New
@@ -1323,6 +1382,7 @@ export default function ChildrenTab({
                             })
                           }
                           required
+                          disabled={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
                         >
                           <option value={Types.EnrollmentStatus.New}>
                             New
@@ -1343,12 +1403,13 @@ export default function ChildrenTab({
                           Notes
                         </span>
                         <textarea
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg read-only:bg-gray-100"
                           value={newChild.notes ?? ""}
                           onChange={(e) =>
                             updateDraft({ notes: e.target.value })
                           }
                           placeholder="Allergies / Special needs / Subsidy status / Remarks"
+                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
                         />
                       </label>
                     </div>
@@ -1362,31 +1423,45 @@ export default function ChildrenTab({
                       <h2 className="text-2xl font-semibold text-gray-800 ">
                         {activeStep === 1 ? "Parent 1 infomation" : "Parent 2 infomation"}
                       </h2>
-                      {/* Option to add new Parent or searching existing parent */}
-                      <div className="flex gap-4 ">
-                        <label className={`${((activeStep === 1 && addOrSearchParent1 === "addParent1") || (activeStep === 2 && addOrSearchParent2 === "addParent2")) ? "font-semibold" : "font-normal"}`}> {/* Option add by defaul*/}
-                          <input
-                            type="radio"
-                            name={activeStep === 1 ? "addOrSearchParent1" : "addOrSearchParent2"}
-                            value={activeStep === 1 ? "addParent1" : "addParent2"}
-                            checked={activeStep === 1 ? addOrSearchParent1 === "addParent1" : addOrSearchParent2 === "addParent2"}
-                            onChange={(e) => { activeStep === 1 ? setAddOrSearchParent1(e.target.value as "addParent1") : setAddOrSearchParent2(e.target.value as "addParent2") }}
-                          />
-                          Add new parent
-                        </label>
-                        {/* Option search */}
-                        <label className={`${((activeStep === 1 && addOrSearchParent1 === "searchParent1") || (activeStep === 2 && addOrSearchParent2 === "searchParent2")) ? "font-semibold" : "font-normal"}`}>
 
+                      {/* Option to edit parent1- only when click edit from Child Card */}
+                      {showEditOption ? (
+                        <label className="flex items-center gap-2">
                           <input
-                            type="radio"
-                            name={activeStep === 1 ? "addOrSearchParent1" : "addOrSearchParent2"}
-                            value={activeStep === 1 ? "searchParent1" : "searchParent2"}
-                            checked={activeStep === 1 ? addOrSearchParent1 === "searchParent1" : addOrSearchParent2 === "searchParent2"}
-                            onChange={(e) => { activeStep === 1 ? setAddOrSearchParent1(e.target.value as "searchParent1") : setAddOrSearchParent2(e.target.value as "searchParent2") }}
+                            type="checkbox"
+                            checked={activeStep === 1 ? isEditingParent1Info : isEditingParent2Info}
+                            onChange={(e) => activeStep === 1 ? setIsEditingParen1Info(e.target.checked) : setIsEditingParen2Info(e.target.checked)}
                           />
-                          Search existing parents
+                          {activeStep === 1 ? "Edit Parent1 Information" : "Edit Parent2 Information"}
                         </label>
-                      </div>
+                      ) : (
+                        // Option to add new Parent or searching existing parent 
+                        <div className="flex gap-4 ">
+                          <label className={`${((activeStep === 1 && addOrSearchParent1 === "addParent1") || (activeStep === 2 && addOrSearchParent2 === "addParent2")) ? "font-semibold" : "font-normal"}`}> {/* Option add by defaul*/}
+                            <input
+                              type="radio"
+                              name={activeStep === 1 ? "addOrSearchParent1" : "addOrSearchParent2"}
+                              value={activeStep === 1 ? "addParent1" : "addParent2"}
+                              checked={activeStep === 1 ? addOrSearchParent1 === "addParent1" : addOrSearchParent2 === "addParent2"}
+                              onChange={(e) => { activeStep === 1 ? setAddOrSearchParent1(e.target.value as "addParent1") : setAddOrSearchParent2(e.target.value as "addParent2") }}
+                            />
+                            Add new parent
+                          </label>
+                          {/* Option search */}
+                          <label className={`${((activeStep === 1 && addOrSearchParent1 === "searchParent1") || (activeStep === 2 && addOrSearchParent2 === "searchParent2")) ? "font-semibold" : "font-normal"}`}>
+
+                            <input
+                              type="radio"
+                              name={activeStep === 1 ? "addOrSearchParent1" : "addOrSearchParent2"}
+                              value={activeStep === 1 ? "searchParent1" : "searchParent2"}
+                              checked={activeStep === 1 ? addOrSearchParent1 === "searchParent1" : addOrSearchParent2 === "searchParent2"}
+                              onChange={(e) => { activeStep === 1 ? setAddOrSearchParent1(e.target.value as "searchParent1") : setAddOrSearchParent2(e.target.value as "searchParent2") }}
+                            />
+                            Search existing parents
+                          </label>
+                        </div>
+                      )}
+
                     </div>
 
                     {/* Use parent1 for step 1, parent2 for step 2 */}
@@ -1396,6 +1471,7 @@ export default function ChildrenTab({
                         updateParent={updateParent1}
                         phoneError={phoneError}
                         setPhoneError={setPhoneError}
+                        disabled={showEditOption && !isEditingParent1Info} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
                       />
                     )}
                     {(activeStep === 2 && addOrSearchParent2 === "addParent2") && (
@@ -1405,6 +1481,7 @@ export default function ChildrenTab({
                           updateParent={updateParent2}
                           phoneError={phoneError}
                           setPhoneError={setPhoneError}
+                          disabled={showEditOption && !isEditingParent2Info} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
                         />
                       )
                     )}
@@ -1525,12 +1602,6 @@ export default function ChildrenTab({
                           <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
                             👨 Parent 2 Information
                           </h3>
-                          <button
-                            onClick={() => setActiveStep(2)} // Backe to parent 2 form
-                            className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
-                          >
-                            Edit
-                          </button>
                           {/* Delete button */}
                           <button
                             onClick={() => {
@@ -1551,6 +1622,13 @@ export default function ChildrenTab({
                           >
                             Remove
                           </button>
+                          <button
+                            onClick={() => setActiveStep(2)} // Backe to parent 2 form
+                            className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                          >
+                            Edit
+                          </button>
+
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
@@ -1601,7 +1679,7 @@ export default function ChildrenTab({
                         <button
                           onClick={() => {
                             setActiveStep(2); // Back to Parent2 Form
-                            setParent2(initalParentValues); // Initalize the value for parent2 instead of null
+                            setParent2(initialParentValues); // Initalize the value for parent2 instead of null
                             // Remove skip status
                             setSkipped((prev) => {
                               const newSkipped = new Set(prev.values());
