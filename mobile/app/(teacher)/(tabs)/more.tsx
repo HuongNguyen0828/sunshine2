@@ -167,18 +167,10 @@ export default function TeacherMore() {
                 style={[
                   styles.actionCard,
                   {
-                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                    borderWidth: 1,
-                    borderColor: '#FFFFFF'
+                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
                   }
                 ]}
               >
-                {/* Decorative corner shape */}
-                <View style={[
-                  styles.cornerDecoration,
-                  { backgroundColor: index === 0 ? '#FFB3C1' : '#A6C8FF' }
-                ]} />
-
                 <View style={styles.iconContainer}>
                   <card.icon
                     size={24}
@@ -195,12 +187,6 @@ export default function TeacherMore() {
                     {card.label}
                   </Text>
                   <Text style={styles.actionCardSubtitle}>{card.subtitle}</Text>
-                </View>
-
-                {/* Small decorative dots */}
-                <View style={styles.dotsContainer}>
-                  <View style={[styles.dot, { backgroundColor: index === 0 ? '#FFD6E0' : '#D6E4FF' }]} />
-                  <View style={[styles.dot, styles.dotSmall, { backgroundColor: index === 0 ? '#FFE8ED' : '#E8F0FF' }]} />
                 </View>
               </View>
             </Pressable>
@@ -329,28 +315,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 18,
     paddingVertical: 20,
-    position: 'relative',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  cornerDecoration: {
-    position: 'absolute',
-    top: -15,
-    right: -15,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    opacity: 0.15,
   },
   iconContainer: {
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
@@ -369,24 +339,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7A7A7A',
     letterSpacing: 0,
-  },
-  dotsContainer: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    flexDirection: 'row',
-    gap: 4,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    opacity: 0.6,
-  },
-  dotSmall: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
   },
   // Menu List
   menuContainer: {

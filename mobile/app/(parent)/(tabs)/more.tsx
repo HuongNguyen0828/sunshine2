@@ -167,9 +167,9 @@ export default function More() {
                 style={[
                   styles.actionCard,
                   {
-                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                    borderWidth: 1,
-                    borderColor: index === 0 ? 'rgba(236, 72, 153, 0.1)' : 'rgba(99, 102, 241, 0.1)'
+                    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+                    borderWidth: 0.5,
+                    borderColor: index === 0 ? 'rgba(236, 72, 153, 0.06)' : 'rgba(99, 102, 241, 0.06)'
                   }
                 ]}
               >
