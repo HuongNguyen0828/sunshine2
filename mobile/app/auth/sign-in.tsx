@@ -310,6 +310,7 @@ import { Typography } from '@/components/Typography';
 import { Stack } from '@/components/Stack';
 import { colors } from '@/constants/color';
 import { Text } from 'react-native';
+import DaycareGraphic from '@/components/DaycareGraphic';
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
@@ -350,7 +351,7 @@ export default function Login() {
       style={{ flex: 1 }}
     >
       <View style={{ flex: 1, backgroundColor: colors.palette.neutral200 }}>
-        {/* Header */}
+        {/* Header with Graphic */}
         <Stack
           padding={20}
           backgroundColor={colors.palette.primary500}
@@ -358,9 +359,15 @@ export default function Login() {
             borderBottomLeftRadius: 42,
             borderBottomRightRadius: 42,
             paddingTop: insets.top + 20,
-            paddingBottom: 40,
+            paddingBottom: 20,
           }}
         >
+          {/* Graphic */}
+          <View style={{ alignItems: 'center', marginBottom: 16 }}>
+            <DaycareGraphic width={280} height={200} />
+          </View>
+
+          {/* Title */}
           <Typography variant="h1" color="#FFFFFF">
             Welcome Back
           </Typography>
