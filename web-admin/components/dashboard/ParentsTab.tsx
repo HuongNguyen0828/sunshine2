@@ -9,26 +9,41 @@
 
 import * as Types from "../../../shared/types/type";
 import type { NewParentInput } from "@/types/forms";
-import { useState, useEffect, useCallback, useRef, ChangeEvent } from "react";
+import { useState, useEffect, useCallback, useRef, ChangeEvent, useMemo, Children } from "react";
 import AutoCompleteAddress, { Address } from "../AutoCompleteAddress";
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
 
 export default function ParentsTab({
   parents,
-  // newParent,
-  // setNewParent,
-  // onAdd,
+  children
 }: {
   parents: Types.Parent[];
   // newParent: NewParentInput;
   // setNewParent: React.Dispatch<React.SetStateAction<NewParentInput>>;
   // onAdd: () => void;
+  children: Types.Child[],
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingParent, setEditingParent] = useState<Types.Parent | null>(null);
+  const initalEditingParent: Types.Parent = {
+    id: "",
+    docId: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    address1: '',
+    address2: "",
+    city: '',
+    province: '',
+    country: '',
+    postalcode: "",
+    maritalStatus: "",
+    childRelationships: [],
+  }
+  const [editingParent, setEditingParent] = useState<Types.Parent>(initalEditingParent);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [phoneError, setPhoneError] = useState<String>("");
@@ -47,19 +62,19 @@ export default function ParentsTab({
       if (draft) {
         try {
           const parsed = JSON.parse(draft);
-          setNewParent(parsed);
+          // setNewParent(parsed);
           setIsDraftRestored(true);
         } catch (e) {
           console.error("Failed to restore draft:", e);
         }
       }
     }
-  }, [isFormOpen, editingParent, setNewParent]);
+  }, [isFormOpen, editingParent]);
 
-  // Update form and persist a draft (debounced)
+  //Update form and persist a draft (debounced)
   const updateParent = useCallback(
     (updates: Partial<NewParentInput>) => {
-      setNewParent(prev => {
+      setEditingParent(prev => {
         const updated = { ...prev, ...updates };
 
         // Only save draft in add mode
@@ -75,7 +90,7 @@ export default function ParentsTab({
         return updated;
       });
     },
-    [editingParent, setNewParent]
+    [editingParent, setEditingParent]
   );
 
   // Reset form fields to initial values
@@ -110,63 +125,58 @@ export default function ParentsTab({
     [resetForm]
   );
 
-  // Filter parents based on search
-  const filteredParents = parents.filter(
-    (parent) =>
-      parent.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      parent.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      parent.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      parent.phone.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Pagination logic
-  const parentsPerPage = 6;
-  const totalPages = Math.max(1, Math.ceil(filteredParents.length / parentsPerPage));
-  const startIndex = (currentPage - 1) * parentsPerPage;
-  const paginatedParents = filteredParents.slice(
-    startIndex,
-    startIndex + parentsPerPage
-  );
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingParent) {
-      // Replace with your real update flow if available
-      console.log('Update parent:', { ...editingParent, ...newParent });
-      setEditingParent(null);
+      const id = editingParent.id;
+      const updated = await api.put<Types.Parent>(`${ENDPOINTS.parents}/${id}`, { ...editingParent });
+      // setRows((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
+      setEditingParent(initalEditingParent);
       resetForm();
       setIsFormOpen(false);
       return;
     } else {
-      onAdd();
+      // onAdd();
     }
     clearDraft(); // remove stored draft after submit
     setIsFormOpen(false);
   };
 
-  const handleAddClick = () => {
-    setEditingParent(null);
-    resetForm();
-    setIsFormOpen(true);
+  // Handle load address to form when editing: setNewTeacher with value of current Address
+  //  Passing Current address value back to input value
+  const newTeacherAddressValues: Address = {
+    address1: editingParent.address1,
+    address2: editingParent?.address2 || "",
+    city: editingParent.city,
+    province: editingParent.province,
+    country: editingParent.country,
+    postalcode: editingParent.postalcode
   };
+
+  const handleAddressChange = useCallback((a: Address) => {
+    updateParent({
+      address1: a.address1,
+      address2: a.address2,
+      city: a.city,
+      province: a.province,
+      country: a.country,
+      postalcode: a.postalcode
+    });
+  }, [updateParent]);
+
+  const resetForm = () => {
+    setEditingParent(initalEditingParent);
+  };
+
+  // const handleAddClick = () => {
+  //   setEditingParent(null);
+  //   resetForm();
+  //   setIsFormOpen(true);
+  // };
 
   const handleEditClick = (parent: Types.Parent) => {
     setEditingParent(parent);
-    setNewParent({
-      firstName: parent.firstName,
-      lastName: parent.lastName,
-      // childIds: parent.childIds,
-      email: parent.email,
-      phone: parent.phone,
-      address1: parent.address1,
-      address2: parent.address2,
-      city: parent.city,
-      province: parent.province,
-      country: parent.country,
-      emergencyContact: parent.emergencyContact ?? '',
-      updatedAt: parent.updatedAt ?? '',
-      preferredLanguage: parent.preferredLanguage ?? '',
-    });
     setIsFormOpen(true);
   };
 
@@ -204,19 +214,55 @@ export default function ParentsTab({
     }
   }
 
+  const lookUpChild = useMemo(() =>
+    children.reduce((acc, child) => {
+      acc[child.id] = child;
+      return acc;
+    }, {} as Record<string, Types.Child>),
+    [children]
+  );
+
+  const parentWithChildren = useMemo(() =>
+    parents.map((parent) => ({
+      ...parent,
+      children: parent.childRelationships.map(childRelation => lookUpChild[childRelation.childId])
+        .filter(Boolean), // Remove undefined values
+    })),
+    [parents, lookUpChild]
+  );
+
+  // Filter parents based on search
+  const filteredParents = parentWithChildren.filter(
+    (parent) =>
+      parent.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      parent.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      parent.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      parent.phone.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Pagination logic
+  const parentsPerPage = 6;
+  const totalPages = Math.max(1, Math.ceil(filteredParents.length / parentsPerPage));
+  const startIndex = (currentPage - 1) * parentsPerPage;
+  const paginatedParents = filteredParents.slice(
+    startIndex,
+    startIndex + parentsPerPage
+  );
+
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-3xl font-bold text-gray-800">Parents</h2>
-          <button
+          {/* <button
             onClick={handleAddClick}
             className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
           >
             <span className="text-lg">+</span>
             Add Parent
-          </button>
+          </button> */}
         </div>
 
         {/* Search Bar */}
@@ -280,6 +326,17 @@ export default function ParentsTab({
                   <span className="text-xs text-gray-700">
                     {formatAddress(parent)}
                   </span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-xs text-gray-500">Child:</span>
+                  {parent.children.length > 0 ?
+                    parent.children.map(child => (
+                      <span key={child.id} className="text-xs text-gray-700">
+                        {[child.firstName, child.lastName].join(' ')}
+                      </span>)
+                    ) : (
+                      <span className="text-xs text-gray-700"> None </span>
+                    )}
                 </div>
               </div>
 
@@ -364,7 +421,7 @@ export default function ParentsTab({
           className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
           onClick={() => {
             setIsFormOpen(false);
-            setEditingParent(null);
+            setEditingParent(initalEditingParent);
           }}
         >
           <div
@@ -385,7 +442,7 @@ export default function ParentsTab({
               <button
                 onClick={() => {
                   setIsFormOpen(false);
-                  setEditingParent(null);
+                  setEditingParent(initalEditingParent);
                 }}
                 className="text-gray-400 hover:text-gray-600 text-2xl"
               >
@@ -404,7 +461,7 @@ export default function ParentsTab({
                     <input
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="First Name"
-                      value={newParent.firstName}
+                      value={editingParent.firstName}
                       onChange={(e) =>
                         updateParent({ firstName: e.target.value })
                       }
@@ -419,7 +476,7 @@ export default function ParentsTab({
                     <input
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="Last Name"
-                      value={newParent.lastName}
+                      value={editingParent.lastName}
                       onChange={(e) =>
                         updateParent({ lastName: e.target.value })
                       }
@@ -439,7 +496,7 @@ export default function ParentsTab({
                       type="email"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="Email"
-                      value={newParent.email}
+                      value={editingParent.email}
                       onChange={(e) => updateParent({ email: e.target.value })}
                       required
                     />
@@ -452,7 +509,7 @@ export default function ParentsTab({
                     <input
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
                       placeholder="Phone"
-                      value={newParent.phone}
+                      value={editingParent.phone}
                       onChange={(e) => handlePhoneChange(e)}
                       required
                     />
@@ -474,7 +531,7 @@ export default function ParentsTab({
                     </span>
                     <select
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      value={newParent.maritalStatus}
+                      value={editingParent.maritalStatus}
                       onChange={(e) =>
                         updateParent({ maritalStatus: e.target.value })
                       }
@@ -489,15 +546,15 @@ export default function ParentsTab({
                     </select>
                   </label>
 
-                  <label className="block">
+                  {/* <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">
                       Relationship to child*
                     </span>
                     <select
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      value={newParent.relationshipToChild}
+                      value={editingParent.childRelationships[0].relationship} // Come back later
                       onChange={(e) =>
-                        updateParent({ relationshipToChild: e.target.value })
+                        updateParent({ newChildRelationship: e.target.value })
                       }
                       required
                     >
@@ -506,7 +563,7 @@ export default function ParentsTab({
                       <option value="Father">Father</option>
                       <option value="Guardian">Guardian</option>
                     </select>
-                  </label>
+                  </label> */}
                 </div>
                 {/* Removing AssignClass Manually in input form   */}
               </div>
@@ -516,7 +573,7 @@ export default function ParentsTab({
                   type="button"
                   onClick={() => {
                     setIsFormOpen(false);
-                    setEditingParent(null);
+                    setEditingParent(initalEditingParent);
                   }}
                   className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
                 >
