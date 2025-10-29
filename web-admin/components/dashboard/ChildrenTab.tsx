@@ -14,6 +14,7 @@ import type { LocationLite } from "@/services/useLocationsAPI";
 import AutoCompleteAddress, { Address } from "../AutoCompleteAddress";
 import ParentForm from "./ParentForm";
 import { NewChildInput } from "../../types/forms";
+import { MdFiberNew } from 'react-icons/md';
 
 // For Stepper: Choosing linear bar
 //Steppers convey progress through numbered steps. It provides a wizard-like workflow.
@@ -25,7 +26,10 @@ import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import { NewParentInput } from "@/types/forms";
 import { returnChildWithParents } from "@/services/useChildrenAPI";
-import { Radio } from "@mui/material";
+import { loadManifestWithRetries } from "next/dist/server/load-components";
+import LinkParentByEmail from "./SearchParentModal.tsx";
+import { SearchParamsContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
+import SearchParentModal from "./SearchParentModal.tsx";
 
 type ParentLite = {
   id: string;
@@ -42,8 +46,8 @@ type Props = {
   newChild: NewChildInput;
   setNewChild: React.Dispatch<React.SetStateAction<NewChildInput>>;
   addChild: (
-    parent1: NewParentInput,
-    parent2: NewParentInput | null
+    parent1: NewParentInput, // Can be parent object or parent ID
+    parent2: NewParentInput | null, // Can be parent object, parent ID, or null
   ) => Promise<returnChildWithParents | null>;
   updateChild: (
     id: string,
@@ -158,7 +162,7 @@ function ChildCard({
   onOpenAssign,
   onUnassign,
   onUnlinkParent,
-  onOpenLinkByEmail,
+  // onOpenLinkByEmail,
 }: ChildCardProps) {
   const cls = classes.find((c) => c.id === child.classId);
   const cap = classCapacityBadge(cls);
@@ -188,11 +192,11 @@ function ChildCard({
           <span
             className={
               status === Types.EnrollmentStatus.Active
-                ? "text-green-600"
+                ? "text-green-600 font-bold"
                 : status === Types.EnrollmentStatus.Waitlist
                   ? "text-yellow-600"
-                  : status === Types.EnrollmentStatus.Withdraw
-                    ? "text-red-600"
+                  : status === Types.EnrollmentStatus.New
+                    ? "text-red-600 font-bold"
                     : "text-gray-600"
             }
           >
@@ -277,12 +281,12 @@ function ChildCard({
           Delete
         </button>
 
-        <button
+        {/* <button
           onClick={() => onOpenLinkByEmail(child.id)}
           className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
         >
           Link Parent
-        </button>
+        </button> */}
 
         {child.classId ? (
           <button
@@ -415,7 +419,7 @@ export default function ChildrenTab({
   onUnassign,
   onLinkParent,
   onUnlinkParent,
-  onLinkParentByEmail,
+  // onLinkParentByEmail,
 }: Props) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingChild, setEditingChild] = useState<Types.Child | null>(null);
@@ -423,6 +427,9 @@ export default function ChildrenTab({
   const [selectedClassId, setSelectedClassId] = useState("");
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const defaultLocationView: string = "all";
+  const [locationView, setLocationView] = useState<string>(defaultLocationView); // default is viewing all locations
+
 
   // =========================Progress bar
   const steps = [
@@ -440,7 +447,6 @@ export default function ChildrenTab({
     Types.EnrollmentStatus | "all"
   >("all");
   const [classFilter, setClassFilter] = useState<string>("all");
-
   const [page, setPage] = useState(1);
 
   const [assignChildId, setAssignChildId] = useState<string | null>(null);
@@ -484,11 +490,20 @@ export default function ChildrenTab({
   const [parent1, setParent1] = useState<NewParentInput>(initialParentValues);
   const [parent2, setParent2] = useState<NewParentInput | null>(initialParentValues); // Null when skip
 
+  // For editing click from the last step: Review and Summary
+  const [isClickEditFromSumarry, setIsClickEditFromSumarry] = useState<boolean>(false);
+
   // For editing Child button (could be editing child info, parent 1 info, editing/ delete parent 2 info): pARENT1 CAN JUST  editable, no delete
   const [showEditOption, setShowEditOption] = useState<boolean>(false); // To Toggle showing add option or edit option 
-  const [isEditingChildInfo, setIsEditingChildInfo] = useState<boolean>(false);
-  const [isEditingParent1Info, setIsEditingParen1Info] = useState<boolean>(false);
-  const [isEditingParent2Info, setIsEditingParen2Info] = useState<boolean>(false);
+  const [isEditingChildInfoMode, setIsEditingChildInfoMode] = useState<boolean>(false);
+  const [isEditingParent1InfoMode, setIsEditingParen1InfoMode] = useState<boolean>(false);
+  const [isEditingParent2InfoMode, setIsEditingParen2InfoMode] = useState<boolean>(false);
+
+  // For allow searching existing parent to link with a child
+  const [searchParent1Modal, setSearchParent1Modal] = useState(false);
+  const [searchParent2Modal, setSearchParent2Modal] = useState(false);
+  const [selectedParent1, setSelectedParent1] = useState<Types.Parent | null>(null);
+  const [selectedParent2, setSelectedParent2] = useState<Types.Parent | null>(null);
 
 
   // Restore ALL forms draft when form opens and not in editing mode
@@ -687,13 +702,35 @@ export default function ChildrenTab({
     if (!validateCurrentStep(activeStep)) return;
     let newSkipped = skipped;
     // If at Optional step
-    if (isStepSkipped(activeStep)) {
+    if (isStepSkipped(activeStep)) { // If 
       newSkipped = new Set(newSkipped.values());
       newSkipped.delete(activeStep);
     }
     setActiveStep((prev) => prev + 1);
     setSkipped(newSkipped);
 
+    // Handle case parent2 is null, or step 2 is skipped, I want to jump from step 1(parent1) to 3(sumary and review) in handleEdit click
+    if (showEditOption || isClickEditFromSumarry) { // Could be edit click from ChildCard or Edit click from the Review and Summary
+      if (!parent2) { // Parent2 null
+        (activeStep === 1) && setActiveStep(3); // Jump from step 1 to 3
+        // If no parent2, add step 2 to skipped
+        setSkipped(prev => {
+          const newSkipped = new Set(prev);
+          newSkipped.add(2);
+          return newSkipped;
+        });
+
+      }
+      else {
+        (activeStep === 1) && setActiveStep(2); // Else, reset to normal
+        // If parent2 exists, remove step 2 from skipped
+        setSkipped(prev => {
+          const newSkipped = new Set(prev);
+          newSkipped.delete(2);
+          return newSkipped;
+        });
+      }
+    }
   };
 
   // Handle click Back
@@ -723,21 +760,6 @@ export default function ChildrenTab({
   };
 
   // ========================== done progress bar
-
-  // Filter children based on search
-  const filteredChildren = children.filter((child) => {
-    const searchLower = searchTerm.toLowerCase();
-    const parentNames = parents
-      .filter((p) => p.id && child.parentId.includes(p.id))
-      .map((p) => `${p.firstName} ${p.lastName}`)
-      .join(" ");
-    return (
-      child.firstName.toLowerCase().includes(searchLower) ||
-      child.lastName.toLowerCase().includes(searchLower) ||
-      parentNames.toLowerCase().includes(searchLower) ||
-      child.enrollmentStatus.toLowerCase().includes(searchLower)
-    );
-  });
 
   const handleAddClick = useCallback(() => {
     setShowEditOption(false); // To not show EditOption, but Add option
@@ -818,9 +840,9 @@ export default function ChildrenTab({
       }
 
       // Set editing states: View Mode
-      setIsEditingChildInfo(false); // Start with view mode
-      setIsEditingParen1Info(false);
-      setIsEditingParen2Info(false);
+      setIsEditingChildInfoMode(false); // Start with view mode
+      setIsEditingParen1InfoMode(false);
+      setIsEditingParen2InfoMode(false);
 
       setIsFormOpen(true);
       setActiveStep(0); // Start at child info step
@@ -869,48 +891,21 @@ export default function ChildrenTab({
     const success = await deleteChild(child.id);
   }
 
-  async function linkParentByEmail(
-    childId: string,
-    email: string
-  ): Promise<boolean> {
-    if (onLinkParentByEmail)
-      return !!(await onLinkParentByEmail(childId, email));
-    const parent = parents.find(
-      (p) => (p.email ?? "").toLowerCase() === email.trim().toLowerCase()
-    );
-    if (!parent) {
-      alert("Parent not found by that email.");
-      return false;
-    }
-    return !!(await onLinkParent?.(childId, parent.id));
-  }
-
-  const filtered = useMemo(() => {
-    return children.filter((c) => {
-      const q = searchTerm.trim().toLowerCase();
-      const okSearch =
-        q.length === 0 ||
-        c.firstName.toLowerCase().includes(q) ||
-        c.lastName.toLowerCase().includes(q) ||
-        getLocationLabel(locations, c.locationId).toLowerCase().includes(q);
-      if (!okSearch) return false;
-
-      const effStatus =
-        c.enrollmentStatus ?? computeStatus(c.parentId, c.classId);
-      if (statusFilter !== "all" && effStatus !== statusFilter) return false;
-
-      if (classFilter !== "all") {
-        if (classFilter === "unassigned") return !c.classId;
-        return c.classId === classFilter;
-      }
-      return true;
-    });
-  }, [children, locations, searchTerm, statusFilter, classFilter]);
-
-  const perPage = 6;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const start = (page - 1) * perPage;
-  const pageItems = filtered.slice(start, start + perPage);
+  // async function linkParentByEmail(
+  //   childId: string,
+  //   email: string
+  // ): Promise<boolean> {
+  //   if (onLinkParentByEmail)
+  //     return !!(await onLinkParentByEmail(childId, email));
+  //   const parent = parents.find(
+  //     (p) => (p.email ?? "").toLowerCase() === email.trim().toLowerCase()
+  //   );
+  //   if (!parent) {
+  //     alert("Parent not found by that email.");
+  //     return false;
+  //   }
+  //   return !!(await onLinkParent?.(childId, parent.id));
+  // }
 
   // Update form and persist a draft (debounced)
   const updateParent1 = useCallback(
@@ -988,11 +983,14 @@ export default function ChildrenTab({
   // Identify parent 1 and parent 2 for each child
   const parentLookup = useMemo(
     () =>
+      // Function to return an object of that matchingparent
       parents.reduce((acc, parent) => {
         acc[parent.docId] = parent;
         return acc;
       }, {} as Record<string, Types.Parent>),
     [parents]
+
+
   ); // Only recalculate when parents change
 
   const childrenWithParents = useMemo(
@@ -1006,11 +1004,72 @@ export default function ChildrenTab({
     [children, parentLookup]
   );
 
+  // Filter logic: name, status, locations, class. SHOULD search also parent. And location should on the top!!!!!!!!!!!!!!!!!!
+  ////.filter(Boolean), // Will Remove undefined values, only true value
+  const filtered = useMemo(() => {
+    return childrenWithParents.filter((c) => {
+      const q = searchTerm.trim().toLowerCase();
+      const parent1 = c.parent1And2[0];
+      const parent2 = c.parent1And2[1];
+
+      const okSearch =
+        q.length === 0 ||
+        c.firstName.toLowerCase().includes(q) ||
+        c.lastName.toLowerCase().includes(q) ||
+        parent1.firstName.toLowerCase().includes(q) ||
+        parent1.lastName.toLowerCase().includes(q) ||
+        (parent2 && parent2.firstName.toLowerCase().includes(q)) ||
+        (parent2 && parent2.lastName.toLowerCase().includes(q));
+
+      if (!okSearch) return false;
+
+      const effStatus =
+        c.enrollmentStatus ?? computeStatus(c.parentId, c.classId);
+      if (statusFilter !== "all" && effStatus !== statusFilter) return false;
+
+      if (classFilter !== "all") {
+        if (classFilter === "unassigned") return !c.classId;
+        return c.classId === classFilter;
+      }
+
+      if (locationView !== defaultLocationView) return (c.locationId === locationView);
+      return true;
+    });
+  }, [childrenWithParents, locations, searchTerm, statusFilter, classFilter, locationView, defaultLocationView]);
+
+  // Pagination logic
+  const perPage = 6;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const start = (page - 1) * perPage;
+  const pageItems = filtered.slice(start, start + perPage);
+
+
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-3xl font-bold text-gray-800">Children</h2>
+          <div className="flex gap-4">
+            <h2 className="text-3xl font-bold text-gray-800">Children</h2>
+            {/* Location scope */}
+            <select
+              className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              value={locationView}
+              onChange={(e) => setLocationView(e.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Select a view location
+              </option>
+              {(locations ?? []).map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+              {/* Default all locations: all ids */}
+              <option value={defaultLocationView}>All locations</option>
+            </select>
+          </div>
           <button
             onClick={handleAddClick}
             className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
@@ -1030,7 +1089,7 @@ export default function ChildrenTab({
             <div className="flex-1 relative">
               <input
                 type="text"
-                placeholder="Search by name or location..."
+                placeholder="Search by child name, parent name..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -1093,7 +1152,7 @@ export default function ChildrenTab({
 
         {pageItems.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-            {childrenWithParents.map((child) => (
+            {filtered.map((child) => (
               <ChildCard
                 key={child.id}
                 child={child}
@@ -1243,8 +1302,8 @@ export default function ChildrenTab({
                       {showEditOption && (<label className="flex items-center gap-2">
                         <input
                           type="checkbox"
-                          checked={isEditingChildInfo}
-                          onChange={(e) => setIsEditingChildInfo(e.target.checked)}
+                          checked={isEditingChildInfoMode}
+                          onChange={(e) => setIsEditingChildInfoMode(e.target.checked)}
                         />
                         Edit Child Information
                       </label>
@@ -1264,7 +1323,7 @@ export default function ChildrenTab({
                             updateDraft({ firstName: e.target.value })
                           }
                           required
-                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                          readOnly={showEditOption && !isEditingChildInfoMode} // View only, only allow edit if check on editing Child
                         />
                       </label>
                       <label className="block">
@@ -1278,7 +1337,7 @@ export default function ChildrenTab({
                             updateDraft({ lastName: e.target.value })
                           }
                           required
-                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child and doesn't toggle the Editing option to edit
+                          readOnly={showEditOption && !isEditingChildInfoMode} // View only, only allow edit if check on editing Child and doesn't toggle the Editing option to edit
 
                         />
                       </label>
@@ -1297,7 +1356,7 @@ export default function ChildrenTab({
                               onChange={(e) =>
                                 updateDraft({ gender: e.target.value })
                               }
-                              disabled={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                              disabled={showEditOption && !isEditingChildInfoMode} // View only, only allow edit if check on editing Child
                             />
                             Boy
                           </label>
@@ -1311,7 +1370,7 @@ export default function ChildrenTab({
                               onChange={(e) =>
                                 updateDraft({ gender: e.target.value })
                               }
-                              disabled={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                              disabled={showEditOption && !isEditingChildInfoMode} // View only, only allow edit if check on editing Child
                             />
                             Girl
                           </label>
@@ -1330,7 +1389,7 @@ export default function ChildrenTab({
                             updateDraft({ birthDate: e.target.value })
                           }
                           required
-                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                          readOnly={showEditOption && !isEditingChildInfoMode} // View only, only allow edit if check on editing Child
                         />
                       </label>
                       <label className="block">
@@ -1344,7 +1403,7 @@ export default function ChildrenTab({
                             updateDraft({ locationId: e.target.value })
                           }
                           required
-                          disabled={((locations ?? []).length <= 1) || (showEditOption && !isEditingChildInfo)}
+                          disabled={((locations ?? []).length <= 1) || (showEditOption && !isEditingChildInfoMode)}
                         >
                           {(locations ?? []).length > 1 && (
                             <option value="" disabled>
@@ -1375,7 +1434,7 @@ export default function ChildrenTab({
                             })
                           }
                           required
-                          disabled={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                          disabled={showEditOption && !isEditingChildInfoMode} // View only, only allow edit if check on editing Child
                         >
                           <option value={Types.EnrollmentStatus.New}>
                             New
@@ -1402,7 +1461,7 @@ export default function ChildrenTab({
                             updateDraft({ notes: e.target.value })
                           }
                           placeholder="Allergies / Special needs / Subsidy status / Remarks"
-                          readOnly={showEditOption && !isEditingChildInfo} // View only, only allow edit if check on editing Child
+                          readOnly={showEditOption && !isEditingChildInfoMode} // View only, only allow edit if check on editing Child
                         />
                       </label>
                     </div>
@@ -1422,8 +1481,8 @@ export default function ChildrenTab({
                         <label className="flex items-center gap-2">
                           <input
                             type="checkbox"
-                            checked={activeStep === 1 ? isEditingParent1Info : isEditingParent2Info}
-                            onChange={(e) => activeStep === 1 ? setIsEditingParen1Info(e.target.checked) : setIsEditingParen2Info(e.target.checked)}
+                            checked={activeStep === 1 ? isEditingParent1InfoMode : isEditingParent2InfoMode}
+                            onChange={(e) => activeStep === 1 ? setIsEditingParen1InfoMode(e.target.checked) : setIsEditingParen2InfoMode(e.target.checked)}
                           />
                           {activeStep === 1 ? "Edit Parent1 Information" : "Edit Parent2 Information"}
                         </label>
@@ -1448,7 +1507,15 @@ export default function ChildrenTab({
                               name={activeStep === 1 ? "addOrSearchParent1" : "addOrSearchParent2"}
                               value={activeStep === 1 ? "searchParent1" : "searchParent2"}
                               checked={activeStep === 1 ? addOrSearchParent1 === "searchParent1" : addOrSearchParent2 === "searchParent2"}
-                              onChange={(e) => { activeStep === 1 ? setAddOrSearchParent1(e.target.value as "searchParent1") : setAddOrSearchParent2(e.target.value as "searchParent2") }}
+                              onChange={(e) => {
+                                if (activeStep === 1) {
+                                  setAddOrSearchParent1(e.target.value as "searchParent1"); // search mode
+                                  setSearchParent1Modal(true);    // open search form
+                                } else {
+                                  setAddOrSearchParent2(e.target.value as "searchParent2");
+                                  setSearchParent2Modal(true);
+                                }
+                              }}
                             />
                             Search existing parents
                           </label>
@@ -1464,18 +1531,20 @@ export default function ChildrenTab({
                         updateParent={updateParent1}
                         phoneError={phoneError}
                         setPhoneError={setPhoneError}
-                        disabled={showEditOption && !isEditingParent1Info} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
+                        disabled={showEditOption && !isEditingParent1InfoMode} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
                       />
                     )}
                     {(activeStep === 2 && addOrSearchParent2 === "addParent2") && (
-                      (parent2) && (
+                      (parent2) ? (
                         <ParentForm
                           parent={parent2}
                           updateParent={updateParent2}
                           phoneError={phoneError}
                           setPhoneError={setPhoneError}
-                          disabled={showEditOption && !isEditingParent2Info} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
+                          disabled={showEditOption && !isEditingParent2InfoMode} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
                         />
+                      ) : (
+                        <div>No parent 2 infomation. Click Skip to View and can add after Summary</div>
                       )
                     )}
 
@@ -1498,7 +1567,7 @@ export default function ChildrenTab({
                           👶 Child Information
                         </h3>
                         <button
-                          onClick={() => setActiveStep(0)} // Back to Child form
+                          onClick={() => { setActiveStep(0); setIsClickEditFromSumarry(true); }} // Back to Child form and Aware that want to review from Summary
                           className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
                         >
                           Edit
@@ -1545,7 +1614,7 @@ export default function ChildrenTab({
                           👩 Parent 1 Information
                         </h3>
                         <button
-                          onClick={() => setActiveStep(1)} // Back to modifying parent1
+                          onClick={() => { setActiveStep(1); setIsClickEditFromSumarry(true); }} // Back to modifying parent1
                           className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
                         >
                           Edit
@@ -1860,81 +1929,32 @@ export default function ChildrenTab({
             </div>
           </div>
         )}
+        {/* Form for searching and load parent */}
+        <SearchParentModal
+          isOpen={searchParent1Modal}
+          onClose={() => setSearchParent1Modal(false)}
+          onSelectParent={(parent) => {
+            setSelectedParent1(parent);
+            setSearchParent1Modal(false);
+          }}
+          parents={parents}
+          title="Select Parent 1"
+          description="Choose an existing parent to link as Parent 1."
+        />
 
-        {linkChildId && (
-          <div
-            className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
-            onClick={() => {
-              setLinkChildId(null);
-              setParentEmail("");
-            }}
-          >
-            <div
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-800">
-                  Link Parent by Email
-                </h3>
-                <button
-                  onClick={() => {
-                    setLinkChildId(null);
-                    setParentEmail("");
-                  }}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                >
-                  ✕
-                </button>
-              </div>
+        <SearchParentModal
+          isOpen={searchParent2Modal}
+          onClose={() => setSearchParent2Modal(false)}
+          onSelectParent={(parent) => {
+            setSelectedParent2(parent); // set the parent2
+            setSearchParent2Modal(false); // close the form
+          }}
+          parents={parents}
+          title="Select Parent 2"
+          description="Choose an existing parent to link as Parent 2."
+        />
 
-              <div className="p-6">
-                <input
-                  type="email"
-                  placeholder="parent@example.com"
-                  value={parentEmail}
-                  onChange={(e) => setParentEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-                <div className="text-xs text-gray-500 mt-2">
-                  Enter the parent&apos;s email to link their account.
-                </div>
-              </div>
 
-              <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
-                <button
-                  onClick={() => {
-                    setLinkChildId(null);
-                    setParentEmail("");
-                  }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!linkChildId || !parentEmail.trim()) return;
-                    const ok = await linkParentByEmail(
-                      linkChildId,
-                      parentEmail.trim()
-                    );
-                    if (ok) {
-                      setLinkChildId(null);
-                      setParentEmail("");
-                    }
-                  }}
-                  disabled={!parentEmail.trim()}
-                  className={`flex-1 ${parentEmail.trim()
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-blue-400 cursor-not-allowed"
-                    } text-white font-medium px-4 py-2 rounded-lg`}
-                >
-                  Link
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

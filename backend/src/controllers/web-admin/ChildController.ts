@@ -109,7 +109,7 @@ export async function addChild(req: AuthRequest, res: Response) {
   
     // Else, create the teacher
     try {
-      const created = await Svc.addChildWithParents(locationId, childData, parent1Data, parent2Data );
+      const created = await Svc.addChildWithParents(childData, parent1Data, parent2Data );
 
       return res.status(201).json(created);
     } catch (e: any) {
@@ -120,6 +120,18 @@ export async function addChild(req: AuthRequest, res: Response) {
 
 // PUT /admin/children/:id
 export async function updateChild(req: AuthRequest, res: Response) {
+  // Extract locationId from req.user (set by authMiddleware)
+  const locationId = req.user?.locationId;
+  if (!locationId) {
+    return res.status(400).json({message: "Location missing from current Admin profile"});
+  }
+  
+  const daycareId = req.user?.daycareId;
+
+  if (!daycareId) {
+    return res.status(400).json({message: "Daycare missing from current Admin  profile"});
+  }
+
   try {
     const id = s((req.params as { id?: string }).id);
     if (!id) return res.status(400).json({ message: "Missing child id" });
@@ -127,6 +139,9 @@ export async function updateChild(req: AuthRequest, res: Response) {
     const enrollmentStatus = parseStatus((req.body ?? {}).enrollmentStatus);
     const patch = { ...(req.body ?? {}), enrollmentStatus };
 
+    // Need check Admin permission before proceeding
+
+    
     const updated = await Svc.updateChildById(id, patch, req.user?.uid);
     return ok(res, updated);
   } catch (e) {
@@ -137,6 +152,19 @@ export async function updateChild(req: AuthRequest, res: Response) {
 
 // DELETE /admin/children/:id
 export async function deleteChild(req: AuthRequest, res: Response) {
+  // Extract locationId from req.user (set by authMiddleware)
+  const locationId = req.user?.locationId;
+  if (!locationId) {
+    return res.status(400).json({message: "Location missing from current Admin profile"});
+  }
+  
+  const daycareId = req.user?.daycareId;
+
+  if (!daycareId) {
+    return res.status(400).json({message: "Daycare missing from current Admin  profile"});
+  }
+
+  // Checking permission before proceeding 
   try {
     const id = s((req.params as { id?: string }).id);
     if (!id) return res.status(400).json({ message: "Missing child id" });

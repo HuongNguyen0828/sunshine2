@@ -216,3 +216,30 @@ export async function daycareLocationIds(daycareId: string): Promise<string[]> {
   const snap = await db.collection(`daycareProvider/${daycareId}/locations`).get();
   return snap.docs.map((d) => d.id);
 }
+
+/**
+ * To check if admin have right access to their properties: applied in acessing Object of locations, classes, teachers, children, parents, schedules.
+ * @param adminLocationId: admin daycareId from midleware
+ * @param adminDaycareId: admin locationId from midleware
+ * @param passingLocationId: locationId passing from requesting acessing Object
+ * @returns 
+ */
+export const canAdminnAccess = async (
+  adminLocationId: string, 
+  adminDaycareId: string, 
+  passingLocationId: string
+): Promise<boolean> => {
+  if (adminLocationId === '*') {
+    const locations = await daycareLocationIds(adminDaycareId);
+    return locations.includes(passingLocationId);
+  }
+  return adminLocationId === passingLocationId;
+};
+
+/** Usage in controller inside web-admin
+ */
+
+// const hasAccess = await canAdminnAccess(locationId, daycareId, passingLocationId);
+// if (!hasAccess) {
+//   return res.status(403).json({ message: "Forbidden: cannot access teacher from another location" });
+// }
