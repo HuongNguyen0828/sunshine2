@@ -501,6 +501,9 @@ export default function ChildrenTab({
   const [searchParent2Modal, setSearchParent2Modal] = useState(false);
   const [selectedParent1, setSelectedParent1] = useState<Types.Parent | null>(null);
   const [selectedParent2, setSelectedParent2] = useState<Types.Parent | null>(null);
+  const [newChildRelationshipParent1, setNewChildRelationshipParent1] = useState<string>("");
+  const [newChildRelationshipParent2, setNewChildRelationshipParent2] = useState<string>("");
+
 
 
   // Restore ALL forms draft when form opens and not in editing mode
@@ -574,6 +577,13 @@ export default function ChildrenTab({
     // Reset Parent
     setParent1(initialParentValues);
     setParent2(initialParentValues);
+    // To let default view is Adding
+    setAddOrSearchParent1("addParent1");
+    setAddOrSearchParent2("addParent2");
+    setSelectedParent1(null);
+    setSelectedParent2(null);
+    setNewChildRelationshipParent1(""); // Reset newChildRelationship
+    setNewChildRelationshipParent2("");
     setActiveStep(0);
   };
 
@@ -592,7 +602,7 @@ export default function ChildrenTab({
   // Add this validation function near your other helpers
   const validateCurrentStep = (step: number): boolean => {
     switch (step) {
-      case 0: // Child Information
+      case 0: // Child Information: MUST
         if (!newChild.firstName.trim()) {
           alert("First name is required");
           setColorChangeError(newChild.firstName);
@@ -617,7 +627,15 @@ export default function ChildrenTab({
         }
         return true;
 
-      case 1: // Parent 1 Information
+      case 1: // Parent 1 Information: only in AddOrSearchParent 1 = "addParent", buy pass when search
+        if (selectedParent1) {
+          if (!newChildRelationshipParent1) {
+            alert("Relationship to Child is required");
+            return false;
+          }
+          return true;
+        }
+        // I want either add or add: meaning if add, selectedParent = null, if search, parent1 = null. 
         if (!parent1.firstName.trim()) {
           alert("Parent first name is required");
           return false;
@@ -649,8 +667,15 @@ export default function ChildrenTab({
         }
         return true;
 
-      case 2: // Parent 2 Information (optional, but if filled, validate)
+      case 2: // Parent 2 Information (optional, but if filled, validate): Only on "addParent", on searchParent, check realtionship
         // Force to validate, otherwise click Skip
+        if (selectedParent2) {
+          if (!newChildRelationshipParent2) {
+            alert("Relationship to Child is required");
+            return false;
+          }
+          return true; // Skip if search
+        }
         if (!parent2?.firstName.trim()) {
           alert("Parent 2 first name is required. Otherwise click Skip");
           return false;
@@ -1541,8 +1566,35 @@ export default function ChildrenTab({
                         disabled={showEditOption && !isEditingParent1InfoMode} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
                       />
                     )}
+                    {(activeStep === 1 && addOrSearchParent1 === "searchParent1") && (
+                      // Case searching, show selected parent
+                      <div className="grid lg:grid-cols-3 md:grid-cols-1 mx-auto">
+                        <div> <span className="font-semibold">Parent 1: </span> {selectedParent1?.email} </div>
+                        <div>
+                          <label className="block">
+                            <span className="text-gray-700 font-medium mb-1">Relationship to child*</span>
+                            <select
+                              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                              value={newChildRelationshipParent1}
+                              onChange={(e) => setNewChildRelationshipParent1(e.target.value)}
+                              required
+                            // disabled={disabled}
+                            >
+                              <option value="" disabled>Select relationship</option>
+                              <option value="Mother">Mother</option>
+                              <option value="Father">Father</option>
+                              <option value="Guardian">Guardian</option>
+                            </select>
+                          </label>
+                        </div>
+                        <button type="button" className="hover:text-xl" onClick={() => { setSelectedParent1(null); setSearchParent1Modal(true); }}
+                        >❌</button>
+                      </div>
+                    )}
+
                     {(activeStep === 2 && addOrSearchParent2 === "addParent2") && (
-                      (parent2) ? (
+                      // If parent2, show the form
+                      (parent2) && (
                         <ParentForm
                           parent={parent2}
                           updateParent={updateParent2}
@@ -1550,9 +1602,33 @@ export default function ChildrenTab({
                           setPhoneError={setPhoneError}
                           disabled={showEditOption && !isEditingParent2InfoMode} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
                         />
-                      ) : (
-                        <div>No parent 2 infomation. Click Skip to View and can add after Summary</div>
-                      )
+                      ))}
+
+                    {(activeStep === 2 && addOrSearchParent2 === "searchParent2") && (
+                      // Case searching, show selected parent
+                      // Case searching, show selected parent
+                      <div className="grid lg:grid-cols-3 md:grid-cols-1 mx-auto">
+                        <div> <span className="font-semibold">Parent 2: </span> {selectedParent2?.email} </div>
+                        <div>
+                          <label className="block">
+                            <span className="text-gray-700 font-medium mb-1">Relationship to child*</span>
+                            <select
+                              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                              value={newChildRelationshipParent2}
+                              onChange={(e) => setNewChildRelationshipParent2(e.target.value)}
+                              required
+                            // disabled={disabled}
+                            >
+                              <option value="" disabled>Select relationship</option>
+                              <option value="Mother">Mother</option>
+                              <option value="Father">Father</option>
+                              <option value="Guardian">Guardian</option>
+                            </select>
+                          </label>
+                        </div>
+                        <button type="button" className="hover:text-xl" onClick={() => { setSelectedParent2(null); setSearchParent2Modal(true); }}
+                        >❌</button>
+                      </div>
                     )}
 
                     {/* Removing AssignClass Manually in input form   */}
@@ -1631,35 +1707,37 @@ export default function ChildrenTab({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
                         <p>
                           <span className="font-semibold">First Name:</span>{" "}
-                          {parent1.firstName || "-"}
+                          {parent1.firstName || selectedParent1?.firstName}
                         </p>
                         <p>
                           <span className="font-semibold">Last Name:</span>{" "}
-                          {parent1.lastName || "-"}
+                          {parent1.lastName || selectedParent1?.lastName}
                         </p>
                         <p>
                           <span className="font-semibold">Email:</span>{" "}
-                          {parent1.email || "-"}
+                          {parent1.email || selectedParent1?.email}
                         </p>
                         <p>
                           <span className="font-semibold">Phone:</span>{" "}
-                          {parent1.phone || "-"}
+                          {parent1.phone || selectedParent1?.phone}
                         </p>
                         <p>
                           <span className="font-semibold">Address:</span>{" "}
                           {[parent1.address1, parent1.city, parent1.postalcode]
                             .filter(Boolean)
-                            .join(", ") || "-"}
-                        </p>{" "}
+                            .join(", ") || [selectedParent1?.address1, selectedParent1?.city, selectedParent1?.postalcode]
+                              .filter(Boolean)
+                              .join(", ")}
+                        </p> {" "}
                         <p>
                           <span className="font-semibold">Marital Status:</span>{" "}
-                          {parent1.maritalStatus || "-"}
+                          {parent1.maritalStatus || selectedParent1?.maritalStatus}
                         </p>
                         <p>
                           <span className="font-semibold">
                             Relationship to Child:
                           </span>{" "}
-                          {parent1.newChildRelationship || "-"}
+                          {parent1.newChildRelationship || newChildRelationshipParent1}
                         </p>
                       </div>
                     </div>
@@ -1703,41 +1781,38 @@ export default function ChildrenTab({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
                           <p>
                             <span className="font-semibold">First Name:</span>{" "}
-                            {parent2.firstName || "-"}
+                            {parent2.firstName || selectedParent2?.firstName}
                           </p>
                           <p>
                             <span className="font-semibold">Last Name:</span>{" "}
-                            {parent2.lastName || "-"}
+                            {parent2.lastName || selectedParent2?.lastName}
                           </p>
                           <p>
                             <span className="font-semibold">Email:</span>{" "}
-                            {parent2.email || "-"}
+                            {parent2.email || selectedParent2?.email || "-"}
                           </p>
                           <p>
                             <span className="font-semibold">Phone:</span>{" "}
-                            {parent2.phone || "-"}
+                            {parent2.phone || selectedParent2?.phone || "-"}
                           </p>
                           <p>
                             <span className="font-semibold">Address:</span>{" "}
-                            {[
-                              parent2.address1,
-                              parent2.city,
-                              parent2.postalcode,
-                            ]
+                            {[parent2.address1, parent2.city, parent2.postalcode]
                               .filter(Boolean)
-                              .join(", ") || "-"}
+                              .join(", ") || [selectedParent2?.address1, selectedParent2?.city, selectedParent2?.postalcode].filter(Boolean)
+                                .join(", ") || "-"}
                           </p>{" "}
                           <p>
                             <span className="font-semibold">
                               Marital Status:
                             </span>{" "}
-                            {parent2.maritalStatus || "-"}
+                            {parent2.maritalStatus || selectedParent2?.maritalStatus || "-"}
                           </p>
                           <p>
                             <span className="font-semibold">
                               Relationship to Child:
                             </span>{" "}
-                            {parent2.newChildRelationship || "-"}
+                            {parent2.newChildRelationship || newChildRelationshipParent2 || "-"}
                           </p>
                         </div>
                       </div>
