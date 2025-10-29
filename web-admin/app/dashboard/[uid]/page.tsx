@@ -128,7 +128,7 @@ export default function AdminDashboard() {
   const [createdChildId, setcreatedChildId] = useState<string | null>(null); /// Initally, chidId is null, To later link with parent
 
   /* forms */
-  const [newTeacher, setNewTeacher] = useState<NewTeacherInput>({
+  const initialTeacherValue = {
     firstName: "",
     lastName: "",
     email: "",
@@ -143,7 +143,8 @@ export default function AdminDashboard() {
     locationId: "",
     startDate: "",
     endDate: undefined,
-  });
+  };
+  const [newTeacher, setNewTeacher] = useState<NewTeacherInput>(initialTeacherValue);
 
   const [newChild, setNewChild] = useState<NewChildInput>({
     firstName: "",
@@ -272,30 +273,23 @@ export default function AdminDashboard() {
   /* ---------- teachers ---------- */
 
   const handleAddTeacher = async () => {
-
+    setUpdateLoading(true);
     await addTeacher(newTeacher);
-    startTransition(async () => {
-      setUpdateLoading(true);
+    try {
       const tcs: Types.Teacher[] = await fetchTeachers();
       setTeachers(tcs);
+      setNewTeacher(initialTeacherValue);
+    } catch (error: any) {
+      // Error alert - loading still shows
+      await swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.message || "Failed to add teacher"
+      });
+    } finally {
       setUpdateLoading(false);
-    });
-    setNewTeacher({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      address1: "",
-      address2: "",
-      city: "",
-      province: "",
-      country: "",
-      postalcode: "",
-      classIds: [],
-      locationId: "",
-      startDate: "",
-      endDate: undefined,
-    });
+
+    }
 
   };
 
@@ -588,8 +582,17 @@ export default function AdminDashboard() {
         </header>
 
         {/*  Loading/ Updating status */}
-        {initialLoading && <div className="text-center"> Loading data ....</div>}
-        {updateLoading && <div className="text-center"> Updating data ....</div>}
+        {initialLoading && (
+          <div className="text-center p-4 bg-blue-100 text-blue-800 font-semibold rounded-lg mb-4">
+            Loading data ....
+          </div>
+        )}
+
+        {updateLoading && (
+          <div className="text-center p-4 bg-blue-100 text-blue-800 font-semibold rounded-lg mb-4">
+            ⏳ Updating data...
+          </div>
+        )}
 
         <div style={dash.content}>
           <SidebarNav active={activeTab} onChange={setActiveTab} />

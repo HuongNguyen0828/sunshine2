@@ -59,6 +59,11 @@ export default function TeachersTab({
     return found?.name || locId;
   };
 
+  // Sync rows with teachers prop
+  useEffect(() => {
+    setRows(teachers);
+  }, [teachers]); // This will update rows whenever teachers prop changes
+
   // Restore draft when form opens
   useEffect(() => {
     if (isFormOpen && !editingTeacher) {
