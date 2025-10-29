@@ -31,12 +31,10 @@ import LinkParentByEmail from "./SearchParentModal.tsx";
 import { SearchParamsContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import SearchParentModal from "./SearchParentModal.tsx";
 
-type ParentLite = {
-  id: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-};
+type CustomParentInput = {
+  parentId: string,
+  newChildRelationship: string;
+} | NewParentInput;
 
 type Props = {
   children: Types.Child[];
@@ -46,8 +44,8 @@ type Props = {
   newChild: NewChildInput;
   setNewChild: React.Dispatch<React.SetStateAction<NewChildInput>>;
   addChild: (
-    parent1: NewParentInput, // Can be parent object or parent ID
-    parent2: NewParentInput | null, // Can be parent object, parent ID, or null
+    parent1: CustomParentInput, // Can be parent object or {parent ID with relationship}
+    parent2: CustomParentInput | null, // Can be parent object, or {parent ID with relationship}, or null
   ) => Promise<returnChildWithParents | null>;
   updateChild: (
     id: string,
@@ -901,8 +899,19 @@ export default function ChildrenTab({
 
       // Adding new Child W/ Parent
     } else {
-      // 1. Child
-      const created = await addChild(parent1, parent2);
+      // Clean up parent1 and 2 before passing 
+      const customParent1: CustomParentInput = (selectedParent1) ? {
+        parentId: selectedParent1.id, // assuming you have this state
+        newChildRelationship: newChildRelationshipParent1
+      } : parent1;
+
+      const customParen2: CustomParentInput | null = selectedParent2 ? {
+        parentId: selectedParent2.id,
+        newChildRelationship: newChildRelationshipParent2
+      } : parent2 ? parent2 : null;
+
+      // 1. if 
+      const created = await addChild(customParent1, customParen2);
     }
     resetForm();
     clearDraft();

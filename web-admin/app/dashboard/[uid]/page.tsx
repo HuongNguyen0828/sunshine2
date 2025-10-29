@@ -34,7 +34,7 @@ import {
 } from "@/services/useChildrenAPI";
 import TeachersTab from "@/components/dashboard/TeachersTab";
 import { fetchParents } from "@/services/useParentsAPI";
-import { type NewParentInputWithChildId } from "@/services/useParentsAPI";
+import { type CustomParentInput } from "@/components/dashboard/ChildrenTab"
 import { a } from "framer-motion/client";
 
 /* ---------------- utils ---------------- */
@@ -288,17 +288,13 @@ export default function AdminDashboard() {
       });
     } finally {
       setUpdateLoading(false);
-
     }
-
   };
 
   /* ---------- children (optimistic) ---------- */
 
-  const handleAddChild = async (parent1: NewParentInput, parent2: NewParentInput | null): Promise<returnChildWithParents | null> => {
-
+  const handleAddChild = async (parent1: CustomParentInput, parent2: CustomParentInput | null): Promise<returnChildWithParents | null> => {
     setUpdateLoading(true);
-
     const child: NewChildInput = {
       firstName: newChild.firstName.trim(),
       lastName: newChild.lastName.trim(),
@@ -316,8 +312,10 @@ export default function AdminDashboard() {
       const created = await addChildWithParents({ child, parent1, parent2 });
 
       // Refresh data: child and parents involved;
-      await fetchChildren();
-      await fetchParents();
+      const children = await fetchChildren();
+      const parents = await fetchParents();
+      setChildren(children);
+      setParents(parents);
 
       return created;
     } catch (error: any) {
