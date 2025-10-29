@@ -335,7 +335,6 @@ export const getAllChildren = async (
       return [];
     }
 
-    // Else,
     // Firestore 'in' operator can only take up to 30 values
     const chunks = [];
     while (locationIds.length) {
@@ -358,7 +357,7 @@ export const getAllChildren = async (
     return children;
   }
 
-  // else, case when locationId is exactly match
+  // Else, case when locationId is exactly match
   const snap = await db.collection("children")
     .where("locationId", "==", locationId)
     .get();
@@ -374,7 +373,7 @@ export const getAllChildren = async (
  * @returns 
  */
 export async function addChildWithParents(
-  locationId: string,
+  // locationId: string, location is passing in child Object
   child: AddChildPayload,
   parent1: AddParentPayload, 
   parent2?: AddParentPayload

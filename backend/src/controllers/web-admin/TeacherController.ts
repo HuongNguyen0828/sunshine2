@@ -3,7 +3,7 @@
 
 import { Request, Response } from "express";
 import * as TeacherService from "../../services/web-admin/teacherService";
-import { daycareLocationIds } from "../../services/authService";
+import { canAdminnAccess, daycareLocationIds } from "../../services/authService";
 
 
 // POST /api/teachers
@@ -94,9 +94,6 @@ export const updateTeacher = async (req: Request, res: Response) => {
   if (!daycareId) {
     return res.status(400).json({message: "Daycare missing from current Admin  profile"});
   }
-  // Get the list of location Id: 
-  const locationIds = await daycareLocationIds(daycareId);
-
 
   try {
     const updatedTeacher = await TeacherService.updateTeacher(id, body);
@@ -108,29 +105,34 @@ export const updateTeacher = async (req: Request, res: Response) => {
     if (!teacher.locationId) {
       return res.status(403).json({ message: "Teacher data is missing location" });
     }
-    
-    // Checking admin permission 
     const teacherLocation = teacher.locationId;
     if (!teacherLocation) {
       return res.status(403).json({ message: "Missing LocationId from teacher" });
     }
+    // These are Factored out helper function inside of AuthService: 
     // Case admin owner
-    if (locationId === '*') {
-      if ( req.user) {
-        const daycaredId = req.user.daycareId;
-        const locations = await daycareLocationIds(daycaredId);
-        if (!locations.includes(teacherLocation)) {
-          return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
-        }
-      }
-    } else {
-        // Check if teacher belongs to admin's location
-      if (teacherLocation !== locationId) {
-        return res.status(403).json({ message: "Forbidden: cannot update teacher from another location" });
-      }
-    }
-    // Proceed to update
+    // if (locationId === '*') {
+    //   if ( req.user) {
+    //     const daycaredId = req.user.daycareId;
+    //     const locations = await daycareLocationIds(daycaredId);
+    //     if (!locations.includes(teacherLocation)) {
+    //       return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
+    //     }
+    //   }
+    // } else {
+    //     // Check if teacher belongs to admin's location
+    //   if (teacherLocation !== locationId) {
+    //     return res.status(403).json({ message: "Forbidden: cannot update teacher from another location" });
+    //   }
+    // }
 
+    // Checking admin permission 
+    const hasAccess = await canAdminnAccess(locationId, daycareId, teacherLocation);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Forbidden: cannot access teacher from another location" });
+    }
+
+    // Proceed to update
     const updated = await TeacherService.updateTeacher(id, req.body);
     if (!updated) return res.status(404).json({ message: "Failed to update teacher" });
 
@@ -143,9 +145,18 @@ export const updateTeacher = async (req: Request, res: Response) => {
 // DELETE /api/teachers/:id
 // Delete a teacher by ID
 export const deleteTeacher = async (req: Request, res: Response) => {
-  // DELETE passing Resources Id in the URL
-  const id = req.params.id;
-  if (!id) return res.status(403).json({message: "Missing teacher id"})
+  // Extract locationId from req.user (set by authMiddleware)
+  const locationId = req.user?.locationId;
+  if (!locationId) {
+    return res.status(400).json({message: "Location missing from current Admin profile"});
+  }
+  
+  const daycareId = req.user?.daycareId;
+
+  if (!daycareId) {
+    return res.status(400).json({message: "Daycare missing from current Admin  profile"});
+  }
+
   try {
     // Extract id from URL params
     const id = req.params.id;
@@ -160,25 +171,15 @@ export const deleteTeacher = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Teacher not found" });
     }
 
-    // Checking admin permission 
     const teacherLocation = teacher.locationId;
     if (!teacherLocation) {
       return res.status(403).json({ message: "Missing LocationId from teacher" });
     }
-    // Case admin owner
-    if (locationId === '*') {
-      if ( req.user) {
-        const daycaredId = req.user.daycareId;
-        const locations = await daycareLocationIds(daycaredId);
-        if (!locations.includes(teacherLocation)) {
-          return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
-        }
-      }
-    } else {
-        // Check if teacher belongs to admin's location
-      if (teacherLocation !== locationId) {
-        return res.status(403).json({ message: "Forbidden: cannot delete teacher from another location" });
-      }
+
+    // Checking admin permission 
+    const hasAccess = await canAdminnAccess(locationId, daycareId, teacherLocation);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Forbidden: cannot access teacher from another location" });
     }
     // Proceed to delete
     const ok = await TeacherService.deleteTeacher(id);
