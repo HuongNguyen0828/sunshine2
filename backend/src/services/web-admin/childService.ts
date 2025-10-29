@@ -8,6 +8,11 @@ import {
   deleteUserFirebaseAuth,
 } from "../authService";
 
+type CustomParentInput = {
+  parentId: string,
+  newChildRelationship: string;
+} | AddParentPayload;
+
 
 type ChildDocDB = {
   firstName: string;
@@ -364,6 +369,8 @@ export const getAllChildren = async (
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as Types.Child));
 }
 
+
+
 /**
  * 
  * @param child Create child, then parent 1 and optional parent2 with linking bi-directial parent and child (using parent doc id)
@@ -373,14 +380,53 @@ export const getAllChildren = async (
  * @returns 
  */
 export async function addChildWithParents(
-  // locationId: string, location is passing in child Object
   child: AddChildPayload,
-  parent1: AddParentPayload, 
-  parent2?: AddParentPayload
+  parent1: CustomParentInput, 
+  parent2?: CustomParentInput | null
 ): Promise<{ child: Types.Child; parent1: Types.Parent; parent2?: Types.Parent }> {
   
   return await db.runTransaction(async (transaction) => {
-    // 1. Create Child Document
+    // 1. PERFORM ALL READS FIRST
+    
+    // Check email uniqueness for new parents BEFORE any writes
+    const checkEmailUniqueness = async (parentInput: CustomParentInput): Promise<void> => {
+      const isNewParent = 'email' in parentInput && 'firstName' in parentInput;
+      if (isNewParent) {
+        const isUniqueEmail = await checkingIfEmailIsUnique(parentInput.email);
+        if (!isUniqueEmail) {
+          throw new Error("Email already exists");
+        }
+      }
+    };
+
+    // Get existing parent documents BEFORE any writes
+    const getExistingParent = async (parentInput: CustomParentInput): Promise<any> => {
+      const isNewParent = 'email' in parentInput && 'firstName' in parentInput;
+      if (!isNewParent) {
+        const parentId = parentInput.parentId;
+        const parentRef = db.collection("users").doc(parentId);
+        const parentDoc = await transaction.get(parentRef);
+        
+        if (!parentDoc.exists) {
+          throw new Error(`Parent with ID ${parentId} not found`);
+        }
+        return parentDoc.data();
+      }
+      return null;
+    };
+
+    // Perform all reads first
+    await checkEmailUniqueness(parent1);
+    if (parent2) {
+      await checkEmailUniqueness(parent2);
+    }
+
+    const existingParent1Data = await getExistingParent(parent1);
+    const existingParent2Data = parent2 ? await getExistingParent(parent2) : null;
+
+    // 2. NOW PERFORM ALL WRITES
+    
+    // Create Child Document
     const childRef = db.collection("children").doc();
     const childId = childRef.id;
     
@@ -391,7 +437,7 @@ export async function addChildWithParents(
       birthDate: child.birthDate,
       parentId: [], // Will be populated below
       classId: undefined,
-      locationId: child.locationId, // By input location
+      locationId: child.locationId,
       enrollmentStatus: child.enrollmentStatus,
       startDate: child.startDate,
       notes: child.notes?.trim() || undefined,
@@ -401,83 +447,82 @@ export async function addChildWithParents(
     
     transaction.set(childRef, childPayload);
 
-    // 2. Create Parents and Build Relationships
+    // Helper function to process parent (now only does writes)
+    const processParentInput = (parentInput: CustomParentInput, existingParentData: any, parentNumber: 1 | 2): { id: string; parentData: Types.Parent } => {
+      const isNewParent = 'email' in parentInput && 'firstName' in parentInput;
+      
+      if (isNewParent) {
+        // Create NEW parent
+        const parentRef = db.collection("users").doc();
+        const parentId = parentRef.id;
+        
+        const relationship: ParentChildRelationship = {
+          childId,
+          relationship: parentInput.newChildRelationship
+        };
+        
+        const parentPayload = {
+          ...parentInput,
+          docId: parentId,
+          id: parentId,
+          locationId: child.locationId,
+          role: "parent" as const,
+          isRegistered: false,
+          childRelationships: [relationship],
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        
+        transaction.set(parentRef, parentPayload);
+        return { id: parentId, parentData: parentPayload as Types.Parent };
+      } else {
+        // Use EXISTING parent
+        const parentId = parentInput.parentId;
+        const parentRef = db.collection("users").doc(parentId);
+        
+        const updatedRelationships = [
+          ...(existingParentData?.childRelationships || []),
+          {
+            childId,
+            relationship: parentInput.newChildRelationship
+          } as ParentChildRelationship
+        ];
+        
+        transaction.update(parentRef, {
+          childRelationships: updatedRelationships,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        return { id: parentId, parentData: { ...existingParentData, id: parentId } as Types.Parent };
+      }
+    };
+
+    // Process Parents (writes only)
     const parentIds: string[] = [];
     const parents: { parent1: Types.Parent; parent2?: Types.Parent } = { parent1: {} as Types.Parent };
 
-    // Parent 1
-    const isUniqueEmail = await checkingIfEmailIsUnique(parent1.email);
-    if (!isUniqueEmail) {
-      throw new Error("Email already exists");
-    }
-    const parent1Ref = db.collection("users").doc();
-    const parent1Id = parent1Ref.id;
-    parentIds.push(parent1Id);
-    
-    const parent1Relationship: ParentChildRelationship = {
-      childId,
-      relationship: parent1.newChildRelationship
-    };
-    
-    const parent1Payload = {
-      ...parent1,
-      docId: parent1Id, // Id fixed for matching child
-      id: parent1Id, // Id flexible for matching uid from Firebase Auth
-      locationId: child.locationId, // Location of parent could be multipule!!!!!!!!!!!!
-      role: "parent" as const,
-      isRegistered: false,
-      childRelationships: [parent1Relationship],
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-    
-    transaction.set(parent1Ref, parent1Payload);
-    parents.parent1 = { ...parent1Payload, id: parent1Id } as Types.Parent;
+    const result1 = processParentInput(parent1, existingParent1Data, 1);
+    parentIds.push(result1.id);
+    parents.parent1 = result1.parentData;
 
-    // Parent 2 (if provided)
     if (parent2) {
-      const isUniqueEmail = await checkingIfEmailIsUnique(parent2.email);
-      if (!isUniqueEmail) {
-        throw new Error("Email already exists");
-      }
-
-      const parent2Ref = db.collection("users").doc();
-      const parent2Id = parent2Ref.id;
-      parentIds.push(parent2Id);
-      
-      const parent2Relationship: ParentChildRelationship = {
-        childId,
-        relationship: parent2.newChildRelationship
-      };
-      
-      const parent2Payload = {
-        ...parent2,
-        docId: parent2Id,
-        id: parent2Id,
-        locationId: child.locationId, // Location of parent could be multipule!!!!!!!!!!!!
-        role: "parent" as const,
-        isRegistered: false,
-        childRelationships: [parent2Relationship],
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-      
-      transaction.set(parent2Ref, parent2Payload);
-      parents.parent2 = { ...parent2Payload, id: parent2Id } as Types.Parent;
+      const result2 = processParentInput(parent2, existingParent2Data, 2);
+      parentIds.push(result2.id);
+      parents.parent2 = result2.parentData;
     }
 
-    // 3. Update Child with All Parent IDs
+    // Update Child with Parent IDs
     transaction.update(childRef, {
       parentId: parentIds,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    // 4. Return Results
+    // Return Results
     const childResult: Types.Child = {
       id: childId,
       ...childPayload,
       parentId: parentIds,
-      createdAt: new Date().toISOString(), // Approximate for return
+      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
@@ -487,7 +532,6 @@ export async function addChildWithParents(
     };
   });
 }
-
 
 
 export async function updateChildById(
