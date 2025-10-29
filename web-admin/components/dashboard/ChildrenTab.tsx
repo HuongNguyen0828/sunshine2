@@ -478,7 +478,6 @@ export default function ChildrenTab({
   };
   /// ================From ParentTab
   const [phoneError, setPhoneError] = useState<string>("");
-  const [colorChangeError, setColorChangeError] = useState<string>(""); // Initially no error
   const [editingParent, setEditingParent] = useState<Types.Parent | null>(null);
   const [addOrSearchParent1, setAddOrSearchParent1] = useState<"addParent1" | "searchParent1">("addParent1");
   const [addOrSearchParent2, setAddOrSearchParent2] = useState<"addParent2" | "searchParent2">("addParent2");
@@ -603,12 +602,14 @@ export default function ChildrenTab({
       case 0: // Child Information: MUST
         if (!newChild.firstName.trim()) {
           alert("First name is required");
-          setColorChangeError(newChild.firstName);
           return false;
         }
         if (!newChild.lastName.trim()) {
           alert("Last name is required");
-          setColorChangeError(newChild.lastName);
+          return false;
+        }
+        if (!newChild.gender.trim()) {
+          alert("Gender is required");
           return false;
         }
         if (!newChild.birthDate) {
@@ -897,12 +898,12 @@ export default function ChildrenTab({
     } else {
       // Clean up parent1 and 2 before passing 
       const customParent1: CustomParentInput = (selectedParent1) ? {
-        parentId: selectedParent1.id, // assuming you have this state
+        parentId: selectedParent1.docId, // assuming you have this state
         newChildRelationship: newChildRelationshipParent1
       } : parent1;
 
       const customParen2: CustomParentInput | null = selectedParent2 ? {
-        parentId: selectedParent2.id,
+        parentId: selectedParent2.docId,
         newChildRelationship: newChildRelationshipParent2
       } : parent2 ? parent2 : null;
 
@@ -1832,7 +1833,10 @@ export default function ChildrenTab({
                         <button
                           onClick={() => {
                             setActiveStep(2); // Back to Parent2 Form
+                            setAddOrSearchParent2("addParent2"); // Reset the default add option
                             setParent2(initialParentValues); // Initalize the value for parent2 instead of null
+                            setSelectedParent2(null); // Make sure clearup the search from previous
+                            setNewChildRelationshipParent2("");
                             // Remove skip status
                             setSkipped((prev) => {
                               const newSkipped = new Set(prev.values());
