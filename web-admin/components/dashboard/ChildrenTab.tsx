@@ -1024,8 +1024,6 @@ export default function ChildrenTab({
         return acc;
       }, {} as Record<string, Types.Parent>),
     [parents]
-
-
   ); // Only recalculate when parents change
 
   const childrenWithParents = useMemo(

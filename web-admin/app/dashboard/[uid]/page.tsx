@@ -628,16 +628,14 @@ export default function AdminDashboard() {
               />
             )}
 
-            {/* {
+            {
               activeTab === "parents" && (
                 <ParentsTab
                   parents={parents}
-                // newParent={newParent}
-                // setNewParent={setNewParent}
-                // onAdd={handleAddParent}
+                  children={children}
                 />
               )
-            } */}
+            }
 
             {
               activeTab === "classes" && (
