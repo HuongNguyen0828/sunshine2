@@ -59,19 +59,12 @@ export default function TeachersTab({
     return found?.name || locId;
   };
 
-  // Keep internal rows in sync if parent prop changes
+  // Sync rows with teachers prop
   useEffect(() => {
     setRows(teachers);
-  }, [teachers]);
+  }, [teachers]); // This will update rows whenever teachers prop changes
 
-  // Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    };
-  }, []);
-
-  // Restore draft when form opens (only in Add mode)
+  // Restore draft when form opens
   useEffect(() => {
     if (isFormOpen && !editingTeacher) {
       const draft = sessionStorage.getItem("teacher-form-draft");

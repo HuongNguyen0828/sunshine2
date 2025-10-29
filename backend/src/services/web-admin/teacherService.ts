@@ -155,17 +155,18 @@ export const deleteTeacher = async (id: string): Promise<boolean> => {
   await batch.commit();
   // Delete user from Firebase Auth: if already registered
   const teacherData = teacherDoc.data();
-  if (!teacherData?.isRegistered) {
-    return true; // ignore
-  }
+  // if (!teacherData?.isRegistered) {
+  //   return true; // ignore
+  // }
 
-  // Else, delete in Firebase Auth
-  try {
-    await deleteUserFirebaseAuth(id);
-    return true;
-  } catch (error: any) {
-    throw error;
-  }
+  // // Else, delete in Firebase Auth
+  // try {
+  //   await deleteUserFirebaseAuth(id);
+  //   return true;
+  // } catch (error: any) {
+  //   throw error;
+  // }
+  return true
 };
 
 // Assign a teacher to a class (bidirectional), returns success boolean
