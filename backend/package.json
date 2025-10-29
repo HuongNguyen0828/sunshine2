@@ -9,11 +9,12 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
-    "shared": "file:../shared",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
-    "firebase-admin": "^13.5.0"
+    "firebase-admin": "^13.5.0",
+    "rate-limiter-flexible": "^8.1.0",
+    "shared": "file:../shared"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
