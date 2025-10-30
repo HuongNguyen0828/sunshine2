@@ -262,17 +262,20 @@ export default function ClassesTab({
    * Open Assign modal.
    * Fetch teacher candidates filtered by this class's location (server-enforced).
    */
-  async function openAssign(classId: string) {
+  async function openAssign(classId: string, locationId: string) {
     setShowAssignTeachers(classId);
     setLoadingCandidates(true);
     try {
       const cls = getClassById(classes, classId);
 
-      const candidates = await fetchTeacherCandidates({
-        onlyNew: true,
-        classId, // server derives location and enforces scope
-        // locationId: cls?.locationId, // optional explicit filter
-      });
+      // const candidates = await fetchTeacherCandidates({
+      //   onlyNew: true,
+      //   classId, // server derives location and enforces scope
+      //   // locationId: cls?.locationId, // optional explicit filter
+      // });
+
+      // Call function from front end instead of backend
+      const candidates = teachers.filter(teacher => (teacher.locationId === locationId && teacher.status === Types.TeacherStatus.New))
       setTeacherOptions(candidates);
 
       // Preselect currently assigned teachers
@@ -476,25 +479,29 @@ export default function ClassesTab({
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-4 border-t border-gray-200">
-                  <button
-                    onClick={() => openAssign(cls.id)}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"
-                  >
-                    Assign
-                  </button>
-                  <button
-                    onClick={() => handleEditClick(cls)}
-                    className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(cls)}
-                    className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
-                  >
-                    Delete
-                  </button>
+                <div className="flex-col pt-4 border-t border-gray-200">
+                  <div className="flex gap-4 mb-2">
+                    <button
+                      onClick={() => handleEditClick(cls)}
+                      className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(cls)}
+                      className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => openAssign(cls.id, cls.locationId)}
+                      className=" bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"
+                    >
+                      Assign Teacher
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -519,8 +526,8 @@ export default function ClassesTab({
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
               }`}
           >
             ← Previous
@@ -541,8 +548,8 @@ export default function ClassesTab({
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
             className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
               }`}
           >
             Next →

@@ -32,7 +32,7 @@ import LinkParentByEmail from "./SearchParentModal.tsx";
 import { SearchParamsContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import SearchParentModal from "./SearchParentModal.tsx";
 
-type CustomParentInput = {
+export type CustomParentInput = {
   parentId: string,
   newChildRelationship: string;
 } | NewParentInput;
@@ -55,18 +55,18 @@ type Props = {
   deleteChild: (id: string) => Promise<boolean>;
   onAssign?: (childId: string, classId: string) => Promise<boolean> | boolean;
   onUnassign?: (childId: string) => Promise<boolean> | boolean;
-  onLinkParent?: (
-    childId: string,
-    parentUserId: string
-  ) => Promise<boolean> | boolean;
-  onUnlinkParent?: (
-    childId: string,
-    parentUserId: string
-  ) => Promise<boolean> | boolean;
-  onLinkParentByEmail?: (
-    childId: string,
-    email: string
-  ) => Promise<boolean> | boolean;
+  // onLinkParent?: (
+  //   childId: string,
+  //   parentUserId: string
+  // ) => Promise<boolean> | boolean;
+  // onUnlinkParent?: (
+  //   childId: string,
+  //   parentUserId: string
+  // ) => Promise<boolean> | boolean;
+  // onLinkParentByEmail?: (
+  //   childId: string,
+  //   email: string
+  // ) => Promise<boolean> | boolean;
 };
 
 /* ---------------- helpers ---------------- */
@@ -155,7 +155,7 @@ function ChildCard({
   onDelete,
   onOpenAssign,
   onUnassign,
-  onUnlinkParent,
+  // onUnlinkParent,
   // onOpenLinkByEmail,
 }: ChildCardProps) {
   const cls = classes.find((c) => c.id === child.classId);
@@ -261,7 +261,7 @@ function ChildCard({
         )}
       </div>
 
-      <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2">
+      <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2 mb-1">
         <button
           onClick={() => onEdit(child, parent1And2[0], parent1And2[1])}
           className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
@@ -274,125 +274,25 @@ function ChildCard({
         >
           Delete
         </button>
-
-        {/* <button
-          onClick={() => onOpenLinkByEmail(child.id)}
-          className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
-        >
-          Link Parent
-        </button> */}
-
-        {child.classId ? (
-          <button
-            onClick={() => onUnassign?.(child.id)}
-            className="px-3 py-2 rounded-lg text-xs bg-gray-700 text-white hover:bg-gray-800"
-          >
-            Unassign
-          </button>
-        ) : (
-          <button
-            onClick={() => onOpenAssign(child.id)}
-            className="px-3 py-2 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700"
-          >
-            Assign to Class
-          </button>
-        )}
-
-        {child.parentId && child.parentId.length > 0 && (
-          <div className="col-span-2 flex items-start gap-3 min-w-0">
-            <div className="relative flex-auto min-w-0">
-              <button
-                type="button"
-                onClick={() => setMenuOpen((v) => !v)}
-                aria-haspopup="listbox"
-                aria-expanded={menuOpen}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-left pr-9 relative"
-              >
-                {localUnlinkLabel ? (
-                  <span className="text-xs font-medium">
-                    {localUnlinkLabel}
-                  </span>
-                ) : (
-                  <span className="block leading-tight text-[11px] text-gray-500">
-                    <span className="block">Select parent</span>
-                    <span className="block">to unlink</span>
-                  </span>
-                )}
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className={`pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform ${
-                    menuOpen ? "rotate-180" : ""
-                  }`}
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.114l3.71-3.883a.75.75 0 111.08 1.04l-4.24 4.44a.75.75 0 01-1.08 0l-4.24-4.44a.75.75 0 01.02-1.06z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-
-              {menuOpen && (
-                <div
-                  role="listbox"
-                  tabIndex={-1}
-                  className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden"
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") setMenuOpen(false);
-                  }}
-                >
-                  <ul className="max-h-56 overflow-auto">
-                    {child.parentId.map((pid) => {
-                      const p = parents.find((pp) => pp.id === pid);
-                      const label =
-                        (p
-                          ? `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim()
-                          : "") ||
-                        p?.email ||
-                        pid;
-                      const active = localUnlinkId === pid;
-                      return (
-                        <li
-                          key={pid}
-                          role="option"
-                          aria-selected={active}
-                          onClick={() => {
-                            setLocalUnlinkId(pid);
-                            setLocalUnlinkLabel(label);
-                            setMenuOpen(false);
-                          }}
-                          className={`px-3 py-2 text-sm cursor-pointer break-words ${active
-                            ? "bg-gray-100 text-gray-900"
-                            : "hover:bg-gray-50 text-gray-700"
-                            }`}
-                        >
-                          {label}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={() =>
-                localUnlinkId && onUnlinkParent?.(child.id, localUnlinkId)
-              }
-              disabled={!localUnlinkId}
-              className={`shrink-0 whitespace-nowrap px-3 py-2 rounded-lg text-xs ${localUnlinkId
-                ? "bg-white border border-gray-200 hover:bg-gray-50"
-                : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                }`}
-            >
-              Unlink
-            </button>
-          </div>
-        )}
       </div>
-    </div>
+
+      {child.classId ? (
+        <button
+          onClick={() => onUnassign?.(child.id)}
+          className="w-1/2 mx-auto px-3 py-2 rounded-lg text-xs bg-gray-700 text-white hover:bg-gray-800"
+        >
+          Switch Class
+        </button>
+      ) : (
+        <button
+          onClick={() => onOpenAssign(child.id)}
+          className="w-1/2 mx-auto px-auto py-2 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700"
+        >
+          Assign to Class
+        </button>
+      )}
+
+    </div >
   );
 }
 
@@ -412,8 +312,8 @@ export default function ChildrenTab({
   deleteChild,
   onAssign,
   onUnassign,
-  onLinkParent,
-  onUnlinkParent,
+  // onLinkParent,
+  // onUnlinkParent,
   // onLinkParentByEmail,
 }: Props) {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -922,22 +822,6 @@ export default function ChildrenTab({
     const success = await deleteChild(child.id);
   }
 
-  // async function linkParentByEmail(
-  //   childId: string,
-  //   email: string
-  // ): Promise<boolean> {
-  //   if (onLinkParentByEmail)
-  //     return !!(await onLinkParentByEmail(childId, email));
-  //   const parent = parents.find(
-  //     (p) => (p.email ?? "").toLowerCase() === email.trim().toLowerCase()
-  //   );
-  //   if (!parent) {
-  //     alert("Parent not found by that email.");
-  //     return false;
-  //   }
-  //   return !!(await onLinkParent?.(childId, parent.id));
-  // }
-
   // Update form and persist a draft (debounced)
   const updateParent1 = useCallback(
     (updates: Partial<NewParentInput>) => {
@@ -1195,19 +1079,9 @@ export default function ChildrenTab({
                   setAssignChildId(id);
                   setAssignClassId("");
                 }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6">
-              <input
-                type="email"
-                placeholder="parent@example.com"
-                value={parentEmail}
-                onChange={(e) => setParentEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                onUnassign={onUnassign}
+              // onUnlinkParent={onUnlinkParent}
+              // onOpenLinkByEmail={(id) => setLinkChildId(id)}
               />
             ))}
           </div>
