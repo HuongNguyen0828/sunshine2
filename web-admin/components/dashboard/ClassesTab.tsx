@@ -262,7 +262,7 @@ export default function ClassesTab({
    * Open Assign modal.
    * Fetch teacher candidates filtered by this class's location (server-enforced).
    */
-  async function openAssign(classId: string, locationId: string) {
+  const openAssign = useCallback(async (classId: string, locationId: string) => {
     setShowAssignTeachers(classId);
     setLoadingCandidates(true);
     try {
@@ -310,7 +310,7 @@ export default function ClassesTab({
     } finally {
       setLoadingCandidates(false);
     }
-  }
+  }, [teachers]);
 
   /**
    * Save assignment.
@@ -466,7 +466,7 @@ export default function ClassesTab({
                       <div className="text-sm text-gray-700">
                         {assigned.slice(0, 2).map(t => (
                           <span key={t.id} className="block text-xs">
-                            {t.firstName} {t.lastName}
+                            {t.firstName} {t.lastName} - {t.email}
                           </span>
                         ))}
                         {assigned.length > 2 && (
@@ -760,10 +760,14 @@ export default function ClassesTab({
                       <input
                         type="checkbox"
                         checked={selectedTeachers.includes(t.id)}
-                        onChange={() =>
-                          setSelectedTeachers(prev =>
-                            prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
-                          )
+                        onChange={() => {
+                          // Preventing more than 2 teachers selected:
+                          if (selectedTeachers.length > 2) {
+                            alert("No more than 2 teachers for a class!")
+                            return;
+                          }
+                          setSelectedTeachers(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id])
+                        }
                         }
                         className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                       />
