@@ -1,6 +1,10 @@
 // web-admin/app/dashboard/[uid]/page.tsx
 "use client";
-
+export type CountStats =
+  {
+    total: number;
+    byLocation: Record<string, number>;
+  }
 import React, { useEffect, useState, useCallback, useMemo, useTransition } from "react";
 import AppHeader from "@/components/AppHeader";
 import SidebarNav from "@/components/dashboard/SidebarNav";
@@ -482,70 +486,16 @@ export default function AdminDashboard() {
     }
   };
 
-  const onLinkParentByEmail = async (childId: string, email: string) => {
-    try {
-      // await linkParentToChildByEmail(childId, email);
+  /**
+   * 
+   * @param created Link and Unlinked parent to child is removed to be inside AddChildWithParent
+   * @returns 
+   */
+  // const onLinkParentByEmail = async (childId: string, email: string) => {
+  // };
 
-      // const foundParent = parentLites.find((p) => (p.email ?? "").toLowerCase() === email.toLowerCase());
-      // if (foundParent) {
-      //   setChildren((prev) =>
-      //     prev.map((c) =>
-      //       c.id === childId
-      //         ? {
-      //           ...c,
-      //           parentId: Array.from(new Set([...(c.parentId ?? []), foundParent.id])),
-      //           enrollmentStatus: c.classId ? Types.EnrollmentStatus.Active : Types.EnrollmentStatus.Waitlist,
-      //         }
-      //         : c
-      //     )
-      //   );
-      //   } else {
-      //     startTransition(() => {
-      //       refetchChildrenLite();
-      //     });
-      //   }
-
-      //   startTransition(() => {
-      //     refetchChildrenLite();
-      //   });
-
-      //   return true;
-    } catch (e: unknown) {
-      //   const msg = getErrorMessage(e, "Failed to link parent by email.");
-      //   alert(msg);
-      //   return false;
-    }
-  };
-
-  const onUnlinkParent = async (childId: string, parentUserId: string) => {
-    try {
-      // await unlinkParentFromChild(childId, parentUserId);
-
-      // setChildren((prev) =>
-      //   prev.map((c) => {
-      //     if (c.id !== childId) return c;
-      //     const nextParentIds = (c.parentId ?? []).filter((pid) => pid !== parentUserId);
-      //     const nextStatus = c.classId
-      //       ? nextParentIds.length > 0
-      //         ? Types.EnrollmentStatus.Active
-      //         : Types.EnrollmentStatus.Waitlist
-      //       : nextParentIds.length > 0
-      //         ? Types.EnrollmentStatus.Waitlist
-      //         : Types.EnrollmentStatus.New;
-      //     return { ...c, parentId: nextParentIds, enrollmentStatus: nextStatus };
-      //   })
-      // );
-
-      // startTransition(() => {
-      //   refetchChildrenLite();
-      // });
-
-      return true;
-    } catch {
-      alert("Failed to unlink parent.");
-      return false;
-    }
-  };
+  // const onUnlinkParent = async (childId: string, parentUserId: string) => {
+  // };
 
 
   /* ---------- classes passthrough ---------- */
@@ -558,6 +508,28 @@ export default function AdminDashboard() {
       refetchClassesLite();
     });
   };
+
+
+
+  const computeTeacherCounts = useCallback((countFors: Types.Teacher[] | Types.Child[] | Types.Parent[] | Types.Class[]): CountStats => {
+    const countsByLocation: Record<string, number> = {};
+    let total = 0;
+
+    // Initialize all locations with 0
+    locations.forEach(location => {
+      countsByLocation[location.id] = 0;
+    });
+
+    // Count teachers per location
+    countFors.forEach(countFor => {
+      if (countFor.locationId && countsByLocation[countFor.locationId] !== undefined) {
+        countsByLocation[countFor.locationId]++;
+        total++;
+      }
+    });
+
+    return { total, byLocation: countsByLocation };
+  }, [teachers, children, classes, parents, locations]);
 
   /* ---------- render ---------- */
 
@@ -596,7 +568,13 @@ export default function AdminDashboard() {
           <SidebarNav active={activeTab} onChange={setActiveTab} />
           <main style={dash.main}>
             {activeTab === "overview" && (
-              <Overview teacherCount={teachers.length} childCount={children.length} parentCount={parents.length} classCount={classes.length} />
+              <Overview
+                teacherCount={computeTeacherCounts(teachers)} // total: teachers.leng, locationId: teachers.filter(teacher.locationId === locationId),lengthh
+                childCount={computeTeacherCounts(children)}
+                parentCount={computeTeacherCounts(parents)}
+                classCount={computeTeacherCounts(classes)}
+                locations={filteredLocations}
+              />
             )}
 
             {activeTab === "teachers" && (
@@ -622,8 +600,8 @@ export default function AdminDashboard() {
                 deleteChild={handleDeleteChild}
                 onAssign={onAssignChild}
                 onUnassign={onUnassignChild}
-                // onLinkParentByEmail={onLinkParentByEmail}
-                onUnlinkParent={onUnlinkParent}
+              // onLinkParentByEmail={onLinkParentByEmail}
+              // onUnlinkParent={onUnlinkParent}
               // Parent
               />
             )}

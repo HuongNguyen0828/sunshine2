@@ -5,6 +5,7 @@ import { NewChildInput, NewParentInput } from "@/types/forms";
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
 import swal from "sweetalert2";
+import { CustomParentInput } from "@/components/dashboard/ChildrenTab";
 
 
 export async function fetchChildren(): Promise<Types.Child[]> {
@@ -22,8 +23,8 @@ export type  returnChildWithParents = {child: Types.Child} & {parent1: Types.Par
 
 // Passing Parent Input with ChildId
 export type NewChildWithParentsInput = { child: NewChildInput } & {
-  parent1: NewParentInput;
-} & { parent2: NewParentInput | null };
+  parent1: CustomParentInput;
+} & { parent2: CustomParentInput | null};
 
 export async function addChildWithParents(
   NewChildAndParents: NewChildWithParentsInput
