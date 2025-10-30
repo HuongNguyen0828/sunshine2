@@ -74,7 +74,8 @@ export const addTeacher = async (teacher: Omit<Teacher, "id">): Promise<Teacher 
   const docRef = await usersRef.add({
     ...teacher, 
     role: UserRole.Teacher, 
-    status: TeacherStatus.New, // status new by default
+    status: teacher.status || TeacherStatus.New, // status new by default
+    classIds: [], // Empty classId
   });
 
   // Updating current Teacher Doc with newly added id
@@ -82,7 +83,7 @@ export const addTeacher = async (teacher: Omit<Teacher, "id">): Promise<Teacher 
   await docRef.update({id});
   
   // return teacher
-  return { id: docRef.id, ...(teacher as any) } as Teacher;
+  return { id: docRef.id, docId: id, ...(teacher as any) } as Teacher;
 };
 
 
