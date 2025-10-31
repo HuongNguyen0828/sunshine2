@@ -112,7 +112,7 @@ export default function TeacherDashboard() {
       return;
     }
     router.push({
-      pathname: "/(teacher)/entry-form",
+      pathname: "/(teacher)/(tabs)/entry-form",
       params: {
         type: card.label,                                // matches shared EntryType strings
         classId: selectedClass === "all" ? "" : selectedClass,
