@@ -15,6 +15,7 @@ import AutoCompleteAddress, { Address } from "../AutoCompleteAddress";
 import ParentForm from "./ParentForm";
 import { NewChildInput } from "../../types/forms";
 import { MdFiberNew } from 'react-icons/md';
+import { updateChild } from "@/services/useChildrenAPI";
 
 // For Stepper: Choosing linear bar
 //Steppers convey progress through numbered steps. It provides a wizard-like workflow.
@@ -38,6 +39,7 @@ export type CustomParentInput = {
 
 type Props = {
   children: Types.Child[];
+  setChildren: React.Dispatch<React.SetStateAction<Types.Child[]>>;
   classes: Types.Class[];
   parents: Types.Parent[];
   locations: LocationLite[];
@@ -47,10 +49,6 @@ type Props = {
     parent1: CustomParentInput, // Can be parent object or {parent ID with relationship}
     parent2: CustomParentInput | null, // Can be parent object, or {parent ID with relationship}, or null
   ) => Promise<returnChildWithParents | null>;
-  updateChild: (
-    id: string,
-    patch: Partial<NewChildInput>
-  ) => Promise<Types.Child | null>;
   deleteChild: (id: string) => Promise<boolean>;
   onAssign?: (childId: string, classId: string) => Promise<boolean> | boolean;
   onUnassign?: (childId: string) => Promise<boolean> | boolean;
@@ -237,10 +235,10 @@ function ChildCard({
 
         {parent1And2 ? (
           <div className="text-xs text-gray-600">
-            {/* Add debug info */}
+            {/* Add debug info
             <div className="text-red-500 text-xs">
               Debug: {parent1And2.length} parents found
-            </div>
+            </div> */}
             {parent1And2.map((eachParent, index) => {
               const childRelationship = eachParent.childRelationships.filter(
                 (relationship) => relationship.childId === child.id
@@ -306,13 +304,13 @@ const DRAFT_KEY = "child-form-draft";
 
 export default function ChildrenTab({
   children,
+  setChildren,
   classes,
   parents,
   locations,
   newChild,
   setNewChild,
   addChild,
-  updateChild,
   deleteChild,
   onAssign,
   onUnassign,
@@ -342,9 +340,7 @@ export default function ChildrenTab({
   // =======================Done Progress bar
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    Types.EnrollmentStatus | "all"
-  >("all");
+  const [statusFilter, setStatusFilter] = useState<Types.EnrollmentStatus | "all">("all");
   const [classFilter, setClassFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
 
@@ -798,6 +794,7 @@ export default function ChildrenTab({
         enrollmentStatus: newChild.enrollmentStatus,
       });
       setEditingChild(null);
+      if (updated) setChildren(prev => prev.map(c => c.id === editingChild.id ? updated : c));
 
       // Adding new Child W/ Parent
     } else {

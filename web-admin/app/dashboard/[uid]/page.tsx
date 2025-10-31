@@ -5,6 +5,11 @@ export type CountStats =
     total: number;
     byLocation: Record<string, number>;
   }
+
+export type ClassLite = {
+  id: string,
+  name: string,
+}
 import React, { useEffect, useState, useCallback, useMemo, useTransition } from "react";
 import AppHeader from "@/components/AppHeader";
 import SidebarNav from "@/components/dashboard/SidebarNav";
@@ -124,7 +129,6 @@ export default function AdminDashboard() {
   const [children, setChildren] = useState<Types.Child[]>([]); // return a List of (object of child and parent1 and parent2)
   const [parents, setParents] = useState<Types.Parent[]>([]);
   // const [parentLites, setParentLites] = useState<Array<{ id: string; firstName?: string; lastName?: string; email?: string }>>([]);
-  // const [parentLites, setParentLites] = useState<Types.Parent[]>([]); //// Array of parent 1 and parent 2 extracted from Child
 
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [updateLoading, setUpdateLoading] = useState<boolean>(false); // Separate state of loading initally vs of actions
@@ -331,64 +335,64 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleUpdateChild = async (id: string, patch: Partial<NewChildInput>): Promise<Types.Child | null> => {
-    //   try {
-    //     const res = await updateChild(id, {
-    //       firstName: patch.firstName.trim(),
-    //       lastName: patch.lastName.trim(),
-    //       gender: patch.gender,
-    //       birthDate: patch.birthDate,
-    //       parentId: Array.isArray(patch.parentId) ? patch.parentId : undefined,
-    //       locationId: scope.mode === "fixed" ? scope.fixedLocationId : patch.locationId?.trim(),
-    //       notes: patch.notes?.trim(),
-    //       enrollmentStatus: patch.enrollmentStatus,
-    //       classId: patch.classId,
-    //       startDate: patch.startDate
-    //     });
+  // const handleUpdateChild = async (id: string, patch: Partial<NewChildInput>): Promise<Types.Child | null> => {
+  //   //   try {
+  //   //     const res = await updateChild(id, {
+  //   //       firstName: patch.firstName.trim(),
+  //   //       lastName: patch.lastName.trim(),
+  //   //       gender: patch.gender,
+  //   //       birthDate: patch.birthDate,
+  //   //       parentId: Array.isArray(patch.parentId) ? patch.parentId : undefined,
+  //   //       locationId: scope.mode === "fixed" ? scope.fixedLocationId : patch.locationId?.trim(),
+  //   //       notes: patch.notes?.trim(),
+  //   //       enrollmentStatus: patch.enrollmentStatus,
+  //   //       classId: patch.classId,
+  //   //       startDate: patch.startDate
+  //   //     });
 
-    //     if (res && typeof res === "object") {
-    //       const updated = res as Types.Child;
+  //   //     if (res && typeof res === "object") {
+  //   //       const updated = res as Types.Child;
 
-    //       const prevChild = children.find(c => c.id === id);
-    //       const prevClassId = prevChild?.classId;
-    //       const nextClassId = updated.classId;
+  //   //       const prevChild = children.find(c => c.id === id);
+  //   //       const prevClassId = prevChild?.classId;
+  //   //       const nextClassId = updated.classId;
 
-    //       setChildren(prev => prev.map(c => (c.id === id ? { ...c, ...updated } : c)));
+  //   //       setChildren(prev => prev.map(c => (c.id === id ? { ...c, ...updated } : c)));
 
-    //       if (prevClassId !== nextClassId) {
-    //         if (prevClassId) {
-    //           setClasses(prev =>
-    //             prev.map(cls =>
-    //               cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls
-    //             )
-    //           );
-    //         }
-    //         if (nextClassId) {
-    //           setClasses(prev =>
-    //             prev.map(cls =>
-    //               cls.id === nextClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) + 1) } : cls
-    //             )
-    //           );
-    //         }
-    //       }
-    //     } else {
-    //       startTransition(() => {
-    //         refetchChildrenLite();
-    //         refetchClassesLite();
-    //       });
-    //     }
-    //   } catch (e) {
-    //     const msg = getErrorMessage(e, "Failed to update child.");
-    //     alert(msg);
-    //     return null;
-    //   }
+  //   //       if (prevClassId !== nextClassId) {
+  //   //         if (prevClassId) {
+  //   //           setClasses(prev =>
+  //   //             prev.map(cls =>
+  //   //               cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls
+  //   //             )
+  //   //           );
+  //   //         }
+  //   //         if (nextClassId) {
+  //   //           setClasses(prev =>
+  //   //             prev.map(cls =>
+  //   //               cls.id === nextClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) + 1) } : cls
+  //   //             )
+  //   //           );
+  //   //         }
+  //   //       }
+  //   //     } else {
+  //   //       startTransition(() => {
+  //   //         refetchChildrenLite();
+  //   //         refetchClassesLite();
+  //   //       });
+  //   //     }
+  //   //   } catch (e) {
+  //   //     const msg = getErrorMessage(e, "Failed to update child.");
+  //   //     alert(msg);
+  //   //     return null;
+  //   //   }
 
-    //   startTransition(() => {
-    //     refetchChildrenLite();
-    //   });
+  //   //   startTransition(() => {
+  //   //     refetchChildrenLite();
+  //   //   });
 
-    return null;
-  };
+  //   return null;
+  // };
 
   const handleDeleteChild = async (id: string): Promise<boolean> => {
     try {
@@ -531,6 +535,8 @@ export default function AdminDashboard() {
     return { total, byLocation: countsByLocation };
   }, [teachers, children, classes, parents, locations]);
 
+
+  const passingClassesLite: ClassLite[] = useMemo(() => classes.map(cls => ({ id: cls.id, name: cls.name })), [classes]);
   /* ---------- render ---------- */
 
   if (authLoading) {
@@ -580,23 +586,42 @@ export default function AdminDashboard() {
             {activeTab === "teachers" && (
               <TeachersTab
                 teachers={teachers}
+                setTeachers={setTeachers} // to catch any other change from teacher (edit, delete) => reflecting in Dashboard => share other compinent
                 newTeacher={newTeacher}
                 setNewTeacher={setNewTeacher}
                 onAdd={handleAddTeacher}
                 locations={filteredLocations}
+                classesLite={passingClassesLite}
               />
             )}
+
+            {
+              activeTab === "classes" && (
+                <ClassesTab
+                  classes={classes}
+                  teachers={teachers}
+                  setClasses={setClasses}
+                  locations={filteredLocations}
+                  newClass={newClass}
+                  setNewClass={setNewClass}
+                  onCreated={onClassCreated}
+                  onUpdated={onClassUpdated}
+                  onDeleted={onClassDeleted}
+                  onAssigned={onClassAssigned}
+                />
+              )
+            }
 
             {activeTab === "children" && (
               <ChildrenTab
                 children={children}
+                setChildren={setChildren} // Passing down to child component
                 classes={classes}
                 parents={parents}
                 locations={filteredLocations}
                 newChild={newChild}
                 setNewChild={setNewChild}
                 addChild={handleAddChild}
-                updateChild={handleUpdateChild}
                 deleteChild={handleDeleteChild}
                 onAssign={onAssignChild}
                 onUnassign={onUnassignChild}
@@ -611,25 +636,12 @@ export default function AdminDashboard() {
                 <ParentsTab
                   parents={parents}
                   children={children}
+                  setParents={setParents}
                 />
               )
             }
 
-            {
-              activeTab === "classes" && (
-                <ClassesTab
-                  classes={classes}
-                  teachers={teachers}
-                  locations={filteredLocations}
-                  newClass={newClass}
-                  setNewClass={setNewClass}
-                  onCreated={onClassCreated}
-                  onUpdated={onClassUpdated}
-                  onDeleted={onClassDeleted}
-                  onAssigned={onClassAssigned}
-                />
-              )
-            }
+
 
             {activeTab === "scheduler-labs" && <SchedulerLabsTab />}
           </main >

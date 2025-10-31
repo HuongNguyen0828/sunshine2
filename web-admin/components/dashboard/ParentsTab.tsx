@@ -16,9 +16,11 @@ import { ENDPOINTS } from "@/api/endpoint";
 
 export default function ParentsTab({
   parents,
+  setParents,
   children
 }: {
   parents: Types.Parent[];
+  setParents: React.Dispatch<React.SetStateAction<Types.Parent[]>>;
   // newParent: NewParentInput;
   // setNewParent: React.Dispatch<React.SetStateAction<NewParentInput>>;
   // onAdd: () => void;
@@ -106,7 +108,7 @@ export default function ParentsTab({
     if (editingParent) {
       const id = editingParent.id;
       const updated = await api.put<Types.Parent>(`${ENDPOINTS.parents}/${id}`, { ...editingParent });
-      // setRows((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
+      setParents(prev => prev.map(p => p.id === id ? updated : p)); // Updating parents 
       setEditingParent(initalEditingParent);
       resetForm();
       setIsFormOpen(false);
@@ -120,7 +122,7 @@ export default function ParentsTab({
 
   // Handle load address to form when editing: setNewTeacher with value of current Address
   //  Passing Current address value back to input value
-  const newTeacherAddressValues: Address = {
+  const newParentAddressValues: Address = {
     address1: editingParent.address1,
     address2: editingParent?.address2 || "",
     city: editingParent.city,
@@ -161,6 +163,7 @@ export default function ParentsTab({
     await api.delete<{ ok: boolean; uid: string }>(`${ENDPOINTS.parents}/${parent.id}`);
 
     // Need update UI
+    setParents(prev => prev.filter(p => p.id !== parent.id))
   };
 
   const formatAddress = (parent: Types.Parent) => {
@@ -495,7 +498,7 @@ export default function ParentsTab({
                 <div className="block">
                   <AutoCompleteAddress
                     onAddressChanged={handleAddressChange}
-                    addressValues={newTeacherAddressValues}
+                    addressValues={newParentAddressValues}
                   />
                 </div>
 
