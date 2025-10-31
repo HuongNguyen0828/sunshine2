@@ -1,4 +1,3 @@
-// mobile/app/(teacher)/(tabs)/dashboard.tsx
 import {
   View,
   Text,
@@ -12,8 +11,8 @@ import {
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { colors } from "@/constants/color";
 import { useRouter } from "expo-router";
-import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -39,30 +38,24 @@ type ChildRow = {
   status?: string;
 };
 
-type ClassRow = {
-  id: string;
-  name: string;
+type EntryCard = {
+  id: "attendance" | "meal" | "nap" | "diaper" | "activity" | "photo" | "note" | "health";
+  label: "Attendance" | "Meal" | "Nap Time" | "Diaper" | "Activity" | "Photo" | "Note" | "Health";
+  icon: any;
+  color: string;
+  bgColor: string;
+  subtypes?: string[];
 };
-
-type EntryCard =
-  | { id: "attendance"; label: "Attendance"; icon: any; color: string; bgColor: string; subtypes: string[] }
-  | { id: "food"; label: "Food"; icon: any; color: string; bgColor: string; subtypes: string[] }
-  | { id: "sleep"; label: "Sleep"; icon: any; color: string; bgColor: string; subtypes: string[] }
-  | { id: "toilet"; label: "Toilet"; icon: any; color: string; bgColor: string }
-  | { id: "activity"; label: "Activity"; icon: any; color: string; bgColor: string }
-  | { id: "photo"; label: "Photo"; icon: any; color: string; bgColor: string }
-  | { id: "note"; label: "Note"; icon: any; color: string; bgColor: string }
-  | { id: "health"; label: "Health"; icon: any; color: string; bgColor: string };
 
 const entryTypes: EntryCard[] = [
   { id: "attendance", label: "Attendance", icon: Clock, color: "#10B981", bgColor: "#D1FAE5", subtypes: ["Check in", "Check out"] },
-  { id: "food", label: "Food", icon: Apple, color: "#F59E0B", bgColor: "#FEF3C7", subtypes: ["Breakfast", "Lunch", "Snack"] },
-  { id: "sleep", label: "Sleep", icon: Moon, color: "#6366F1", bgColor: "#E0E7FF", subtypes: ["Started", "Woke up"] },
-  { id: "toilet", label: "Toilet", icon: Baby, color: "#EC4899", bgColor: "#FCE7F3" },
-  { id: "activity", label: "Activity", icon: ActivityIcon, color: "#8B5CF6", bgColor: "#EDE9FE" },
+  { id: "meal", label: "Meal", icon: Apple, color: "#F59E0B", bgColor: "#FEF3C7", subtypes: ["Breakfast", "Lunch", "Snack"] },
+  { id: "nap", label: "Nap Time", icon: Moon, color: "#6366F1", bgColor: "#E0E7FF", subtypes: ["Started", "Woke up"] },
+  { id: "diaper", label: "Diaper", icon: Baby, color: "#EC4899", bgColor: "#FCE7F3", subtypes: ["Wet", "BM", "Dry"] },
+  { id: "activity", label: "Activity", icon: ActivityIcon, color: "#8B5CF6", bgColor: "#EDE9FE", subtypes: ["Outdoor Play", "Art & Craft", "Story Time", "Music"] },
   { id: "photo", label: "Photo", icon: Camera, color: "#06B6D4", bgColor: "#CFFAFE" },
   { id: "note", label: "Note", icon: FileText, color: "#64748B", bgColor: "#F1F5F9" },
-  { id: "health", label: "Health", icon: Heart, color: "#EF4444", bgColor: "#FEE2E2" },
+  { id: "health", label: "Health", icon: Heart, color: "#EF4444", bgColor: "#FEE2E2", subtypes: ["Temperature", "Medicine", "Incident"] },
 ];
 
 // Helper to read custom claims
@@ -78,83 +71,32 @@ export default function TeacherDashboard() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
-  const [userDocId, setUserDocId] = useState<string | null>(null);
-
-  const [classes, setClasses] = useState<ClassRow[]>([]);
   const [children, setChildren] = useState<ChildRow[]>([]);
-
+  const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState<string>("all");
   const [showClassPicker, setShowClassPicker] = useState(false);
-
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
   const [showChildPicker, setShowChildPicker] = useState(false);
 
-  // Load teacher scope (classIds) → then classes → then children in those classes
   useEffect(() => {
-    let unsubChildren: (() => void) | null = null;
-
-    (async () => {
-      try {
-        setLoading(true);
-
-        const uidDocId = await getUserDocId();
-        setUserDocId(uidDocId);
-        if (!uidDocId) throw new Error("Missing userDocId in token");
-
-        // Fetch teacher user doc to get classIds
-        const userSnap = await getDoc(doc(db, "users", uidDocId));
-        const userData = userSnap.exists() ? (userSnap.data() as any) : {};
-        const teacherClassIds: string[] = Array.isArray(userData?.classIds) ? userData.classIds.map(String) : [];
-
-        // Load class documents (names)
-        if (teacherClassIds.length > 0) {
-          const loaded: ClassRow[] = [];
-          // Firestore doesn't support IN for >10 items in one query; keep it simple here
-          for (const cid of teacherClassIds) {
-            const cSnap = await getDoc(doc(db, "classes", cid));
-            if (cSnap.exists()) {
-              const cd = cSnap.data() as any;
-              loaded.push({ id: cSnap.id, name: cd?.name || cSnap.id });
-            }
-          }
-          loaded.sort((a, b) => a.name.localeCompare(b.name));
-          setClasses(loaded);
-        } else {
-          setClasses([]);
-        }
-
-        // Subscribe to children within teacher's classes
-        if (teacherClassIds.length > 0) {
-          // If classIds > 10, you'd need to chunk queries. Typical daycare is small, keep simple.
-          const qy = query(collection(db, "children"), where("classId", "in", teacherClassIds));
-          unsubChildren = onSnapshot(
-            qy,
-            (snap) => {
-              const rows: ChildRow[] = snap.docs.map((d) => {
-                const x = d.data() as any;
-                return {
-                  id: d.id,
-                  name: `${x.firstName ?? ""} ${x.lastName ?? ""}`.trim() || "(no name)",
-                  classId: x.classId,
-                  status: x.enrollmentStatus,
-                };
-              });
-              rows.sort((a, b) => a.name.localeCompare(b.name));
-              setChildren(rows);
-              setLoading(false);
-            },
-            () => {
-              setChildren([]);
-              setLoading(false);
-            }
-          );
-        } else {
-          // No classes → no children
-          setChildren([]);
-          setLoading(false);
-        }
-      } catch {
+    const q = query(collection(db, "children"), where("status", "==", "enrolled"));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const rows: ChildRow[] = snap.docs.map((d) => {
+          const x = d.data() as any;
+          return {
+            id: d.id,
+            name: x.name ?? "(no name)",
+            classroomId: x.classroomId,
+            status: x.status,
+          };
+        });
+        rows.sort((a, b) => a.name.localeCompare(b.name));
+        setChildren(rows);
+        setLoading(false);
+      },
+      () => {
         setChildren([]);
         setClasses([]);
         setLoading(false);
@@ -166,42 +108,17 @@ export default function TeacherDashboard() {
     };
   }, []);
 
-  // Reset children selection when class changes
-  useEffect(() => {
-    setSelectedChildren([]);
-  }, [selectedClass]);
+  const classrooms = useMemo(() => {
+    const s = new Set<string>();
+    children.forEach((c) => c.classroomId && s.add(c.classroomId));
+    return Array.from(s).sort();
+  }, [children]);
 
-  // Filter children by selected class
   const filteredChildren = useMemo(() => {
     if (selectedClass === "all") return children;
     return children.filter((c) => c.classId === selectedClass);
   }, [children, selectedClass]);
 
-  // Find class display text
-  const selectedClassLabel = useMemo(() => {
-    if (selectedClass === "all") return "All Classes";
-    const found = classes.find((c) => c.id === selectedClass);
-    return found ? found.name : `Class ${selectedClass}`;
-  }, [selectedClass, classes]);
-
-  const toggleChild = useCallback(
-    (id: string) => {
-      setSelectedChildren((prev) =>
-        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-      );
-    },
-    [setSelectedChildren]
-  );
-
-  const toggleAllChildren = useCallback(() => {
-    if (selectedChildren.length === filteredChildren.length) {
-      setSelectedChildren([]);
-    } else {
-      setSelectedChildren(filteredChildren.map((c) => c.id));
-    }
-  }, [filteredChildren, selectedChildren]);
-
-  // Navigate to entry form with exact EntryType label
   const toEntryForm = (card: EntryCard) => {
     if (selectedChildren.length === 0) {
       Alert.alert("Select Children", "Please select at least one child first");
@@ -210,7 +127,7 @@ export default function TeacherDashboard() {
     router.push({
       pathname: "/(teacher)/entry-form",
       params: {
-        type: card.label, // must match shared EntryType
+        type: card.label,                                // matches shared EntryType strings
         classId: selectedClass === "all" ? "" : selectedClass,
         childIds: JSON.stringify(selectedChildren),
       },
@@ -234,7 +151,6 @@ export default function TeacherDashboard() {
           <Text style={styles.title}>Create Entry</Text>
         </View>
 
-        {/* Class / Children selectors */}
         <View style={styles.selectionContainer}>
           <Pressable style={styles.selector} onPress={() => setShowClassPicker(true)}>
             <View style={styles.selectorIcon}>
@@ -265,15 +181,14 @@ export default function TeacherDashboard() {
           </Pressable>
         </View>
 
-        {/* Selected children chips */}
         {selectedChildren.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectedChildrenContainer}>
             {selectedChildren.map((childId) => {
               const child = children.find((c) => c.id === childId);
               return (
                 <View key={childId} style={styles.selectedChildPill}>
-                  <Text style={styles.selectedChildName}>{child?.name || childId}</Text>
-                  <Pressable onPress={() => toggleChild(childId)}>
+                  <Text style={styles.selectedChildName}>{child?.name}</Text>
+                  <Pressable onPress={() => setSelectedChildren(selectedChildren.filter((id) => id !== childId))}>
                     <X size={14} color="#6366F1" />
                   </Pressable>
                 </View>
@@ -282,7 +197,6 @@ export default function TeacherDashboard() {
           </ScrollView>
         )}
 
-        {/* Entry cards */}
         <View style={styles.entryTypesContainer}>
           <Text style={styles.sectionTitle}>What would you like to record?</Text>
           <View style={styles.entryGrid}>
@@ -296,15 +210,12 @@ export default function TeacherDashboard() {
                   <card.icon size={24} color={card.color} strokeWidth={2} />
                 </View>
                 <Text style={styles.entryLabel}>{card.label}</Text>
-                {"subtypes" in card && card.subtypes?.length ? (
-                  <Text style={styles.entrySubtypes}>{card.subtypes.length} options</Text>
-                ) : null}
+                {card.subtypes && <Text style={styles.entrySubtypes}>{card.subtypes.length} options</Text>}
               </Pressable>
             ))}
           </View>
         </View>
 
-        {/* Quick actions (placeholder) */}
         <View style={styles.quickActionsContainer}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <Pressable style={styles.quickAction}>
@@ -324,47 +235,35 @@ export default function TeacherDashboard() {
         </View>
       </ScrollView>
 
-      {/* Class picker */}
       <Modal visible={showClassPicker} transparent animationType="slide">
         <Pressable style={styles.modalOverlay} onPress={() => setShowClassPicker(false)}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Class</Text>
-
-            <Pressable
-              style={styles.modalOption}
-              onPress={() => {
-                setSelectedClass("all");
-                setShowClassPicker(false);
-              }}
-            >
+            <Pressable style={styles.modalOption} onPress={() => { setSelectedClass("all"); setShowClassPicker(false); }}>
               <Text style={styles.modalOptionText}>All Classes</Text>
               {selectedClass === "all" && <Check size={20} color="#6366F1" />}
             </Pressable>
-
-            {classes.map((c) => (
-              <Pressable
-                key={c.id}
-                style={styles.modalOption}
-                onPress={() => {
-                  setSelectedClass(c.id);
-                  setShowClassPicker(false);
-                }}
-              >
-                <Text style={styles.modalOptionText}>{c.name}</Text>
-                {selectedClass === c.id && <Check size={20} color="#6366F1" />}
+            {classrooms.map((classId) => (
+              <Pressable key={classId} style={styles.modalOption} onPress={() => { setSelectedClass(classId); setShowClassPicker(false); }}>
+                <Text style={styles.modalOptionText}>Class {classId}</Text>
+                {selectedClass === classId && <Check size={20} color="#6366F1" />}
               </Pressable>
             ))}
           </View>
         </Pressable>
       </Modal>
 
-      {/* Child picker */}
       <Modal visible={showChildPicker} transparent animationType="slide">
         <Pressable style={styles.modalOverlay} onPress={() => setShowChildPicker(false)}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Children</Text>
-              <Pressable onPress={toggleAllChildren}>
+              <Pressable
+                onPress={() => {
+                  if (selectedChildren.length === filteredChildren.length) setSelectedChildren([]);
+                  else setSelectedChildren(filteredChildren.map((c) => c.id));
+                }}
+              >
                 <Text style={styles.selectAllText}>
                   {selectedChildren.length === filteredChildren.length ? "Deselect All" : "Select All"}
                 </Text>
@@ -376,14 +275,16 @@ export default function TeacherDashboard() {
                 <Pressable
                   key={child.id}
                   style={styles.modalOption}
-                  onPress={() => toggleChild(child.id)}
+                  onPress={() => {
+                    if (selectedChildren.includes(child.id)) setSelectedChildren(selectedChildren.filter((id) => id !== child.id));
+                    else setSelectedChildren([...selectedChildren, child.id]);
+                  }}
                 >
                   <Text style={styles.modalOptionText}>{child.name}</Text>
                   {selectedChildren.includes(child.id) && <Check size={20} color="#6366F1" />}
                 </Pressable>
               ))}
             </ScrollView>
-
             <Pressable style={styles.doneButton} onPress={() => setShowChildPicker(false)}>
               <Text style={styles.doneButtonText}>Done</Text>
             </Pressable>
@@ -476,13 +377,13 @@ const styles = StyleSheet.create({
   quickActionIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#F0FDF4", alignItems: "center", justifyContent: "center", marginRight: 12 },
   quickActionText: { flex: 1, fontSize: 15, fontWeight: "500", color: "#1E293B" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "flex-end" },
-  modalContent: { backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: "60%" },
+  modalContent: { backgroundColor: "#FFFFFF", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: "50%" },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: "600", color: "#1E293B" },
   selectAllText: { fontSize: 14, color: "#6366F1", fontWeight: "500" },
   modalOption: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
   modalOptionText: { fontSize: 15, color: "#1E293B" },
-  childrenList: { maxHeight: 320 },
+  childrenList: { maxHeight: 300 },
   doneButton: { backgroundColor: "#6366F1", borderRadius: 12, padding: 14, alignItems: "center", marginTop: 16 },
   doneButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
 });
