@@ -1,9 +1,9 @@
 //shared/types/type.ts
-type EntryType = 
+export type EntryType = 
   "Attendance" | "Schedule_note" | "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
 
-type AttendanceSubtype = "Check in" | "Check out";
-type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
+export type AttendanceSubtype = "Check in" | "Check out";
+export type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
 
 
 export enum TeacherStatus {
@@ -26,11 +26,113 @@ export type Entry = {
   childId: string;
   staffId: string;
   type: EntryType;
-  subtype?: AttendanceSubtype | FoodSubtype;
+  subtype?: AttendanceSubtype | FoodSubtype | SleepSubtype | ToiletSubtype;
   detail?: string;
   photoUrl?: string;
   createdAt: string;
 };
+
+/* ===== Teacher Dashboard – minimal additions ===== */
+
+export type SleepSubtype = "Started" | "Woke up";
+export type ToiletSubtype = "Wet" | "BM" | "Dry";
+
+export type EntrySubtype =
+  | AttendanceSubtype
+  | FoodSubtype
+  | SleepSubtype
+  | ToiletSubtype
+  | undefined;
+
+export type EntryTypeMeta = {
+  id: EntryType;
+  label: string;
+  color?: string;
+  bgColor?: string;
+  iconName?: string;
+  subtypes?: string[];
+};
+
+export type EntryFormParams = {
+  type: EntryType;
+  subtype?: EntrySubtype;
+  classId?: string | null;
+  childIds: string[];
+  note?: string;
+  photoUrl?: string;
+};
+
+export type EntryCreateInput =
+  | {
+      type: "Attendance";
+      subtype: AttendanceSubtype;
+      childIds: string[];
+      classId?: string | null;
+      detail?: string;
+    }
+  | {
+      type: "Food";
+      subtype: FoodSubtype;
+      childIds: string[];
+      classId?: string | null;
+      detail?: string;
+    }
+  | {
+      type: "Sleep";
+      subtype: SleepSubtype;
+      childIds: string[];
+      classId?: string | null;
+      detail?: string;
+    }
+  | {
+      type: "Toilet";
+      subtype: ToiletSubtype;
+      childIds: string[];
+      classId?: string | null;
+      detail?: string;
+    }
+  | {
+      type: "Photo";
+      childIds: string[];
+      classId?: string | null;
+      detail?: string;
+      photoUrl: string;
+    }
+  | {
+      type: "Schedule_note";
+      childIds: string[];
+      classId?: string | null;
+      detail: string;
+    }
+  | {
+      type: "Supply Request";
+      childIds: string[];
+      classId?: string | null;
+      detail: string;
+    };
+
+export type BulkEntryCreateRequest = {
+  items: EntryCreateInput[];
+};
+
+export type BulkEntryCreateResult = {
+  created: { id: string; type: EntryType }[];
+  failed: { index: number; reason: string }[];
+};
+
+export type SelectedTarget = {
+  classId?: string | null;
+  childIds: string[];
+};
+
+export type EntryFilter = {
+  childId?: string;
+  classId?: string;
+  type?: EntryType;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
 
 export type DaycareProvider = {
   id: string;
@@ -121,7 +223,7 @@ export type Schedule = {
   dayOfWeek: number;       // 0 (Sunday) to 6 (Saturday)
   startTime: string;       // "HH:MM" format
   endTime: string;         // "HH:MM" format
-  morningAfernoon: "Morning" | "Afternoon" | "Full day";
+  morningAfternoon: "Morning" | "Afternoon" | "Full day";
 }
 
 export type Teacher = {
