@@ -539,10 +539,9 @@ export async function updateChildById(
   patch: Partial<
     Pick<
       Types.Child,
-      "firstName" | "lastName" | "birthDate" | "locationId" | "notes" | "parentId" | "enrollmentStatus" | "startDate"
+      "firstName" | "lastName" | "gender" | "birthDate" | "locationId" | "notes" | "parentId" | "enrollmentStatus" | "startDate"
     >
-  >,
-  uid?: string
+  >
 ): Promise<Types.Child> {
   if (!id) throw errorWithStatus("Missing child id", 400);
 
@@ -552,13 +551,11 @@ export async function updateChildById(
   const curr = snap.data() as ChildDocDB;
 
   const nextParentIds = Array.isArray(patch.parentId) ? patch.parentId : curr.parentId;
-  const nextLoc = patch.locationId ?? curr.locationId ?? (await classLocation(curr.classId));
-  const scope = await loadAdminScope(uid);
-  await ensureLocationAllowed(scope, nextLoc);
 
   const upd: Partial<ChildDocDB> = {
     firstName: patch.firstName ?? curr.firstName,
     lastName: patch.lastName ?? curr.lastName,
+    gender: patch.gender,
     birthDate: patch.birthDate ?? curr.birthDate,
     locationId: patch.locationId ?? curr.locationId,
     notes: patch.notes ?? curr.notes,

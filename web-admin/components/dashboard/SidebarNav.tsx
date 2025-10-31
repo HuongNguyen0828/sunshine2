@@ -82,17 +82,16 @@ export default function SidebarNav({
 
   const navItems: { id: Tab; label: string; icon: JSX.Element }[] = [
     { id: 'overview', label: 'Overview', icon: <OverviewIcon /> },
-    { id: 'teachers', label: 'Teachers', icon: <TeachersIcon /> },
-    { id: 'children', label: 'Children', icon: <StudentsIcon /> },
-    { id: 'parents', label: 'Parents', icon: <ParentsIcon /> },
     { id: 'classes', label: 'Classes', icon: <ClassesIcon /> },
+    { id: 'children', label: 'Children', icon: <ChildrenIcon /> },
+    { id: 'teachers', label: 'Teachers', icon: <TeachersIcon /> },
+    { id: 'parents', label: 'Parents', icon: <ParentsIcon /> },
     { id: 'scheduler-labs', label: 'Scheduler', icon: <SchedulerIcon /> },
   ];
 
   return (
-    <aside className={`p-3 transition-all duration-300 ease-in-out ${
-      isCollapsed ? 'w-[72px]' : 'w-72'
-    }`}>
+    <aside className={`p-3 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-[72px]' : 'w-72'
+      }`}>
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col h-full overflow-hidden">
         {/* Navigation Items */}
         <nav className="flex-1 p-2 space-y-1">
@@ -100,18 +99,15 @@ export default function SidebarNav({
             <button
               key={item.id}
               onClick={() => onChange(item.id)}
-              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 text-sm overflow-hidden ${
-                isCollapsed ? 'justify-center aspect-square' : 'px-3 py-2.5'
-              } ${
-                active === item.id
+              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 text-sm overflow-hidden ${isCollapsed ? 'justify-center aspect-square' : 'px-3 py-2.5'
+                } ${active === item.id
                   ? 'bg-gray-900 text-white font-medium shadow-sm'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-              }`}
+                }`}
               title={isCollapsed ? item.label : undefined}
             >
-              <span className={`flex-shrink-0 flex items-center justify-center ${
-                isCollapsed ? 'w-full' : 'w-5'
-              }`}>{item.icon}</span>
+              <span className={`flex-shrink-0 flex items-center justify-center ${isCollapsed ? 'w-full' : 'w-5'
+                }`}>{item.icon}</span>
               {!isCollapsed && (
                 <span className="transition-opacity duration-200 opacity-100 whitespace-nowrap">
                   {item.label}
@@ -125,15 +121,13 @@ export default function SidebarNav({
         <div className="p-2 border-t border-gray-100">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 overflow-hidden ${
-              isCollapsed ? 'justify-center aspect-square' : 'px-3 py-2.5'
-            }`}
+            className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 overflow-hidden ${isCollapsed ? 'justify-center aspect-square' : 'px-3 py-2.5'
+              }`}
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={isCollapsed ? 'Expand sidebar' : undefined}
           >
-            <span className={`flex-shrink-0 flex items-center justify-center ${
-              isCollapsed ? 'w-full' : 'w-5'
-            }`}><ToggleIcon /></span>
+            <span className={`flex-shrink-0 flex items-center justify-center ${isCollapsed ? 'w-full' : 'w-5'
+              }`}><ToggleIcon /></span>
             {!isCollapsed && <span className="whitespace-nowrap">Toggle</span>}
           </button>
         </div>

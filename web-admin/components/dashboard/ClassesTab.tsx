@@ -10,13 +10,13 @@ import {
   updateClass as apiUpdateClass,
   deleteClass as apiDeleteClass,
   assignTeachersToClass,
-  fetchTeacherCandidates,
   type TeacherCandidate,
 } from "@/services/useClassesAPI";
 
 type Props = {
   classes: Types.Class[];
   teachers: Types.Teacher[];
+  setClasses: React.Dispatch<React.SetStateAction<Types.Class[]>>;
   locations: LocationLite[];
   newClass: NewClassInput;
   setNewClass: React.Dispatch<React.SetStateAction<NewClassInput>>;
@@ -45,6 +45,7 @@ function getClassById(list: Types.Class[], id?: string | null): Types.Class | un
 export default function ClassesTab({
   classes,
   teachers,
+  setClasses,
   locations,
   newClass,
   setNewClass,
@@ -322,6 +323,15 @@ export default function ClassesTab({
       setIsAssigning(true);
       const ok = await assignTeachersToClass(showAssignTeachers, selectedTeachers);
       if (ok) {
+        setClasses(prev => prev.map(cls => {
+          const currentClass = cls;
+          if (cls.id === showAssignTeachers) {
+            const newClass: Types.Class = { ...cls, teacherIds: selectedTeachers };
+            return newClass;
+          }
+          return currentClass;
+
+        }));
         await onAssigned?.();
         setShowAssignTeachers(null);
         setSelectedTeachers([]);
@@ -330,6 +340,9 @@ export default function ClassesTab({
       setIsAssigning(false);
     }
   }
+
+  const passingAssigned = useCallback((cls: Types.Class) => teachers.filter(t => (t.classIds || []).includes(cls.id)), [teachers]);
+
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -411,7 +424,7 @@ export default function ClassesTab({
       {paginatedClasses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {paginatedClasses.map(cls => {
-            const assigned = teachers.filter(t => (t.classIds || []).includes(cls.id));
+            const assigned = passingAssigned(cls);
             const capacityStatus = getCapacityStatus(cls.volume, cls.capacity);
             const capacityPct = Math.min(100, Math.round((cls.volume / (cls.capacity || 1)) * 100));
 
@@ -426,6 +439,7 @@ export default function ClassesTab({
                     <span>📍</span>
                     <span className="truncate">{getLocationLabel(cls.locationId)}</span>
                   </div>
+                  <span className=" p-4 text-gray-600 text-sm">Classroom: {cls.classroom}</span>
                 </div>
 
                 {capacityStatus === "full" && (
@@ -762,11 +776,17 @@ export default function ClassesTab({
                         checked={selectedTeachers.includes(t.id)}
                         onChange={() => {
                           // Preventing more than 2 teachers selected:
-                          if (selectedTeachers.length > 2) {
-                            alert("No more than 2 teachers for a class!")
+                          if (selectedTeachers.length < 2) {
+                            // Allowing both if currently 0 or 1
+                            setSelectedTeachers(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id])
+                            return;
+                          } else {
+                            // Just allow removing: as currently 2, ( not even 3, ...)
+                            setSelectedTeachers(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : prev)
+                            // If try to click more than 2, throw alert
+                            if (!selectedTeachers.includes(t.id)) alert(`No more than 2 teachers for a class!`)
                             return;
                           }
-                          setSelectedTeachers(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id])
                         }
                         }
                         className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"

@@ -18,19 +18,24 @@ import {
   type LocationLite,
 } from "@/services/useLocationsAPI";
 import { data } from "react-router-dom";
+import { type ClassLite } from "@/app/dashboard/[uid]/page";
 
 export default function TeachersTab({
   teachers,
+  setTeachers, // To  have parent listen to the change from local TeacherTab
   newTeacher,
   setNewTeacher,
   onAdd,
   locations,
+  classesLite,
 }: {
   teachers: Types.Teacher[];
+  setTeachers: React.Dispatch<React.SetStateAction<Types.Teacher[]>>;
   newTeacher: NewTeacherInput;
   setNewTeacher: React.Dispatch<React.SetStateAction<NewTeacherInput>>;
   onAdd: () => void;
   locations: LocationLite[];
+  classesLite: ClassLite[]
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -183,12 +188,15 @@ export default function TeachersTab({
 
     if (editingTeacher) {
       const id = editingTeacher.id;
-
-      // NOTE: Adapt to your API client’s return shape if needed
-      const updated = await api.put<Types.Teacher>(`${ENDPOINTS.teachers}/${id}`, { ...newTeacher });
-
-      // Optimistically update the row in the local list
-      setRows((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
+      const updated = await api.put<Types.Teacher>(
+        `${ENDPOINTS.teachers}/${id}`,
+        { ...newTeacher }
+      );
+      setRows((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, ...updated } : t))
+      );
+      // Passing state back to parent component dashboard, to support ClassTab
+      setTeachers(prev => prev.map(t => t.id === id ? { ...t, ...updated } : t));
 
       setEditingTeacher(null);
       resetForm();
@@ -242,6 +250,7 @@ export default function TeachersTab({
       if (currentPage > maxPage) setCurrentPage(maxPage);
       return next;
     });
+    setTeachers(prev => prev.filter(t => t.id !== teacher.id));
   };
 
   const handleAssignClass = (teacherId: string) => {
@@ -391,6 +400,22 @@ export default function TeachersTab({
                 <div className="text-xs text-gray-400">
                   {String(teacher.startDate)}
                   {teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
+                </div>
+
+                <div className="flex items-center gap-3 text-sm text-gray-500">
+                  <span>Class:</span>
+                  {!teacher.classIds || teacher.classIds.length === 0 ? (
+                    <span>___</span>
+                  ) : (
+                    teacher.classIds.map((classId) => {
+                      const cls = classesLite.find((c) => c.id === classId);
+                      return (
+                        <span key={classId} >
+                          {cls ? cls.name : 'Unknown class'}
+                        </span>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
