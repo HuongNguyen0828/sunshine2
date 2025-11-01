@@ -1,240 +1,82 @@
 // mobile/services/useEntriesAPI.ts
-import { Platform } from "react-native";
-import { auth } from "@/lib/firebase";
+import { addDoc, collection, serverTimestamp, getDocs, query, where, orderBy, Timestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import type {
   EntryCreateInput,
-  EntryFilter,
   EntryType,
-  BulkEntryCreateRequest,
-  BulkEntryCreateResult,
+  EntryFilter,
 } from "../../shared/types/type";
 
 type Ok<T> = { ok: true; data: T };
 type Err = { ok: false; reason?: string };
 export type ApiRes<T> = Ok<T> | Err;
 
-/* ===============================
- * API base (Android emulator uses 10.0.2.2)
- * =============================== */
-const BASE_URL =
-  Platform.OS === "android"
-    ? "http://10.0.2.2:5001/api/mobile"
-    : "http://localhost:5001/api/mobile";
+const ENTRIES_COL = "entries";
 
-/* ===============================
- * Client-side rules (mirror of server)
- * =============================== */
-
-// Types that require a subtype
-const NEEDS_SUBTYPE: EntryType[] = ["Attendance", "Food", "Sleep"];
-
-// Types that require a free-text detail
-const NEEDS_DETAIL: EntryType[] = ["Activity", "Note", "Health"];
-
-// Types that require a photo url
+const NEEDS_SUBTYPE: EntryType[] = ["Attendance", "Food", "Sleep", "Toilet"];
+const NEEDS_DETAIL: EntryType[] = ["Schedule_note", "Supply Request", "Photo"];
 const NEEDS_PHOTO: EntryType[] = ["Photo"];
 
-// Toilet requires toiletKind but no subtype
-function needsToiletKind(t: EntryType) {
-  return t === "Toilet";
-}
-
-/* ===============================
- * Small utilities
- * =============================== */
-
-// ISO datetime guard
-function isIsoDateTime(v: unknown): v is string {
-  if (typeof v !== "string") return false;
-  const d = new Date(v);
-  return !isNaN(d.getTime());
-}
-
-// Now in ISO
-function nowIso() {
-  return new Date().toISOString();
-}
-
-// Build auth header using Firebase ID token
-async function authHeader() {
-  const idToken = await auth.currentUser?.getIdToken(true);
-  if (!idToken) throw new Error("Not authenticated");
-  return { Authorization: `Bearer ${idToken}` };
-}
-
-function toStr(v: unknown) {
-  return String(v ?? "").trim();
-}
-
-/* ===============================
- * Validation & normalization
- * =============================== */
-
-/** Client-side validation before hitting the API */
-function validateItem(p: EntryCreateInput): string | null {
-  // childIds rule: unless applyToAllInClass is true, we need at least one child
-  if (!Array.isArray(p.childIds)) return "childIds must be an array";
-  if (!p.applyToAllInClass && p.childIds.length === 0) {
-    return "At least one child is required";
-  }
-
-  // occurredAt rule
-  const occ = (p as any).occurredAt;
-  if (!isIsoDateTime(occ ?? "")) return "occurredAt must be an ISO datetime";
-
-  // subtype rules
-  if (NEEDS_SUBTYPE.includes(p.type as EntryType) && !(p as any).subtype) {
-    return "Subtype is required";
-  }
-
-  // toiletKind rule
-  if (needsToiletKind(p.type as EntryType) && !toStr((p as any).toiletKind)) {
-    return "toiletKind is required";
-  }
-
-  // photo rule
-  if (NEEDS_PHOTO.includes(p.type as EntryType) && !toStr((p as any).photoUrl)) {
-    return "Photo URL is required";
-  }
-
-  // detail rule
-  if (NEEDS_DETAIL.includes(p.type as EntryType) && !toStr((p as any).detail)) {
-    return "Detail is required";
-  }
-
-  // applyToAllInClass requires classId
-  if ((p as any).applyToAllInClass && !toStr(p.classId)) {
-    return "classId is required when applyToAllInClass is true";
-  }
-
+function validatePayload(p: EntryCreateInput): string | null {
+  if (!p.childIds?.length) return "At least one child is required";
+  if (NEEDS_SUBTYPE.includes(p.type as EntryType) && !(p as any).subtype) return "Subtype is required";
+  if (NEEDS_PHOTO.includes(p.type as EntryType) && !(p as any).photoUrl) return "Photo URL is required";
+  if (NEEDS_DETAIL.includes(p.type as EntryType) && !(p as any).detail?.trim()) return "Detail is required";
   return null;
 }
 
-/** Normalize one item to the server shape (ensure occurredAt exists) */
-function normalizeItem(p: EntryCreateInput) {
-  return {
-    ...p,
-    occurredAt: (p as any).occurredAt && isIsoDateTime((p as any).occurredAt)
-      ? (p as any).occurredAt
-      : nowIso(),
-  };
-}
-
-/* ===============================
- * API calls
- * =============================== */
-
-/** POST /v1/entries/bulk */
-export async function bulkCreateEntries(
-  items: EntryCreateInput[]
-): Promise<ApiRes<BulkEntryCreateResult>> {
+export async function createEntries(items: EntryCreateInput[]): Promise<ApiRes<{ ids: string[] }>> {
   try {
-    if (!items?.length) return { ok: false, reason: "No items" };
+    const uid = auth.currentUser?.uid;
+    if (!uid) return { ok: false, reason: "Not authenticated" };
 
-    // Validate each item on client to provide quick feedback
+    const ids: string[] = [];
     for (const it of items) {
-      const normalized = normalizeItem(it);
-      const err = validateItem(normalized);
+      const err = validatePayload(it);
       if (err) return { ok: false, reason: err };
+
+      const ref = await addDoc(collection(db, ENTRIES_COL), {
+        type: it.type,
+        subtype: (it as any).subtype ?? null,
+        childIds: it.childIds,
+        classId: it.classId ?? null,
+        detail: (it as any).detail ?? null,
+        photoUrl: (it as any).photoUrl ?? null,
+        staffId: uid,
+        createdAt: serverTimestamp(),
+      });
+      ids.push(ref.id);
     }
-
-    const headers = {
-      "Content-Type": "application/json",
-      ...(await authHeader()),
-    };
-
-    const payload: BulkEntryCreateRequest = {
-      items: items.map(normalizeItem),
-    };
-
-    const res = await fetch(`${BASE_URL}/v1/entries/bulk`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-    });
-
-    const text = await res.text();
-    let data: any = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = { raw: text };
-    }
-
-    if (!res.ok) {
-      return { ok: false, reason: data?.message || data?.reason || `HTTP ${res.status}` };
-    }
-
-    return { ok: true, data: data as BulkEntryCreateResult };
+    return { ok: true, data: { ids } };
   } catch (e: any) {
     return { ok: false, reason: String(e?.message || e) };
   }
 }
 
-/** Convenience: create entries for all children in a class (server expands) */
-export async function createForClass(
-  base: Omit<EntryCreateInput, "childIds"> & { classId: string }
-) {
-  return bulkCreateEntries([
-    {
-      ...base,
-      childIds: [],
-      applyToAllInClass: true,
-      occurredAt: (base as any).occurredAt ?? nowIso(),
-    } as EntryCreateInput,
-  ]);
-}
-
-/** Convenience: create entries for selected children only */
-export async function createForChildren(
-  base: Omit<EntryCreateInput, "childIds">,
-  childIds: string[]
-) {
-  return bulkCreateEntries([
-    {
-      ...base,
-      childIds,
-      applyToAllInClass: false,
-      occurredAt: (base as any).occurredAt ?? nowIso(),
-    } as EntryCreateInput,
-  ]);
-}
-
-/** GET /v1/entries */
-export async function listEntries(
-  filter: EntryFilter = {},
-  limit = 50
-): Promise<ApiRes<any[]>> {
+export async function createEntriesPerChild(item: EntryCreateInput): Promise<ApiRes<{ ids: string[] }>> {
   try {
-    const headers = {
-      ...(await authHeader()),
-    };
+    const pieces = item.childIds.map((cid) => ({ ...item, childIds: [cid] }));
+    return createEntries(pieces);
+  } catch (e: any) {
+    return { ok: false, reason: String(e?.message || e) };
+  }
+}
 
-    const qs = new URLSearchParams();
-    if (filter.childId) qs.set("childId", filter.childId);
-    if (filter.classId) qs.set("classId", filter.classId);
-    if (filter.type) qs.set("type", filter.type as EntryType);
-    if (filter.dateFrom) qs.set("dateFrom", filter.dateFrom);
-    if (filter.dateTo) qs.set("dateTo", filter.dateTo);
-    qs.set("limit", String(Math.max(1, Math.min(limit, 100))));
-
-    const res = await fetch(`${BASE_URL}/v1/entries?${qs.toString()}`, {
-      method: "GET",
-      headers,
+export async function listEntries(filter: EntryFilter = {}): Promise<ApiRes<any[]>> {
+  try {
+    const conds = [];
+    if (filter.childId) conds.push(where("childIds", "array-contains", filter.childId));
+    if (filter.classId) conds.push(where("classId", "==", filter.classId));
+    if (filter.type) conds.push(where("type", "==", filter.type));
+    const q = query(collection(db, ENTRIES_COL), ...conds, orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    const rows = snap.docs.map((d) => {
+      const x = d.data() as any;
+      const createdAtIso =
+        x.createdAt instanceof Timestamp ? x.createdAt.toDate().toISOString() : String(x.createdAt ?? "");
+      return { id: d.id, ...x, createdAt: createdAtIso };
     });
-
-    const text = await res.text();
-    let data: any = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = { raw: text };
-    }
-
-    if (!res.ok) {
-      return { ok: false, reason: data?.message || data?.reason || `HTTP ${res.status}` };
-    }
-    return { ok: true, data: Array.isArray(data) ? data : [] };
+    return { ok: true, data: rows };
   } catch (e: any) {
     return { ok: false, reason: String(e?.message || e) };
   }

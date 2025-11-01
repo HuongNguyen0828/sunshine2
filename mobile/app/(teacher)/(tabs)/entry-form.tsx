@@ -9,7 +9,7 @@ import type {
   FoodSubtype,
   SleepSubtype,
   ToiletSubtype,
-} from "@/shared/types/type";
+} from "../../../../shared/types/type";
 
 const ATTENDANCE_SUBTYPES: AttendanceSubtype[] = ["Check in", "Check out"];
 const FOOD_SUBTYPES: FoodSubtype[] = ["Breakfast", "Lunch", "Snack"];
