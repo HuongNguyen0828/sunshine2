@@ -1,49 +1,30 @@
-//shared/types/type.ts
-export type EntryType = 
-  "Attendance" | "Schedule_note" | "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
+// shared/types/type.ts
+
+/* =============================
+ * Entry types & subtypes (8 types)
+ * ============================= */
+export type EntryType =
+  | "Attendance"
+  | "Food"
+  | "Sleep"
+  | "Toilet"
+  | "Activity"
+  | "Photo"
+  | "Note"
+  | "Health";
 
 export type AttendanceSubtype = "Check in" | "Check out";
 export type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
-
-
-export enum TeacherStatus {
-  New = "🆕 New",
-  Active = "✅ Active",
-  Inactive = "🚫 Inactive"
-};
-
-
-export type Admin = {
-  daycareId: string,             // referencing Daycare Provider 
-  locationId?: string[],         // referencing location id, ['*'] means all locations; optional for now
-  firstName: string,
-  lastName: string, 
-  email: string,
-}
-
-export type Entry = {
-  id: string;
-  childId: string;
-  staffId: string;
-  type: EntryType;
-  subtype?: AttendanceSubtype | FoodSubtype | SleepSubtype | ToiletSubtype;
-  detail?: string;
-  photoUrl?: string;
-  createdAt: string;
-};
-
-/* ===== Teacher Dashboard – minimal additions ===== */
-
 export type SleepSubtype = "Started" | "Woke up";
-export type ToiletSubtype = "Wet" | "BM" | "Dry";
 
+/** Unified subtype helper used by forms and API payloads */
 export type EntrySubtype =
   | AttendanceSubtype
   | FoodSubtype
   | SleepSubtype
-  | ToiletSubtype
   | undefined;
 
+/** Optional UI metadata for cards (client only) */
 export type EntryTypeMeta = {
   id: EntryType;
   label: string;
@@ -53,15 +34,126 @@ export type EntryTypeMeta = {
   subtypes?: string[];
 };
 
+/** Form params passed via router */
 export type EntryFormParams = {
   type: EntryType;
   subtype?: EntrySubtype;
   classId?: string | null;
   childIds: string[];
-  note?: string;
-  photoUrl?: string;
+  note?: string;        // free text used by Activity/Note/Health
+  photoUrl?: string;    // used by Photo
+  applyToAllInClass?: boolean; // when true, server expands to all children in class
+  occurredAt?: string;  // ISO datetime (defaults to now at UI layer if omitted)
 };
 
+/* =============================
+ * Teacher status
+ * ============================= */
+export enum TeacherStatus {
+  New = "🆕 New",
+  Active = "✅ Active",
+  Inactive = "🚫 Inactive",
+}
+
+/* =============================
+ * Admin (kept as-is)
+ * ============================= */
+export type Admin = {
+  daycareId: string;       // referencing Daycare Provider
+  locationId?: string[];   // ['*'] means all locations; optional for now
+  firstName: string;
+  lastName: string;
+  email: string;
+};
+
+/* =======================================================================
+ * Legacy Entry shape (kept for backward compatibility in existing screens)
+ * NOTE: New Firestore writes should prefer EntryDoc (see below).
+ * ======================================================================= */
+export type Entry = {
+  id: string;
+  childId: string;
+  staffId: string;
+  type: EntryType;
+  subtype?: AttendanceSubtype | FoodSubtype | SleepSubtype;
+  detail?: string;
+  photoUrl?: string;
+  createdAt: string; // ISO
+};
+
+/* =======================================================================
+ * Unified Firestore schema for teacher dashboard records (entries)
+ * Single top-level `entries` collection.
+ * ======================================================================= */
+
+/** Flexible payload bucket per type; all fields are optional by design. */
+export type EntryData = {
+  // attendance
+  status?: "check_in" | "check_out";
+
+  // food
+  items?: string[];
+  amount?: "few" | "normal" | "much";
+
+  // sleep
+  start?: string; // ISO datetime
+  end?: string;   // ISO datetime
+  durationMin?: number;
+
+  // toilet (single visit: kind + time only)
+  toiletTime?: string;          // ISO datetime for the visit
+  toiletKind?: "urine" | "bm";  // urine = pee, bm = bowel movement
+
+  // activity / note / health (free text only)
+  text?: string;
+
+  // photo (storage / public url handling is app-specific)
+  storagePath?: string;
+  thumbPath?: string;
+};
+
+/** Canonical entry document persisted in Firestore `entries/{id}`. */
+export type EntryDoc = {
+  id: string;
+
+  // scope & denormalization
+  daycareId: string;
+  locationId: string;
+  classId?: string | null;
+  childId: string;
+
+  // authorship
+  createdByUserId: string; // users document id (teacher)
+  createdByRole: "teacher";
+  createdAt: string; // ISO created time
+  updatedAt?: string; // ISO updated time
+
+  // occurrence time used by feeds (parents board)
+  occurredAt: string; // ISO datetime; for Sleep usually equals data.start
+
+  // type info
+  type: EntryType;
+  subtype?: EntrySubtype;
+
+  // flexible payload
+  data?: EntryData;
+
+  // convenience mirrors for fast UI (optional)
+  detail?: string;   // short free text (can mirror data.text)
+  photoUrl?: string; // public URL if available
+  childName?: string;
+  className?: string;
+
+  // parent feed visibility (server can default to true)
+  visibleToParents?: boolean;
+  publishedAt?: string; // ISO when it became visible to parents
+};
+
+/* =============================
+ * Create / bulk-create payloads
+ * - `occurredAt` required
+ * - `applyToAllInClass` optional (server expands childIds by classId)
+ * ============================= */
 export type EntryCreateInput =
   | {
       type: "Attendance";
@@ -69,6 +161,8 @@ export type EntryCreateInput =
       childIds: string[];
       classId?: string | null;
       detail?: string;
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
     }
   | {
       type: "Food";
@@ -76,6 +170,8 @@ export type EntryCreateInput =
       childIds: string[];
       classId?: string | null;
       detail?: string;
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
     }
   | {
       type: "Sleep";
@@ -83,32 +179,50 @@ export type EntryCreateInput =
       childIds: string[];
       classId?: string | null;
       detail?: string;
+      occurredAt: string;          // ISO datetime (usually same as data.start)
+      applyToAllInClass?: boolean;
     }
   | {
       type: "Toilet";
-      subtype: ToiletSubtype;
       childIds: string[];
       classId?: string | null;
       detail?: string;
+      occurredAt: string;          // ISO datetime (maps to data.toiletTime)
+      toiletKind: "urine" | "bm";  // required
+      applyToAllInClass?: boolean;
     }
   | {
-      type: "Photo";
+      type: "Activity";            // free text only
       childIds: string[];
       classId?: string | null;
-      detail?: string;
-      photoUrl: string;
+      detail: string;              // required short text
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
     }
   | {
-      type: "Schedule_note";
+      type: "Photo";               // photo upload only
       childIds: string[];
       classId?: string | null;
-      detail: string;
+      photoUrl: string;            // required
+      detail?: string;             // optional caption
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
     }
   | {
-      type: "Supply Request";
+      type: "Note";                // free text only
       childIds: string[];
       classId?: string | null;
-      detail: string;
+      detail: string;              // required short text
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
+    }
+  | {
+      type: "Health";              // free text only (for incidents/symptoms)
+      childIds: string[];
+      classId?: string | null;
+      detail: string;              // required short text
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
     };
 
 export type BulkEntryCreateRequest = {
@@ -125,15 +239,18 @@ export type SelectedTarget = {
   childIds: string[];
 };
 
+/** Filter used by list APIs and feeds */
 export type EntryFilter = {
   childId?: string;
   classId?: string;
   type?: EntryType;
-  dateFrom?: string;
-  dateTo?: string;
+  dateFrom?: string; // ISO date (inclusive)
+  dateTo?: string;   // ISO date (exclusive or inclusive based on API)
 };
 
-
+/* =============================
+ * Daycare provider
+ * ============================= */
 export type DaycareProvider = {
   id: string;
   name: string;
@@ -143,80 +260,56 @@ export type DaycareProvider = {
   email: string;
   contactName: string;
 };
-// Remove Location for now for purpose of simplicity
-export type Location = {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  providerId: string;
-  street: string;
-  city: string;
-  provine: string;
-  zip: string;
-  country: string;
-  creditCardInfo?: string;
-};
 
-export type Admin = {
-  daycareId: string; // referencing Daycare Provider , ['*'] means all daycare, only for Sunshine admin
-  locationId: string[]; // referencing location id, ['*'] for all location
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  address: string;
-  postalCode: string;
-};
-// Upper, For Sunshine admin only read/ write access ====================================================================
-// The rest if for admin of daycare/ daycare location having read and write access. Sunshine admin just have read access
+// Location type intentionally omitted for now
 
-// ---------- Class DTOs (client/server-safe) ----------
-// Use plain primitives only. Do NOT import firebase-admin types here.
-
+/* =============================
+ * Classes
+ * ============================= */
 export type Class = {
   id: string;
   name: string;
   // Keep this required to avoid scope bugs when querying by location
   locationId: string;
-  capacity: number;   // expected integer >= 0
-  volume: number;     // optional meaning: room size / seats metric
-  ageStart: number;   // expected integer (years)
-  ageEnd: number;     // expected integer (years), >= ageStart
+  capacity: number;
+  volume: number; // volume <= capacity
+  ageStart: number;
+  ageEnd: number; // >= ageStart
   classroom?: string;
-  teacherIds: string[];       // present in API responses
-  createdAt: string;          // ISO string
-  updatedAt: string;          // ISO string
+  teacherIds: string[];
+  createdAt: string;
+  updatedAt: string;
 };
 
-// Payload to create a class (no id/teacherIds/timestamps)
 export type ClassCreate = Pick<
   Class,
   "name" | "locationId" | "capacity" | "volume" | "ageStart" | "ageEnd" | "classroom"
 >;
 
-// General update payload (excluding teacher assignment)
 export type ClassUpdate = Partial<
   Pick<Class, "name" | "locationId" | "capacity" | "volume" | "ageStart" | "ageEnd" | "classroom">
 >;
 
-// Teacher assignment is handled separately for clarity and access control
 export type ClassAssignTeachers = {
   classId: string;
   teacherIds: string[];
 };
 
-// ---------- Optional: common API shapes ----------
-
+/* =============================
+ * Common API shapes
+ * ============================= */
 export type ApiListResponse<T> = T[];
 export type ApiItemResponse<T> = T;
 
-// Standard error shape from the API
 export type ApiError = {
   message: string;
   error?: string;
   code?: string | number;
 };
+
+/* =============================
+ * User
+ * ============================= */
 export type User = {
   id: string;
   firstName?: string;
@@ -229,21 +322,27 @@ export type User = {
   classIds?: string[];
 };
 
+/* =============================
+ * Schedule
+ * ============================= */
 export type Schedule = {
   id: string;
   classId: string;
-  dayOfWeek: number;       // 0 (Sunday) to 6 (Saturday)
-  startTime: string;       // "HH:MM" format
-  endTime: string;         // "HH:MM" format
+  dayOfWeek: number; // 0..6
+  startTime: string; // "HH:MM"
+  endTime: string;   // "HH:MM"
   morningAfternoon: "Morning" | "Afternoon" | "Full day";
-}
+};
 
+/* =============================
+ * Teacher
+ * ============================= */
 export type Teacher = {
   id: string;
-  role?: "teacher"; 
+  role?: "teacher";
   firstName: string;
   lastName: string;
-  email: string;           // username for login
+  email: string; // username for login
   phone: string;
   address1: string;
   address2?: string;
@@ -251,39 +350,41 @@ export type Teacher = {
   province: string;
   country: string;
   postalcode?: string;
-  classIds?: string[];     // classes assigned to this staff
-  locationId?: string;     // optional for now
+  classIds?: string[];
+  locationId?: string;
   startDate: string;
-  endDate?: string;        // optional end date for staff
+  endDate?: string;
   status?: TeacherStatus; // Default "New"
-  isRegistered?: boolean; // Default false, true once new Teacher is added
-}
-
-export type Schedule = {
-  id: string;
-  classId: string;
-  dayOfWeek: number; // 0 (Sunday) to 6 (Saturday)
-  startTime: string; // "HH:MM" format
-  endTime: string; // "HH:MM" format
-  morningAfernoon: "Morning" | "Afternoon" | "Full day";
+  isRegistered?: boolean; // Default false
 };
 
-/** 
- * Possible enrollment status — automatically derived by server 
- * EnrollmentStatus enum applires to Child and Parent
- * The default type when add a children, or parent is "New"
- * In parent -child: many - to many relationship:
- * If all children are “Withdraw,” you can automatically mark the parent as “Withdraw.”
- * If at least one child is “Active,” the parent stays “Active.”
-*/
+/* =============================
+ * Monthly report
+ * ============================= */
+export type monthlyReport = {
+  id: string;
+  childId?: string;
+  classId?: string;
+  locationId?: string;
+  month: string; // "YYYY-MM"
+  attendanceCount: number;
+  creatAt: string;
+  updatedAt?: string;
+};
+
+/* =============================
+ * Enrollment status
+ * ============================= */
 export enum EnrollmentStatus {
-  New = "New",         
+  New = "New",
   Waitlist = "Waitlist",
   Active = "Active",
-  Withdraw = "Withdraw",   
+  Withdraw = "Withdraw",
 }
 
-/** Minimal structure stored in Firestore and used across UI */
+/* =============================
+ * Child + DTOs
+ * ============================= */
 export type Child = {
   /** Firestore document id */
   id: string;
@@ -292,18 +393,19 @@ export type Child = {
   firstName: string;
   lastName: string;
   birthDate: string; // ISO date (yyyy-mm-dd)
-  gender: string,
-  /** Parent linkage (user ids from users collection with role="parent") */
+  gender: string;
+
+  /** Parent linkage (users with role="parent") */
   parentId: string[];
 
   /** Placement info */
-  classId?: string;    // assigned class id (optional)
-  locationId?: string; // location scope id
-  daycareId?: string;   // always required, injected from current admin
+  classId?: string; // assigned class id
+  locationId?: string;
+  daycareId?: string;
 
   /** Enrollment lifecycle (computed) */
-  enrollmentStatus: EnrollmentStatus; // computed by backend
-  /** Additional notes (allergies, special needs, subsidy, etc.) */
+  enrollmentStatus: EnrollmentStatus;
+  /** Additional notes (allergies, etc.) */
   notes?: string;
   startDate: string;
 
@@ -312,7 +414,6 @@ export type Child = {
   updatedAt?: string;
 };
 
-/** Request shape when creating a new child */
 export type CreateChildInput = {
   firstName: string;
   lastName: string;
@@ -323,30 +424,29 @@ export type CreateChildInput = {
   notes?: string;
 };
 
-/** Request shape when updating an existing child (profile only) */
-export type UpdateChildProfileInput = Partial<Pick<
-  Child,
-  "firstName" | "lastName" | "birthDate" | "locationId" | "notes"
->>;
+export type UpdateChildProfileInput = Partial<
+  Pick<Child, "firstName" | "lastName" | "birthDate" | "locationId" | "notes">
+>;
 
-/** Response DTO from server after any mutation */
 export type ChildDTO = Child;
 
-
+/* =============================
+ * Parent
+ * ============================= */
 type ParentChildRelationship = {
   childId: string;
-  relationship: string; // e.g., "mother", "father", "guardian", "grandparent", etc.
+  relationship: string; // e.g., "mother", "father", "guardian"
 };
 
 export type Parent = {
-  id: string; // Make optionall as 
-  docId: string; // is document Id to match parentID in child
+  id: string;
+  docId: string; // document id to match parentID in child
   firstName: string;
   lastName: string;
-  email: string;           // username for login
-  role?: "parent";          // fixed as Parent
+  email: string;
+  role?: "parent";
   phone: string;
-  childRelationships: ParentChildRelationship[]; // Changed from childIds  address1: string;
+  childRelationships: ParentChildRelationship[];
   address1: string;
   address2?: string;
   city: string;
@@ -357,37 +457,13 @@ export type Parent = {
   locationId?: string;
 };
 
-export type Entry = {
-  id: string;
-  childId: string;
-  staffId: string;
-  type: EntryType;
-  subtype?: AttendanceSubtype | FoodSubtype;
-  detail?: string;
-  photoUrl?: string;
-  createdAt: string;
-};
-export type Photo = {
-  id: string;
-  entryId: string;
-  url: string;
-  uploadedAt: string; // ISO date string
-};
+/* =============================
+ * Daily report (legacy container)
+ * ============================= */
 export type DailyReport = {
   id: string;
   childId: string;
-  date: string;            // ISO date string
-  entries: Entry[];
-  createdAt: string; // ISO date string // report created right after kid is checked out
-};
-
-export type monthlyReport = {
-  id: string;
-  childId?: string; // Optional, if not provided, means all children under the parent
-  classId?: string; // Optional, if not provided, means all classes under the location
-  locationId?: string; // Optional, if not provided, means all locations under the provider
-  month: string; // "YYYY-MM" format
-  attendanceCount: number;
-  creatAt: string;
-  updatedAt?: string;
+  date: string;   // ISO date
+  entries: Entry[]; // legacy usage in reports; ok to keep
+  createdAt: string; // ISO date
 };
