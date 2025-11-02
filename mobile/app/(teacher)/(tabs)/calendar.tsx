@@ -35,7 +35,10 @@ import {
   Clock,
   MapPin,
   Baby,
+  School,
+  AlertCircle,
 } from "lucide-react-native";
+import { mockDaycareEvents } from "../../../src/data/mockData";
 
 type EventType = "activity" | "birthday" | "meeting" | "holiday";
 
@@ -51,52 +54,6 @@ type Event = {
 
 type DayEvents = {
   [date: string]: Event[];
-};
-
-// Mock data for demonstration
-const mockEvents: DayEvents = {
-  "2024-10-28": [
-    {
-      id: "1",
-      title: "Circle Time & Morning Songs",
-      time: "9:00 AM",
-      type: "activity",
-      location: "Classroom A",
-    },
-    {
-      id: "2",
-      title: "Art & Craft: Leaf Painting",
-      time: "10:30 AM",
-      type: "activity",
-      location: "Art Room",
-      description: "Fall themed art project",
-    },
-    {
-      id: "3",
-      title: "Emma's Birthday",
-      type: "birthday",
-      children: ["Emma Johnson"],
-    },
-  ],
-  "2024-10-30": [
-    {
-      id: "4",
-      title: "Halloween Party",
-      time: "2:00 PM",
-      type: "holiday",
-      location: "Main Hall",
-      description: "Costume parade and treats",
-    },
-  ],
-  "2024-11-01": [
-    {
-      id: "5",
-      title: "Parent-Teacher Conference",
-      time: "3:30 PM",
-      type: "meeting",
-      children: ["Lucas Smith"],
-    },
-  ],
 };
 
 const eventColors = {
