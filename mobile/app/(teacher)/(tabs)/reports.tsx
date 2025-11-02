@@ -12,9 +12,8 @@ import {
   StyleSheet,
   Pressable,
   Modal,
-  ActivityIndicator,
 } from "react-native";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
