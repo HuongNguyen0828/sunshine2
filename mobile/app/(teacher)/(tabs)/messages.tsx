@@ -8,15 +8,13 @@
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   Pressable,
   TextInput,
   Modal,
-  FlatList,
-  ActivityIndicator,
+  SectionList,
 } from "react-native";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
