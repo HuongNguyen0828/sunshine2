@@ -229,7 +229,7 @@ export default function TeacherCalendar() {
               const isSelected =
                 date.toDateString() === selectedDate.toDateString();
               const dateKey = formatDateKey(date);
-              const hasEvents = mockEvents[dateKey]?.length > 0;
+              const hasEvents = mockDaycareEvents[dateKey]?.length > 0;
 
               return (
                 <Pressable
