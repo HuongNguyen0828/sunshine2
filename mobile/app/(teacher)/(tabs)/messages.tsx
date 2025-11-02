@@ -91,8 +91,8 @@ export default function TeacherMessages() {
     return filtered;
   }, [entries, searchText, selectedClass, selectedChild, selectedType]);
 
-  // Group entries by date
-  const groupedEntries = useMemo(() => {
+  // Group entries by date for SectionList
+  const sections = useMemo(() => {
     const groups: { [key: string]: Partial<EntryDoc>[] } = {};
 
     filteredEntries.forEach(entry => {
@@ -117,7 +117,8 @@ export default function TeacherMessages() {
         const dateA = a[1][0].occurredAt ? new Date(a[1][0].occurredAt).getTime() : 0;
         const dateB = b[1][0].occurredAt ? new Date(b[1][0].occurredAt).getTime() : 0;
         return dateB - dateA;
-      });
+      })
+      .map(([title, data]) => ({ title, data }));
   }, [filteredEntries]);
 
   // Get filtered children based on selected class
