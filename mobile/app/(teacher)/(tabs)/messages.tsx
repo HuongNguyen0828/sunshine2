@@ -411,10 +411,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-  centerContent: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
   gradientBackground: {
     position: "absolute",
     top: 0,
@@ -422,8 +418,8 @@ const styles = StyleSheet.create({
     right: 0,
     height: 400,
   },
-  scrollView: {
-    flex: 1,
+  listContent: {
+    paddingBottom: 40,
   },
   header: {
     paddingHorizontal: 20,
