@@ -253,7 +253,7 @@ export default function TeacherCalendar() {
                   </Text>
                   {hasEvents && (
                     <View style={styles.eventDotsContainer}>
-                      {mockEvents[dateKey].slice(0, 3).map((event, i) => (
+                      {mockDaycareEvents[dateKey].slice(0, 3).map((event, i) => (
                         <View
                           key={i}
                           style={[
