@@ -13,33 +13,49 @@ type Ok<T> = { ok: true; data: T };
 type Err = { ok: false; reason?: string };
 export type ApiRes<T> = Ok<T> | Err;
 
+/* ===============================
+ * API base (Android emulator uses 10.0.2.2)
+ * =============================== */
 const BASE_URL =
   Platform.OS === "android"
     ? "http://10.0.2.2:5001/api/mobile"
     : "http://localhost:5001/api/mobile";
 
+/* ===============================
+ * Client-side rules (mirror of server)
+ * =============================== */
+
 // Types that require a subtype
 const NEEDS_SUBTYPE: EntryType[] = ["Attendance", "Food", "Sleep"];
+
 // Types that require a free-text detail
 const NEEDS_DETAIL: EntryType[] = ["Activity", "Note", "Health"];
+
 // Types that require a photo url
 const NEEDS_PHOTO: EntryType[] = ["Photo"];
 
-// Toilet requires toiletKind but no subtype; keep it explicit
+// Toilet requires toiletKind but no subtype
 function needsToiletKind(t: EntryType) {
   return t === "Toilet";
 }
 
+/* ===============================
+ * Small utilities
+ * =============================== */
+
+// ISO datetime guard
 function isIsoDateTime(v: unknown): v is string {
   if (typeof v !== "string") return false;
   const d = new Date(v);
   return !isNaN(d.getTime());
 }
 
+// Now in ISO
 function nowIso() {
   return new Date().toISOString();
 }
 
+// Build auth header using Firebase ID token
 async function authHeader() {
   const idToken = await auth.currentUser?.getIdToken(true);
   if (!idToken) throw new Error("Not authenticated");
@@ -50,27 +66,47 @@ function toStr(v: unknown) {
   return String(v ?? "").trim();
 }
 
+/* ===============================
+ * Validation & normalization
+ * =============================== */
+
 /** Client-side validation before hitting the API */
 function validateItem(p: EntryCreateInput): string | null {
+  // childIds rule: unless applyToAllInClass is true, we need at least one child
   if (!Array.isArray(p.childIds)) return "childIds must be an array";
-  if (!p.applyToAllInClass && p.childIds.length === 0) return "At least one child is required";
-  if (!isIsoDateTime((p as any).occurredAt ?? "")) return "occurredAt must be an ISO datetime";
+  if (!p.applyToAllInClass && p.childIds.length === 0) {
+    return "At least one child is required";
+  }
 
+  // occurredAt rule
+  const occ = (p as any).occurredAt;
+  if (!isIsoDateTime(occ ?? "")) return "occurredAt must be an ISO datetime";
+
+  // subtype rules
   if (NEEDS_SUBTYPE.includes(p.type as EntryType) && !(p as any).subtype) {
     return "Subtype is required";
   }
+
+  // toiletKind rule
   if (needsToiletKind(p.type as EntryType) && !toStr((p as any).toiletKind)) {
     return "toiletKind is required";
   }
+
+  // photo rule
   if (NEEDS_PHOTO.includes(p.type as EntryType) && !toStr((p as any).photoUrl)) {
     return "Photo URL is required";
   }
+
+  // detail rule
   if (NEEDS_DETAIL.includes(p.type as EntryType) && !toStr((p as any).detail)) {
     return "Detail is required";
   }
+
+  // applyToAllInClass requires classId
   if ((p as any).applyToAllInClass && !toStr(p.classId)) {
     return "classId is required when applyToAllInClass is true";
   }
+
   return null;
 }
 
@@ -84,6 +120,10 @@ function normalizeItem(p: EntryCreateInput) {
   };
 }
 
+/* ===============================
+ * API calls
+ * =============================== */
+
 /** POST /v1/entries/bulk */
 export async function bulkCreateEntries(
   items: EntryCreateInput[]
@@ -93,7 +133,8 @@ export async function bulkCreateEntries(
 
     // Validate each item on client to provide quick feedback
     for (const it of items) {
-      const err = validateItem(normalizeItem(it));
+      const normalized = normalizeItem(it);
+      const err = validateItem(normalized);
       if (err) return { ok: false, reason: err };
     }
 
@@ -130,7 +171,7 @@ export async function bulkCreateEntries(
   }
 }
 
-/** Convenience: apply to all in class */
+/** Convenience: create entries for all children in a class (server expands) */
 export async function createForClass(
   base: Omit<EntryCreateInput, "childIds"> & { classId: string }
 ) {
@@ -139,11 +180,12 @@ export async function createForClass(
       ...base,
       childIds: [],
       applyToAllInClass: true,
+      occurredAt: (base as any).occurredAt ?? nowIso(),
     } as EntryCreateInput,
   ]);
 }
 
-/** Convenience: apply to specific children */
+/** Convenience: create entries for selected children only */
 export async function createForChildren(
   base: Omit<EntryCreateInput, "childIds">,
   childIds: string[]
@@ -153,12 +195,16 @@ export async function createForChildren(
       ...base,
       childIds,
       applyToAllInClass: false,
+      occurredAt: (base as any).occurredAt ?? nowIso(),
     } as EntryCreateInput,
   ]);
 }
 
 /** GET /v1/entries */
-export async function listEntries(filter: EntryFilter = {}, limit = 50): Promise<ApiRes<any[]>> {
+export async function listEntries(
+  filter: EntryFilter = {},
+  limit = 50
+): Promise<ApiRes<any[]>> {
   try {
     const headers = {
       ...(await authHeader()),
