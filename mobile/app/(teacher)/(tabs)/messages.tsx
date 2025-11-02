@@ -56,16 +56,9 @@ export default function TeacherMessages() {
   const [showClassModal, setShowClassModal] = useState(false);
   const [showChildModal, setShowChildModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
-  const [entries, setEntries] = useState<Partial<EntryDoc>[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  // Load mock entries on mount
-  useEffect(() => {
-    setTimeout(() => {
-      setEntries(generateMockEntries());
-      setLoading(false);
-    }, 500);
-  }, []);
+  // Generate entries once and memoize
+  const entries = useMemo(() => generateMockEntries(), []);
 
   // Filter entries based on selections
   const filteredEntries = useMemo(() => {
