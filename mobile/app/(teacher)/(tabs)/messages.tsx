@@ -495,18 +495,14 @@ const styles = StyleSheet.create({
     color: "#DC2626",
     fontWeight: "500",
   },
-  feedContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  dateGroup: {
-    marginBottom: 24,
-  },
   dateHeader: {
     fontSize: 16,
     fontWeight: "600",
     color: "#475569",
-    marginBottom: 12,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: "#F9FAFB",
   },
   entryCard: {
     flexDirection: "row",
