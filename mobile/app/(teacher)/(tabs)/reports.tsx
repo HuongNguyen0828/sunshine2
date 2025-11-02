@@ -720,11 +720,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: "center",
   },
-  loadingText: {
-    fontSize: 16,
-    color: "#64748B",
-    marginTop: 16,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
