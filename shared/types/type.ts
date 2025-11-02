@@ -1,9 +1,17 @@
-//shared/types/type.ts
-export type EntryType = 
-  "Attendance" | "Schedule_note" | "Food" | "Photo" | "Sleep" | "Toilet" | "Supply Request";
+// shared/types/type.ts
 
-export type AttendanceSubtype = "Check in" | "Check out";
-export type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
+/* =============================
+ * Entry types & subtypes (8 types)
+ * ============================= */
+export type EntryType =
+  | "Attendance"
+  | "Food"
+  | "Sleep"
+  | "Toilet"
+  | "Activity"
+  | "Photo"
+  | "Note"
+  | "Health";
 
 export type AttendanceSubtype = "Check in" | "Check out";
 export type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
@@ -23,7 +31,7 @@ export type EntryTypeMeta = {
   color?: string;
   bgColor?: string;
   iconName?: string;
-  subtypes?: string[]; // e.g., ["Check in","Check out"] for Attendance
+  subtypes?: string[];
 };
 
 /** Form params passed via router */
@@ -32,10 +40,10 @@ export type EntryFormParams = {
   subtype?: EntrySubtype;
   classId?: string | null;
   childIds: string[];
-  note?: string;         // free text used by Activity / Note / Health
-  photoUrl?: string;     // used by Photo
-  applyToAllInClass?: boolean; // server may expand by classId
-  occurredAt?: string;   // ISO datetime (UI may default to now)
+  note?: string;        // free text used by Activity/Note/Health
+  photoUrl?: string;    // used by Photo
+  applyToAllInClass?: boolean; // when true, server expands to all children in class
+  occurredAt?: string;  // ISO datetime (defaults to now at UI layer if omitted)
 };
 
 /* =============================
@@ -51,8 +59,8 @@ export enum TeacherStatus {
  * Admin (kept as-is)
  * ============================= */
 export type Admin = {
-  daycareId: string;      // referencing Daycare Provider
-  locationId?: string[];  // ['*'] means all locations; optional for now
+  daycareId: string;       // referencing Daycare Provider
+  locationId?: string[];   // ['*'] means all locations; optional for now
   firstName: string;
   lastName: string;
   email: string;
@@ -67,42 +75,85 @@ export type Entry = {
   childId: string;
   staffId: string;
   type: EntryType;
-  subtype?: AttendanceSubtype | FoodSubtype | SleepSubtype | ToiletSubtype;
+  subtype?: AttendanceSubtype | FoodSubtype | SleepSubtype;
   detail?: string;
   photoUrl?: string;
   createdAt: string; // ISO
 };
 
-/* ===== Teacher Dashboard – minimal additions ===== */
+/* =======================================================================
+ * Unified Firestore schema for teacher dashboard records (entries)
+ * Single top-level `entries` collection.
+ * ======================================================================= */
 
-export type SleepSubtype = "Started" | "Woke up";
-export type ToiletSubtype = "Wet" | "BM" | "Dry";
+/** Flexible payload bucket per type; all fields are optional by design. */
+export type EntryData = {
+  // attendance
+  status?: "check_in" | "check_out";
 
-export type EntrySubtype =
-  | AttendanceSubtype
-  | FoodSubtype
-  | SleepSubtype
-  | ToiletSubtype
-  | undefined;
+  // food
+  items?: string[];
+  amount?: "few" | "normal" | "much";
 
-export type EntryTypeMeta = {
-  id: EntryType;
-  label: string;
-  color?: string;
-  bgColor?: string;
-  iconName?: string;
-  subtypes?: string[];
+  // sleep
+  start?: string; // ISO datetime
+  end?: string;   // ISO datetime
+  durationMin?: number;
+
+  // toilet (single visit: kind + time only)
+  toiletTime?: string;          // ISO datetime for the visit
+  toiletKind?: "urine" | "bm";  // urine = pee, bm = bowel movement
+
+  // activity / note / health (free text only)
+  text?: string;
+
+  // photo (storage / public url handling is app-specific)
+  storagePath?: string;
+  thumbPath?: string;
 };
 
-export type EntryFormParams = {
+/** Canonical entry document persisted in Firestore `entries/{id}`. */
+export type EntryDoc = {
+  id: string;
+
+  // scope & denormalization
+  daycareId: string;
+  locationId: string;
+  classId?: string | null;
+  childId: string;
+
+  // authorship
+  createdByUserId: string; // users document id (teacher)
+  createdByRole: "teacher";
+  createdAt: string; // ISO created time
+  updatedAt?: string; // ISO updated time
+
+  // occurrence time used by feeds (parents board)
+  occurredAt: string; // ISO datetime; for Sleep usually equals data.start
+
+  // type info
   type: EntryType;
   subtype?: EntrySubtype;
-  classId?: string | null;
-  childIds: string[];
-  note?: string;
-  photoUrl?: string;
+
+  // flexible payload
+  data?: EntryData;
+
+  // convenience mirrors for fast UI (optional)
+  detail?: string;   // short free text (can mirror data.text)
+  photoUrl?: string; // public URL if available
+  childName?: string;
+  className?: string;
+
+  // parent feed visibility (server can default to true)
+  visibleToParents?: boolean;
+  publishedAt?: string; // ISO when it became visible to parents
 };
 
+/* =============================
+ * Create / bulk-create payloads
+ * - `occurredAt` required
+ * - `applyToAllInClass` optional (server expands childIds by classId)
+ * ============================= */
 export type EntryCreateInput =
   | {
       type: "Attendance";
@@ -110,6 +161,8 @@ export type EntryCreateInput =
       childIds: string[];
       classId?: string | null;
       detail?: string;
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
     }
   | {
       type: "Food";
@@ -117,6 +170,8 @@ export type EntryCreateInput =
       childIds: string[];
       classId?: string | null;
       detail?: string;
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
     }
   | {
       type: "Sleep";
@@ -124,32 +179,50 @@ export type EntryCreateInput =
       childIds: string[];
       classId?: string | null;
       detail?: string;
+      occurredAt: string;          // ISO datetime (usually same as data.start)
+      applyToAllInClass?: boolean;
     }
   | {
       type: "Toilet";
-      subtype: ToiletSubtype;
       childIds: string[];
       classId?: string | null;
       detail?: string;
+      occurredAt: string;          // ISO datetime (maps to data.toiletTime)
+      toiletKind: "urine" | "bm";  // required
+      applyToAllInClass?: boolean;
     }
   | {
-      type: "Photo";
+      type: "Activity";            // free text only
       childIds: string[];
       classId?: string | null;
-      detail?: string;
-      photoUrl: string;
+      detail: string;              // required short text
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
     }
   | {
-      type: "Schedule_note";
+      type: "Photo";               // photo upload only
       childIds: string[];
       classId?: string | null;
-      detail: string;
+      photoUrl: string;            // required
+      detail?: string;             // optional caption
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
     }
   | {
-      type: "Supply Request";
+      type: "Note";                // free text only
       childIds: string[];
       classId?: string | null;
-      detail: string;
+      detail: string;              // required short text
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
+    }
+  | {
+      type: "Health";              // free text only (for incidents/symptoms)
+      childIds: string[];
+      classId?: string | null;
+      detail: string;              // required short text
+      occurredAt: string;          // ISO datetime
+      applyToAllInClass?: boolean;
     };
 
 export type BulkEntryCreateRequest = {
@@ -166,15 +239,18 @@ export type SelectedTarget = {
   childIds: string[];
 };
 
+/** Filter used by list APIs and feeds */
 export type EntryFilter = {
   childId?: string;
   classId?: string;
   type?: EntryType;
-  dateFrom?: string;
-  dateTo?: string;
+  dateFrom?: string; // ISO date (inclusive)
+  dateTo?: string;   // ISO date (exclusive or inclusive based on API)
 };
 
-
+/* =============================
+ * Daycare provider
+ * ============================= */
 export type DaycareProvider = {
   id: string;
   name: string;
@@ -252,11 +328,11 @@ export type User = {
 export type Schedule = {
   id: string;
   classId: string;
-  dayOfWeek: number;       // 0 (Sunday) to 6 (Saturday)
-  startTime: string;       // "HH:MM" format
-  endTime: string;         // "HH:MM" format
+  dayOfWeek: number; // 0..6
+  startTime: string; // "HH:MM"
+  endTime: string;   // "HH:MM"
   morningAfternoon: "Morning" | "Afternoon" | "Full day";
-}
+};
 
 /* =============================
  * Teacher
@@ -329,7 +405,6 @@ export type Child = {
 
   /** Enrollment lifecycle (computed) */
   enrollmentStatus: EnrollmentStatus;
-
   /** Additional notes (allergies, etc.) */
   notes?: string;
   startDate: string;
