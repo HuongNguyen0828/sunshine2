@@ -482,10 +482,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-  centerContent: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
   gradientBackground: {
     position: "absolute",
     top: 0,
