@@ -168,46 +168,6 @@ export default function TeacherMessages() {
 
   const hasActiveFilters = selectedClass || selectedChild || selectedType || searchText;
 
-  const renderEntry = (entry: Partial<EntryDoc>) => {
-    const config = entryTypeConfig[entry.type as keyof typeof entryTypeConfig];
-    const IconComponent = config?.icon || Activity;
-    const time = entry.occurredAt
-      ? new Date(entry.occurredAt).toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        })
-      : "";
-
-    return (
-      <View style={styles.entryCard}>
-        <View style={[styles.entryIconContainer, { backgroundColor: config?.bg }]}>
-          <IconComponent size={20} color={config?.color} strokeWidth={2} />
-        </View>
-        <View style={styles.entryContent}>
-          <View style={styles.entryHeader}>
-            <Text style={styles.entryTitle}>{entry.childName}</Text>
-            <Text style={styles.entryTime}>{time}</Text>
-          </View>
-          <Text style={styles.entryType}>
-            {entry.type}
-            {entry.subtype && ` - ${entry.subtype}`}
-          </Text>
-          {entry.detail && <Text style={styles.entryDetail}>{entry.detail}</Text>}
-          <Text style={styles.entryClass}>{entry.className}</Text>
-        </View>
-      </View>
-    );
-  };
-
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#6366F1" />
-        <Text style={styles.loadingText}>Loading activity log...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <LinearGradient
