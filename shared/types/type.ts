@@ -31,7 +31,7 @@ export type EntryTypeMeta = {
   color?: string;
   bgColor?: string;
   iconName?: string;
-  subtypes?: string[];
+  subtypes?: string[]; // e.g., ["Check in","Check out"] for Attendance
 };
 
 /** Form params passed via router */
@@ -40,10 +40,10 @@ export type EntryFormParams = {
   subtype?: EntrySubtype;
   classId?: string | null;
   childIds: string[];
-  note?: string;        // free text used by Activity/Note/Health
-  photoUrl?: string;    // used by Photo
-  applyToAllInClass?: boolean; // when true, server expands to all children in class
-  occurredAt?: string;  // ISO datetime (defaults to now at UI layer if omitted)
+  note?: string;         // free text used by Activity / Note / Health
+  photoUrl?: string;     // used by Photo
+  applyToAllInClass?: boolean; // server may expand by classId
+  occurredAt?: string;   // ISO datetime (UI may default to now)
 };
 
 /* =============================
@@ -59,8 +59,8 @@ export enum TeacherStatus {
  * Admin (kept as-is)
  * ============================= */
 export type Admin = {
-  daycareId: string;       // referencing Daycare Provider
-  locationId?: string[];   // ['*'] means all locations; optional for now
+  daycareId: string;      // referencing Daycare Provider
+  locationId?: string[];  // ['*'] means all locations; optional for now
   firstName: string;
   lastName: string;
   email: string;
@@ -179,7 +179,7 @@ export type EntryCreateInput =
       childIds: string[];
       classId?: string | null;
       detail?: string;
-      occurredAt: string;          // ISO datetime (usually same as data.start)
+      occurredAt: string;          // ISO datetime (usually equals data.start)
       applyToAllInClass?: boolean;
     }
   | {
@@ -405,6 +405,7 @@ export type Child = {
 
   /** Enrollment lifecycle (computed) */
   enrollmentStatus: EnrollmentStatus;
+
   /** Additional notes (allergies, etc.) */
   notes?: string;
   startDate: string;
