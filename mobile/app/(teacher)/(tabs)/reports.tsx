@@ -222,15 +222,6 @@ export default function TeacherReports() {
     );
   };
 
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#6366F1" />
-        <Text style={styles.loadingText}>Loading reports...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <LinearGradient
