@@ -58,18 +58,11 @@ export default function TeacherReports() {
   const [showClassModal, setShowClassModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showDateModal, setShowDateModal] = useState(false);
-  const [entries, setEntries] = useState<Partial<EntryDoc>[]>([]);
-  const [loading, setLoading] = useState(true);
   const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
   const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
 
-  // Load mock entries on mount
-  useEffect(() => {
-    setTimeout(() => {
-      setEntries(generateMockEntries());
-      setLoading(false);
-    }, 500);
-  }, []);
+  // Generate entries once and memoize
+  const entries = useMemo(() => generateMockEntries(), []);
 
   // Filter entries based on selections
   const filteredEntries = useMemo(() => {
