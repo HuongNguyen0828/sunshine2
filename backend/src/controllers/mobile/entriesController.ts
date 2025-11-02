@@ -7,7 +7,7 @@ import type {
   EntryFilter,
   EntryDoc,
   EntryType,
-} from "../../../../shared/types/type"; 
+} from "../../../../shared/types/type";
 
 /* =========
  * Helpers
@@ -35,6 +35,15 @@ function clampLimit(v: unknown, def = 50, min = 1, max = 100) {
   return Math.max(min, Math.min(n, max));
 }
 
+// Treat UI “All …” sentinel values as empty filter
+function normalizeOptional(v?: string | null) {
+  const s = String(v ?? "").trim();
+  if (!s) return undefined;
+  const t = s.toLowerCase();
+  if (t === "all" || t === "all classes" || t === "all children") return undefined;
+  return s;
+}
+
 /* =========
  * Controllers
  * ========= */
@@ -59,20 +68,26 @@ export async function bulkCreateEntries(req: Request, res: Response) {
     }
 
     const result = await bulkCreateEntriesService(
-      { userDocId: auth.userDocId, daycareId: auth.daycareId, locationId: auth.locationId },
+      {
+        userDocId: auth.userDocId,
+        daycareId: auth.daycareId,
+        locationId: auth.locationId,
+      },
       body
     );
 
     return res.json(result);
   } catch (e: any) {
-    return res.status(400).json({ message: String(e?.message || "bulk_failed") });
+    return res
+      .status(400)
+      .json({ message: String(e?.message || "bulk_failed") });
   }
 }
 
 /** GET /v1/entries
  * Query: childId?, classId?, type?, dateFrom?, dateTo?, limit?
  * Role rules:
- *  - parent: must see only visible entries and MUST provide childId (ownership check can be added later)
+ *  - parent: must see only visible entries and MUST provide childId (ownership check TBD)
  *  - teacher: limited to their locationId; optional additional filters
  */
 export async function listEntries(req: Request, res: Response) {
@@ -80,45 +95,52 @@ export async function listEntries(req: Request, res: Response) {
     const auth = getAuthCtx(req);
     const role = auth.role;
 
+    // Normalize possible “All …” UI values away
     const {
-      childId,
-      classId,
-      type,
+      childId: rawChildId,
+      classId: rawClassId,
+      type: rawType,
       dateFrom,
       dateTo,
       limit: limitQ,
     } = (req.query || {}) as Partial<EntryFilter> & { limit?: string };
 
+    const childId = normalizeOptional(rawChildId);
+    const classId = normalizeOptional(rawClassId);
+    const type = normalizeOptional(rawType) as EntryType | undefined;
+
     let q: FirebaseFirestore.Query = db.collection("entries");
 
     // Role-based scoping
     if (role === "parent") {
-      // Parents only see items marked visible
       q = q.where("visibleToParents", "==", true);
-      // For now require childId in query to keep scope minimal
       if (!childId) {
-        return res.status(400).json({ message: "childId_required_for_parent" });
+        return res
+          .status(400)
+          .json({ message: "childId_required_for_parent" });
       }
-      q = q.where("childId", "==", String(childId));
+      q = q.where("childId", "==", childId);
     } else if (role === "teacher") {
       if (!auth.locationId) {
-        return res.status(401).json({ message: "missing_location_scope" });
+        return res
+          .status(401)
+          .json({ message: "missing_location_scope" });
       }
       q = q.where("locationId", "==", auth.locationId);
-      if (childId) q = q.where("childId", "==", String(childId));
+      if (childId) q = q.where("childId", "==", childId);
     } else {
       return res.status(403).json({ message: "forbidden_role" });
     }
 
     // Optional filters
-    if (classId) q = q.where("classId", "==", String(classId));
-    if (type) q = q.where("type", "==", String(type) as EntryType);
+    if (classId) q = q.where("classId", "==", classId);
+    if (type) q = q.where("type", "==", type);
 
-    // Date range filter (occurredAt)
+    // Date range by occurredAt
     if (dateFrom && isIso(dateFrom)) q = q.where("occurredAt", ">=", dateFrom);
     if (dateTo && isIso(dateTo)) q = q.where("occurredAt", "<", dateTo);
 
-    // Order and limit
+    // Order and limit (secondary order by createdAt for stability)
     q = q.orderBy("occurredAt", "desc");
     const limitNum = clampLimit(limitQ, 50, 1, 100);
     q = q.limit(limitNum);
@@ -128,6 +150,8 @@ export async function listEntries(req: Request, res: Response) {
 
     return res.json(items);
   } catch (e: any) {
-    return res.status(400).json({ message: String(e?.message || "list_failed") });
+    return res
+      .status(400)
+      .json({ message: String(e?.message || "list_failed") });
   }
 }

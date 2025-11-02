@@ -7,9 +7,10 @@ import { rateLimit } from "../../middleware/rateLimit";
 const r = Router();
 
 /* ===============================
- * Constants & Utilities
+ * Constants & small utilities
  * =============================== */
 
+// Allowed entry types (8 types)
 const ENTRY_TYPES = new Set([
   "Attendance",
   "Food",
@@ -21,7 +22,7 @@ const ENTRY_TYPES = new Set([
   "Health",
 ]);
 
-// Validate ISO datetime string (2025-11-01T12:34:56Z)
+// ISO datetime guard (e.g., 2025-11-01T12:34:56.789Z)
 function isIsoDateTime(v: unknown): v is string {
   if (typeof v !== "string") return false;
   const d = new Date(v);
@@ -32,6 +33,15 @@ function toStr(v: unknown): string {
   return String(v ?? "").trim();
 }
 
+// Treat UI “All”, “All Classes”, “All Children” as undefined (no filter)
+function normalizeAll(v?: unknown): string | undefined {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (!s) return undefined;
+  if (s === "all" || s === "all classes" || s === "all children") return undefined;
+  return String(v);
+}
+
+// Unique & sanitized child id array
 function sanitizeChildIds(v: unknown): string[] {
   const arr = Array.isArray(v) ? v : [];
   const s = new Set<string>();
@@ -46,7 +56,14 @@ function sanitizeChildIds(v: unknown): string[] {
  * Validators
  * =============================== */
 
-/** Validate request body for bulk entry creation. */
+/**
+ * Validate request body for bulk creation and normalize payload.
+ * Notes:
+ * - occurredAt must be ISO datetime for all items
+ * - applyToAllInClass=true requires classId
+ * - Type-specific required fields enforced here
+ * - We do not allow empty items
+ */
 function bulkValidator(req: Request, res: Response, next: NextFunction) {
   const body = (req.body || {}) as { items?: any[] };
   if (!Array.isArray(body.items) || body.items.length === 0) {
@@ -67,11 +84,11 @@ function bulkValidator(req: Request, res: Response, next: NextFunction) {
       return res.status(400).json({ message: `invalid_occurredAt_at_${i}` });
     }
 
+    // classId can be null; applyToAllInClass requires classId
     const classId = raw.classId == null ? null : toStr(raw.classId);
     const applyToAllInClass = Boolean(raw.applyToAllInClass);
     const childIds = sanitizeChildIds(raw.childIds);
 
-    // Validation rule: if applyToAllInClass = true → classId is required
     if (applyToAllInClass && !classId) {
       return res.status(400).json({ message: `classId_required_at_${i}` });
     }
@@ -79,34 +96,40 @@ function bulkValidator(req: Request, res: Response, next: NextFunction) {
     // Type-specific validations
     switch (type) {
       case "Attendance":
-        if (!["Check in", "Check out"].includes(toStr(raw.subtype)))
+        if (!["Check in", "Check out"].includes(toStr(raw.subtype))) {
           return res.status(400).json({ message: `attendance_subtype_required_at_${i}` });
+        }
         break;
       case "Food":
-        if (!["Breakfast", "Lunch", "Snack"].includes(toStr(raw.subtype)))
+        if (!["Breakfast", "Lunch", "Snack"].includes(toStr(raw.subtype))) {
           return res.status(400).json({ message: `food_subtype_required_at_${i}` });
+        }
         break;
       case "Sleep":
-        if (!["Started", "Woke up"].includes(toStr(raw.subtype)))
+        if (!["Started", "Woke up"].includes(toStr(raw.subtype))) {
           return res.status(400).json({ message: `sleep_subtype_required_at_${i}` });
+        }
         break;
       case "Toilet":
-        if (!["urine", "bm"].includes(toStr(raw.toiletKind)))
+        if (!["urine", "bm"].includes(toStr(raw.toiletKind))) {
           return res.status(400).json({ message: `toilet_kind_required_at_${i}` });
+        }
         break;
       case "Activity":
       case "Note":
       case "Health":
-        if (!toStr(raw.detail))
+        if (!toStr(raw.detail)) {
           return res.status(400).json({ message: `detail_required_at_${i}` });
+        }
         break;
       case "Photo":
-        if (!toStr(raw.photoUrl))
+        if (!toStr(raw.photoUrl)) {
           return res.status(400).json({ message: `photo_url_required_at_${i}` });
+        }
         break;
     }
 
-    // Normalize final sanitized object
+    // Normalize final object sent to controller/service
     normalized.push({
       type,
       occurredAt,
@@ -124,18 +147,30 @@ function bulkValidator(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-/** Validate query parameters for listing entries. */
+/**
+ * Validate and normalize query for listing entries.
+ * Notes:
+ * - parent/teacher scoping is enforced in the controller
+ * - We ignore “All/All Classes/All Children” by converting to undefined
+ * - Clamp limit into [1,100]
+ */
 function listValidator(req: Request, res: Response, next: NextFunction) {
   const q = req.query as any;
   const out: any = {};
 
-  if (q.childId) out.childId = toStr(q.childId);
-  if (q.classId) out.classId = toStr(q.classId);
-  if (q.type) {
-    const t = toStr(q.type);
+  const childId = normalizeAll(q.childId);
+  const classId = normalizeAll(q.classId);
+  const typeMaybe = normalizeAll(q.type);
+
+  if (childId) out.childId = toStr(childId);
+  if (classId) out.classId = toStr(classId);
+
+  if (typeMaybe) {
+    const t = toStr(typeMaybe);
     if (!ENTRY_TYPES.has(t)) return res.status(400).json({ message: "invalid_type" });
     out.type = t;
   }
+
   if (q.dateFrom) {
     const v = toStr(q.dateFrom);
     if (!isIsoDateTime(v)) return res.status(400).json({ message: "invalid_dateFrom" });
@@ -158,10 +193,10 @@ function listValidator(req: Request, res: Response, next: NextFunction) {
  * Routes
  * =============================== */
 
-// POST /v1/entries/bulk → create multiple entries
+// Bulk create entries (teacher scope)
 r.post("/v1/entries/bulk", rateLimit, verifyIdToken, bulkValidator, bulkCreateEntries);
 
-// GET /v1/entries → list entries with filters
+// List entries (parent/teacher scope)
 r.get("/v1/entries", rateLimit, verifyIdToken, listValidator, listEntries);
 
 export default r;
