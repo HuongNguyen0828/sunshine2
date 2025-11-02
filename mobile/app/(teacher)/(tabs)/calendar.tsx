@@ -98,7 +98,7 @@ export default function TeacherCalendar() {
   };
 
   // Get events for selected date
-  const selectedDateEvents = mockEvents[formatDateKey(selectedDate)] || [];
+  const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate)] || [];
 
   // Navigate months
   const goToPreviousMonth = () => {
