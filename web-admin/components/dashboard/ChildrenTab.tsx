@@ -135,13 +135,13 @@ type ChildCardProps = {
   locations: LocationLite[];
   onEdit: (c: Types.Child, parent1: Types.Parent, parent2: Types.Parent | null) => void;
   onDelete: (c: Types.Child) => void;
-  onOpenAssign: (childId: string) => void;
+  onOpenAssign: (child: Types.Child) => void;
   onUnassign?: (childId: string) => Promise<boolean> | boolean;
-  onUnlinkParent?: (
-    childId: string,
-    parentUserId: string
-  ) => Promise<boolean> | boolean;
-  onOpenLinkByEmail: (childId: string) => void;
+  // onUnlinkParent?: (
+  //   childId: string,
+  //   parentUserId: string
+  // ) => Promise<boolean> | boolean;
+  // onOpenLinkByEmail: (childId: string) => void;
 };
 
 function ChildCard({
@@ -283,7 +283,7 @@ function ChildCard({
         </button>
       ) : (
         <button
-          onClick={() => onOpenAssign(child.id)}
+          onClick={() => onOpenAssign(child)}
           className="w-1/2 mx-auto px-auto py-2 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700"
         >
           Assign to Class
@@ -340,7 +340,7 @@ export default function ChildrenTab({
   const [classFilter, setClassFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
 
-  const [assignChildId, setAssignChildId] = useState<string | null>(null);
+  const [assignChild, setAssignChild] = useState<Types.Child | null>(null);
   const [assignClassId, setAssignClassId] = useState<string>("");
 
   const [linkChildId, setLinkChildId] = useState<string | null>(null);
@@ -1073,7 +1073,7 @@ export default function ChildrenTab({
                 onEdit={handleEditClick}
                 onDelete={handleDeleteClick}
                 onOpenAssign={(id) => {
-                  setAssignChildId(id);
+                  setAssignChild(id);
                   setAssignClassId("");
                 }}
                 onUnassign={onUnassign}
@@ -1805,11 +1805,11 @@ export default function ChildrenTab({
           </div>
         )}
 
-        {assignChildId && (
+        {assignChild && (
           <div
             className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
             onClick={() => {
-              setAssignChildId(null);
+              setAssignChild(null);
               setAssignClassId("");
             }}
           >
@@ -1823,7 +1823,7 @@ export default function ChildrenTab({
                 </h3>
                 <button
                   onClick={() => {
-                    setAssignChildId(null);
+                    setAssignChild(null);
                     setAssignClassId("");
                   }}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -1839,7 +1839,8 @@ export default function ChildrenTab({
                   onChange={(e) => setAssignClassId(e.target.value)}
                 >
                   <option value="">— Choose class —</option>
-                  {classes.map((c) => {
+                  {/* Filter out the class for that only location the child going to */}
+                  {classes.filter(c => c.locationId === assignChild.locationId).map((c) => {
                     const cap = classCapacityBadge(c);
                     const full = isClassFull(c);
                     return (
@@ -1858,7 +1859,7 @@ export default function ChildrenTab({
               <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
                 <button
                   onClick={() => {
-                    setAssignChildId(null);
+                    setAssignChild(null);
                     setAssignClassId("");
                   }}
                   className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
@@ -1867,7 +1868,7 @@ export default function ChildrenTab({
                 </button>
                 <button
                   onClick={async () => {
-                    if (!assignChildId || !assignClassId) return;
+                    if (!assignChild || !assignClassId) return;
                     const targetClass = classes.find(
                       (c) => c.id === assignClassId
                     );
@@ -1875,9 +1876,10 @@ export default function ChildrenTab({
                       alert("This class is full. Please choose another class.");
                       return;
                     }
-                    const ok = await onAssign?.(assignChildId, assignClassId);
+                    // Passign child id and classId
+                    const ok = await onAssign?.(assignChild.id, assignClassId);
                     if (ok) {
-                      setAssignChildId(null);
+                      setAssignChild(null);
                       setAssignClassId("");
                     }
                   }}
