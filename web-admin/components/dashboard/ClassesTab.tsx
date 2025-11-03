@@ -330,7 +330,6 @@ export default function ClassesTab({
             return newClass;
           }
           return currentClass;
-
         }));
         await onAssigned?.();
         setShowAssignTeachers(null);
@@ -341,7 +340,8 @@ export default function ClassesTab({
     }
   }
 
-  const passingAssigned = useCallback((cls: Types.Class) => teachers.filter(t => (t.classIds || []).includes(cls.id)), [teachers]);
+  const passingAssigned = useCallback((cls: Types.Class) => teachers.filter(t => (t.classIds || []).includes(cls.id)), [teachers, classes]);
+
 
 
   return (

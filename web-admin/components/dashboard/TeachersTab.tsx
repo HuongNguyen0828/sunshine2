@@ -119,6 +119,8 @@ export default function TeachersTab({
       firstName: "",
       lastName: "",
       email: "",
+      locationId: "",
+      classIds: [],
       phone: "",
       address1: "",
       address2: "",
