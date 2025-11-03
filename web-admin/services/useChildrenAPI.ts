@@ -53,7 +53,7 @@ export async function addChildWithParents(
 
 export async function updateChild(
   id: string,
-  payload: NewParentInput
+  payload: NewChildInput
 ): Promise<Types.Child> {
   try {
     console.log(id);
