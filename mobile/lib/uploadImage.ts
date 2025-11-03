@@ -4,68 +4,50 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 
 /**
- * Opens the gallery, uploads picked image to Firebase Storage,
- * and returns the download URL.
- * Returns null when user cancels.
+ * Pick an image from the device and upload it to Firebase Storage.
+ *
+ * @param pathPrefix storage path prefix, e.g. "entry-photos" → entry-photos/1234.jpg
+ * @returns download URL string, or null if user cancelled
+ * @throws Error when permission denied or upload failed
  */
 export async function pickAndUploadImage(
   pathPrefix: string = "entry-photos"
 ): Promise<string | null> {
-  // 0. clear any pending picker result (important on Android)
-  try {
-    const pending = await ImagePicker.getPendingResultAsync?.();
-    // we don't actually need pending, just calling it drains stale overlays
-    void pending;
-  } catch {
-    // older versions might not have this; ignore
-  }
-
-  // 1. permission
+  // 1. ask permission
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) {
     throw new Error("Photo permission not granted");
   }
 
-  // 2. open picker (support both old and new API)
-  const pickerOpts: any = {
-    quality: 0.85,
-    allowsEditing: false,
-  };
-
-  // older expo-image-picker: MediaTypeOptions.Images
-  // newer expo-image-picker: mediaTypes: [ImagePicker.MediaType.IMAGE]
-  if ((ImagePicker as any).MediaType) {
-    pickerOpts.mediaTypes = [(ImagePicker as any).MediaType.IMAGE];
-  } else {
-    pickerOpts.mediaTypes = ImagePicker.MediaTypeOptions.Images;
-  }
-
-  const result = await ImagePicker.launchImageLibraryAsync(pickerOpts);
+  // 2. open image picker
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    quality: 0.8,
+  });
 
   // user cancelled
   if (result.canceled) {
     return null;
   }
 
-  const asset = result.assets?.[0];
+  const asset = result.assets[0];
   if (!asset?.uri) {
     throw new Error("No image selected");
   }
 
-  // 3. uri -> blob
-  const resp = await fetch(asset.uri);
-  const blob = await resp.blob();
+  // 3. uri → blob
+  const response = await fetch(asset.uri);
+  const blob = await response.blob();
 
-  // 4. upload
-  const fileId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const storagePath = `${pathPrefix}/${fileId}.jpg`;
-  const storageRef = ref(storage, storagePath);
+  // 4. upload to storage
+  const filename = `${pathPrefix}/${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}.jpg`;
+  const storageRef = ref(storage, filename);
 
-  await uploadBytes(storageRef, blob, {
-    contentType: blob.type || "image/jpeg",
-  });
+  await uploadBytes(storageRef, blob);
 
-  // 5. download url
-  const url = await getDownloadURL(storageRef);
-  return url;
+  // 5. get public download url
+  const downloadUrl = await getDownloadURL(storageRef);
+  return downloadUrl;
 }
