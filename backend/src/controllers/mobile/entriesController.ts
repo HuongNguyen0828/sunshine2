@@ -98,7 +98,6 @@ export async function listEntries(req: Request, res: Response) {
     const auth = getAuthCtx(req);
     const role = auth.role;
 
-    // Remove "All ..." sentinels coming from UI
     const {
       childId: rawChildId,
       classId: rawClassId,

@@ -16,7 +16,7 @@ import type {
 
 type AuthCtx = {
   userDocId: string;
-  daycareId?: string;  // optional now
+  daycareId?: string;   // now optional
   locationId?: string;
 };
 
@@ -88,7 +88,7 @@ function buildDocBase(
 
   const base: EntryDoc = {
     id: db.collection("entries").doc().id, // will be overridden by ref.id at write
-    daycareId: String(auth.daycareId ?? ""),
+    daycareId: String(auth.daycareId ?? ""), // allow blank
     locationId: String(auth.locationId ?? ""),
     classId: item.classId ?? null,
     childId,
@@ -186,14 +186,12 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
     }
     case "Food": {
       doc.subtype = (item as any).subtype;
-      // Keep free text in `detail`; can extend with items/amount later.
       break;
     }
     case "Sleep": {
       doc.subtype = (item as any).subtype;
       const key = isSleepStart((item as any).subtype) ? "start" : "end";
       doc.data = { ...(doc.data || {}), [key]: item.occurredAt };
-      // durationMin can be computed later when both start & end exist.
       break;
     }
     case "Toilet": {
@@ -212,7 +210,7 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
       break;
     }
     case "Photo": {
-      // `photoUrl` already mirrored at top-level for easy rendering.
+      // nothing extra
       break;
     }
   }
@@ -235,9 +233,8 @@ export async function bulkCreateEntriesService(
   const created: { id: string; type: EntryType }[] = [];
   const failed: { index: number; reason: string }[] = [];
 
-  // must know who is writing
+  // Require user + location; daycare is optional
   if (!auth.userDocId) throw new Error("missing_userDocId");
-  // we still require location for scoping
   if (!auth.locationId) throw new Error("missing_locationId");
 
   const items = Array.isArray(payload?.items) ? payload.items : [];
