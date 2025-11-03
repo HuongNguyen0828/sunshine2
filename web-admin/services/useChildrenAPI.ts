@@ -83,13 +83,13 @@ export async function deleteChild(
 }
 
 export async function assignChildToClass(
-  id: string,
-  childId: string
+  childId: string,
+  classId: string
 ): Promise<{ ok: boolean } | null> {
   try {
     const res = await api.post<{ ok: boolean }>(
-      `${ENDPOINTS.children}/${id}/assign`,
-      { childId }
+      `${ENDPOINTS.children}/${childId}/assign`,
+      { classId }
     );
     return res;
   } catch (err: unknown) {
