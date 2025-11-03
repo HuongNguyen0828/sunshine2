@@ -24,7 +24,7 @@ type AuthCtx = {
  * Helpers
  * ========= */
 
-// Validate ISO datetime string (e.g. 2025-11-01T12:34:56.789Z)
+// Validate ISO datetime string (e.g., 2025-11-01T12:34:56.789Z)
 function isIsoDateTime(v: unknown): v is string {
   if (typeof v !== "string") return false;
   const d = new Date(v);
@@ -78,10 +78,7 @@ async function expandChildIds(item: EntryCreateInput): Promise<string[]> {
   return uniq([...(item.childIds ?? []), ...ids]);
 }
 
-/**
- * Create a base document for a single child.
- * daycareId can be blank string when not provided.
- */
+/** Create a base document for a single child. */
 function buildDocBase(
   auth: AuthCtx,
   item: EntryCreateInput,
@@ -90,9 +87,7 @@ function buildDocBase(
   const nowIso = new Date().toISOString();
 
   const base: EntryDoc = {
-    id: db.collection("entries").doc().id, // will be set to ref.id later
-
-    // scope info
+    id: db.collection("entries").doc().id, // will be overridden by ref.id at write
     daycareId: String(auth.daycareId ?? ""),
     locationId: String(auth.locationId ?? ""),
     classId: item.classId ?? null,
@@ -103,8 +98,7 @@ function buildDocBase(
     createdByRole: "teacher",
     createdAt: nowIso,
 
-    // time & type
-    occurredAt: item.occurredAt,
+    occurredAt: item.occurredAt, // validated
     type: item.type,
 
     // flexible payload
@@ -175,15 +169,13 @@ function validateItem(item: EntryCreateInput) {
       throw new Error("unsupported_type");
   }
 
-  // Extra guard: class fan-out needs classId
+  // Extra: if fan-out across class, classId must be provided
   if ((item as any).applyToAllInClass && !item.classId) {
     throw new Error("classId_required_when_applyToAllInClass");
   }
 }
 
-/**
- * Apply per-type mapping to the doc (subtype/data fields).
- */
+/** Apply per-type mapping to the doc (subtype/data fields). */
 function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
   switch (item.type as EntryType) {
     case "Attendance": {
@@ -194,13 +186,14 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
     }
     case "Food": {
       doc.subtype = (item as any).subtype;
-      // detail is already at top-level
+      // Keep free text in `detail`; can extend with items/amount later.
       break;
     }
     case "Sleep": {
       doc.subtype = (item as any).subtype;
       const key = isSleepStart((item as any).subtype) ? "start" : "end";
       doc.data = { ...(doc.data || {}), [key]: item.occurredAt };
+      // durationMin can be computed later when both start & end exist.
       break;
     }
     case "Toilet": {
@@ -219,7 +212,7 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
       break;
     }
     case "Photo": {
-      // photoUrl already mirrored
+      // `photoUrl` already mirrored at top-level for easy rendering.
       break;
     }
   }
@@ -250,7 +243,7 @@ export async function bulkCreateEntriesService(
   const items = Array.isArray(payload?.items) ? payload.items : [];
   if (items.length === 0) return { created, failed };
 
-  // 1) validate each item
+  // Validate each item; keep processing others when one fails
   const validated: (EntryCreateInput | null)[] = items.map((it, idx) => {
     try {
       validateItem(it);
@@ -278,8 +271,7 @@ export async function bulkCreateEntriesService(
       for (const childId of childIds) {
         const ref = db.collection("entries").doc();
         const doc = buildDocBase(auth, item, childId);
-        // keep doc.id == firestore doc id
-        doc.id = ref.id;
+        doc.id = ref.id; // keep id == ref.id
         applyTypeMapping(doc, item);
         writes.push({ index: i, refPath: ref.path, doc });
       }
@@ -288,7 +280,7 @@ export async function bulkCreateEntriesService(
     }
   }
 
-  // 3) commit in chunks
+  // Commit in safe chunks (<= 500 ops per batch; use a safety buffer)
   for (const part of chunk(writes, 450)) {
     const batch = db.batch();
     for (const w of part) {

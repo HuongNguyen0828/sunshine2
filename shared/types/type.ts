@@ -17,10 +17,10 @@ export type AttendanceSubtype = "Check in" | "Check out";
 export type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
 export type SleepSubtype = "Started" | "Woke up";
 
-/** Toilet entries use a kind instead of a subtype */
+// Toilet uses a kind (not a subtype)
 export type ToiletKind = "urine" | "bm";
 
-/** Unified subtype helper used by forms and API payloads (Toilet excluded) */
+/** Unified subtype helper used by forms and API payloads (excludes Toilet) */
 export type EntrySubtype =
   | AttendanceSubtype
   | FoodSubtype
@@ -40,13 +40,13 @@ export type EntryTypeMeta = {
 /** Form params passed via router (mobile) */
 export type EntryFormParams = {
   type: EntryType;
-  subtype?: EntrySubtype;          // Attendance / Food / Sleep only
+  subtype?: EntrySubtype;          // used by Attendance/Food/Sleep only
   classId?: string | null;
   childIds: string[];
-  note?: string;                   // free text for Activity / Note / Health
+  note?: string;                   // free text for Activity/Note/Health
   photoUrl?: string;               // used by Photo
   applyToAllInClass?: boolean;     // server may expand by classId
-  occurredAt?: string;             // ISO datetime (UI can default to now)
+  occurredAt?: string;             // ISO datetime (UI may default to now)
 };
 
 /* =============================
@@ -104,8 +104,8 @@ export type EntryData = {
   durationMin?: number;
 
   // toilet (single visit: kind + time only)
-  toiletTime?: string;     // ISO datetime for the visit
-  toiletKind?: ToiletKind; // "urine" | "bm"
+  toiletTime?: string;         // ISO datetime for the visit
+  toiletKind?: ToiletKind;     // "urine" | "bm"
 
   // activity / note / health (free text only)
   text?: string;
@@ -126,30 +126,30 @@ export type EntryDoc = {
   childId: string;
 
   // authorship
-  createdByUserId: string; // users document id (teacher)
+  createdByUserId: string;   // users document id (teacher)
   createdByRole: "teacher";
-  createdAt: string;       // ISO created time
-  updatedAt?: string;      // ISO updated time
+  createdAt: string;         // ISO created time
+  updatedAt?: string;        // ISO updated time
 
   // occurrence time used by feeds (parents board)
-  occurredAt: string;      // ISO datetime; for Sleep usually equals data.start
+  occurredAt: string;        // ISO datetime; for Sleep usually equals data.start
 
   // type info
   type: EntryType;
-  subtype?: EntrySubtype;  // not used by Toilet
+  subtype?: EntrySubtype;    // not used by Toilet
 
   // flexible payload
   data?: EntryData;
 
   // convenience mirrors for fast UI (optional)
-  detail?: string;         // short free text (can mirror data.text)
-  photoUrl?: string;       // public URL if available
+  detail?: string;           // short free text (can mirror data.text)
+  photoUrl?: string;         // public URL if available
   childName?: string;
   className?: string;
 
   // parent feed visibility
   visibleToParents?: boolean;
-  publishedAt?: string;    // ISO when it became visible to parents
+  publishedAt?: string;      // ISO when it became visible to parents
 };
 
 /* =============================
@@ -190,8 +190,8 @@ export type EntryCreateInput =
       childIds: string[];
       classId?: string | null;
       detail?: string;
-      occurredAt: string;      // ISO datetime (maps to data.toiletTime)
-      toiletKind: ToiletKind;  // required
+      occurredAt: string;          // ISO datetime (maps to data.toiletTime)
+      toiletKind: ToiletKind;      // required
       applyToAllInClass?: boolean;
     }
   | {
@@ -465,7 +465,7 @@ export type Parent = {
 export type DailyReport = {
   id: string;
   childId: string;
-  date: string;    // ISO date
+  date: string;     // ISO date
   entries: Entry[]; // legacy usage in reports; ok to keep
   createdAt: string; // ISO date
 };

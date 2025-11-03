@@ -459,45 +459,49 @@ export default function TeacherDashboard() {
         </Pressable>
       </Modal>
 
-      {/* Child picker */}
+      {/* child picker */}
       <Modal visible={showChildPicker} transparent animationType="slide">
-        <Pressable style={styles.modalOverlay} onPress={() => setShowChildPicker(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowChildPicker(false)}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Children</Text>
-              <Pressable onPress={toggleAllChildren}>
-                <Text style={styles.selectAllText}>
-                  {selectedChildren.length === filteredChildren.length ? "Deselect All" : "Select All"}
-                </Text>
-              </Pressable>
+              {filteredChildren.length > 0 ? (
+                <Pressable onPress={toggleAllChildren}>
+                  <Text style={styles.selectAllText}>
+                    {selectedChildren.length === filteredChildren.length
+                      ? "Deselect All"
+                      : "Select All"}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
 
             <ScrollView style={styles.childrenList}>
-              {/* extra virtual option */}
-              <Pressable style={styles.modalOption} onPress={toggleAllChildren}>
-                <Text style={[styles.modalOptionText, { fontWeight: "600" }]}>
-                  {selectedChildren.length === filteredChildren.length
-                    ? "Deselect All"
-                    : "Select All"}
-                </Text>
-                {selectedChildren.length === filteredChildren.length && (
-                  <Check size={20} color="#6366F1" />
-                )}
-              </Pressable>
-
-              {filteredChildren.map((child) => (
-                <Pressable
-                  key={child.id}
-                  style={styles.modalOption}
-                  onPress={() => toggleChild(child.id)}
-                >
-                  <Text style={styles.modalOptionText}>{child.name}</Text>
-                  {selectedChildren.includes(child.id) && <Check size={20} color="#6366F1" />}
-                </Pressable>
-              ))}
+              {filteredChildren.length === 0 ? (
+                <Text style={{ color: "#94A3B8" }}>No children in this class.</Text>
+              ) : (
+                filteredChildren.map((child) => (
+                  <Pressable
+                    key={child.id}
+                    style={styles.modalOption}
+                    onPress={() => toggleChild(child.id)}
+                  >
+                    <Text style={styles.modalOptionText}>{child.name}</Text>
+                    {selectedChildren.includes(child.id) && (
+                      <Check size={20} color="#6366F1" />
+                    )}
+                  </Pressable>
+                ))
+              )}
             </ScrollView>
 
-            <Pressable style={styles.doneButton} onPress={() => setShowChildPicker(false)}>
+            <Pressable
+              style={styles.doneButton}
+              onPress={() => setShowChildPicker(false)}
+            >
               <Text style={styles.doneButtonText}>Done</Text>
             </Pressable>
           </View>

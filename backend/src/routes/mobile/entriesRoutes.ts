@@ -61,17 +61,12 @@ function sanitizeChildIds(v: unknown): string[] {
 
 /**
  * Validate request body for bulk creation and normalize payload.
- *
- * Rules:
- * - items must be a non-empty array
- * - each item must have a valid type
- * - each item must have occurredAt in ISO format
- * - applyToAllInClass=true → classId is required
- * - type-specific requirements checked here to give early feedback
- *
- * Note:
- * - We **allow** childIds to be empty when applyToAllInClass=false.
- *   The service layer will fan-out (or return "no_children") later.
+ * Notes:
+ * - occurredAt must be ISO datetime for all items
+ * - applyToAllInClass=true requires classId
+ * - Type-specific required fields enforced here
+ * - We do not allow empty items
+ * - When applyToAllInClass=false, childIds can be empty here, but the service will reject it
  */
 function bulkValidator(req: Request, res: Response, next: NextFunction) {
   const body = (req.body || {}) as { items?: any[] };
