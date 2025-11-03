@@ -136,7 +136,7 @@ type ChildCardProps = {
   onEdit: (c: Types.Child, parent1: Types.Parent, parent2: Types.Parent | null) => void;
   onDelete: (c: Types.Child) => void;
   onOpenAssign: (child: Types.Child) => void;
-  onUnassign?: (childId: string) => Promise<boolean> | boolean;
+  // onUnassign?: (childId: string) => Promise<boolean> | boolean;
   // onUnlinkParent?: (
   //   childId: string,
   //   parentUserId: string
@@ -152,7 +152,7 @@ function ChildCard({
   onEdit,
   onDelete,
   onOpenAssign,
-  onUnassign,
+  // onUnassign,
   // onUnlinkParent,
   // onOpenLinkByEmail,
 }: ChildCardProps) {
@@ -209,7 +209,7 @@ function ChildCard({
           </span>
         </div>
 
-        {cls && (
+        {/* {cls && (
           <div>
             <div className="flex justify-between items-center text-xs text-gray-500">
               <span>Capacity</span>
@@ -227,7 +227,7 @@ function ChildCard({
               />
             </div>
           </div>
-        )}
+        )} */}
 
         {parent1And2 ? (
           <div className="text-xs text-gray-600">
@@ -276,7 +276,8 @@ function ChildCard({
 
       {child.classId ? (
         <button
-          onClick={() => onUnassign?.(child.id)}
+          // Switch class is also same, but cleanup the current class, before moving to the new 
+          onClick={() => onOpenAssign(child)}
           className="w-1/2 mx-auto px-3 py-2 rounded-lg text-xs bg-gray-700 text-white hover:bg-gray-800"
         >
           Switch Class
@@ -309,7 +310,7 @@ export default function ChildrenTab({
   addChild,
   deleteChild,
   onAssign,
-  onUnassign,
+  // onUnassign,
   // onLinkParent,
   // onUnlinkParent,
   // onLinkParentByEmail,
@@ -1076,7 +1077,7 @@ export default function ChildrenTab({
                   setAssignChild(id);
                   setAssignClassId("");
                 }}
-                onUnassign={onUnassign}
+              // onUnassign={onUnassign}
               // onUnlinkParent={onUnlinkParent}
               // onOpenLinkByEmail={(id) => setLinkChildId(id)}
               />
@@ -1818,8 +1819,9 @@ export default function ChildrenTab({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-800">
-                  Select Class
+                <h3 className="text-lg text-gray-800">
+                  Select Class for <span className="font-bold"> {assignChild.firstName} {assignChild.lastName}</span><br></br>
+                  <span className="text-sm">from {assignChild.classId && classes.find(clss => clss.id === assignChild.classId)?.name}</span>
                 </h3>
                 <button
                   onClick={() => {
@@ -1843,9 +1845,11 @@ export default function ChildrenTab({
                   {classes.filter(c => c.locationId === assignChild.locationId).map((c) => {
                     const cap = classCapacityBadge(c);
                     const full = isClassFull(c);
+                    const currentClass = c.id === assignChild.classId;
                     return (
-                      <option key={c.id} value={c.id} disabled={full}>
-                        {c.name} — {cap.text}
+                      <option key={c.id} value={c.id} disabled={full || currentClass}>
+
+                        {c.name} — {cap.text} {currentClass && "(Enrolled)"}
                       </option>
                     );
                   })}
@@ -1853,6 +1857,7 @@ export default function ChildrenTab({
                 <div className="text-xs text-gray-500">
                   Full classes are disabled. If a class is full, the child
                   should remain on <b>Waitlist</b>.
+                  If child is currently <b>enrolled</b> in a class, this class is also disabled.
                 </div>
               </div>
 
