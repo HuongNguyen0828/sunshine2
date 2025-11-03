@@ -453,42 +453,42 @@ export default function AdminDashboard() {
     }
   };
 
-  const onUnassignChild = async (childId: string) => {
-    try {
-      const prevChild = children.find((c) => c.id === childId);
-      const prevClassId = prevChild?.classId;
+  // const onUnassignChild = async (childId: string) => {
+  //   try {
+  //     const prevChild = children.find((c) => c.id === childId);
+  //     const prevClassId = prevChild?.classId;
 
-      // await unassignChildFromClass(childId);
+  //     // await unassignChildFromClass(childId);
 
-      setChildren((prev) =>
-        prev.map((c) =>
-          c.id === childId
-            ? {
-              ...c,
-              classId: undefined,
-              enrollmentStatus: (c.parentId?.length ?? 0) > 0 ? Types.EnrollmentStatus.Waitlist : Types.EnrollmentStatus.New,
-            }
-            : c
-        )
-      );
+  //     setChildren((prev) =>
+  //       prev.map((c) =>
+  //         c.id === childId
+  //           ? {
+  //             ...c,
+  //             classId: undefined,
+  //             enrollmentStatus: (c.parentId?.length ?? 0) > 0 ? Types.EnrollmentStatus.Waitlist : Types.EnrollmentStatus.New,
+  //           }
+  //           : c
+  //       )
+  //     );
 
-      if (prevClassId) {
-        setClasses((prev) =>
-          prev.map((cls) => (cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls))
-        );
-      }
+  //     if (prevClassId) {
+  //       setClasses((prev) =>
+  //         prev.map((cls) => (cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls))
+  //       );
+  //     }
 
-      startTransition(() => {
-        // refetchChildrenLite();
-        refetchClassesLite();
-      });
+  //     startTransition(() => {
+  //       // refetchChildrenLite();
+  //       refetchClassesLite();
+  //     });
 
-      return true;
-    } catch {
-      alert("Failed to unassign child. Please try again.");
-      return false;
-    }
-  };
+  //     return true;
+  //   } catch {
+  //     alert("Failed to unassign child. Please try again.");
+  //     return false;
+  //   }
+  // };
 
   /**
    * 
@@ -623,8 +623,8 @@ export default function AdminDashboard() {
                 setNewChild={setNewChild}
                 addChild={handleAddChild}
                 deleteChild={handleDeleteChild}
-                onAssign={onAssignChild}
-                onUnassign={onUnassignChild}
+                onAssign={onAssignChild} // including both initial Assign child to the class and switching class
+              // onUnassign={onUnassignChild}
               // onLinkParentByEmail={onLinkParentByEmail}
               // onUnlinkParent={onUnlinkParent}
               // Parent

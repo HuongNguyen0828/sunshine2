@@ -680,6 +680,7 @@ export async function assignChildToClass(
   classId: string,
   uid?: string
 ): Promise<Types.Child> {
+  // Validate passing paremeter
   if (!childId || !classId) throw errorWithStatus("Missing childId or classId", 400);
 
   const classRef = db.collection("classes").doc(classId);
@@ -692,28 +693,43 @@ export async function assignChildToClass(
     const cls = clsSnap.data() as ClassDocDB;
     const child = chSnap.data() as ChildDocDB;
 
-    const scope = await loadAdminScope(uid);
-    await ensureLocationAllowed(scope, cls.locationId);
-
+    // Checking capacity
     const cap = Math.max(0, cls.capacity ?? 0);
     const vol = Math.max(0, cls.volume ?? 0);
     if (vol >= cap) {
       throw errorWithStatus("Class is full", 409);
     }
 
+    // Compute status for Child
     const nextStatus = computeStatus(child.enrollmentStatus, classId, child.startDate);
 
-    tx.update(classRef, { volume: vol + 1 });
-    tx.update(childRef, {
-      classId,
-      locationId: cls.locationId ?? child.locationId,
-      enrollmentStatus: nextStatus,
-      // enrollmentDate:
-      //   nextStatus === Types.EnrollmentStatus.New
-      //     ? child.enrollmentDate
-      //     : child.enrollmentDate ?? new Date().toISOString(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    // If first-time: initial assign for the child (child.classId == null), then volume++, 
+    // else, checking if child.classId === classId, 
+      // yes, volume stay the same (doesn;t switch class)
+      // no, upddate volume++ for classId, and volume-- for child.classId
+    if (!child.classId) tx.update(classRef, { volume: vol + 1 });
+    if (child.classId && child.classId !== classId) {
+      const childCurrentClassRef = db.collection("classes").doc(child.classId);
+      const childCurrentClassData = (await tx.get(childCurrentClassRef)).data();
+      if (!childCurrentClassData) throw errorWithStatus("Cannot retrieve current enrolled class data of the child", 404);
+      const currentChildClassVolume = childCurrentClassData.volume;
+      tx.update(childCurrentClassRef, {volume: currentChildClassVolume - 1});
+      tx.update(classRef, { volume: vol + 1 });
+    }
+    
+    // Only update childRef if child.classId !== classId
+    if (child.classId !== classId) {
+      tx.update(childRef, {
+        classId,
+        // locationId: cls.locationId ?? child.locationId,
+        enrollmentStatus: nextStatus,
+        // enrollmentDate:
+        //   nextStatus === Types.EnrollmentStatus.New
+        //     ? child.enrollmentDate
+        //     : child.enrollmentDate ?? new Date().toISOString(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
   });
 
   const saved = await childRef.get();
