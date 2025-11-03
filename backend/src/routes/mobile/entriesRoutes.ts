@@ -63,6 +63,7 @@ function sanitizeChildIds(v: unknown): string[] {
  * - applyToAllInClass=true requires classId
  * - Type-specific required fields enforced here
  * - We do not allow empty items
+ * - When applyToAllInClass=false, childIds can be empty here, but the service will reject it
  */
 function bulkValidator(req: Request, res: Response, next: NextFunction) {
   const body = (req.body || {}) as { items?: any[] };

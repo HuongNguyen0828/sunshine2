@@ -8,7 +8,7 @@ import type {
   EntryType,
   AttendanceSubtype,
   SleepSubtype,
-} from "../../../../shared/types/type"; // adjust if your path differs
+} from "../../../../shared/types/type";
 
 /* =========
  * Types
@@ -24,7 +24,7 @@ type AuthCtx = {
  * Helpers
  * ========= */
 
-// Validate ISO datetime string (e.g. 2025-11-01T12:34:56.789Z)
+// Validate ISO datetime string (e.g., 2025-11-01T12:34:56.789Z)
 function isIsoDateTime(v: unknown): v is string {
   if (typeof v !== "string") return false;
   const d = new Date(v);
@@ -32,7 +32,9 @@ function isIsoDateTime(v: unknown): v is string {
 }
 
 // Attendance subtype → normalized status key
-function mapAttendanceStatus(sub: AttendanceSubtype | undefined) {
+function mapAttendanceStatus(
+  sub: AttendanceSubtype | undefined
+): "check_in" | "check_out" | undefined {
   if (sub === "Check in") return "check_in";
   if (sub === "Check out") return "check_out";
   return undefined;
@@ -47,7 +49,7 @@ function uniq<T>(arr: T[]) {
   return Array.from(new Set(arr));
 }
 
-// Split array into chunks (Firestore batch <= 500)
+// Split array into chunks (Firestore batch hard limit is 500)
 function chunk<T>(arr: T[], size: number) {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
@@ -69,7 +71,7 @@ async function expandChildIds(item: EntryCreateInput): Promise<string[]> {
   return uniq([...(item.childIds ?? []), ...ids]);
 }
 
-/** Create a base doc for a single child. */
+/** Create a base document for a single child. */
 function buildDocBase(
   auth: AuthCtx,
   item: EntryCreateInput,
@@ -78,7 +80,7 @@ function buildDocBase(
   const nowIso = new Date().toISOString();
 
   const base: EntryDoc = {
-    id: db.collection("entries").doc().id, // will be replaced by ref.id
+    id: db.collection("entries").doc().id, // will be overridden by ref.id at write
     daycareId: String(auth.daycareId ?? ""),
     locationId: String(auth.locationId ?? ""),
     classId: item.classId ?? null,
@@ -88,7 +90,7 @@ function buildDocBase(
     createdByRole: "teacher",
     createdAt: nowIso,
 
-    occurredAt: item.occurredAt, // validated earlier
+    occurredAt: item.occurredAt, // validated
     type: item.type,
 
     data: {},
@@ -151,13 +153,13 @@ function validateItem(item: EntryCreateInput) {
       throw new Error("unsupported_type");
   }
 
-  // Extra: if fan-out across class, classId must be present
+  // Extra: if fan-out across class, classId must be provided
   if ((item as any).applyToAllInClass && !item.classId) {
     throw new Error("classId_required_when_applyToAllInClass");
   }
 }
 
-/** Apply per-type mapping to doc (subtype/data fields). */
+/** Apply per-type mapping to the doc (subtype/data fields). */
 function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
   switch (item.type as EntryType) {
     case "Attendance": {
@@ -168,14 +170,14 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
     }
     case "Food": {
       doc.subtype = (item as any).subtype;
-      // Keep free text in `detail`; can extend with items/amount later
+      // Keep free text in `detail`; can extend with items/amount later.
       break;
     }
     case "Sleep": {
       doc.subtype = (item as any).subtype;
-      const isStart = isSleepStart((item as any).subtype);
-      const key = isStart ? "start" : "end";
+      const key = isSleepStart((item as any).subtype) ? "start" : "end";
       doc.data = { ...(doc.data || {}), [key]: item.occurredAt };
+      // durationMin can be computed later when both start & end exist.
       break;
     }
     case "Toilet": {
@@ -194,7 +196,7 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
       break;
     }
     case "Photo": {
-      // `photoUrl` already mirrored at top-level for easy rendering
+      // `photoUrl` already mirrored at top-level for easy rendering.
       break;
     }
   }
@@ -220,7 +222,7 @@ export async function bulkCreateEntriesService(
   const items = Array.isArray(payload?.items) ? payload.items : [];
   if (items.length === 0) return { created, failed };
 
-  // Validate each item; keep others going when one fails
+  // Validate each item; keep processing others when one fails
   const validated: (EntryCreateInput | null)[] = items.map((it, idx) => {
     try {
       validateItem(it);
@@ -248,7 +250,7 @@ export async function bulkCreateEntriesService(
       for (const childId of childIds) {
         const ref = db.collection("entries").doc();
         const doc = buildDocBase(auth, item, childId);
-        doc.id = ref.id; // match stored id with ref id
+        doc.id = ref.id; // keep id == ref.id
         applyTypeMapping(doc, item);
         writes.push({ index: i, refPath: ref.path, doc });
       }
@@ -257,7 +259,7 @@ export async function bulkCreateEntriesService(
     }
   }
 
-  // Commit in safe chunks (<= 500 ops per batch; use buffer)
+  // Commit in safe chunks (<= 500 ops per batch; use a safety buffer)
   for (const part of chunk(writes, 450)) {
     const batch = db.batch();
     for (const w of part) {

@@ -11,37 +11,38 @@ import type {
   SleepSubtype,
 } from "../../../shared/types/type";
 
-// Constants for subtype options
+// subtype options
 const ATTENDANCE_SUBTYPES: AttendanceSubtype[] = ["Check in", "Check out"];
 const FOOD_SUBTYPES: FoodSubtype[] = ["Breakfast", "Lunch", "Snack"];
 const SLEEP_SUBTYPES: SleepSubtype[] = ["Started", "Woke up"];
 
-// Local type for toilet kind (frontend-only helper)
+// toilet kind is not in shared types (backend expects "urine" | "bm")
 type ToiletKind = "urine" | "bm";
 
-// Simple helper to get ISO now
+// ISO helper
 const nowIso = () => new Date().toISOString();
 
 export default function EntryForm() {
   const router = useRouter();
-  // Expect: type, classId?, childIds (JSON string array)
+  // we expect: type, classId?, childIds (JSON array string)
   const p = useLocalSearchParams<{ type: EntryType; classId?: string; childIds: string }>();
 
   const type = p.type as EntryType;
-  const classId = p.classId && String(p.classId) ? String(p.classId) : null;
+  // empty string → null
+  const classId = p.classId && String(p.classId).trim() ? String(p.classId) : null;
   const childIds = useMemo(
     () => JSON.parse(String(p.childIds || "[]")) as string[],
     [p.childIds]
   );
 
-  // Form state
+  // local form state
   const [subtype, setSubtype] = useState<string | undefined>();
   const [detail, setDetail] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [toiletKind, setToiletKind] = useState<ToiletKind | undefined>();
   const [saving, setSaving] = useState(false);
 
-  // Subtype options only for Attendance/Food/Sleep
+  // subtype options only for Attendance / Food / Sleep
   const subtypeOptions = useMemo(() => {
     if (type === "Attendance") return ATTENDANCE_SUBTYPES;
     if (type === "Food") return FOOD_SUBTYPES;
@@ -49,15 +50,16 @@ export default function EntryForm() {
     return [];
   }, [type]);
 
-  // Dynamic field requirements
+  // dynamic flags
   const needsSubtype = ["Attendance", "Food", "Sleep"].includes(type);
   const needsToiletKind = type === "Toilet";
   const needsPhoto = type === "Photo";
   const needsDetail = ["Activity", "Note", "Health"].includes(type);
 
   async function onSubmit() {
-    // Basic guards
-    if (!childIds.length) return Alert.alert("Please select children first.");
+    if (!childIds.length) {
+      return Alert.alert("Please select children first.");
+    }
 
     if (needsSubtype && !subtype) {
       return Alert.alert("Please choose a subtype.");
@@ -75,7 +77,6 @@ export default function EntryForm() {
       return Alert.alert("Detail is required.");
     }
 
-    // Build payload matching the unified types (occurredAt required)
     const occurredAt = nowIso();
     let payload: EntryCreateInput;
 
@@ -104,24 +105,25 @@ export default function EntryForm() {
         childIds,
         classId,
         detail: detail || undefined,
-        occurredAt, // for Started/Woke up
+        occurredAt,
       };
     } else if (type === "Toilet") {
+      // backend expects toiletKind, occurredAt, and childIds
       payload = {
         type,
         childIds,
         classId,
         detail: detail || undefined,
-        occurredAt,          // maps to data.toiletTime
+        occurredAt,
         toiletKind: toiletKind!, // "urine" | "bm"
-      } as EntryCreateInput;
+      };
     } else if (type === "Photo") {
       payload = {
         type,
         childIds,
         classId,
         photoUrl,
-        detail: detail || undefined, // optional caption
+        detail: detail || undefined,
         occurredAt,
       };
     } else if (type === "Activity") {
@@ -129,7 +131,7 @@ export default function EntryForm() {
         type,
         childIds,
         classId,
-        detail, // required text
+        detail,
         occurredAt,
       };
     } else if (type === "Note") {
@@ -137,7 +139,7 @@ export default function EntryForm() {
         type,
         childIds,
         classId,
-        detail, // required text
+        detail,
         occurredAt,
       };
     } else if (type === "Health") {
@@ -145,7 +147,7 @@ export default function EntryForm() {
         type,
         childIds,
         classId,
-        detail, // required text
+        detail,
         occurredAt,
       };
     } else {
@@ -154,12 +156,12 @@ export default function EntryForm() {
 
     try {
       setSaving(true);
-      // Apply to the exact selected children only (no class fan-out here)
+      // we always send only the selected children (no class fan-out here)
       const res = await bulkCreateEntries([payload]);
       if (!res.ok) throw new Error(res.reason || "Failed to save");
       router.back();
     } catch (e: any) {
-      Alert.alert("Save failed", String(e.message || e));
+      Alert.alert("Save failed", String(e?.message || e));
     } finally {
       setSaving(false);
     }
@@ -167,8 +169,27 @@ export default function EntryForm() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+      {/* Back to dashboard */}
+      <Pressable
+        onPress={() => router.back()}
+        style={{
+          alignSelf: "flex-start",
+          paddingHorizontal: 10,
+          paddingVertical: 6,
+          borderRadius: 999,
+          backgroundColor: "#E2E8F0",
+          marginBottom: 4,
+        }}
+      >
+        <Text style={{ color: "#0F172A", fontWeight: "500" }}>← Back</Text>
+      </Pressable>
+
       <Text style={{ fontSize: 22, fontWeight: "700" }}>{type}</Text>
-      <Text style={{ color: "#64748B" }}>{childIds.length} children selected</Text>
+      <Text style={{ color: "#64748B" }}>
+        {childIds.length === 1
+          ? "1 child selected"
+          : `${childIds.length} children selected`}
+      </Text>
 
       {needsSubtype ? (
         <View style={{ gap: 8 }}>
@@ -185,7 +206,9 @@ export default function EntryForm() {
                   backgroundColor: subtype === opt ? "#6366F1" : "#E5E7EB",
                 }}
               >
-                <Text style={{ color: subtype === opt ? "white" : "#111827" }}>{opt}</Text>
+                <Text style={{ color: subtype === opt ? "white" : "#111827" }}>
+                  {opt}
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -216,7 +239,7 @@ export default function EntryForm() {
         </View>
       ) : null}
 
-      {needsDetail || type === "Photo" ? (
+      {(needsDetail || type === "Photo") && (
         <View style={{ gap: 8 }}>
           <Text style={{ fontWeight: "600" }}>
             {type === "Photo" ? "Caption (optional)" : "Note"}
@@ -235,7 +258,7 @@ export default function EntryForm() {
             multiline
           />
         </View>
-      ) : null}
+      )}
 
       {needsPhoto ? (
         <View style={{ gap: 8 }}>
@@ -245,7 +268,12 @@ export default function EntryForm() {
             value={photoUrl}
             onChangeText={setPhotoUrl}
             autoCapitalize="none"
-            style={{ borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, padding: 12 }}
+            style={{
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              borderRadius: 12,
+              padding: 12,
+            }}
           />
         </View>
       ) : null}
