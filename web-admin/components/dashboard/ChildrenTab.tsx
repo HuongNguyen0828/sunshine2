@@ -157,13 +157,11 @@ function ChildCard({
   // onOpenLinkByEmail,
 }: ChildCardProps) {
   const cls = classes.find((c) => c.id === child.classId);
-  const cap = classCapacityBadge(cls);
-  const status =
-    child.enrollmentStatus ?? computeStatus(child.parentId, child.classId);
+  const status = child.enrollmentStatus ?? computeStatus(child.parentId, child.classId);
 
-  const [localUnlinkId, setLocalUnlinkId] = useState<string>("");
-  const [localUnlinkLabel, setLocalUnlinkLabel] = useState<string>("");
-  const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  // const [localUnlinkId, setLocalUnlinkId] = useState<string>("");
+  // const [localUnlinkLabel, setLocalUnlinkLabel] = useState<string>("");
+  // const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   return (
     <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 flex flex-col">
@@ -179,21 +177,26 @@ function ChildCard({
             </span>
           </div>
         </div>
-        <div className="text-xs text-gray-500">
-          Status:{" "}
-          <span
-            className={
-              status === Types.EnrollmentStatus.Active
-                ? "text-green-600 font-bold"
-                : status === Types.EnrollmentStatus.Waitlist
-                  ? "text-yellow-600"
-                  : status === Types.EnrollmentStatus.New
-                    ? "text-red-600 font-bold"
-                    : "text-gray-600"
-            }
-          >
-            {status}
-          </span>
+        <div className="flex justify-between text-xs text-gray-500">
+          <div>
+            Status:{" "}
+            <span
+              className={
+                status === Types.EnrollmentStatus.Active
+                  ? "text-green-600 font-bold"
+                  : status === Types.EnrollmentStatus.Waitlist
+                    ? "text-yellow-600"
+                    : status === Types.EnrollmentStatus.New
+                      ? "text-red-600 font-bold"
+                      : "text-gray-600"
+              }
+            >
+              {status}
+            </span>
+          </div>
+          <div>
+            <span> Start: <span className="font-semibold">{child.startDate}</span></span>
+          </div>
         </div>
       </div>
 
@@ -939,11 +942,13 @@ export default function ChildrenTab({
       if (statusFilter !== "all" && effStatus !== statusFilter) return false;
 
       if (classFilter !== "all") {
-        if (classFilter === "unassigned") return !c.classId;
-        return c.classId === classFilter;
+        if (classFilter === "unassigned") {
+          if (c.classId) return false;
+        }
+        else return (c.classId === classFilter);
       }
 
-      if (locationView !== defaultLocationView) return (c.locationId === locationView);
+      if (locationView !== defaultLocationView) if (c.locationId !== locationView) return false;
       return true;
     });
   }, [childrenWithParents, locations, searchTerm, statusFilter, classFilter, locationView, defaultLocationView]);
@@ -966,7 +971,13 @@ export default function ChildrenTab({
             <select
               className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               value={locationView}
-              onChange={(e) => setLocationView(e.target.value)}
+              // Reset search filter everytime change location scope
+              onChange={(e) => {
+                setLocationView(e.target.value);
+                setSearchTerm("");
+                setClassFilter("all");
+                setStatusFilter("all");
+              }}
               required
             >
               <option value="" disabled>
@@ -1048,7 +1059,8 @@ export default function ChildrenTab({
             >
               <option value="all">All Classes</option>
               <option value="unassigned">Unassigned</option>
-              {classes.map((c) => (
+              {/* View Class based on Location scope */}
+              {(locationView === defaultLocationView ? classes : classes.filter(clss => clss.locationId === locationView)).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
@@ -1362,7 +1374,24 @@ export default function ChildrenTab({
                           </option>
                         </select>
                       </label>
-                      <label className="block md:col-span-2">
+
+                      <label className="block">
+                        <span className="text-gray-700 font-medium mb-1 block">
+                          Start Date *
+                        </span>
+                        <input
+                          type="date"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          value={newChild.startDate}
+                          onChange={(e) =>
+                            updateDraft({ startDate: e.target.value })
+                          }
+                          required
+                          readOnly={showEditOption && !isEditingChildInfoMode} // View only, only allow edit if check on editing Child
+                        />
+                      </label>
+
+                      <label className="block">
                         <span className="text-gray-700 font-medium mb-1 block">
                           Notes
                         </span>
@@ -1376,6 +1405,7 @@ export default function ChildrenTab({
                           readOnly={showEditOption && !isEditingChildInfoMode} // View only, only allow edit if check on editing Child
                         />
                       </label>
+
                     </div>
                   </div>
                 )}
@@ -1821,7 +1851,7 @@ export default function ChildrenTab({
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="text-lg text-gray-800">
                   Select Class for <span className="font-bold"> {assignChild.firstName} {assignChild.lastName}</span><br></br>
-                  <span className="text-sm">from {assignChild.classId && classes.find(clss => clss.id === assignChild.classId)?.name}</span>
+                  <span className="text-sm">{assignChild.classId && "from"}  {assignChild.classId && classes.find(clss => clss.id === assignChild.classId)?.name}</span>
                 </h3>
                 <button
                   onClick={() => {
