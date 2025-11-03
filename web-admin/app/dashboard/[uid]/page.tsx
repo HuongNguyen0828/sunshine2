@@ -282,7 +282,7 @@ export default function AdminDashboard() {
 
   const handleAddTeacher = async () => {
     setUpdateLoading(true);
-    await addTeacher(newTeacher);
+    const addedTeacher = await addTeacher(newTeacher);
     try {
       const tcs: Types.Teacher[] = await fetchTeachers();
       setTeachers(tcs);
