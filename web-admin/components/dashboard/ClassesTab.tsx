@@ -56,6 +56,8 @@ export default function ClassesTab({
 }: Props) {
   // UI state
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const defaultLocationView: string = "all";
+  const [locationView, setLocationView] = useState<string>(defaultLocationView); // default is viewing all locations
   const [searchTerm, setSearchTerm] = useState("");
   const [capacityFilter, setCapacityFilter] =
     useState<"all" | "available" | "nearly-full" | "full">("all");
@@ -161,17 +163,16 @@ export default function ClassesTab({
   /** Client-side search/filter */
   const filteredClasses = useMemo(() => {
     return classes.filter(cls => {
-      const locName = (locations ?? []).find(l => l.id === cls.locationId)?.name || "";
       const matches =
         cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (cls.locationId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        locName.toLowerCase().includes(searchTerm.toLowerCase());
+        (cls.locationId || "").toLowerCase().includes(searchTerm.toLowerCase());
       if (!matches) return false;
-      if (capacityFilter === "all") return true;
       const status = getCapacityStatus(cls.volume, cls.capacity);
-      return status === capacityFilter;
+      if (capacityFilter !== "all") if (status !== capacityFilter) return false;
+      if (locationView !== defaultLocationView) if (cls.locationId !== locationView) return false;
+      return true;
     });
-  }, [classes, locations, searchTerm, capacityFilter]);
+  }, [classes, locations, searchTerm, capacityFilter, locationView, defaultLocationView]);
 
   // Pagination
   const classesPerPage = 6;
@@ -342,14 +343,33 @@ export default function ClassesTab({
 
   const passingAssigned = useCallback((cls: Types.Class) => teachers.filter(t => (t.classIds || []).includes(cls.id)), [teachers, classes]);
 
-
-
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header + Filters */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-3xl font-bold text-gray-800">Classes</h2>
+          <div className="flex gap-4">
+            <h2 className="text-3xl font-bold text-gray-800">Classes</h2>
+            {/* Location scope */}
+            <select
+              className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              value={locationView}
+              onChange={(e) => setLocationView(e.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Select a view location
+              </option>
+              {(locations ?? []).map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+              {/* Default all locations: all ids */}
+              <option value={defaultLocationView}>All locations</option>
+            </select>
+          </div>
+
           <button
             onClick={handleAddClick}
             className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
@@ -511,9 +531,9 @@ export default function ClassesTab({
                   <div className="flex justify-center">
                     <button
                       onClick={() => openAssign(cls.id, cls.locationId)}
-                      className=" bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"
+                      className={assigned.length >= 2 ? " bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm" : " bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"}
                     >
-                      Assign Teacher
+                      {assigned.length >= 2 ? "Switch teacher" : "Assign New Teacher"}
                     </button>
                   </div>
                 </div>
