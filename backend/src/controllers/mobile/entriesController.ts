@@ -20,6 +20,7 @@ function getAuthCtx(req: Request) {
     role: String(tok.role || ""),
     userDocId: String(tok.userDocId || ""),
     locationId: tok.locationId ? String(tok.locationId) : undefined,
+    // daycareId can be missing; treat as optional
     daycareId: tok.daycareId ? String(tok.daycareId) : undefined,
   };
 }
@@ -59,7 +60,8 @@ export async function bulkCreateEntries(req: Request, res: Response) {
     if (auth.role !== "teacher") {
       return res.status(403).json({ message: "forbidden_role" });
     }
-    if (!auth.userDocId || !auth.locationId || !auth.daycareId) {
+    // userDocId + locationId must exist; daycareId is optional
+    if (!auth.userDocId || !auth.locationId) {
       return res.status(401).json({ message: "missing_auth_scope" });
     }
 
@@ -71,8 +73,8 @@ export async function bulkCreateEntries(req: Request, res: Response) {
     const result = await bulkCreateEntriesService(
       {
         userDocId: auth.userDocId,
-        daycareId: auth.daycareId,
         locationId: auth.locationId,
+        daycareId: auth.daycareId, // may be undefined
       },
       body
     );
@@ -96,7 +98,6 @@ export async function listEntries(req: Request, res: Response) {
     const auth = getAuthCtx(req);
     const role = auth.role;
 
-    // Remove "All ..." sentinels coming from UI
     const {
       childId: rawChildId,
       classId: rawClassId,
