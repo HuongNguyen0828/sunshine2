@@ -106,6 +106,29 @@ export default function TeacherMore() {
     setExpandedItems(newExpanded);
   };
 
+  // Handle profile image selection
+  const pickImage = async () => {
+    // Request permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photos to upload a profile picture.');
+      return;
+    }
+
+    // Pick image
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images' as ImagePicker.MediaType,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setProfileImage(result.assets[0].uri);
+    }
+  };
+
   // Handle logout with confirmation dialog
   const onLogout = () => {
     Alert.alert('Sign out', 'Do you want to sign out?', [
