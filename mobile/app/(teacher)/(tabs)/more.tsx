@@ -410,7 +410,9 @@ export default function TeacherMore() {
             ]}
             onPress={onLogout}
           >
-            <LogOut size={22} color={colors.palette.angry500} strokeWidth={2} />
+            <View style={styles.menuIconContainer}>
+              <LogOut size={22} color={colors.palette.angry500} strokeWidth={2} />
+            </View>
             <Text style={styles.logoutText}>Sign Out</Text>
           </Pressable>
         </View>
