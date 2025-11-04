@@ -195,9 +195,11 @@ export default function TeacherReports() {
     const typeCount: { [key: string]: number } = {};
     const uniqueChildren = new Set<string>();
     let totalEntries = 0;
+    let unsentReports = 0;
 
     dailyReports.forEach(report => {
       uniqueChildren.add(report.childId);
+      if (!report.sent) unsentReports++;
       report.entries.forEach(entry => {
         totalEntries++;
         if (entry.type) {
@@ -209,6 +211,7 @@ export default function TeacherReports() {
     return {
       totalEntries,
       totalReports: dailyReports.length,
+      unsentReports,
       uniqueChildren: uniqueChildren.size,
       topType: Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A",
     };
