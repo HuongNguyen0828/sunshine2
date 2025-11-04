@@ -363,7 +363,7 @@ export default function TeachersTab({
                   <div>Status: {teacher.status}</div>
                   {String(teacher.startDate)}
                   {teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
-                </div>
+                </div >
 
                 <div className="flex items-center gap-3 text-sm text-gray-500">
                   <span>Class:</span>
@@ -380,7 +380,7 @@ export default function TeachersTab({
                     })
                   )}
                 </div>
-              </div>
+              </div >
 
               <div className="flex gap-2">
                 <button
@@ -396,9 +396,10 @@ export default function TeachersTab({
                   Delete
                 </button>
               </div>
-            </div>
-          ))}
-        </div>
+            </div >
+          ))
+          }
+        </div >
       ) : (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
           <div className="text-gray-400 text-6xl mb-4">👥</div>
@@ -409,231 +410,235 @@ export default function TeachersTab({
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2">
-          <button
-            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-              }`}
-          >
-            ← Previous
-          </button>
-          <div className="flex gap-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-                  }`}
-              >
-                {page}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-              }`}
-          >
-            Next →
-          </button>
-        </div>
-      )}
-
-      {isFormOpen && (
-        <div
-          className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
-          onClick={() => {
-            setIsFormOpen(false);
-            setEditingTeacher(null);
-          }}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-800">
-                  {editingTeacher ? "Edit Teacher" : "Add New Teacher"}
-                </h3>
-                {isDraftRestored && !editingTeacher && (
-                  <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
-                )}
-              </div>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingTeacher(null);
-                }}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleFormSubmit} className="p-6">
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">First Name *</span>
-                    <input
-                      type="text"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="First Name"
-                      value={newTeacher.firstName}
-                      onChange={(e) => updateTeacher({ firstName: e.target.value })}
-                      required
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Last Name *</span>
-                    <input
-                      type="text"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Last Name"
-                      value={newTeacher.lastName}
-                      onChange={(e) => updateTeacher({ lastName: e.target.value })}
-                      required
-                    />
-                  </label>
-                </div>
-
-                <label className="block">
-                  <span className="text-gray-700 font-medium mb-1 block">Location *</span>
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={newTeacher.locationId}
-                    onChange={(e) => updateTeacher({ locationId: e.target.value })}
-                    required
-                    disabled={(locations ?? []).length <= 1}
-                  >
-                    {(locations ?? []).length > 1 && (
-                      <option value="" disabled>
-                        Select a location
-                      </option>
-                    )}
-                    {(locations ?? []).map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name || l.id}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Email *</span>
-                    <input
-                      type="email"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Email"
-                      value={newTeacher.email}
-                      onChange={(e) => updateTeacher({ email: e.target.value })}
-                      required
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">
-                      Phone Number * <span className="text-red-500 text-sm">{phoneError}</span>
-                    </span>
-                    <input
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g. 403 111 2284"
-                      value={newTeacher.phone}
-                      onChange={handlePhoneChange}
-                      required
-                    />
-                  </label>
-                </div>
-
-                <div className="block">
-                  <AutoCompleteAddress onAddressChanged={handleAddressChange} addressValues={newTeacherAddressValues} />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Status *</span>
-                    <select
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      value={newTeacher.status}
-                      onChange={(e) =>
-                        updateTeacher({
-                          status: e.target.value as Types.TeacherStatus,
-                        })
-                      }
-                      required
-                    >
-                      <option disabled>Select status</option>
-                      <option value={Types.TeacherStatus.New}>New</option>
-                      <option value={Types.TeacherStatus.Active}>Active</option>
-                      <option value={Types.TeacherStatus.Inactive}>Inactive</option>
-                    </select>
-                  </label>
-
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">Start Date *</span>
-                    <input
-                      type="date"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={newTeacher.startDate}
-                      onChange={(e) => updateTeacher({ startDate: e.target.value })}
-                      required
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-gray-700 font-medium mb-1 block">End Date</span>
-                    <input
-                      type="date"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="End Date (optional)"
-                      value={newTeacher.endDate || ""}
-                      onChange={(e) => updateTeacher({ endDate: e.target.value || undefined })}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+      {
+        totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                }`}
+            >
+              ← Previous
+            </button>
+            <div className="flex gap-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <button
-                  type="button"
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                    }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                }`}
+            >
+              Next →
+            </button>
+          </div>
+        )
+      }
+
+      {
+        isFormOpen && (
+          <div
+            className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
+            onClick={() => {
+              setIsFormOpen(false);
+              setEditingTeacher(null);
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {editingTeacher ? "Edit Teacher" : "Add New Teacher"}
+                  </h3>
+                  {isDraftRestored && !editingTeacher && (
+                    <p className="text-xs text-green-600 mt-1">✓ Draft restored</p>
+                  )}
+                </div>
+                <button
                   onClick={() => {
                     setIsFormOpen(false);
                     setEditingTeacher(null);
                   }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
                 >
-                  Cancel
-                </button>
-                {!editingTeacher && (
-                  <button
-                    type="button"
-                    onClick={() => clearDraft()}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
-                  >
-                    Clear Draft
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
-                >
-                  {editingTeacher ? "Update Teacher" : "Add Teacher"}
+                  ✕
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleFormSubmit} className="p-6">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="block">
+                      <span className="text-gray-700 font-medium mb-1 block">First Name *</span>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="First Name"
+                        value={newTeacher.firstName}
+                        onChange={(e) => updateTeacher({ firstName: e.target.value })}
+                        required
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-gray-700 font-medium mb-1 block">Last Name *</span>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Last Name"
+                        value={newTeacher.lastName}
+                        onChange={(e) => updateTeacher({ lastName: e.target.value })}
+                        required
+                      />
+                    </label>
+                  </div>
+
+                  <label className="block">
+                    <span className="text-gray-700 font-medium mb-1 block">Location *</span>
+                    <select
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      value={newTeacher.locationId}
+                      onChange={(e) => updateTeacher({ locationId: e.target.value })}
+                      required
+                      disabled={(locations ?? []).length <= 1}
+                    >
+                      {(locations ?? []).length > 1 && (
+                        <option value="" disabled>
+                          Select a location
+                        </option>
+                      )}
+                      {(locations ?? []).map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name || l.id}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="block">
+                      <span className="text-gray-700 font-medium mb-1 block">Email *</span>
+                      <input
+                        type="email"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Email"
+                        value={newTeacher.email}
+                        onChange={(e) => updateTeacher({ email: e.target.value })}
+                        required
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-gray-700 font-medium mb-1 block">
+                        Phone Number * <span className="text-red-500 text-sm">{phoneError}</span>
+                      </span>
+                      <input
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g. 403 111 2284"
+                        value={newTeacher.phone}
+                        onChange={handlePhoneChange}
+                        required
+                      />
+                    </label>
+                  </div>
+
+                  <div className="block">
+                    <AutoCompleteAddress onAddressChanged={handleAddressChange} addressValues={newTeacherAddressValues} />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <label className="block">
+                      <span className="text-gray-700 font-medium mb-1 block">Status *</span>
+                      <select
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        value={newTeacher.status}
+                        onChange={(e) =>
+                          updateTeacher({
+                            status: e.target.value as Types.TeacherStatus,
+                          })
+                        }
+                        required
+                      >
+                        <option disabled>Select status</option>
+                        <option value={Types.TeacherStatus.New}>New</option>
+                        <option value={Types.TeacherStatus.Active}>Active</option>
+                        <option value={Types.TeacherStatus.Inactive}>Inactive</option>
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="text-gray-700 font-medium mb-1 block">Start Date *</span>
+                      <input
+                        type="date"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={newTeacher.startDate}
+                        onChange={(e) => updateTeacher({ startDate: e.target.value })}
+                        required
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-gray-700 font-medium mb-1 block">End Date</span>
+                      <input
+                        type="date"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="End Date (optional)"
+                        value={newTeacher.endDate || ""}
+                        onChange={(e) => updateTeacher({ endDate: e.target.value || undefined })}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsFormOpen(false);
+                      setEditingTeacher(null);
+                    }}
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                  >
+                    Cancel
+                  </button>
+                  {!editingTeacher && (
+                    <button
+                      type="button"
+                      onClick={() => clearDraft()}
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                    >
+                      Clear Draft
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                  >
+                    {editingTeacher ? "Update Teacher" : "Add Teacher"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
