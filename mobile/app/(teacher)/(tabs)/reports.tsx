@@ -151,6 +151,7 @@ export default function TeacherReports() {
           entries: [],
           activitySummary: "",
           totalActivities: 0,
+          sent: Math.random() > 0.5, // Mock: randomly mark some as sent
         });
       }
 
