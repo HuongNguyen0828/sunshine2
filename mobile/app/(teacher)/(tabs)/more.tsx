@@ -218,38 +218,6 @@ export default function TeacherMore() {
       ),
     },
     {
-      icon: CreditCard,
-      label: 'Payment & Invoices',
-      hasDropdown: true,
-      dropdownContent: (
-        <View style={styles.dropdownContent}>
-          <Text style={styles.dropdownHeader}>Payment Methods</Text>
-          {mockSettings.payment.methods.map((method, idx) => (
-            <View key={idx} style={styles.paymentMethod}>
-              <CreditCard size={18} color="#64748B" />
-              <Text style={styles.paymentText}>
-                {method.brand || method.bank} •••• {method.last4}
-              </Text>
-              {method.isDefault && (
-                <View style={styles.defaultBadge}>
-                  <Text style={styles.defaultText}>Default</Text>
-                </View>
-              )}
-            </View>
-          ))}
-          <View style={styles.divider} />
-          <Text style={styles.dropdownHeader}>Recent Invoices</Text>
-          {mockSettings.payment.history.slice(0, 2).map((invoice, idx) => (
-            <View key={idx} style={styles.invoiceItem}>
-              <Receipt size={18} color="#64748B" />
-              <Text style={styles.invoiceText}>{invoice.description}</Text>
-              <Text style={styles.invoiceAmount}>${invoice.amount}</Text>
-            </View>
-          ))}
-        </View>
-      ),
-    },
-    {
       icon: HelpCircle,
       label: 'Help & Support',
       hasDropdown: true,
