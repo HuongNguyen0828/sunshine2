@@ -655,13 +655,13 @@ const styles = StyleSheet.create({
   },
   // Dropdown Content
   dropdownContainer: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
   dropdownContent: {
-    paddingVertical: 8,
     paddingHorizontal: 16,
+    paddingVertical: 4,
   },
   dropdownItem: {
     flexDirection: 'row',
@@ -672,19 +672,20 @@ const styles = StyleSheet.create({
   dropdownItemButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
     gap: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginVertical: 4,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   dropdownText: {
     fontSize: 15,
-    color: '#475569',
+    color: '#1E293B',
     flex: 1,
+  },
+  dropdownValueText: {
+    fontSize: 15,
+    color: '#64748B',
     fontWeight: '500',
   },
   dropdownHeader: {
