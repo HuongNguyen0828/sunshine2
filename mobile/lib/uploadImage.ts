@@ -5,49 +5,45 @@ import { storage } from "@/lib/firebase";
 
 /**
  * Pick an image from the device and upload it to Firebase Storage.
- *
- * @param pathPrefix storage path prefix, e.g. "entry-photos" → entry-photos/1234.jpg
- * @returns download URL string, or null if user cancelled
- * @throws Error when permission denied or upload failed
+ * Returns download URL, or null if user cancelled.
  */
 export async function pickAndUploadImage(
   pathPrefix: string = "entry-photos"
 ): Promise<string | null> {
-  // 1. ask permission
+  // 1. permission
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) {
     throw new Error("Photo permission not granted");
   }
 
-  // 2. open image picker
+  // 2. open picker 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    quality: 0.8,
+    quality: 0.85,
+    allowsEditing: false,
   });
 
-  // user cancelled
-  if (result.canceled) {
-    return null;
-  }
+  if (result.canceled) return null;
 
-  const asset = result.assets[0];
+  const asset = result.assets?.[0];
   if (!asset?.uri) {
     throw new Error("No image selected");
   }
 
   // 3. uri → blob
-  const response = await fetch(asset.uri);
-  const blob = await response.blob();
+  const resp = await fetch(asset.uri);
+  const blob = await resp.blob();
 
-  // 4. upload to storage
-  const filename = `${pathPrefix}/${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2)}.jpg`;
-  const storageRef = ref(storage, filename);
+  // 4. upload
+  const fileId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const storagePath = `${pathPrefix}/${fileId}.jpg`;
+  const storageRef = ref(storage, storagePath);
 
-  await uploadBytes(storageRef, blob);
+  await uploadBytes(storageRef, blob, {
+    contentType: blob.type || "image/jpeg",
+  });
 
-  // 5. get public download url
+  // 5. get url
   const downloadUrl = await getDownloadURL(storageRef);
   return downloadUrl;
 }

@@ -16,7 +16,7 @@ import type {
 
 type AuthCtx = {
   userDocId: string;
-  daycareId?: string;   // now optional
+  daycareId?: string;  // optional now
   locationId?: string;
 };
 
@@ -24,7 +24,7 @@ type AuthCtx = {
  * Helpers
  * ========= */
 
-// Validate ISO datetime string (e.g., 2025-11-01T12:34:56.789Z)
+// Validate ISO datetime string (e.g. 2025-11-01T12:34:56.789Z)
 function isIsoDateTime(v: unknown): v is string {
   if (typeof v !== "string") return false;
   const d = new Date(v);
@@ -52,26 +52,36 @@ function uniq<T>(arr: T[]) {
 // Split array into chunks (Firestore batch hard limit is 500)
 function chunk<T>(arr: T[], size: number) {
   const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
   return out;
 }
 
-/** Expand children by class when applyToAllInClass is true.
- *  Otherwise return provided childIds (deduped).
+/**
+ * Expand children by class when applyToAllInClass is true.
+ * Otherwise return provided childIds (deduped).
  */
 async function expandChildIds(item: EntryCreateInput): Promise<string[]> {
+  // no fan-out → just return the provided ids
   if (!item.applyToAllInClass || !item.classId) {
     return uniq(item.childIds ?? []);
   }
+
+  // fan-out by class
   const snap = await db
     .collection("children")
     .where("classId", "==", item.classId)
     .get();
+
   const ids = snap.docs.map((d) => d.id);
   return uniq([...(item.childIds ?? []), ...ids]);
 }
 
-/** Create a base document for a single child. */
+/**
+ * Create a base document for a single child.
+ * daycareId can be blank string when not provided.
+ */
 function buildDocBase(
   auth: AuthCtx,
   item: EntryCreateInput,
@@ -80,23 +90,29 @@ function buildDocBase(
   const nowIso = new Date().toISOString();
 
   const base: EntryDoc = {
-    id: db.collection("entries").doc().id, // will be overridden by ref.id at write
-    daycareId: String(auth.daycareId ?? ""), // allow blank
+    id: db.collection("entries").doc().id, // will be set to ref.id later
+
+    // scope info
+    daycareId: String(auth.daycareId ?? ""),
     locationId: String(auth.locationId ?? ""),
     classId: item.classId ?? null,
     childId,
 
+    // authorship
     createdByUserId: auth.userDocId,
     createdByRole: "teacher",
     createdAt: nowIso,
 
-    occurredAt: item.occurredAt, // validated
+    // time & type
+    occurredAt: item.occurredAt,
     type: item.type,
 
+    // flexible payload
     data: {},
     detail: (item as any).detail,
     photoUrl: (item as any).photoUrl,
 
+    // parent visibility
     visibleToParents: true,
     publishedAt: nowIso,
   };
@@ -104,7 +120,9 @@ function buildDocBase(
   return base;
 }
 
-/** Validate a single create item. Throws Error(message) if invalid. */
+/**
+ * Validate a single create item. Throws Error(message) if invalid.
+ */
 function validateItem(item: EntryCreateInput) {
   // Common
   if (!isIsoDateTime(item.occurredAt)) throw new Error("invalid_occurredAt");
@@ -130,36 +148,42 @@ function validateItem(item: EntryCreateInput) {
       break;
     }
     case "Activity": {
-      if (!("detail" in item) || !item.detail?.trim())
+      if (!("detail" in item) || !item.detail?.trim()) {
         throw new Error("activity_detail_required");
+      }
       break;
     }
     case "Note": {
-      if (!("detail" in item) || !item.detail?.trim())
+      if (!("detail" in item) || !item.detail?.trim()) {
         throw new Error("note_detail_required");
+      }
       break;
     }
     case "Health": {
-      if (!("detail" in item) || !item.detail?.trim())
+      if (!("detail" in item) || !item.detail?.trim()) {
         throw new Error("health_detail_required");
+      }
       break;
     }
     case "Photo": {
-      if (!("photoUrl" in item) || !item.photoUrl?.trim())
+      if (!("photoUrl" in item) || !item.photoUrl?.trim()) {
         throw new Error("photo_url_required");
+      }
       break;
     }
     default:
       throw new Error("unsupported_type");
   }
 
-  // Extra: if fan-out across class, classId must be provided
+  // Extra guard: class fan-out needs classId
   if ((item as any).applyToAllInClass && !item.classId) {
     throw new Error("classId_required_when_applyToAllInClass");
   }
 }
 
-/** Apply per-type mapping to the doc (subtype/data fields). */
+/**
+ * Apply per-type mapping to the doc (subtype/data fields).
+ */
 function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
   switch (item.type as EntryType) {
     case "Attendance": {
@@ -170,6 +194,7 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
     }
     case "Food": {
       doc.subtype = (item as any).subtype;
+      // detail is already at top-level
       break;
     }
     case "Sleep": {
@@ -179,7 +204,7 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
       break;
     }
     case "Toilet": {
-      const tk = (item as any).toiletKind; // "urine" | "bm"
+      const tk = (item as any).toiletKind;
       doc.data = {
         ...(doc.data || {}),
         toiletTime: item.occurredAt,
@@ -194,7 +219,7 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
       break;
     }
     case "Photo": {
-      // nothing extra
+      // photoUrl already mirrored
       break;
     }
   }
@@ -204,7 +229,12 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
  * Service
  * ========= */
 
-/** Bulk-create entries with optional class fan-out. */
+/**
+ * Bulk-create entries with optional class fan-out.
+ * - requires teacher user id
+ * - requires location (so teacher data stays scoped)
+ * - daycareId is optional (stored as empty string if missing)
+ */
 export async function bulkCreateEntriesService(
   auth: AuthCtx,
   payload: BulkEntryCreateRequest
@@ -212,14 +242,15 @@ export async function bulkCreateEntriesService(
   const created: { id: string; type: EntryType }[] = [];
   const failed: { index: number; reason: string }[] = [];
 
-  // Require user + location; daycare is optional
+  // must know who is writing
   if (!auth.userDocId) throw new Error("missing_userDocId");
+  // we still require location for scoping
   if (!auth.locationId) throw new Error("missing_locationId");
 
   const items = Array.isArray(payload?.items) ? payload.items : [];
   if (items.length === 0) return { created, failed };
 
-  // Validate each item; keep processing others when one fails
+  // 1) validate each item
   const validated: (EntryCreateInput | null)[] = items.map((it, idx) => {
     try {
       validateItem(it);
@@ -230,7 +261,7 @@ export async function bulkCreateEntriesService(
     }
   });
 
-  // Build batched writes (fan-out per child)
+  // 2) build all write operations (fan-out)
   const writes: Array<{ index: number; refPath: string; doc: EntryDoc }> = [];
 
   for (let i = 0; i < validated.length; i++) {
@@ -247,7 +278,8 @@ export async function bulkCreateEntriesService(
       for (const childId of childIds) {
         const ref = db.collection("entries").doc();
         const doc = buildDocBase(auth, item, childId);
-        doc.id = ref.id; // keep id == ref.id
+        // keep doc.id == firestore doc id
+        doc.id = ref.id;
         applyTypeMapping(doc, item);
         writes.push({ index: i, refPath: ref.path, doc });
       }
@@ -256,7 +288,7 @@ export async function bulkCreateEntriesService(
     }
   }
 
-  // Commit in safe chunks (<= 500 ops per batch; use a safety buffer)
+  // 3) commit in chunks
   for (const part of chunk(writes, 450)) {
     const batch = db.batch();
     for (const w of part) {

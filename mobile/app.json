@@ -25,6 +25,18 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+
+    "extra": {
+      "firebase": {
+        "apiKey": "AIzaSyC2h9hnGwnS7bc0pC7Or6fe3XfnIo6eDjg",
+        "authDomain": "sunshine-fb542.firebaseapp.com",
+        "projectId": "sunshine-fb542",
+        "storageBucket": "sunshine-fb542.firebasestorage.app",
+        "messagingSenderId": "264965753897",
+        "appId": "1:264965753897:web:8384285e3652b846ece038",
+        "measurementId": "G-78JTEK260Z"
+      }
     }
   }
 }
