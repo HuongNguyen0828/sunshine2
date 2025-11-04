@@ -85,12 +85,22 @@ EntryCard.displayName = "EntryCard";
 export default function TeacherMessages() {
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
+  const [debouncedSearchText, setDebouncedSearchText] = useState("");
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedChild, setSelectedChild] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [showClassModal, setShowClassModal] = useState(false);
   const [showChildModal, setShowChildModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
+
+  // Debounce search text with 300ms delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchText(searchText);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   // Memoize handlers to prevent re-renders
   const handleSearchChange = useCallback((text: string) => {
@@ -99,6 +109,7 @@ export default function TeacherMessages() {
 
   const handleClearSearch = useCallback(() => {
     setSearchText("");
+    setDebouncedSearchText("");
   }, []);
 
   // Generate entries once and memoize
