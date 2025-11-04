@@ -219,6 +219,108 @@ export default function TeacherReports() {
     );
   };
 
+  const renderHeader = () => (
+    <>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <View>
+          <Text style={styles.title}>Reports</Text>
+          <Text style={styles.subtitle}>
+            {filteredEntries.length} {filteredEntries.length === 1 ? "entry" : "entries"}
+          </Text>
+        </View>
+        <Pressable style={styles.exportButton}>
+          <Download size={20} color="#FFFFFF" />
+          <View style={styles.comingSoonBadge}>
+            <Text style={styles.comingSoonText}>Soon</Text>
+          </View>
+        </Pressable>
+      </View>
+
+      {/* Stats Cards */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.statsScroll}
+        contentContainerStyle={styles.statsContainer}
+      >
+        <View style={[styles.statCard, { backgroundColor: "#EEF2FF" }]}>
+          <Text style={styles.statNumber}>{stats.totalEntries}</Text>
+          <Text style={styles.statLabel}>Total Entries</Text>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: "#F0FDF4" }]}>
+          <Text style={styles.statNumber}>{stats.uniqueChildren}</Text>
+          <Text style={styles.statLabel}>Children</Text>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: "#FFF7ED" }]}>
+          <Text style={styles.statNumber}>{stats.topType}</Text>
+          <Text style={styles.statLabel}>Top Activity</Text>
+        </View>
+        <View style={[styles.statCard, { backgroundColor: "#FDF2F8" }]}>
+          <Text style={styles.statNumber}>
+            {mockClasses.find(c => c.id === stats.topClass)?.name?.split(" ")[0] || "N/A"}
+          </Text>
+          <Text style={styles.statLabel}>Most Active</Text>
+        </View>
+      </ScrollView>
+
+      {/* Filters */}
+      <View style={styles.filterContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
+        >
+          <Pressable
+            style={[styles.filterButton, dateRange !== "week" && styles.filterButtonActive]}
+            onPress={() => setShowDateModal(true)}
+          >
+            <Calendar size={16} color={dateRange !== "week" ? "#FFFFFF" : "#475569"} />
+            <Text style={[styles.filterButtonText, dateRange !== "week" && styles.filterButtonTextActive]}>
+              {getDateRangeText()}
+            </Text>
+            <ChevronDown size={16} color={dateRange !== "week" ? "#FFFFFF" : "#475569"} />
+          </Pressable>
+
+          <Pressable
+            style={[styles.filterButton, selectedClass && styles.filterButtonActive]}
+            onPress={() => setShowClassModal(true)}
+          >
+            <Text style={[styles.filterButtonText, selectedClass && styles.filterButtonTextActive]}>
+              {selectedClass
+                ? mockClasses.find(c => c.id === selectedClass)?.name
+                : "All Classes"}
+            </Text>
+            <ChevronDown size={16} color={selectedClass ? "#FFFFFF" : "#475569"} />
+          </Pressable>
+
+          <Pressable
+            style={[styles.filterButton, selectedType && styles.filterButtonActive]}
+            onPress={() => setShowTypeModal(true)}
+          >
+            <Text style={[styles.filterButtonText, selectedType && styles.filterButtonTextActive]}>
+              {selectedType || "All Types"}
+            </Text>
+            <ChevronDown size={16} color={selectedType ? "#FFFFFF" : "#475569"} />
+          </Pressable>
+
+          {hasActiveFilters && (
+            <Pressable style={styles.clearButton} onPress={clearFilters}>
+              <Text style={styles.clearButtonText}>Clear</Text>
+            </Pressable>
+          )}
+        </ScrollView>
+      </View>
+
+      {/* Table Header */}
+      <View style={styles.tableHeader}>
+        <Text style={styles.headerDate}>Date/Time</Text>
+        <Text style={styles.headerChild}>Child</Text>
+        <Text style={styles.headerType}>Type</Text>
+      </View>
+    </>
+  );
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -226,129 +328,27 @@ export default function TeacherReports() {
         style={styles.gradientBackground}
       />
 
-      <ScrollView
-        style={styles.scrollView}
+      <FlatList
+        data={filteredEntries}
+        keyExtractor={(item, index) => item.id || `entry-${index}`}
+        renderItem={({ item, index }) => renderEntry(item, index)}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyState}>
+            <FileText size={48} color="#CBD5E1" strokeWidth={1.5} />
+            <Text style={styles.emptyStateTitle}>No entries found</Text>
+            <Text style={styles.emptyStateText}>
+              Try adjusting your filters or date range
+            </Text>
+          </View>
+        )}
+        contentContainerStyle={styles.tableContent}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <View>
-            <Text style={styles.title}>Reports</Text>
-            <Text style={styles.subtitle}>
-              {filteredEntries.length} {filteredEntries.length === 1 ? "entry" : "entries"}
-            </Text>
-          </View>
-          <Pressable style={styles.exportButton}>
-            <Download size={20} color="#FFFFFF" />
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonText}>Soon</Text>
-            </View>
-          </Pressable>
-        </View>
-
-        {/* Stats Cards */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.statsScroll}
-          contentContainerStyle={styles.statsContainer}
-        >
-          <View style={[styles.statCard, { backgroundColor: "#EEF2FF" }]}>
-            <Text style={styles.statNumber}>{stats.totalEntries}</Text>
-            <Text style={styles.statLabel}>Total Entries</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: "#F0FDF4" }]}>
-            <Text style={styles.statNumber}>{stats.uniqueChildren}</Text>
-            <Text style={styles.statLabel}>Children</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: "#FFF7ED" }]}>
-            <Text style={styles.statNumber}>{stats.topType}</Text>
-            <Text style={styles.statLabel}>Top Activity</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: "#FDF2F8" }]}>
-            <Text style={styles.statNumber}>
-              {mockClasses.find(c => c.id === stats.topClass)?.name?.split(" ")[0] || "N/A"}
-            </Text>
-            <Text style={styles.statLabel}>Most Active</Text>
-          </View>
-        </ScrollView>
-
-        {/* Filters */}
-        <View style={styles.filterContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterScroll}
-          >
-            <Pressable
-              style={[styles.filterButton, dateRange !== "week" && styles.filterButtonActive]}
-              onPress={() => setShowDateModal(true)}
-            >
-              <Calendar size={16} color={dateRange !== "week" ? "#FFFFFF" : "#475569"} />
-              <Text style={[styles.filterButtonText, dateRange !== "week" && styles.filterButtonTextActive]}>
-                {getDateRangeText()}
-              </Text>
-              <ChevronDown size={16} color={dateRange !== "week" ? "#FFFFFF" : "#475569"} />
-            </Pressable>
-
-            <Pressable
-              style={[styles.filterButton, selectedClass && styles.filterButtonActive]}
-              onPress={() => setShowClassModal(true)}
-            >
-              <Text style={[styles.filterButtonText, selectedClass && styles.filterButtonTextActive]}>
-                {selectedClass
-                  ? mockClasses.find(c => c.id === selectedClass)?.name
-                  : "All Classes"}
-              </Text>
-              <ChevronDown size={16} color={selectedClass ? "#FFFFFF" : "#475569"} />
-            </Pressable>
-
-            <Pressable
-              style={[styles.filterButton, selectedType && styles.filterButtonActive]}
-              onPress={() => setShowTypeModal(true)}
-            >
-              <Text style={[styles.filterButtonText, selectedType && styles.filterButtonTextActive]}>
-                {selectedType || "All Types"}
-              </Text>
-              <ChevronDown size={16} color={selectedType ? "#FFFFFF" : "#475569"} />
-            </Pressable>
-
-            {hasActiveFilters && (
-              <Pressable style={styles.clearButton} onPress={clearFilters}>
-                <Text style={styles.clearButtonText}>Clear</Text>
-              </Pressable>
-            )}
-          </ScrollView>
-        </View>
-
-        {/* Table Header */}
-        <View style={styles.tableHeader}>
-          <Text style={styles.headerDate}>Date/Time</Text>
-          <Text style={styles.headerChild}>Child</Text>
-          <Text style={styles.headerType}>Type</Text>
-        </View>
-
-        {/* Table Content */}
-        <FlatList
-          data={filteredEntries}
-          keyExtractor={(item, index) => item.id || `entry-${index}`}
-          renderItem={({ item, index }) => renderEntry(item, index)}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyState}>
-              <FileText size={48} color="#CBD5E1" strokeWidth={1.5} />
-              <Text style={styles.emptyStateTitle}>No entries found</Text>
-              <Text style={styles.emptyStateText}>
-                Try adjusting your filters or date range
-              </Text>
-            </View>
-          )}
-          contentContainerStyle={styles.tableContent}
-          initialNumToRender={20}
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          removeClippedSubviews={true}
-        />
-      </ScrollView>
+        initialNumToRender={20}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
+      />
 
       {/* Date Range Modal */}
       <Modal
