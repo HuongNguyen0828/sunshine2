@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Pressable,
   Modal,
+  FlatList,
 } from "react-native";
 import { useState, useMemo } from "react";
 import { LinearGradient } from "expo-linear-gradient";
