@@ -373,9 +373,10 @@ export default function TeacherReports() {
 
       {/* Table Header */}
       <View style={styles.tableHeader}>
-        <Text style={styles.headerDate}>Date/Time</Text>
+        <Text style={styles.headerDate}>Date</Text>
         <Text style={styles.headerChild}>Child</Text>
-        <Text style={styles.headerType}>Type</Text>
+        <Text style={styles.headerSummary}>Summary</Text>
+        <Text style={styles.headerShare}>Share</Text>
       </View>
     </>
   );
