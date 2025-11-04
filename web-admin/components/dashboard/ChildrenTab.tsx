@@ -950,7 +950,7 @@ export default function ChildrenTab({
         if (classFilter === "unassigned") {
           if (c.classId) return false;
         }
-        else return (c.classId === classFilter);
+        else if (c.classId !== classFilter) return false;
       }
 
       if (locationView !== defaultLocationView) if (c.locationId !== locationView) return false;
@@ -967,7 +967,7 @@ export default function ChildrenTab({
 
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 min-h-screen min-w-fit">
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <div className="flex gap-4">

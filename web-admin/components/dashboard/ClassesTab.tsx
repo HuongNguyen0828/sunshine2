@@ -276,8 +276,8 @@ export default function ClassesTab({
       //   // locationId: cls?.locationId, // optional explicit filter
       // });
 
-      // Call function from front end instead of backend
-      const candidates = teachers.filter(teacher => (teacher.locationId === locationId && teacher.status === Types.TeacherStatus.New))
+      // Call function from front end instead of backend, choose from same location and could be NEW or ACTIVE, BUT not Inactive
+      const candidates = teachers.filter(teacher => (teacher.locationId === locationId && teacher.status !== Types.TeacherStatus.Inactive))
       setTeacherOptions(candidates);
 
       // Preselect currently assigned teachers
@@ -533,7 +533,7 @@ export default function ClassesTab({
                       onClick={() => openAssign(cls.id, cls.locationId)}
                       className={assigned.length >= 2 ? " bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm" : " bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"}
                     >
-                      {assigned.length >= 2 ? "Switch teacher" : "Assign New Teacher"}
+                      {assigned.length >= 2 ? "Switch Teacher" : "Assign Teacher"}
                     </button>
                   </div>
                 </div>
