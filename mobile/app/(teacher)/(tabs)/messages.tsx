@@ -492,17 +492,6 @@ const styles = StyleSheet.create({
   filterButtonTextActive: {
     color: "#FFFFFF",
   },
-  clearButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#FEE2E2",
-  },
-  clearButtonText: {
-    fontSize: 14,
-    color: "#DC2626",
-    fontWeight: "500",
-  },
   dateHeader: {
     fontSize: 16,
     fontWeight: "600",
