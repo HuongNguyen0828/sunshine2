@@ -536,6 +536,115 @@ export default function TeacherReports() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Report Detail/Edit Modal */}
+      <Modal
+        visible={showReportModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <View style={styles.reportModalContainer}>
+          <LinearGradient
+            colors={["#E0E7FF", "#F0F4FF", "#FFFFFF"]}
+            style={styles.reportModalGradient}
+          />
+
+          {/* Modal Header */}
+          <View style={[styles.reportModalHeader, { paddingTop: insets.top + 20 }]}>
+            <Pressable
+              onPress={() => setShowReportModal(false)}
+              style={styles.reportModalClose}
+            >
+              <Text style={styles.reportModalCloseText}>Cancel</Text>
+            </Pressable>
+            <Text style={styles.reportModalTitle}>Daily Report</Text>
+            <Pressable
+              onPress={() => {
+                // TODO: Implement share/push functionality
+                alert("Report will be sent to parents");
+                setShowReportModal(false);
+              }}
+              style={styles.reportModalShare}
+            >
+              <Share2 size={20} color="#6366F1" strokeWidth={2} />
+              <Text style={styles.reportModalShareText}>Share</Text>
+            </Pressable>
+          </View>
+
+          {selectedReport && (
+            <ScrollView style={styles.reportModalContent}>
+              {/* Report Info */}
+              <View style={styles.reportInfoCard}>
+                <Text style={styles.reportInfoDate}>
+                  {selectedReport.date.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </Text>
+                <Text style={styles.reportInfoChild}>{selectedReport.childName}</Text>
+                <Text style={styles.reportInfoClass}>{selectedReport.className}</Text>
+              </View>
+
+              {/* Activity Summary */}
+              <View style={styles.reportSection}>
+                <Text style={styles.reportSectionTitle}>Activity Summary</Text>
+                <Text style={styles.reportSummaryText}>
+                  {selectedReport.totalActivities} {selectedReport.totalActivities === 1 ? "activity" : "activities"} recorded today
+                </Text>
+                <Text style={styles.reportSummaryDetail}>{selectedReport.activitySummary}</Text>
+              </View>
+
+              {/* Detailed Activities */}
+              <View style={styles.reportSection}>
+                <Text style={styles.reportSectionTitle}>Activities</Text>
+                {selectedReport.entries.map((entry, idx) => {
+                  const config = entryTypeConfig[entry.type as keyof typeof entryTypeConfig];
+                  const IconComponent = config?.icon || Activity;
+                  const time = entry.occurredAt
+                    ? new Date(entry.occurredAt).toLocaleTimeString("en-US", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })
+                    : "";
+
+                  return (
+                    <View key={idx} style={styles.reportActivityCard}>
+                      <View style={[styles.reportActivityIcon, { backgroundColor: config?.bg }]}>
+                        <IconComponent size={20} color={config?.color} strokeWidth={2} />
+                      </View>
+                      <View style={styles.reportActivityContent}>
+                        <View style={styles.reportActivityHeader}>
+                          <Text style={styles.reportActivityType}>{entry.type}</Text>
+                          <Text style={styles.reportActivityTime}>{time}</Text>
+                        </View>
+                        {entry.subtype && (
+                          <Text style={styles.reportActivitySubtype}>{entry.subtype}</Text>
+                        )}
+                        {entry.detail && (
+                          <Text style={styles.reportActivityDetail}>{entry.detail}</Text>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Notes Section (placeholder for future editing) */}
+              <View style={styles.reportSection}>
+                <Text style={styles.reportSectionTitle}>Teacher Notes</Text>
+                <View style={styles.reportNotesPlaceholder}>
+                  <Text style={styles.reportNotesPlaceholderText}>
+                    Tap to add notes for parents...
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
