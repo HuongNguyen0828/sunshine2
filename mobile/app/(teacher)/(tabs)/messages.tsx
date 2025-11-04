@@ -213,11 +213,13 @@ export default function TeacherMessages() {
                   style={styles.searchInput}
                   placeholder="Search by child, activity, or details..."
                   value={searchText}
-                  onChangeText={setSearchText}
+                  onChangeText={handleSearchChange}
                   placeholderTextColor="#94A3B8"
+                  autoCorrect={false}
+                  autoCapitalize="none"
                 />
                 {searchText.length > 0 && (
-                  <Pressable onPress={() => setSearchText("")}>
+                  <Pressable onPress={handleClearSearch}>
                     <X size={20} color="#64748B" />
                   </Pressable>
                 )}
