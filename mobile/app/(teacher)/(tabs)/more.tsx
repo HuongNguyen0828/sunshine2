@@ -5,12 +5,14 @@
  * with animated arrow rotation and smooth transitions.
  */
 
-import { View, Text, Pressable, Alert, ScrollView, StyleSheet, Animated } from 'react-native';
+import { View, Text, Pressable, Alert, ScrollView, StyleSheet, Animated, TextInput, Image } from 'react-native';
 import { useState, useRef, useEffect } from 'react';
 import { signOutUser } from '@/lib/auth';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
+import { auth } from '@/lib/firebase';
 import {
   Users,
   FileText,
