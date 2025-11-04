@@ -714,11 +714,13 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#1E293B",
     letterSpacing: -0.5,
+    lineHeight: 38,
   },
   subtitle: {
     fontSize: 15,
     color: "#64748B",
-    marginTop: 4,
+    marginTop: 2,
+    lineHeight: 20,
   },
   unsentBadge: {
     color: "#F59E0B",
