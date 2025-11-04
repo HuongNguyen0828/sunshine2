@@ -13,11 +13,13 @@ import { useState, useEffect, useCallback, useRef, ChangeEvent, useMemo, Childre
 import AutoCompleteAddress, { Address } from "../AutoCompleteAddress";
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
+import { LocationLite } from "@/services/useLocationsAPI";
 
 export default function ParentsTab({
   parents,
   setParents,
-  children
+  children,
+  locations,
 }: {
   parents: Types.Parent[];
   setParents: React.Dispatch<React.SetStateAction<Types.Parent[]>>;
@@ -25,8 +27,11 @@ export default function ParentsTab({
   // setNewParent: React.Dispatch<React.SetStateAction<NewParentInput>>;
   // onAdd: () => void;
   children: Types.Child[],
+  locations: LocationLite[]
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const defaultLocationView: string = "all";
+  const [locationView, setLocationView] = useState<string>(defaultLocationView); // default is viewing all locations
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const initalEditingParent: Types.Parent = {
@@ -237,11 +242,18 @@ export default function ParentsTab({
 
   // Filter parents based on search
   const filteredParents = parentWithChildren.filter(
-    (parent) =>
-      parent.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      parent.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      parent.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      parent.phone.toLowerCase().includes(searchTerm.toLowerCase())
+    (parent) => {
+      const matched = parent.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        parent.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        parent.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        parent.phone.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (!matched) return false;
+      if (locationView !== defaultLocationView) {
+        if (parent.locationId !== locationView) return false;
+      }
+      return true;
+    }
   );
 
   // Pagination logic
@@ -259,7 +271,28 @@ export default function ParentsTab({
       {/* Header */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-3xl font-bold text-gray-800">Parents</h2>
+          <div className="flex gap-4">
+            <h2 className="text-3xl font-bold text-gray-800">Parents</h2>
+            {/* Location scope */}
+            <select
+              className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              value={locationView}
+              onChange={(e) => setLocationView(e.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Select a view location
+              </option>
+              {(locations ?? []).map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+              {/* Default all locations: all ids */}
+              <option value={defaultLocationView}>All locations</option>
+            </select>
+          </div>
+
           {/* <button
             onClick={handleAddClick}
             className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
@@ -334,9 +367,10 @@ export default function ParentsTab({
                 <div className="flex items-start gap-2">
                   <span className="text-xs text-gray-500">Child:</span>
                   {parent.children.length > 0 ?
-                    parent.children.map(child => (
+                    parent.children.map((child, index) => (
                       <span key={child.id} className="text-xs text-gray-700">
                         {[child.firstName, child.lastName].join(' ')}
+                        {index < parent.children.length - 1 && ','}
                       </span>)
                     ) : (
                       <span className="text-xs text-gray-700"> None </span>

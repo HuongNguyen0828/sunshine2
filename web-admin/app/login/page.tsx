@@ -27,7 +27,9 @@ export default function LoginPage() {
   const uid = Cookies.get("uid");
 
   useEffect(() => {
-    router.replace("/");
+    if (uid) {
+      router.replace(`/dashboard/${uid}`);
+    }
   }, []); // Force to go to mainpage vaidation when mount
 
 

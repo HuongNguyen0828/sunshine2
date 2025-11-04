@@ -17,7 +17,7 @@ export default function DashboardPage() {
     if (!currentUser) {
       redirectedRef.current = true;
       router.replace("/login");
-      alert(currentUser);
+      // alert(currentUser);
       return;
     }
 
