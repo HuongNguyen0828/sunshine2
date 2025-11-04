@@ -290,18 +290,32 @@ export default function TeacherReports() {
     <>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <View>
+        <View style={styles.headerLeft}>
           <Text style={styles.title}>Reports</Text>
           <Text style={styles.subtitle}>
             {stats.totalReports} daily {stats.totalReports === 1 ? "report" : "reports"}
+            {stats.unsentReports > 0 && (
+              <Text style={styles.unsentBadge}> • {stats.unsentReports} unsent</Text>
+            )}
           </Text>
         </View>
-        <Pressable style={styles.exportButton}>
-          <Download size={20} color="#FFFFFF" />
-          <View style={styles.comingSoonBadge}>
-            <Text style={styles.comingSoonText}>Soon</Text>
-          </View>
-        </Pressable>
+        <View style={styles.headerActions}>
+          {stats.unsentReports > 0 && (
+            <Pressable
+              style={styles.sendAllButton}
+              onPress={() => {
+                // TODO: Implement bulk send functionality
+                alert(`Sending ${stats.unsentReports} reports to parents`);
+              }}
+            >
+              <Send size={18} color="#FFFFFF" strokeWidth={2} />
+              <Text style={styles.sendAllButtonText}>Send All</Text>
+            </Pressable>
+          )}
+          <Pressable style={styles.downloadButton}>
+            <Download size={18} color="#6366F1" strokeWidth={2} />
+          </Pressable>
+        </View>
       </View>
 
       {/* Stats Cards */}
