@@ -13,6 +13,7 @@ import {
   TextInput,
   Modal,
   SectionList,
+  ScrollView,
 } from "react-native";
 import { useState, useMemo, memo } from "react";
 import { LinearGradient } from "expo-linear-gradient";
