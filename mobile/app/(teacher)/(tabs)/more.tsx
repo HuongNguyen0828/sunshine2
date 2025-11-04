@@ -65,6 +65,17 @@ export default function TeacherMore() {
   const insets = useSafeAreaInsets();
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const rotationValues = useRef<{ [key: string]: Animated.Value }>({});
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [teacherName, setTeacherName] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+
+  // Get Firebase user email on mount
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (user && !teacherName) {
+      setTeacherName(user.email || 'Teacher Name');
+    }
+  }, []);
 
   // Initialize rotation values for each dropdown item
   const getRotationValue = (label: string) => {
