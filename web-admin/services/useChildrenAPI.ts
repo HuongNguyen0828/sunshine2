@@ -5,6 +5,7 @@ import { NewChildInput, NewParentInput } from "@/types/forms";
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
 import swal from "sweetalert2";
+import { CustomParentInput } from "@/components/dashboard/ChildrenTab";
 
 
 export async function fetchChildren(): Promise<Types.Child[]> {
@@ -22,8 +23,8 @@ export type  returnChildWithParents = {child: Types.Child} & {parent1: Types.Par
 
 // Passing Parent Input with ChildId
 export type NewChildWithParentsInput = { child: NewChildInput } & {
-  parent1: NewParentInput;
-} & { parent2: NewParentInput | null };
+  parent1: CustomParentInput;
+} & { parent2: CustomParentInput | null};
 
 export async function addChildWithParents(
   NewChildAndParents: NewChildWithParentsInput
@@ -52,7 +53,7 @@ export async function addChildWithParents(
 
 export async function updateChild(
   id: string,
-  payload: NewParentInput
+  payload: NewChildInput
 ): Promise<Types.Child> {
   try {
     console.log(id);
@@ -82,13 +83,13 @@ export async function deleteChild(
 }
 
 export async function assignChildToClass(
-  id: string,
-  childId: string
+  childId: string,
+  classId: string
 ): Promise<{ ok: boolean } | null> {
   try {
     const res = await api.post<{ ok: boolean }>(
-      `${ENDPOINTS.children}/${id}/assign`,
-      { childId }
+      `${ENDPOINTS.children}/${childId}/assign`,
+      { classId }
     );
     return res;
   } catch (err: unknown) {

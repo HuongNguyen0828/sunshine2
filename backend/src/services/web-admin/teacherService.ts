@@ -1,7 +1,7 @@
 // backend/src/services/web-admin/teacherService.ts
 import type { Teacher } from "../../../../shared/types/type";
 import { TeacherStatus } from "../../../../shared/types/type";
-import { db } from "../../lib/firebase";
+import { db, admin } from "../../lib/firebase";
 import { UserRole } from "../../models/user";
 import { daycareLocationIds, checkingIfEmailIsUnique, updateEmailFirebaseAuth, deleteUserFirebaseAuth } from "../authService";
 
@@ -74,7 +74,8 @@ export const addTeacher = async (teacher: Omit<Teacher, "id">): Promise<Teacher 
   const docRef = await usersRef.add({
     ...teacher, 
     role: UserRole.Teacher, 
-    status: TeacherStatus.New, // status new by default
+    status: teacher.status || TeacherStatus.New, // status new by default
+    classIds: [], // Empty classId
   });
 
   // Updating current Teacher Doc with newly added id
@@ -82,7 +83,7 @@ export const addTeacher = async (teacher: Omit<Teacher, "id">): Promise<Teacher 
   await docRef.update({id});
   
   // return teacher
-  return { id: docRef.id, ...(teacher as any) } as Teacher;
+  return { id: docRef.id, docId: id, ...(teacher as any) } as Teacher;
 };
 
 
@@ -107,29 +108,47 @@ export const updateTeacher = async (
   body: Partial<Teacher>
 ): Promise<Teacher | null> => {
   // Find the doc ref of Teacher
-  const teacherSnap = usersRef.where("id", "==", id);
-  const doc = await teacherSnap.get();
-  const teacherDoc = doc.docs[0];
+  const teacherSnap = await usersRef.where("id", "==", id).get();
+  const teacherDoc = teacherSnap.docs[0];
   if (!teacherDoc?.exists) return null;
 
-  const teacherDocRef = teacherDoc?.ref;
+  const teacherDocRef = teacherDoc.ref;
+  const teacherData = teacherDoc.data() as Teacher;
 
-  await teacherDocRef.set(body, { merge: true });
+  // If status is Inactive, remove from all classes
+  if (body.status === TeacherStatus.Inactive) {
+    if (teacherData.classIds && teacherData.classIds.length > 0) {
+      const classIds = teacherData.classIds;
+      
+      // 1. Remove teacher from all classes
+      const batch = db.batch();
+      
+      for (const classId of classIds) {
+        const classRef = db.collection("classes").doc(classId);
+        batch.update(classRef, {
+          teacherIds: admin.firestore.FieldValue.arrayRemove(id) // Remove teacherId from teacherIds
+        });
+      }
+      
+      // Execute all class updates in one batch
+      await batch.commit();
+      
+      // 2. Clear teacher's classIds
+      body.classIds = [];
+    }
+  }
+
+  // Update teacher document
+  await teacherDocRef.update(body);
   const updated = await teacherDocRef.get();
 
-  // Checking if updating email
-  const currentTeacher = await getTeacherById(id);
-  const currentEmail = currentTeacher?.email;
-
-  if (body.email) {
-    const newEmail = body.email;
-    if (body.email !== currentEmail) {
-      // update firebae Auth credentials: calling from authServices
-      try {
-        await updateEmailFirebaseAuth(id, newEmail);
-      } catch (error: any) {
-        throw error;
-      }
+  // Check if updating email
+  const currentEmail = teacherData.email;
+  if (body.email && body.email !== currentEmail) {
+    try {
+      await updateEmailFirebaseAuth(id, body.email);
+    } catch (error: any) {
+      throw error;
     }
   }
 
@@ -155,17 +174,18 @@ export const deleteTeacher = async (id: string): Promise<boolean> => {
   await batch.commit();
   // Delete user from Firebase Auth: if already registered
   const teacherData = teacherDoc.data();
-  if (!teacherData?.isRegistered) {
-    return true; // ignore
-  }
+  // if (!teacherData?.isRegistered) {
+  //   return true; // ignore
+  // }
 
-  // Else, delete in Firebase Auth
-  try {
-    await deleteUserFirebaseAuth(id);
-    return true;
-  } catch (error: any) {
-    throw error;
-  }
+  // // Else, delete in Firebase Auth
+  // try {
+  //   await deleteUserFirebaseAuth(id);
+  //   return true;
+  // } catch (error: any) {
+  //   throw error;
+  // }
+  return true
 };
 
 // Assign a teacher to a class (bidirectional), returns success boolean

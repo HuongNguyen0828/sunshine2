@@ -141,8 +141,7 @@ export async function updateChild(req: AuthRequest, res: Response) {
 
     // Need check Admin permission before proceeding
 
-    
-    const updated = await Svc.updateChildById(id, patch, req.user?.uid);
+    const updated = await Svc.updateChildById(id, patch);
     return ok(res, updated);
   } catch (e) {
     console.error("[updateChild]", e);

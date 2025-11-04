@@ -13,12 +13,14 @@ import type {
  * Helpers
  * ========= */
 
+// Extract auth info injected by verifyIdToken middleware
 function getAuthCtx(req: Request) {
   const tok: any = (req as any).userToken || {};
   return {
     role: String(tok.role || ""),
     userDocId: String(tok.userDocId || ""),
     locationId: tok.locationId ? String(tok.locationId) : undefined,
+    // daycareId can be missing; treat as optional
     daycareId: tok.daycareId ? String(tok.daycareId) : undefined,
   };
 }
@@ -35,7 +37,7 @@ function clampLimit(v: unknown, def = 50, min = 1, max = 100) {
   return Math.max(min, Math.min(n, max));
 }
 
-// Treat UI “All …” sentinel values as empty filter
+// Normalize UI "All ..." sentinel values to undefined (no filter)
 function normalizeOptional(v?: string | null) {
   const s = String(v ?? "").trim();
   if (!s) return undefined;
@@ -58,7 +60,8 @@ export async function bulkCreateEntries(req: Request, res: Response) {
     if (auth.role !== "teacher") {
       return res.status(403).json({ message: "forbidden_role" });
     }
-    if (!auth.userDocId || !auth.locationId || !auth.daycareId) {
+    // userDocId + locationId must exist; daycareId is optional
+    if (!auth.userDocId || !auth.locationId) {
       return res.status(401).json({ message: "missing_auth_scope" });
     }
 
@@ -70,8 +73,8 @@ export async function bulkCreateEntries(req: Request, res: Response) {
     const result = await bulkCreateEntriesService(
       {
         userDocId: auth.userDocId,
-        daycareId: auth.daycareId,
         locationId: auth.locationId,
+        daycareId: auth.daycareId, // may be undefined
       },
       body
     );
@@ -87,15 +90,14 @@ export async function bulkCreateEntries(req: Request, res: Response) {
 /** GET /v1/entries
  * Query: childId?, classId?, type?, dateFrom?, dateTo?, limit?
  * Role rules:
- *  - parent: must see only visible entries and MUST provide childId (ownership check TBD)
- *  - teacher: limited to their locationId; optional additional filters
+ *  - parent: only visibleToParents == true AND must provide childId
+ *  - teacher: limited to their locationId; other filters optional
  */
 export async function listEntries(req: Request, res: Response) {
   try {
     const auth = getAuthCtx(req);
     const role = auth.role;
 
-    // Normalize possible “All …” UI values away
     const {
       childId: rawChildId,
       classId: rawClassId,
@@ -122,9 +124,7 @@ export async function listEntries(req: Request, res: Response) {
       q = q.where("childId", "==", childId);
     } else if (role === "teacher") {
       if (!auth.locationId) {
-        return res
-          .status(401)
-          .json({ message: "missing_location_scope" });
+        return res.status(401).json({ message: "missing_location_scope" });
       }
       q = q.where("locationId", "==", auth.locationId);
       if (childId) q = q.where("childId", "==", childId);
@@ -136,11 +136,11 @@ export async function listEntries(req: Request, res: Response) {
     if (classId) q = q.where("classId", "==", classId);
     if (type) q = q.where("type", "==", type);
 
-    // Date range by occurredAt
+    // Date range (by occurredAt)
     if (dateFrom && isIso(dateFrom)) q = q.where("occurredAt", ">=", dateFrom);
     if (dateTo && isIso(dateTo)) q = q.where("occurredAt", "<", dateTo);
 
-    // Order and limit (secondary order by createdAt for stability)
+    // Ordering & limit
     q = q.orderBy("occurredAt", "desc");
     const limitNum = clampLimit(limitQ, 50, 1, 100);
     q = q.limit(limitNum);

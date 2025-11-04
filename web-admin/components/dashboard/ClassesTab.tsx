@@ -10,13 +10,14 @@ import {
   updateClass as apiUpdateClass,
   deleteClass as apiDeleteClass,
   assignTeachersToClass,
-  fetchTeacherCandidates,
   type TeacherCandidate,
 } from "@/services/useClassesAPI";
 
 type Props = {
   classes: Types.Class[];
   teachers: Types.Teacher[];
+  setClasses: React.Dispatch<React.SetStateAction<Types.Class[]>>;
+  setTeachers: React.Dispatch<React.SetStateAction<Types.Teacher[]>>;
   locations: LocationLite[];
   newClass: NewClassInput;
   setNewClass: React.Dispatch<React.SetStateAction<NewClassInput>>;
@@ -45,6 +46,8 @@ function getClassById(list: Types.Class[], id?: string | null): Types.Class | un
 export default function ClassesTab({
   classes,
   teachers,
+  setClasses,
+  setTeachers,
   locations,
   newClass,
   setNewClass,
@@ -55,6 +58,8 @@ export default function ClassesTab({
 }: Props) {
   // UI state
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const defaultLocationView: string = "all";
+  const [locationView, setLocationView] = useState<string>(defaultLocationView); // default is viewing all locations
   const [searchTerm, setSearchTerm] = useState("");
   const [capacityFilter, setCapacityFilter] =
     useState<"all" | "available" | "nearly-full" | "full">("all");
@@ -160,17 +165,16 @@ export default function ClassesTab({
   /** Client-side search/filter */
   const filteredClasses = useMemo(() => {
     return classes.filter(cls => {
-      const locName = (locations ?? []).find(l => l.id === cls.locationId)?.name || "";
       const matches =
         cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (cls.locationId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        locName.toLowerCase().includes(searchTerm.toLowerCase());
+        (cls.locationId || "").toLowerCase().includes(searchTerm.toLowerCase());
       if (!matches) return false;
-      if (capacityFilter === "all") return true;
       const status = getCapacityStatus(cls.volume, cls.capacity);
-      return status === capacityFilter;
+      if (capacityFilter !== "all") if (status !== capacityFilter) return false;
+      if (locationView !== defaultLocationView) if (cls.locationId !== locationView) return false;
+      return true;
     });
-  }, [classes, locations, searchTerm, capacityFilter]);
+  }, [classes, locations, searchTerm, capacityFilter, locationView, defaultLocationView]);
 
   // Pagination
   const classesPerPage = 6;
@@ -262,17 +266,20 @@ export default function ClassesTab({
    * Open Assign modal.
    * Fetch teacher candidates filtered by this class's location (server-enforced).
    */
-  async function openAssign(classId: string) {
+  const openAssign = useCallback(async (classId: string, locationId: string) => {
     setShowAssignTeachers(classId);
     setLoadingCandidates(true);
     try {
       const cls = getClassById(classes, classId);
 
-      const candidates = await fetchTeacherCandidates({
-        onlyNew: true,
-        classId, // server derives location and enforces scope
-        // locationId: cls?.locationId, // optional explicit filter
-      });
+      // const candidates = await fetchTeacherCandidates({
+      //   onlyNew: true,
+      //   classId, // server derives location and enforces scope
+      //   // locationId: cls?.locationId, // optional explicit filter
+      // });
+
+      // Call function from front end instead of backend, choose from same location and could be NEW or ACTIVE, BUT not Inactive
+      const candidates = teachers.filter(teacher => (teacher.locationId === locationId && teacher.status !== Types.TeacherStatus.Inactive))
       setTeacherOptions(candidates);
 
       // Preselect currently assigned teachers
@@ -307,7 +314,7 @@ export default function ClassesTab({
     } finally {
       setLoadingCandidates(false);
     }
-  }
+  }, [teachers]);
 
   /**
    * Save assignment.
@@ -319,6 +326,37 @@ export default function ClassesTab({
       setIsAssigning(true);
       const ok = await assignTeachersToClass(showAssignTeachers, selectedTeachers);
       if (ok) {
+        // Update state of Classes
+        setClasses(prev => prev.map(cls => {
+          const currentClass = cls;
+          if (cls.id === showAssignTeachers) {
+            const newClass: Types.Class = { ...cls, teacherIds: selectedTeachers };
+            return newClass;
+          }
+          return currentClass;
+        }));
+
+        // Update state of Teachers 
+        setTeachers(prev => prev.map(teacher => {
+          const wasAssigned = (teacher.classIds || []).includes(showAssignTeachers);
+          const isNowAssigned = selectedTeachers.includes(teacher.id);
+
+          if (wasAssigned && !isNowAssigned) {
+            // Remove this class from teacher
+            return {
+              ...teacher,
+              classIds: (teacher.classIds || []).filter(id => id !== showAssignTeachers)
+            };
+          } else if (!wasAssigned && isNowAssigned) {
+            // Add this class to teacher
+            return {
+              ...teacher,
+              classIds: [...(teacher.classIds || []), showAssignTeachers],
+              status: Types.TeacherStatus.Active // Ensure teacher becomes Active when assigned
+            };
+          }
+          return teacher;
+        }));
         await onAssigned?.();
         setShowAssignTeachers(null);
         setSelectedTeachers([]);
@@ -328,12 +366,35 @@ export default function ClassesTab({
     }
   }
 
+  const passingAssigned = useCallback((cls: Types.Class) => teachers.filter(t => (t.classIds || []).includes(cls.id)), [teachers, classes]);
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header + Filters */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-3xl font-bold text-gray-800">Classes</h2>
+          <div className="flex gap-4">
+            <h2 className="text-3xl font-bold text-gray-800">Classes</h2>
+            {/* Location scope */}
+            <select
+              className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              value={locationView}
+              onChange={(e) => setLocationView(e.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Select a view location
+              </option>
+              {(locations ?? []).map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+              {/* Default all locations: all ids */}
+              <option value={defaultLocationView}>All locations</option>
+            </select>
+          </div>
+
           <button
             onClick={handleAddClick}
             className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
@@ -408,7 +469,7 @@ export default function ClassesTab({
       {paginatedClasses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {paginatedClasses.map(cls => {
-            const assigned = teachers.filter(t => (t.classIds || []).includes(cls.id));
+            const assigned = passingAssigned(cls);
             const capacityStatus = getCapacityStatus(cls.volume, cls.capacity);
             const capacityPct = Math.min(100, Math.round((cls.volume / (cls.capacity || 1)) * 100));
 
@@ -423,6 +484,7 @@ export default function ClassesTab({
                     <span>📍</span>
                     <span className="truncate">{getLocationLabel(cls.locationId)}</span>
                   </div>
+                  <span className=" p-4 text-gray-600 text-sm">Classroom: {cls.classroom}</span>
                 </div>
 
                 {capacityStatus === "full" && (
@@ -463,7 +525,7 @@ export default function ClassesTab({
                       <div className="text-sm text-gray-700">
                         {assigned.slice(0, 2).map(t => (
                           <span key={t.id} className="block text-xs">
-                            {t.firstName} {t.lastName}
+                            {t.firstName} {t.lastName} - {t.email}
                           </span>
                         ))}
                         {assigned.length > 2 && (
@@ -476,25 +538,29 @@ export default function ClassesTab({
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-4 border-t border-gray-200">
-                  <button
-                    onClick={() => openAssign(cls.id)}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"
-                  >
-                    Assign
-                  </button>
-                  <button
-                    onClick={() => handleEditClick(cls)}
-                    className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(cls)}
-                    className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
-                  >
-                    Delete
-                  </button>
+                <div className="flex-col pt-4 border-t border-gray-200">
+                  <div className="flex gap-4 mb-2">
+                    <button
+                      onClick={() => handleEditClick(cls)}
+                      className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(cls)}
+                      className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => openAssign(cls.id, cls.locationId)}
+                      className={assigned.length >= 2 ? " bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm" : " bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"}
+                    >
+                      {assigned.length >= 2 ? "Switch Teacher" : "Assign Teacher"}
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -519,8 +585,8 @@ export default function ClassesTab({
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
               }`}
           >
             ← Previous
@@ -541,8 +607,8 @@ export default function ClassesTab({
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
             className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
               }`}
           >
             Next →
@@ -753,10 +819,20 @@ export default function ClassesTab({
                       <input
                         type="checkbox"
                         checked={selectedTeachers.includes(t.id)}
-                        onChange={() =>
-                          setSelectedTeachers(prev =>
-                            prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
-                          )
+                        onChange={() => {
+                          // Preventing more than 2 teachers selected:
+                          if (selectedTeachers.length < 2) {
+                            // Allowing both if currently 0 or 1
+                            setSelectedTeachers(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id])
+                            return;
+                          } else {
+                            // Just allow removing: as currently 2, ( not even 3, ...)
+                            setSelectedTeachers(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : prev)
+                            // If try to click more than 2, throw alert
+                            if (!selectedTeachers.includes(t.id)) alert(`No more than 2 teachers for a class!`)
+                            return;
+                          }
+                        }
                         }
                         className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                       />

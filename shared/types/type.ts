@@ -17,7 +17,10 @@ export type AttendanceSubtype = "Check in" | "Check out";
 export type FoodSubtype = "Breakfast" | "Lunch" | "Snack";
 export type SleepSubtype = "Started" | "Woke up";
 
-/** Unified subtype helper used by forms and API payloads */
+/** Toilet entries use a kind instead of a subtype */
+export type ToiletKind = "urine" | "bm";
+
+/** Unified subtype helper used by forms and API payloads (Toilet excluded) */
 export type EntrySubtype =
   | AttendanceSubtype
   | FoodSubtype
@@ -31,19 +34,19 @@ export type EntryTypeMeta = {
   color?: string;
   bgColor?: string;
   iconName?: string;
-  subtypes?: string[]; // e.g., ["Check in","Check out"] for Attendance
+  subtypes?: string[]; // e.g. ["Check in", "Check out"] for Attendance
 };
 
-/** Form params passed via router */
+/** Form params passed via router (mobile) */
 export type EntryFormParams = {
   type: EntryType;
-  subtype?: EntrySubtype;
+  subtype?: EntrySubtype;          // Attendance / Food / Sleep only
   classId?: string | null;
   childIds: string[];
-  note?: string;         // free text used by Activity / Note / Health
-  photoUrl?: string;     // used by Photo
-  applyToAllInClass?: boolean; // server may expand by classId
-  occurredAt?: string;   // ISO datetime (UI may default to now)
+  note?: string;                   // free text for Activity / Note / Health
+  photoUrl?: string;               // used by Photo
+  applyToAllInClass?: boolean;     // server may expand by classId
+  occurredAt?: string;             // ISO datetime (UI can default to now)
 };
 
 /* =============================
@@ -101,8 +104,8 @@ export type EntryData = {
   durationMin?: number;
 
   // toilet (single visit: kind + time only)
-  toiletTime?: string;          // ISO datetime for the visit
-  toiletKind?: "urine" | "bm";  // urine = pee, bm = bowel movement
+  toiletTime?: string;     // ISO datetime for the visit
+  toiletKind?: ToiletKind; // "urine" | "bm"
 
   // activity / note / health (free text only)
   text?: string;
@@ -117,36 +120,36 @@ export type EntryDoc = {
   id: string;
 
   // scope & denormalization
-  daycareId: string;
-  locationId: string;
+  daycareId: string;       // can be "" if teacher has no daycare scope
+  locationId: string;      // can be "" if teacher has no location scope
   classId?: string | null;
   childId: string;
 
   // authorship
   createdByUserId: string; // users document id (teacher)
   createdByRole: "teacher";
-  createdAt: string; // ISO created time
-  updatedAt?: string; // ISO updated time
+  createdAt: string;       // ISO created time
+  updatedAt?: string;      // ISO updated time
 
   // occurrence time used by feeds (parents board)
-  occurredAt: string; // ISO datetime; for Sleep usually equals data.start
+  occurredAt: string;      // ISO datetime; for Sleep usually equals data.start
 
   // type info
   type: EntryType;
-  subtype?: EntrySubtype;
+  subtype?: EntrySubtype;  // not used by Toilet
 
   // flexible payload
   data?: EntryData;
 
   // convenience mirrors for fast UI (optional)
-  detail?: string;   // short free text (can mirror data.text)
-  photoUrl?: string; // public URL if available
+  detail?: string;         // short free text (can mirror data.text)
+  photoUrl?: string;       // public URL if available
   childName?: string;
   className?: string;
 
-  // parent feed visibility (server can default to true)
+  // parent feed visibility
   visibleToParents?: boolean;
-  publishedAt?: string; // ISO when it became visible to parents
+  publishedAt?: string;    // ISO when it became visible to parents
 };
 
 /* =============================
@@ -161,7 +164,7 @@ export type EntryCreateInput =
       childIds: string[];
       classId?: string | null;
       detail?: string;
-      occurredAt: string;          // ISO datetime
+      occurredAt: string;      // ISO datetime
       applyToAllInClass?: boolean;
     }
   | {
@@ -169,8 +172,8 @@ export type EntryCreateInput =
       subtype: FoodSubtype;
       childIds: string[];
       classId?: string | null;
-      detail?: string;
-      occurredAt: string;          // ISO datetime
+      detail?: string;         // e.g. "Rice & soup"
+      occurredAt: string;      // ISO datetime
       applyToAllInClass?: boolean;
     }
   | {
@@ -179,7 +182,7 @@ export type EntryCreateInput =
       childIds: string[];
       classId?: string | null;
       detail?: string;
-      occurredAt: string;          // ISO datetime (usually equals data.start)
+      occurredAt: string;      // ISO datetime (usually equals data.start)
       applyToAllInClass?: boolean;
     }
   | {
@@ -187,41 +190,41 @@ export type EntryCreateInput =
       childIds: string[];
       classId?: string | null;
       detail?: string;
-      occurredAt: string;          // ISO datetime (maps to data.toiletTime)
-      toiletKind: "urine" | "bm";  // required
+      occurredAt: string;      // ISO datetime (maps to data.toiletTime)
+      toiletKind: ToiletKind;  // required
       applyToAllInClass?: boolean;
     }
   | {
-      type: "Activity";            // free text only
+      type: "Activity";        // free text only
       childIds: string[];
       classId?: string | null;
-      detail: string;              // required short text
-      occurredAt: string;          // ISO datetime
+      detail: string;          // required short text
+      occurredAt: string;      // ISO datetime
       applyToAllInClass?: boolean;
     }
   | {
-      type: "Photo";               // photo upload only
+      type: "Photo";           // photo upload only
       childIds: string[];
       classId?: string | null;
-      photoUrl: string;            // required
-      detail?: string;             // optional caption
-      occurredAt: string;          // ISO datetime
+      photoUrl: string;        // required (mobile uploads → gets URL → sends here)
+      detail?: string;         // optional caption
+      occurredAt: string;      // ISO datetime
       applyToAllInClass?: boolean;
     }
   | {
-      type: "Note";                // free text only
+      type: "Note";            // free text only
       childIds: string[];
       classId?: string | null;
-      detail: string;              // required short text
-      occurredAt: string;          // ISO datetime
+      detail: string;          // required short text
+      occurredAt: string;      // ISO datetime
       applyToAllInClass?: boolean;
     }
   | {
-      type: "Health";              // free text only (for incidents/symptoms)
+      type: "Health";          // free text only (for incidents/symptoms)
       childIds: string[];
       classId?: string | null;
-      detail: string;              // required short text
-      occurredAt: string;          // ISO datetime
+      detail: string;          // required short text
+      occurredAt: string;      // ISO datetime
       applyToAllInClass?: boolean;
     };
 
@@ -260,8 +263,6 @@ export type DaycareProvider = {
   email: string;
   contactName: string;
 };
-
-// Location type intentionally omitted for now
 
 /* =============================
  * Classes
@@ -464,7 +465,7 @@ export type Parent = {
 export type DailyReport = {
   id: string;
   childId: string;
-  date: string;   // ISO date
+  date: string;    // ISO date
   entries: Entry[]; // legacy usage in reports; ok to keep
   createdAt: string; // ISO date
 };

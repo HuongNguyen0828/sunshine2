@@ -39,7 +39,7 @@ export default function SearchParentModal({
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-gray-800">
+                    <h3 className="text-2xl font-bold text-gray-800">
                         {title}
                     </h3>
                     <button
@@ -59,7 +59,7 @@ export default function SearchParentModal({
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <div className="text-xs text-gray-500 mt-2">
+                        <div className="text-sm text-gray-600 mt-2">
                             {description}
                         </div>
                     </div>
@@ -70,19 +70,28 @@ export default function SearchParentModal({
                                 {searchTerm ? "No parents found matching your search" : "No parents available"}
                             </div>
                         ) : (
-                            <div className="space-y-2">
+                            <div className=" space-y-2">
                                 {filteredParents.map((parent) => (
                                     <button
                                         key={parent.id}
                                         onClick={() => onSelectParent(parent)}
                                         className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                     >
-                                        <div className="font-medium">
+                                        <div className="font-semibold">
                                             {parent.firstName} {parent.lastName}
                                         </div>
                                         <div className="text-sm text-gray-600">{parent.email}</div>
                                         <div className="text-xs text-gray-500">
-                                            {parent.phone} • {parent.locationId}
+                                            {parent.phone} • {[parent.address1, parent.address2, parent.city, parent.postalcode].filter(Boolean).join(", ") || "-"}
+                                        </div>
+                                        <div>
+                                            <span className="text-sm text-gray-700">{parent.maritalStatus}</span>  •
+                                            <span className="text-sm text-gray-900">
+                                                {parent.childRelationships?.length > 0
+                                                    ? parent.childRelationships.map(cr => cr.relationship).join(", ")
+                                                    : "—"
+                                                }
+                                            </span>
                                         </div>
                                     </button>
                                 ))}

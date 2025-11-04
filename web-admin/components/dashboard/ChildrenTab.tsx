@@ -15,6 +15,7 @@ import AutoCompleteAddress, { Address } from "../AutoCompleteAddress";
 import ParentForm from "./ParentForm";
 import { NewChildInput } from "../../types/forms";
 import { MdFiberNew } from 'react-icons/md';
+import { updateChild } from "@/services/useChildrenAPI";
 
 // For Stepper: Choosing linear bar
 //Steppers convey progress through numbered steps. It provides a wizard-like workflow.
@@ -31,43 +32,38 @@ import LinkParentByEmail from "./SearchParentModal.tsx";
 import { SearchParamsContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import SearchParentModal from "./SearchParentModal.tsx";
 
-type ParentLite = {
-  id: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-};
+export type CustomParentInput = {
+  parentId: string,
+  newChildRelationship: string;
+} | NewParentInput;
 
 type Props = {
   children: Types.Child[];
+  setChildren: React.Dispatch<React.SetStateAction<Types.Child[]>>;
   classes: Types.Class[];
   parents: Types.Parent[];
   locations: LocationLite[];
   newChild: NewChildInput;
   setNewChild: React.Dispatch<React.SetStateAction<NewChildInput>>;
   addChild: (
-    parent1: NewParentInput, // Can be parent object or parent ID
-    parent2: NewParentInput | null, // Can be parent object, parent ID, or null
+    parent1: CustomParentInput, // Can be parent object or {parent ID with relationship}
+    parent2: CustomParentInput | null, // Can be parent object, or {parent ID with relationship}, or null
   ) => Promise<returnChildWithParents | null>;
-  updateChild: (
-    id: string,
-    patch: Partial<NewChildInput>
-  ) => Promise<Types.Child | null>;
   deleteChild: (id: string) => Promise<boolean>;
   onAssign?: (childId: string, classId: string) => Promise<boolean> | boolean;
   onUnassign?: (childId: string) => Promise<boolean> | boolean;
-  onLinkParent?: (
-    childId: string,
-    parentUserId: string
-  ) => Promise<boolean> | boolean;
-  onUnlinkParent?: (
-    childId: string,
-    parentUserId: string
-  ) => Promise<boolean> | boolean;
-  onLinkParentByEmail?: (
-    childId: string,
-    email: string
-  ) => Promise<boolean> | boolean;
+  // onLinkParent?: (
+  //   childId: string,
+  //   parentUserId: string
+  // ) => Promise<boolean> | boolean;
+  // onUnlinkParent?: (
+  //   childId: string,
+  //   parentUserId: string
+  // ) => Promise<boolean> | boolean;
+  // onLinkParentByEmail?: (
+  //   childId: string,
+  //   email: string
+  // ) => Promise<boolean> | boolean;
 };
 
 /* ---------------- helpers ---------------- */
@@ -143,13 +139,13 @@ type ChildCardProps = {
   locations: LocationLite[];
   onEdit: (c: Types.Child, parent1: Types.Parent, parent2: Types.Parent | null) => void;
   onDelete: (c: Types.Child) => void;
-  onOpenAssign: (childId: string) => void;
-  onUnassign?: (childId: string) => Promise<boolean> | boolean;
-  onUnlinkParent?: (
-    childId: string,
-    parentUserId: string
-  ) => Promise<boolean> | boolean;
-  onOpenLinkByEmail: (childId: string) => void;
+  onOpenAssign: (child: Types.Child) => void;
+  // onUnassign?: (childId: string) => Promise<boolean> | boolean;
+  // onUnlinkParent?: (
+  //   childId: string,
+  //   parentUserId: string
+  // ) => Promise<boolean> | boolean;
+  // onOpenLinkByEmail: (childId: string) => void;
 };
 
 function ChildCard({
@@ -160,18 +156,16 @@ function ChildCard({
   onEdit,
   onDelete,
   onOpenAssign,
-  onUnassign,
-  onUnlinkParent,
+  // onUnassign,
+  // onUnlinkParent,
   // onOpenLinkByEmail,
 }: ChildCardProps) {
   const cls = classes.find((c) => c.id === child.classId);
-  const cap = classCapacityBadge(cls);
-  const status =
-    child.enrollmentStatus ?? computeStatus(child.parentId, child.classId);
+  const status = child.enrollmentStatus ?? computeStatus(child.parentId, child.classId);
 
-  const [localUnlinkId, setLocalUnlinkId] = useState<string>("");
-  const [localUnlinkLabel, setLocalUnlinkLabel] = useState<string>("");
-  const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  // const [localUnlinkId, setLocalUnlinkId] = useState<string>("");
+  // const [localUnlinkLabel, setLocalUnlinkLabel] = useState<string>("");
+  // const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   return (
     <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 flex flex-col">
@@ -187,21 +181,26 @@ function ChildCard({
             </span>
           </div>
         </div>
-        <div className="text-xs text-gray-500">
-          Status:{" "}
-          <span
-            className={
-              status === Types.EnrollmentStatus.Active
-                ? "text-green-600 font-bold"
-                : status === Types.EnrollmentStatus.Waitlist
-                  ? "text-yellow-600"
-                  : status === Types.EnrollmentStatus.New
-                    ? "text-red-600 font-bold"
-                    : "text-gray-600"
-            }
-          >
-            {status}
-          </span>
+        <div className="flex justify-between text-xs text-gray-500">
+          <div>
+            Status:{" "}
+            <span
+              className={
+                status === Types.EnrollmentStatus.Active
+                  ? "text-green-600 font-bold"
+                  : status === Types.EnrollmentStatus.Waitlist
+                    ? "text-yellow-600"
+                    : status === Types.EnrollmentStatus.New
+                      ? "text-red-600 font-bold"
+                      : "text-gray-600"
+              }
+            >
+              {status}
+            </span>
+          </div>
+          <div>
+            <span> Start: <span className="font-semibold">{child.startDate}</span></span>
+          </div>
         </div>
       </div>
 
@@ -217,7 +216,7 @@ function ChildCard({
           </span>
         </div>
 
-        {cls && (
+        {/* {cls && (
           <div>
             <div className="flex justify-between items-center text-xs text-gray-500">
               <span>Capacity</span>
@@ -235,14 +234,14 @@ function ChildCard({
               />
             </div>
           </div>
-        )}
+        )} */}
 
         {parent1And2 ? (
           <div className="text-xs text-gray-600">
-            {/* Add debug info */}
+            {/* Add debug info
             <div className="text-red-500 text-xs">
               Debug: {parent1And2.length} parents found
-            </div>
+            </div> */}
             {parent1And2.map((eachParent, index) => {
               const childRelationship = eachParent.childRelationships.filter(
                 (relationship) => relationship.childId === child.id
@@ -267,7 +266,7 @@ function ChildCard({
         )}
       </div>
 
-      <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2">
+      <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2 mb-1">
         <button
           onClick={() => onEdit(child, parent1And2[0], parent1And2[1])}
           className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
@@ -280,124 +279,26 @@ function ChildCard({
         >
           Delete
         </button>
-
-        {/* <button
-          onClick={() => onOpenLinkByEmail(child.id)}
-          className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
-        >
-          Link Parent
-        </button> */}
-
-        {child.classId ? (
-          <button
-            onClick={() => onUnassign?.(child.id)}
-            className="px-3 py-2 rounded-lg text-xs bg-gray-700 text-white hover:bg-gray-800"
-          >
-            Unassign
-          </button>
-        ) : (
-          <button
-            onClick={() => onOpenAssign(child.id)}
-            className="px-3 py-2 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700"
-          >
-            Assign to Class
-          </button>
-        )}
-
-        {child.parentId && child.parentId.length > 0 && (
-          <div className="col-span-2 flex items-start gap-3 min-w-0">
-            <div className="relative flex-auto min-w-0">
-              <button
-                type="button"
-                onClick={() => setMenuOpen((v) => !v)}
-                aria-haspopup="listbox"
-                aria-expanded={menuOpen}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-left pr-9 relative"
-              >
-                {localUnlinkLabel ? (
-                  <span className="text-xs font-medium">
-                    {localUnlinkLabel}
-                  </span>
-                ) : (
-                  <span className="block leading-tight text-[11px] text-gray-500">
-                    <span className="block">Select parent</span>
-                    <span className="block">to unlink</span>
-                  </span>
-                )}
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className={`pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 transition-transform ${menuOpen ? "rotate-180" : ""
-                    }`}
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.114l3.71-3.883a.75.75 0 111.08 1.04l-4.24 4.44a.75.75 0 01-1.08 0l-4.24-4.44a.75.75 0 01.02-1.06z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-
-              {menuOpen && (
-                <div
-                  role="listbox"
-                  tabIndex={-1}
-                  className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden"
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") setMenuOpen(false);
-                  }}
-                >
-                  <ul className="max-h-56 overflow-auto">
-                    {child.parentId.map((pid) => {
-                      const p = parents.find((pp) => pp.id === pid);
-                      const label =
-                        (p
-                          ? `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim()
-                          : "") ||
-                        p?.email ||
-                        pid;
-                      const active = localUnlinkId === pid;
-                      return (
-                        <li
-                          key={pid}
-                          role="option"
-                          aria-selected={active}
-                          onClick={() => {
-                            setLocalUnlinkId(pid);
-                            setLocalUnlinkLabel(label);
-                            setMenuOpen(false);
-                          }}
-                          className={`px-3 py-2 text-sm cursor-pointer break-words ${active
-                            ? "bg-gray-100 text-gray-900"
-                            : "hover:bg-gray-50 text-gray-700"
-                            }`}
-                        >
-                          {label}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={() =>
-                localUnlinkId && onUnlinkParent?.(child.id, localUnlinkId)
-              }
-              disabled={!localUnlinkId}
-              className={`shrink-0 whitespace-nowrap px-3 py-2 rounded-lg text-xs ${localUnlinkId
-                ? "bg-white border border-gray-200 hover:bg-gray-50"
-                : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                }`}
-            >
-              Unlink
-            </button>
-          </div>
-        )}
       </div>
-    </div>
+
+      {child.classId ? (
+        <button
+          // Switch class is also same, but cleanup the current class, before moving to the new 
+          onClick={() => onOpenAssign(child)}
+          className="w-1/2 mx-auto px-3 py-2 rounded-lg text-xs bg-gray-700 text-white hover:bg-gray-800"
+        >
+          Switch Class
+        </button>
+      ) : (
+        <button
+          onClick={() => onOpenAssign(child)}
+          className="w-1/2 mx-auto px-auto py-2 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700"
+        >
+          Assign to Class
+        </button>
+      )}
+
+    </div >
   );
 }
 
@@ -407,18 +308,18 @@ const DRAFT_KEY = "child-form-draft";
 
 export default function ChildrenTab({
   children,
+  setChildren,
   classes,
   parents,
   locations,
   newChild,
   setNewChild,
   addChild,
-  updateChild,
   deleteChild,
   onAssign,
-  onUnassign,
-  onLinkParent,
-  onUnlinkParent,
+  // onUnassign,
+  // onLinkParent,
+  // onUnlinkParent,
   // onLinkParentByEmail,
 }: Props) {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -443,13 +344,11 @@ export default function ChildrenTab({
   // =======================Done Progress bar
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    Types.EnrollmentStatus | "all"
-  >("all");
+  const [statusFilter, setStatusFilter] = useState<Types.EnrollmentStatus | "all">("all");
   const [classFilter, setClassFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
 
-  const [assignChildId, setAssignChildId] = useState<string | null>(null);
+  const [assignChild, setAssignChild] = useState<Types.Child | null>(null);
   const [assignClassId, setAssignClassId] = useState<string>("");
 
   const [linkChildId, setLinkChildId] = useState<string | null>(null);
@@ -483,7 +382,6 @@ export default function ChildrenTab({
   };
   /// ================From ParentTab
   const [phoneError, setPhoneError] = useState<string>("");
-  const [colorChangeError, setColorChangeError] = useState<string>(""); // Initially no error
   const [editingParent, setEditingParent] = useState<Types.Parent | null>(null);
   const [addOrSearchParent1, setAddOrSearchParent1] = useState<"addParent1" | "searchParent1">("addParent1");
   const [addOrSearchParent2, setAddOrSearchParent2] = useState<"addParent2" | "searchParent2">("addParent2");
@@ -504,6 +402,9 @@ export default function ChildrenTab({
   const [searchParent2Modal, setSearchParent2Modal] = useState(false);
   const [selectedParent1, setSelectedParent1] = useState<Types.Parent | null>(null);
   const [selectedParent2, setSelectedParent2] = useState<Types.Parent | null>(null);
+  const [newChildRelationshipParent1, setNewChildRelationshipParent1] = useState<string>("");
+  const [newChildRelationshipParent2, setNewChildRelationshipParent2] = useState<string>("");
+
 
 
   // Restore ALL forms draft when form opens and not in editing mode
@@ -578,6 +479,13 @@ export default function ChildrenTab({
     // Reset Parent
     setParent1(initialParentValues);
     setParent2(initialParentValues);
+    // To let default view is Adding
+    setAddOrSearchParent1("addParent1");
+    setAddOrSearchParent2("addParent2");
+    setSelectedParent1(null);
+    setSelectedParent2(null);
+    setNewChildRelationshipParent1(""); // Reset newChildRelationship
+    setNewChildRelationshipParent2("");
     setActiveStep(0);
   };
 
@@ -596,15 +504,17 @@ export default function ChildrenTab({
   // Add this validation function near your other helpers
   const validateCurrentStep = (step: number): boolean => {
     switch (step) {
-      case 0: // Child Information
+      case 0: // Child Information: MUST
         if (!newChild.firstName.trim()) {
           alert("First name is required");
-          setColorChangeError(newChild.firstName);
           return false;
         }
         if (!newChild.lastName.trim()) {
           alert("Last name is required");
-          setColorChangeError(newChild.lastName);
+          return false;
+        }
+        if (!newChild.gender.trim()) {
+          alert("Gender is required");
           return false;
         }
         if (!newChild.birthDate) {
@@ -621,7 +531,15 @@ export default function ChildrenTab({
         }
         return true;
 
-      case 1: // Parent 1 Information
+      case 1: // Parent 1 Information: only in AddOrSearchParent 1 = "addParent", buy pass when search
+        if (selectedParent1) {
+          if (!newChildRelationshipParent1) {
+            alert("Relationship to Child is required");
+            return false;
+          }
+          return true;
+        }
+        // I want either add or add: meaning if add, selectedParent = null, if search, parent1 = null. 
         if (!parent1.firstName.trim()) {
           alert("Parent first name is required");
           return false;
@@ -653,8 +571,15 @@ export default function ChildrenTab({
         }
         return true;
 
-      case 2: // Parent 2 Information (optional, but if filled, validate)
+      case 2: // Parent 2 Information (optional, but if filled, validate): Only on "addParent", on searchParent, check realtionship
         // Force to validate, otherwise click Skip
+        if (selectedParent2) {
+          if (!newChildRelationshipParent2) {
+            alert("Relationship to Child is required");
+            return false;
+          }
+          return true; // Skip if search
+        }
         if (!parent2?.firstName.trim()) {
           alert("Parent 2 first name is required. Otherwise click Skip");
           return false;
@@ -873,11 +798,23 @@ export default function ChildrenTab({
         enrollmentStatus: newChild.enrollmentStatus,
       });
       setEditingChild(null);
+      if (updated) setChildren(prev => prev.map(c => c.id === editingChild.id ? updated : c));
 
       // Adding new Child W/ Parent
     } else {
-      // 1. Child
-      const created = await addChild(parent1, parent2);
+      // Clean up parent1 and 2 before passing 
+      const customParent1: CustomParentInput = (selectedParent1) ? {
+        parentId: selectedParent1.docId, // assuming you have this state
+        newChildRelationship: newChildRelationshipParent1
+      } : parent1;
+
+      const customParen2: CustomParentInput | null = selectedParent2 ? {
+        parentId: selectedParent2.docId,
+        newChildRelationship: newChildRelationshipParent2
+      } : parent2 ? parent2 : null;
+
+      // 1. if 
+      const created = await addChild(customParent1, customParen2);
     }
     resetForm();
     clearDraft();
@@ -890,22 +827,6 @@ export default function ChildrenTab({
     if (!ok) return;
     const success = await deleteChild(child.id);
   }
-
-  // async function linkParentByEmail(
-  //   childId: string,
-  //   email: string
-  // ): Promise<boolean> {
-  //   if (onLinkParentByEmail)
-  //     return !!(await onLinkParentByEmail(childId, email));
-  //   const parent = parents.find(
-  //     (p) => (p.email ?? "").toLowerCase() === email.trim().toLowerCase()
-  //   );
-  //   if (!parent) {
-  //     alert("Parent not found by that email.");
-  //     return false;
-  //   }
-  //   return !!(await onLinkParent?.(childId, parent.id));
-  // }
 
   // Update form and persist a draft (debounced)
   const updateParent1 = useCallback(
@@ -989,8 +910,6 @@ export default function ChildrenTab({
         return acc;
       }, {} as Record<string, Types.Parent>),
     [parents]
-
-
   ); // Only recalculate when parents change
 
   const childrenWithParents = useMemo(
@@ -1028,11 +947,13 @@ export default function ChildrenTab({
       if (statusFilter !== "all" && effStatus !== statusFilter) return false;
 
       if (classFilter !== "all") {
-        if (classFilter === "unassigned") return !c.classId;
-        return c.classId === classFilter;
+        if (classFilter === "unassigned") {
+          if (c.classId) return false;
+        }
+        else if (c.classId !== classFilter) return false;
       }
 
-      if (locationView !== defaultLocationView) return (c.locationId === locationView);
+      if (locationView !== defaultLocationView) if (c.locationId !== locationView) return false;
       return true;
     });
   }, [childrenWithParents, locations, searchTerm, statusFilter, classFilter, locationView, defaultLocationView]);
@@ -1046,7 +967,7 @@ export default function ChildrenTab({
 
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 min-h-screen min-w-fit">
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <div className="flex gap-4">
@@ -1055,7 +976,13 @@ export default function ChildrenTab({
             <select
               className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               value={locationView}
-              onChange={(e) => setLocationView(e.target.value)}
+              // Reset search filter everytime change location scope
+              onChange={(e) => {
+                setLocationView(e.target.value);
+                setSearchTerm("");
+                setClassFilter("all");
+                setStatusFilter("all");
+              }}
               required
             >
               <option value="" disabled>
@@ -1137,7 +1064,8 @@ export default function ChildrenTab({
             >
               <option value="all">All Classes</option>
               <option value="unassigned">Unassigned</option>
-              {classes.map((c) => (
+              {/* View Class based on Location scope */}
+              {(locationView === defaultLocationView ? classes : classes.filter(clss => clss.locationId === locationView)).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
@@ -1162,12 +1090,12 @@ export default function ChildrenTab({
                 onEdit={handleEditClick}
                 onDelete={handleDeleteClick}
                 onOpenAssign={(id) => {
-                  setAssignChildId(id);
+                  setAssignChild(id);
                   setAssignClassId("");
                 }}
-                onUnassign={onUnassign}
-                onUnlinkParent={onUnlinkParent}
-                onOpenLinkByEmail={(id) => setLinkChildId(id)}
+              // onUnassign={onUnassign}
+              // onUnlinkParent={onUnlinkParent}
+              // onOpenLinkByEmail={(id) => setLinkChildId(id)}
               />
             ))}
           </div>
@@ -1450,7 +1378,24 @@ export default function ChildrenTab({
                           </option>
                         </select>
                       </label>
-                      <label className="block md:col-span-2">
+
+                      <label className="block">
+                        <span className="text-gray-700 font-medium mb-1 block">
+                          Start Date *
+                        </span>
+                        <input
+                          type="date"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          value={newChild.startDate}
+                          onChange={(e) =>
+                            updateDraft({ startDate: e.target.value })
+                          }
+                          required
+                          readOnly={showEditOption && !isEditingChildInfoMode} // View only, only allow edit if check on editing Child
+                        />
+                      </label>
+
+                      <label className="block">
                         <span className="text-gray-700 font-medium mb-1 block">
                           Notes
                         </span>
@@ -1464,6 +1409,7 @@ export default function ChildrenTab({
                           readOnly={showEditOption && !isEditingChildInfoMode} // View only, only allow edit if check on editing Child
                         />
                       </label>
+
                     </div>
                   </div>
                 )}
@@ -1534,8 +1480,35 @@ export default function ChildrenTab({
                         disabled={showEditOption && !isEditingParent1InfoMode} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
                       />
                     )}
+                    {(activeStep === 1 && addOrSearchParent1 === "searchParent1") && (
+                      // Case searching, show selected parent
+                      <div className="grid lg:grid-cols-3 md:grid-cols-1 mx-auto">
+                        <div> <span className="font-semibold">Parent 1: </span> {selectedParent1?.email} </div>
+                        <div>
+                          <label className="block">
+                            <span className="text-gray-700 font-medium mb-1">Relationship to child*</span>
+                            <select
+                              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                              value={newChildRelationshipParent1}
+                              onChange={(e) => setNewChildRelationshipParent1(e.target.value)}
+                              required
+                            // disabled={disabled}
+                            >
+                              <option value="" disabled>Select relationship</option>
+                              <option value="Mother">Mother</option>
+                              <option value="Father">Father</option>
+                              <option value="Guardian">Guardian</option>
+                            </select>
+                          </label>
+                        </div>
+                        <button type="button" className="hover:text-xl" onClick={() => { setSelectedParent1(null); setSearchParent1Modal(true); }}
+                        >❌</button>
+                      </div>
+                    )}
+
                     {(activeStep === 2 && addOrSearchParent2 === "addParent2") && (
-                      (parent2) ? (
+                      // If parent2, show the form
+                      (parent2) && (
                         <ParentForm
                           parent={parent2}
                           updateParent={updateParent2}
@@ -1543,9 +1516,33 @@ export default function ChildrenTab({
                           setPhoneError={setPhoneError}
                           disabled={showEditOption && !isEditingParent2InfoMode} // Disable ONly when the form when clicked on edit button from ChildCard and Editing Parent1 is false
                         />
-                      ) : (
-                        <div>No parent 2 infomation. Click Skip to View and can add after Summary</div>
-                      )
+                      ))}
+
+                    {(activeStep === 2 && addOrSearchParent2 === "searchParent2") && (
+                      // Case searching, show selected parent
+                      // Case searching, show selected parent
+                      <div className="grid lg:grid-cols-3 md:grid-cols-1 mx-auto">
+                        <div> <span className="font-semibold">Parent 2: </span> {selectedParent2?.email} </div>
+                        <div>
+                          <label className="block">
+                            <span className="text-gray-700 font-medium mb-1">Relationship to child*</span>
+                            <select
+                              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                              value={newChildRelationshipParent2}
+                              onChange={(e) => setNewChildRelationshipParent2(e.target.value)}
+                              required
+                            // disabled={disabled}
+                            >
+                              <option value="" disabled>Select relationship</option>
+                              <option value="Mother">Mother</option>
+                              <option value="Father">Father</option>
+                              <option value="Guardian">Guardian</option>
+                            </select>
+                          </label>
+                        </div>
+                        <button type="button" className="hover:text-xl" onClick={() => { setSelectedParent2(null); setSearchParent2Modal(true); }}
+                        >❌</button>
+                      </div>
                     )}
 
                     {/* Removing AssignClass Manually in input form   */}
@@ -1600,7 +1597,12 @@ export default function ChildrenTab({
                           <span className="font-semibold">Status:</span>{" "}
                           {newChild.enrollmentStatus}
                         </p>
-                        <p className="md:col-span-2">
+                        <p>
+                          <span className="font-semibold">Start Date:</span>{" "}
+                          {newChild.startDate}
+                        </p>
+
+                        <p>
                           <span className="font-semibold">Notes:</span>{" "}
                           {newChild.notes || "None"}
                         </p>
@@ -1624,35 +1626,37 @@ export default function ChildrenTab({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
                         <p>
                           <span className="font-semibold">First Name:</span>{" "}
-                          {parent1.firstName || "-"}
+                          {parent1.firstName || selectedParent1?.firstName}
                         </p>
                         <p>
                           <span className="font-semibold">Last Name:</span>{" "}
-                          {parent1.lastName || "-"}
+                          {parent1.lastName || selectedParent1?.lastName}
                         </p>
                         <p>
                           <span className="font-semibold">Email:</span>{" "}
-                          {parent1.email || "-"}
+                          {parent1.email || selectedParent1?.email}
                         </p>
                         <p>
                           <span className="font-semibold">Phone:</span>{" "}
-                          {parent1.phone || "-"}
+                          {parent1.phone || selectedParent1?.phone}
                         </p>
                         <p>
                           <span className="font-semibold">Address:</span>{" "}
                           {[parent1.address1, parent1.city, parent1.postalcode]
                             .filter(Boolean)
-                            .join(", ") || "-"}
-                        </p>{" "}
+                            .join(", ") || [selectedParent1?.address1, selectedParent1?.city, selectedParent1?.postalcode]
+                              .filter(Boolean)
+                              .join(", ")}
+                        </p> {" "}
                         <p>
                           <span className="font-semibold">Marital Status:</span>{" "}
-                          {parent1.maritalStatus || "-"}
+                          {parent1.maritalStatus || selectedParent1?.maritalStatus}
                         </p>
                         <p>
                           <span className="font-semibold">
                             Relationship to Child:
                           </span>{" "}
-                          {parent1.newChildRelationship || "-"}
+                          {parent1.newChildRelationship || newChildRelationshipParent1}
                         </p>
                       </div>
                     </div>
@@ -1696,41 +1700,38 @@ export default function ChildrenTab({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
                           <p>
                             <span className="font-semibold">First Name:</span>{" "}
-                            {parent2.firstName || "-"}
+                            {parent2.firstName || selectedParent2?.firstName}
                           </p>
                           <p>
                             <span className="font-semibold">Last Name:</span>{" "}
-                            {parent2.lastName || "-"}
+                            {parent2.lastName || selectedParent2?.lastName}
                           </p>
                           <p>
                             <span className="font-semibold">Email:</span>{" "}
-                            {parent2.email || "-"}
+                            {parent2.email || selectedParent2?.email || "-"}
                           </p>
                           <p>
                             <span className="font-semibold">Phone:</span>{" "}
-                            {parent2.phone || "-"}
+                            {parent2.phone || selectedParent2?.phone || "-"}
                           </p>
                           <p>
                             <span className="font-semibold">Address:</span>{" "}
-                            {[
-                              parent2.address1,
-                              parent2.city,
-                              parent2.postalcode,
-                            ]
+                            {[parent2.address1, parent2.city, parent2.postalcode]
                               .filter(Boolean)
-                              .join(", ") || "-"}
+                              .join(", ") || [selectedParent2?.address1, selectedParent2?.city, selectedParent2?.postalcode].filter(Boolean)
+                                .join(", ") || "-"}
                           </p>{" "}
                           <p>
                             <span className="font-semibold">
                               Marital Status:
                             </span>{" "}
-                            {parent2.maritalStatus || "-"}
+                            {parent2.maritalStatus || selectedParent2?.maritalStatus || "-"}
                           </p>
                           <p>
                             <span className="font-semibold">
                               Relationship to Child:
                             </span>{" "}
-                            {parent2.newChildRelationship || "-"}
+                            {parent2.newChildRelationship || newChildRelationshipParent2 || "-"}
                           </p>
                         </div>
                       </div>
@@ -1741,7 +1742,10 @@ export default function ChildrenTab({
                         <button
                           onClick={() => {
                             setActiveStep(2); // Back to Parent2 Form
+                            setAddOrSearchParent2("addParent2"); // Reset the default add option
                             setParent2(initialParentValues); // Initalize the value for parent2 instead of null
+                            setSelectedParent2(null); // Make sure clearup the search from previous
+                            setNewChildRelationshipParent2("");
                             // Remove skip status
                             setSkipped((prev) => {
                               const newSkipped = new Set(prev.values());
@@ -1841,11 +1845,11 @@ export default function ChildrenTab({
           </div>
         )}
 
-        {assignChildId && (
+        {assignChild && (
           <div
             className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center p-4 z-50"
             onClick={() => {
-              setAssignChildId(null);
+              setAssignChild(null);
               setAssignClassId("");
             }}
           >
@@ -1854,12 +1858,13 @@ export default function ChildrenTab({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-800">
-                  Select Class
+                <h3 className="text-lg text-gray-800">
+                  Select Class for <span className="font-bold"> {assignChild.firstName} {assignChild.lastName}</span><br></br>
+                  <span className="text-sm">{assignChild.classId && "from"}  {assignChild.classId && classes.find(clss => clss.id === assignChild.classId)?.name}</span>
                 </h3>
                 <button
                   onClick={() => {
-                    setAssignChildId(null);
+                    setAssignChild(null);
                     setAssignClassId("");
                   }}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -1875,12 +1880,15 @@ export default function ChildrenTab({
                   onChange={(e) => setAssignClassId(e.target.value)}
                 >
                   <option value="">— Choose class —</option>
-                  {classes.map((c) => {
+                  {/* Filter out the class for that only location the child going to */}
+                  {classes.filter(c => c.locationId === assignChild.locationId).map((c) => {
                     const cap = classCapacityBadge(c);
                     const full = isClassFull(c);
+                    const currentClass = c.id === assignChild.classId;
                     return (
-                      <option key={c.id} value={c.id} disabled={full}>
-                        {c.name} — {cap.text}
+                      <option key={c.id} value={c.id} disabled={full || currentClass}>
+
+                        {c.name} — {cap.text} {currentClass && "(Enrolled)"}
                       </option>
                     );
                   })}
@@ -1888,13 +1896,14 @@ export default function ChildrenTab({
                 <div className="text-xs text-gray-500">
                   Full classes are disabled. If a class is full, the child
                   should remain on <b>Waitlist</b>.
+                  If child is currently <b>enrolled</b> in a class, this class is also disabled.
                 </div>
               </div>
 
               <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
                 <button
                   onClick={() => {
-                    setAssignChildId(null);
+                    setAssignChild(null);
                     setAssignClassId("");
                   }}
                   className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
@@ -1903,7 +1912,7 @@ export default function ChildrenTab({
                 </button>
                 <button
                   onClick={async () => {
-                    if (!assignChildId || !assignClassId) return;
+                    if (!assignChild || !assignClassId) return;
                     const targetClass = classes.find(
                       (c) => c.id === assignClassId
                     );
@@ -1911,9 +1920,10 @@ export default function ChildrenTab({
                       alert("This class is full. Please choose another class.");
                       return;
                     }
-                    const ok = await onAssign?.(assignChildId, assignClassId);
+                    // Passign child id and classId
+                    const ok = await onAssign?.(assignChild.id, assignClassId);
                     if (ok) {
-                      setAssignChildId(null);
+                      setAssignChild(null);
                       setAssignClassId("");
                     }
                   }}

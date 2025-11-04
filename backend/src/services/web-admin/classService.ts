@@ -1,6 +1,7 @@
 // backend/services/web-admin/classService.ts
 import { db, admin } from "../../lib/firebase";
 import * as Types from "../../../../shared/types/type";
+import { UserRole } from "../../models/user";
 
 /**
  * Firestore "classes" DB model (backend only).
@@ -342,48 +343,48 @@ export async function deleteClassById(id: string, uid?: string): Promise<void> {
  * - Else if classId is provided, derive locationId from the class.
  * - Enforces admin scope against resolved locationId.
  */
-export async function listTeacherCandidates(opts?: {
-  onlyNew?: boolean;
-  locationId?: string;
-  classId?: string;
-  uid?: string;
-}): Promise<(Teacher & { id: string })[]> {
-  const onlyNew = opts?.onlyNew ?? true;
+// export async function listTeacherCandidates(opts?: {
+//   onlyNew?: boolean;
+//   locationId?: string;
+//   classId?: string;
+//   uid?: string;
+// }): Promise<(Teacher & { id: string })[]> {
+//   const onlyNew = opts?.onlyNew ?? true;
 
-  // Resolve target location (locationId > classId -> location)
-  let targetLocationId = (opts?.locationId ?? "").trim();
-  if (!targetLocationId && opts?.classId) {
-    targetLocationId = await getClassLocationId(opts.classId);
-  }
-  if (!targetLocationId) throw new BadRequestError("locationId or classId is required");
+//   // Resolve target location (locationId > classId -> location)
+//   let targetLocationId = (opts?.locationId ?? "").trim();
+//   if (!targetLocationId && opts?.classId) {
+//     targetLocationId = await getClassLocationId(opts.classId);
+//   }
+//   if (!targetLocationId) throw new BadRequestError("locationId or classId is required");
 
-  // Scope check
-  const scope = await loadAdminScope(opts?.uid);
-  await ensureLocationAllowed(scope, targetLocationId);
+//   // Scope check
+//   const scope = await loadAdminScope(opts?.uid);
+//   await ensureLocationAllowed(scope, targetLocationId);
 
-  // Query teachers by location (+ optional status)
-  let q: FirebaseFirestore.Query = db
-    .collection("users")
-    .where("role", "==", "teacher")
-    .where("locationId", "==", targetLocationId);
+//   // Query teachers by location (+ optional status)
+//   let q: FirebaseFirestore.Query = db
+//     .collection("users")
+//     .where("role", "==", "teacher")
+//     .where("locationId", "==", targetLocationId);
 
-  if (onlyNew) q = q.where("status", "==", "New");
+//   if (onlyNew) q = q.where("status", "==", "New");
 
-  const snap = await q.get();
-  return snap.docs.map((d) => {
-    const data = d.data() as Teacher;
-    return {
-      id: d.id,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      email: data.email,
-      role: data.role,
-      status: data.status,
-      classIds: Array.isArray(data.classIds) ? data.classIds : [],
-      locationId: data.locationId ?? undefined,
-    };
-  });
-}
+//   const snap = await q.get();
+//   return snap.docs.map((d) => {
+//     const data = d.data() as Teacher;
+//     return {
+//       id: d.id,
+//       firstName: data.firstName,
+//       lastName: data.lastName,
+//       email: data.email,
+//       role: data.role,
+//       status: data.status,
+//       classIds: Array.isArray(data.classIds) ? data.classIds : [],
+//       locationId: data.locationId ?? undefined,
+//     };
+//   });
+// }
 
 /**
  * Assign teachers to a class (location-safe).
@@ -417,12 +418,12 @@ export async function assignTeachersToClass(
       ? Array.from(new Set(teacherIds.map((s) => s.trim()).filter((s) => s.length > 0)))
       : [];
 
-  // Auto-pick "New" teachers in the same location as the class
+  // Auto-pick All teachers in the same location as the class, except "Inactive"
   if (candidateIds.length === 0) {
     const elig = await db
       .collection("users")
       .where("role", "==", "teacher")
-      .where("status", "==", "New")
+      .where("status", "!=", "Inactive")
       .where("locationId", "==", classLoc)
       .get();
     candidateIds = elig.docs.map((d) => d.id);
@@ -458,6 +459,7 @@ export async function assignTeachersToClass(
   // Compute diff with current assignments
   const currentAssignedSnap = await db
     .collection("users")
+    .where("role", "==", UserRole.Teacher)
     .where("classIds", "array-contains", classId)
     .get();
 
@@ -482,17 +484,38 @@ export async function assignTeachersToClass(
 
     for (const id of toAdd) {
       const uRef = db.collection("users").doc(id);
-      tx.update(uRef, {
-        classIds: admin.firestore.FieldValue.arrayUnion(classId),
-        status: "Active",
-      });
+      const userSnap = await tx.get(uRef); // Read within transaction
+      const userData = userSnap.data();
+      
+      // Check if user is a teacher and initialize classIds if missing
+      if (userData?.role === "teacher") {
+        const updateData: any = {
+          status: "Active",
+        };
+        
+        // Initialize classIds array if it doesn't exist
+        if (!userData.classIds || !Array.isArray(userData.classIds)) {
+          updateData.classIds = [classId];
+        } else {
+          updateData.classIds = admin.firestore.FieldValue.arrayUnion(classId);
+        }
+        
+        tx.update(uRef, updateData);
+      }
     }
 
     for (const id of toRemove) {
       const uRef = db.collection("users").doc(id);
-      tx.update(uRef, {
-        classIds: admin.firestore.FieldValue.arrayRemove(classId),
-      });
+      const userSnap = await tx.get(uRef); // Read within transaction
+      const userData = userSnap.data();
+      
+      // Only remove from classIds if the field exists and is an array
+      if (userData?.classIds && Array.isArray(userData.classIds)) {
+        tx.update(uRef, {
+          classIds: admin.firestore.FieldValue.arrayRemove(classId),
+        });
+      }
+      // If classIds doesn't exist or isn't an array, no need to update
     }
   });
 

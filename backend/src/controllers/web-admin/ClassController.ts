@@ -192,18 +192,25 @@ export async function getAllClasses(req: AuthRequest, res: Response) {
   try {
     const scope = await loadAdminScope(req);
 
-    let snap: FirebaseFirestore.QuerySnapshot<FirebaseFirestore.DocumentData>;
+    const locationId = req.user?.locationId;
+    const daycareId = req.user?.daycareId;
 
-    if (scope.kind === "all") {
-      snap = await db.collection("classes").orderBy("name").get();
-    } else if (scope.kind === "location") {
+    if (!daycareId) {
+      return res.status(400).json({message: "Daycare missing from user profile"});
+    }
+    if (!locationId) {
+      return res.status(400).json({message: "Location missing from user profile"});
+    }
+      let snap: FirebaseFirestore.QuerySnapshot<FirebaseFirestore.DocumentData>;
+
+    if (locationId !== "*") {
       snap = await db
         .collection("classes")
-        .where("locationId", "==", scope.id)
+        .where("locationId", "==", locationId)
         .orderBy("name")
         .get();
     } else {
-      const locsSnap = await db.collection(`daycareProvider/${scope.daycareId}/locations`).get();
+      const locsSnap = await db.collection(`daycareProvider/${daycareId}/locations`).get();
       const locIds = locsSnap.docs.map((d) => d.id);
       if (locIds.length === 0) return res.json([]);
 
