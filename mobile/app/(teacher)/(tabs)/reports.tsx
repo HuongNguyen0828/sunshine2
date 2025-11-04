@@ -514,19 +514,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   exportButton: {
-    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#6366F1",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     borderRadius: 24,
     position: "relative",
-  },
-  exportButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 6,
   },
   comingSoonBadge: {
     position: "absolute",
