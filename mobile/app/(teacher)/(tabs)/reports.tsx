@@ -187,31 +187,29 @@ export default function TeacherReports() {
     return finalReports.sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [entries, selectedClass, selectedType, dateRange, customStartDate, customEndDate]);
 
-  // Calculate statistics
+  // Calculate statistics based on all entries in the daily reports
   const stats = useMemo(() => {
     const typeCount: { [key: string]: number } = {};
-    const classCount: { [key: string]: number } = {};
     const uniqueChildren = new Set<string>();
+    let totalEntries = 0;
 
-    filteredEntries.forEach(entry => {
-      if (entry.type) {
-        typeCount[entry.type] = (typeCount[entry.type] || 0) + 1;
-      }
-      if (entry.classId) {
-        classCount[entry.classId] = (classCount[entry.classId] || 0) + 1;
-      }
-      if (entry.childId) {
-        uniqueChildren.add(entry.childId);
-      }
+    dailyReports.forEach(report => {
+      uniqueChildren.add(report.childId);
+      report.entries.forEach(entry => {
+        totalEntries++;
+        if (entry.type) {
+          typeCount[entry.type] = (typeCount[entry.type] || 0) + 1;
+        }
+      });
     });
 
     return {
-      totalEntries: filteredEntries.length,
+      totalEntries,
+      totalReports: dailyReports.length,
       uniqueChildren: uniqueChildren.size,
       topType: Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A",
-      topClass: Object.entries(classCount).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A",
     };
-  }, [filteredEntries]);
+  }, [dailyReports]);
 
   const clearFilters = () => {
     setSelectedClass(null);
