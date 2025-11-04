@@ -1,8 +1,8 @@
 /**
  * Teacher Reports Tab
  *
- * Displays entries in a table/list format with advanced filtering and date range selection.
- * Future: Will support PDF export functionality.
+ * Displays daily reports grouped by child with filtering and date range selection.
+ * Teachers can view, edit, and share reports with parents.
  */
 
 import {
