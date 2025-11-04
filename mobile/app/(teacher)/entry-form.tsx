@@ -1,23 +1,31 @@
 // mobile/app/(teacher)/entry-form.tsx
-import { View, Text, Pressable, TextInput, Alert, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  TextInput,
+  Alert,
+  ScrollView,
+  ActivityIndicator,
+  Image,
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { bulkCreateEntries } from "@/services/useEntriesAPI";
+import { pickAndUploadImage } from "@/lib/uploadImage";
 import type {
   EntryType,
   EntryCreateInput,
   AttendanceSubtype,
   FoodSubtype,
   SleepSubtype,
+  ToiletKind,
 } from "../../../shared/types/type";
 
 // subtype options
 const ATTENDANCE_SUBTYPES: AttendanceSubtype[] = ["Check in", "Check out"];
 const FOOD_SUBTYPES: FoodSubtype[] = ["Breakfast", "Lunch", "Snack"];
 const SLEEP_SUBTYPES: SleepSubtype[] = ["Started", "Woke up"];
-
-// toilet kind is not in shared types (backend expects "urine" | "bm")
-type ToiletKind = "urine" | "bm";
 
 // ISO helper
 const nowIso = () => new Date().toISOString();
@@ -28,7 +36,6 @@ export default function EntryForm() {
   const p = useLocalSearchParams<{ type: EntryType; classId?: string; childIds: string }>();
 
   const type = p.type as EntryType;
-  // empty string → null
   const classId = p.classId && String(p.classId).trim() ? String(p.classId) : null;
   const childIds = useMemo(
     () => JSON.parse(String(p.childIds || "[]")) as string[],
@@ -41,6 +48,7 @@ export default function EntryForm() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [toiletKind, setToiletKind] = useState<ToiletKind | undefined>();
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // subtype options only for Attendance / Food / Sleep
   const subtypeOptions = useMemo(() => {
@@ -53,8 +61,25 @@ export default function EntryForm() {
   // dynamic flags
   const needsSubtype = ["Attendance", "Food", "Sleep"].includes(type);
   const needsToiletKind = type === "Toilet";
-  const needsPhoto = type === "Photo";
-  const needsDetail = ["Activity", "Note", "Health"].includes(type);
+  // food도 간단한 설명 필드가 필요하다고 했으니 여기 포함
+  const needsDetail = ["Activity", "Note", "Health", "Food"].includes(type);
+  const isPhoto = type === "Photo";
+
+  async function handlePickPhoto() {
+    try {
+      setUploadingPhoto(true);
+      const url = await pickAndUploadImage();
+      if (url) {
+        setPhotoUrl(url);
+      } else {
+        Alert.alert("Upload cancelled", "No image selected.");
+      }
+    } catch (e: any) {
+      Alert.alert("Upload failed", String(e?.message || e));
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
 
   async function onSubmit() {
     if (!childIds.length) {
@@ -69,11 +94,12 @@ export default function EntryForm() {
       return Alert.alert("Please select urine or bm.");
     }
 
-    if (needsPhoto && !photoUrl.trim()) {
-      return Alert.alert("Photo URL is required.");
+    if (isPhoto && !photoUrl.trim()) {
+      return Alert.alert("Please upload a photo.");
     }
 
     if (needsDetail && !detail.trim()) {
+      // Food 포함해서 여기로 옴
       return Alert.alert("Detail is required.");
     }
 
@@ -90,12 +116,13 @@ export default function EntryForm() {
         occurredAt,
       };
     } else if (type === "Food") {
+      // subtype + 메뉴/설명(detail)
       payload = {
         type,
         subtype: subtype as FoodSubtype,
         childIds,
         classId,
-        detail: detail || undefined,
+        detail, // required now
         occurredAt,
       };
     } else if (type === "Sleep") {
@@ -108,7 +135,6 @@ export default function EntryForm() {
         occurredAt,
       };
     } else if (type === "Toilet") {
-      // backend expects toiletKind, occurredAt, and childIds
       payload = {
         type,
         childIds,
@@ -123,7 +149,7 @@ export default function EntryForm() {
         childIds,
         classId,
         photoUrl,
-        detail: detail || undefined,
+        detail: detail || undefined, // optional caption
         occurredAt,
       };
     } else if (type === "Activity") {
@@ -156,7 +182,6 @@ export default function EntryForm() {
 
     try {
       setSaving(true);
-      // we always send only the selected children (no class fan-out here)
       const res = await bulkCreateEntries([payload]);
       if (!res.ok) throw new Error(res.reason || "Failed to save");
       router.back();
@@ -186,9 +211,7 @@ export default function EntryForm() {
 
       <Text style={{ fontSize: 22, fontWeight: "700" }}>{type}</Text>
       <Text style={{ color: "#64748B" }}>
-        {childIds.length === 1
-          ? "1 child selected"
-          : `${childIds.length} children selected`}
+        {childIds.length === 1 ? "1 child selected" : `${childIds.length} children selected`}
       </Text>
 
       {needsSubtype ? (
@@ -206,9 +229,7 @@ export default function EntryForm() {
                   backgroundColor: subtype === opt ? "#6366F1" : "#E5E7EB",
                 }}
               >
-                <Text style={{ color: subtype === opt ? "white" : "#111827" }}>
-                  {opt}
-                </Text>
+                <Text style={{ color: subtype === opt ? "white" : "#111827" }}>{opt}</Text>
               </Pressable>
             ))}
           </View>
@@ -239,13 +260,24 @@ export default function EntryForm() {
         </View>
       ) : null}
 
-      {(needsDetail || type === "Photo") && (
+      {/* Detail / Description */}
+      {(needsDetail || isPhoto) && (
         <View style={{ gap: 8 }}>
           <Text style={{ fontWeight: "600" }}>
-            {type === "Photo" ? "Caption (optional)" : "Note"}
+            {type === "Food"
+              ? "Menu / Description"
+              : type === "Photo"
+              ? "Caption (optional)"
+              : "Note"}
           </Text>
           <TextInput
-            placeholder={type === "Photo" ? "Add a caption..." : "Add a note..."}
+            placeholder={
+              type === "Food"
+                ? "e.g. Chicken soup, apple slices…"
+                : type === "Photo"
+                ? "Add a caption..."
+                : "Add a note..."
+            }
             value={detail}
             onChangeText={setDetail}
             style={{
@@ -260,21 +292,55 @@ export default function EntryForm() {
         </View>
       )}
 
-      {needsPhoto ? (
+      {/* Photo picker for Photo type */}
+      {isPhoto ? (
         <View style={{ gap: 8 }}>
-          <Text style={{ fontWeight: "600" }}>Photo URL</Text>
-          <TextInput
-            placeholder="https://..."
-            value={photoUrl}
-            onChangeText={setPhotoUrl}
-            autoCapitalize="none"
+          <Text style={{ fontWeight: "600" }}>Photo</Text>
+          <Pressable
+            onPress={handlePickPhoto}
+            disabled={uploadingPhoto}
             style={{
-              borderWidth: 1,
-              borderColor: "#E5E7EB",
-              borderRadius: 12,
+              backgroundColor: uploadingPhoto ? "#CBD5F5" : "#6366F1",
               padding: 12,
+              borderRadius: 12,
+              alignItems: "center",
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 8,
             }}
-          />
+          >
+            {uploadingPhoto ? (
+              <>
+                <ActivityIndicator color="#fff" />
+                <Text style={{ color: "#fff", fontWeight: "600" }}>Uploading…</Text>
+              </>
+            ) : (
+              <Text style={{ color: "#fff", fontWeight: "600" }}>Pick from gallery</Text>
+            )}
+          </Pressable>
+
+          {photoUrl ? (
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: "#E2E8F0",
+                borderRadius: 12,
+                overflow: "hidden",
+                marginTop: 4,
+              }}
+            >
+              <Image source={{ uri: photoUrl }} style={{ width: "100%", height: 180 }} />
+              <Text
+                style={{
+                  padding: 8,
+                  fontSize: 12,
+                  color: "#475569",
+                }}
+              >
+                {photoUrl}
+              </Text>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -287,6 +353,7 @@ export default function EntryForm() {
           borderRadius: 12,
           alignItems: "center",
           marginTop: 8,
+          marginBottom: 16,
         }}
       >
         <Text style={{ color: "white", fontWeight: "700" }}>
