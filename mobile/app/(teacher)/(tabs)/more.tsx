@@ -214,28 +214,6 @@ export default function TeacherMore() {
       ),
     },
     {
-      icon: School,
-      label: 'Crew Directory',
-      hasDropdown: true,
-      dropdownContent: (
-        <View style={styles.dropdownContent}>
-          {mockTeachers.slice(0, 4).map(teacher => (
-            <View key={teacher.id} style={styles.teacherItem}>
-              <View style={styles.teacherAvatar}>
-                <Text style={styles.teacherInitials}>
-                  {teacher.name.split(' ').map(n => n[0]).join('')}
-                </Text>
-              </View>
-              <View style={styles.teacherInfo}>
-                <Text style={styles.teacherName}>{teacher.name}</Text>
-                <Text style={styles.teacherRole}>{teacher.role} • {mockClasses.find(c => c.id === teacher.classId)?.name}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      ),
-    },
-    {
       icon: CreditCard,
       label: 'Payment & Invoices',
       hasDropdown: true,
