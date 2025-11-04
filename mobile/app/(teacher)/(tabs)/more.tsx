@@ -174,20 +174,24 @@ export default function TeacherMore() {
       dropdownContent: (
         <View style={styles.dropdownContent}>
           <Pressable style={styles.dropdownItemButton}>
-            <User size={20} color="#64748B" />
+            <User size={18} color="#64748B" />
             <Text style={styles.dropdownText}>Edit Profile</Text>
+            <ChevronRight size={16} color="#CBD5E1" />
           </Pressable>
           <Pressable style={styles.dropdownItemButton}>
-            <Shield size={20} color="#64748B" />
+            <Shield size={18} color="#64748B" />
             <Text style={styles.dropdownText}>Privacy Settings</Text>
+            <ChevronRight size={16} color="#CBD5E1" />
           </Pressable>
           <Pressable style={styles.dropdownItemButton}>
-            <Globe size={20} color="#64748B" />
-            <Text style={styles.dropdownText}>Language: {mockSettings.profile.preferences.language}</Text>
+            <Globe size={18} color="#64748B" />
+            <Text style={styles.dropdownText}>Language</Text>
+            <Text style={styles.dropdownValueText}>{mockSettings.profile.preferences.language}</Text>
           </Pressable>
           <Pressable style={styles.dropdownItemButton}>
-            <Clock size={20} color="#64748B" />
-            <Text style={styles.dropdownText}>Time Format: {mockSettings.profile.preferences.timeFormat}</Text>
+            <Clock size={18} color="#64748B" />
+            <Text style={styles.dropdownText}>Time Format</Text>
+            <Text style={styles.dropdownValueText}>{mockSettings.profile.preferences.timeFormat}</Text>
           </Pressable>
         </View>
       ),
