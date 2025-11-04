@@ -260,12 +260,6 @@ export default function TeacherMessages() {
                   </Text>
                   <ChevronDown size={16} color={selectedType ? "#FFFFFF" : "#475569"} />
                 </Pressable>
-
-                {hasActiveFilters && (
-                  <Pressable style={styles.clearButton} onPress={clearFilters}>
-                    <Text style={styles.clearButtonText}>Clear Filters</Text>
-                  </Pressable>
-                )}
               </View>
             </View>
           </>
