@@ -260,7 +260,18 @@ export default function TeacherReports() {
         }}
       >
         <View style={styles.cellDate}>
-          <Text style={styles.cellDateText}>{date}</Text>
+          <View style={styles.cellDateWithStatus}>
+            <Text style={styles.cellDateText}>{date}</Text>
+            {report.sent ? (
+              <View style={styles.statusSent}>
+                <CheckCircle size={14} color="#10B981" strokeWidth={2} />
+              </View>
+            ) : (
+              <View style={styles.statusPending}>
+                <Send size={12} color="#F59E0B" strokeWidth={2} />
+              </View>
+            )}
+          </View>
           <Text style={styles.cellTimeText}>
             {report.totalActivities} {report.totalActivities === 1 ? "activity" : "activities"}
           </Text>
