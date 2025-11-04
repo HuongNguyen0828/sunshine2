@@ -696,11 +696,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 20,
   },
   headerLeft: {
     flex: 1,
+    marginRight: 16,
+    justifyContent: "center",
   },
   headerActions: {
     flexDirection: "row",
