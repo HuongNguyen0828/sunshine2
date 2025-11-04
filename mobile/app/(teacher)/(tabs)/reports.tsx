@@ -329,14 +329,11 @@ export default function TeacherReports() {
         </View>
 
         {/* Table Content */}
-        <View style={styles.tableContent}>
-          {filteredEntries.length > 0 ? (
-            filteredEntries.map((entry, index) => (
-              <View key={entry.id || index}>
-                {renderEntry(entry, index)}
-              </View>
-            ))
-          ) : (
+        <FlatList
+          data={filteredEntries}
+          keyExtractor={(item, index) => item.id || `entry-${index}`}
+          renderItem={({ item, index }) => renderEntry(item, index)}
+          ListEmptyComponent={() => (
             <View style={styles.emptyState}>
               <FileText size={48} color="#CBD5E1" strokeWidth={1.5} />
               <Text style={styles.emptyStateTitle}>No entries found</Text>
@@ -345,7 +342,12 @@ export default function TeacherReports() {
               </Text>
             </View>
           )}
-        </View>
+          contentContainerStyle={styles.tableContent}
+          initialNumToRender={20}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={true}
+        />
       </ScrollView>
 
       {/* Date Range Modal */}
