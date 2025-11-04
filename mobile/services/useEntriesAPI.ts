@@ -27,10 +27,15 @@ const BASE_URL =
 
 // Types requiring subtype
 const NEEDS_SUBTYPE: EntryType[] = ["Attendance", "Food", "Sleep"];
+
 // Types requiring free-text detail
-const NEEDS_DETAIL: EntryType[] = ["Activity", "Note", "Health"];
+// → Food도 여기 포함시킴 (메뉴/설명 필드)
+const NEEDS_DETAIL: EntryType[] = ["Activity", "Note", "Health", "Food"];
+
 // Types requiring photo url
+// (모바일에선 업로드해서 URL을 만든 다음 여기로 보냄)
 const NEEDS_PHOTO: EntryType[] = ["Photo"];
+
 // Toilet requires toiletKind (no subtype)
 const needsToiletKind = (t: EntryType) => t === "Toilet";
 
@@ -68,7 +73,7 @@ function normalizeAll(v?: unknown): string | undefined {
 
 /** Client-side validation before hitting the API */
 function validateItem(p: EntryCreateInput): string | null {
-  // Only-selected-children rule: unless applyToAllInClass is true, we need childIds
+  // unless applyToAllInClass, we need at least one child
   if (!Array.isArray(p.childIds)) return "childIds must be an array";
   if (!p.applyToAllInClass && p.childIds.length === 0) {
     return "At least one child is required";
@@ -128,7 +133,7 @@ export async function bulkCreateEntries(
   try {
     if (!items?.length) return { ok: false, reason: "No items" };
 
-    // Client validation (fast feedback)
+    // client-side validation
     for (const it of items) {
       const normalized = normalizeItem(it);
       const err = validateItem(normalized);
@@ -182,7 +187,7 @@ export async function createForClass(
   ]);
 }
 
-/** Convenience: create entries for selected children only (recommended) */
+/** Convenience: create entries for selected children only */
 export async function createForChildren(
   base: Omit<EntryCreateInput, "childIds">,
   childIds: string[]
@@ -197,7 +202,7 @@ export async function createForChildren(
   ]);
 }
 
-/** GET /v1/entries (filters “All …” away) */
+/** GET /v1/entries */
 export async function listEntries(
   filter: EntryFilter = {},
   limit = 50

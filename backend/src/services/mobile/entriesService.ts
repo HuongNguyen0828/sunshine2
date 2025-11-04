@@ -16,7 +16,7 @@ import type {
 
 type AuthCtx = {
   userDocId: string;
-  daycareId?: string;   // now optional
+  daycareId?: string;  // optional now
   locationId?: string;
 };
 
@@ -24,7 +24,7 @@ type AuthCtx = {
  * Helpers
  * ========= */
 
-// Validate ISO datetime string (e.g., 2025-11-01T12:34:56.789Z)
+// Validate ISO datetime string (e.g. 2025-11-01T12:34:56.789Z)
 function isIsoDateTime(v: unknown): v is string {
   if (typeof v !== "string") return false;
   const d = new Date(v);
@@ -78,7 +78,10 @@ async function expandChildIds(item: EntryCreateInput): Promise<string[]> {
   return uniq([...(item.childIds ?? []), ...ids]);
 }
 
-/** Create a base document for a single child. */
+/**
+ * Create a base document for a single child.
+ * daycareId can be blank string when not provided.
+ */
 function buildDocBase(
   auth: AuthCtx,
   item: EntryCreateInput,
@@ -87,8 +90,10 @@ function buildDocBase(
   const nowIso = new Date().toISOString();
 
   const base: EntryDoc = {
-    id: db.collection("entries").doc().id, // will be overridden by ref.id at write
-    daycareId: String(auth.daycareId ?? ""), // allow blank
+    id: db.collection("entries").doc().id, // will be set to ref.id later
+
+    // scope info
+    daycareId: String(auth.daycareId ?? ""),
     locationId: String(auth.locationId ?? ""),
     classId: item.classId ?? null,
     childId,
@@ -98,7 +103,8 @@ function buildDocBase(
     createdByRole: "teacher",
     createdAt: nowIso,
 
-    occurredAt: item.occurredAt, // validated
+    // time & type
+    occurredAt: item.occurredAt,
     type: item.type,
 
     // flexible payload
@@ -169,13 +175,15 @@ function validateItem(item: EntryCreateInput) {
       throw new Error("unsupported_type");
   }
 
-  // Extra: if fan-out across class, classId must be provided
+  // Extra guard: class fan-out needs classId
   if ((item as any).applyToAllInClass && !item.classId) {
     throw new Error("classId_required_when_applyToAllInClass");
   }
 }
 
-/** Apply per-type mapping to the doc (subtype/data fields). */
+/**
+ * Apply per-type mapping to the doc (subtype/data fields).
+ */
 function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
   switch (item.type as EntryType) {
     case "Attendance": {
@@ -186,6 +194,7 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
     }
     case "Food": {
       doc.subtype = (item as any).subtype;
+      // detail is already at top-level
       break;
     }
     case "Sleep": {
@@ -210,7 +219,7 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
       break;
     }
     case "Photo": {
-      // nothing extra
+      // photoUrl already mirrored
       break;
     }
   }
@@ -233,14 +242,15 @@ export async function bulkCreateEntriesService(
   const created: { id: string; type: EntryType }[] = [];
   const failed: { index: number; reason: string }[] = [];
 
-  // Require user + location; daycare is optional
+  // must know who is writing
   if (!auth.userDocId) throw new Error("missing_userDocId");
+  // we still require location for scoping
   if (!auth.locationId) throw new Error("missing_locationId");
 
   const items = Array.isArray(payload?.items) ? payload.items : [];
   if (items.length === 0) return { created, failed };
 
-  // Validate each item; keep processing others when one fails
+  // 1) validate each item
   const validated: (EntryCreateInput | null)[] = items.map((it, idx) => {
     try {
       validateItem(it);
@@ -268,7 +278,8 @@ export async function bulkCreateEntriesService(
       for (const childId of childIds) {
         const ref = db.collection("entries").doc();
         const doc = buildDocBase(auth, item, childId);
-        doc.id = ref.id; // keep id == ref.id
+        // keep doc.id == firestore doc id
+        doc.id = ref.id;
         applyTypeMapping(doc, item);
         writes.push({ index: i, refPath: ref.path, doc });
       }
@@ -277,7 +288,7 @@ export async function bulkCreateEntriesService(
     }
   }
 
-  // Commit in safe chunks (<= 500 ops per batch; use a safety buffer)
+  // 3) commit in chunks
   for (const part of chunk(writes, 450)) {
     const batch = db.batch();
     for (const w of part) {
