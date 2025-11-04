@@ -847,31 +847,21 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 2,
   },
-  cellType: {
-    width: "40%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  cellSummary: {
+    flex: 1,
+    justifyContent: "center",
+    paddingRight: 8,
   },
-  typeIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+  cellSummaryText: {
+    fontSize: 12,
+    color: "#64748B",
+    lineHeight: 16,
+  },
+  shareButton: {
+    width: 60,
     alignItems: "center",
     justifyContent: "center",
-  },
-  cellTypeTextContainer: {
-    flex: 1,
-  },
-  cellTypeText: {
-    fontSize: 13,
-    color: "#1E293B",
-    fontWeight: "500",
-  },
-  cellSubtypeText: {
-    fontSize: 11,
-    color: "#64748B",
-    marginTop: 2,
+    paddingVertical: 8,
   },
   emptyState: {
     alignItems: "center",
