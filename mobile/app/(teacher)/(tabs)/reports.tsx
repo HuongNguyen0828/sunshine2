@@ -389,14 +389,14 @@ export default function TeacherReports() {
       />
 
       <FlatList
-        data={filteredEntries}
-        keyExtractor={(item, index) => item.id || `entry-${index}`}
-        renderItem={({ item, index }) => renderEntry(item, index)}
+        data={dailyReports}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item, index }) => renderReport(item, index)}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={() => (
           <View style={styles.emptyState}>
             <FileText size={48} color="#CBD5E1" strokeWidth={1.5} />
-            <Text style={styles.emptyStateTitle}>No entries found</Text>
+            <Text style={styles.emptyStateTitle}>No reports found</Text>
             <Text style={styles.emptyStateText}>
               Try adjusting your filters or date range
             </Text>
