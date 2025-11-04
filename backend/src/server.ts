@@ -15,6 +15,7 @@ import parentRoutes from "./routes/web-admin/parentRoutes";
 
 // mobile
 import mobileRegistrationRoutes from "./routes/mobile/registrationRoutes";
+import mobileEntriesRoutes from "./routes/mobile/entriesRoutes";
 
 const app = express();
 
@@ -33,7 +34,7 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 
 // request log
 app.use((req, res, next) => {
@@ -79,6 +80,7 @@ app.use("/api/parents", parentRoutes)
 
 // mobile routes
 app.use("/api/mobile", mobileRegistrationRoutes);
+app.use("/api/mobile", mobileEntriesRoutes);
 
 // 404
 app.use((req, res) => {
