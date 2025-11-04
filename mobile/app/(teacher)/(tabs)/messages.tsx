@@ -191,6 +191,80 @@ export default function TeacherMessages() {
 
   const hasActiveFilters = selectedClass || selectedChild || selectedType || debouncedSearchText;
 
+  // Memoize the header component to prevent re-renders and focus loss
+  const ListHeader = useMemo(() => {
+    return (
+      <>
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+          <Text style={styles.title}>Activity Log</Text>
+          <Text style={styles.subtitle}>
+            {filteredEntries.length} {filteredEntries.length === 1 ? "entry" : "entries"}
+          </Text>
+        </View>
+
+        {/* Search and Filters */}
+        <View style={styles.searchContainer}>
+          {/* Search Bar */}
+          <View style={styles.searchBar}>
+            <Search size={20} color="#64748B" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by child, activity, or details..."
+              value={searchText}
+              onChangeText={handleSearchChange}
+              placeholderTextColor="#94A3B8"
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {searchText.length > 0 && (
+              <Pressable onPress={handleClearSearch}>
+                <X size={20} color="#64748B" />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Filter Buttons */}
+          <View style={styles.filterScroll}>
+            <Pressable
+              style={[styles.filterButton, selectedClass && styles.filterButtonActive]}
+              onPress={() => setShowClassModal(true)}
+            >
+              <Text style={[styles.filterButtonText, selectedClass && styles.filterButtonTextActive]}>
+                {selectedClass
+                  ? mockClasses.find(c => c.id === selectedClass)?.name
+                  : "All Classes"}
+              </Text>
+              <ChevronDown size={16} color={selectedClass ? "#FFFFFF" : "#475569"} />
+            </Pressable>
+
+            <Pressable
+              style={[styles.filterButton, selectedChild && styles.filterButtonActive]}
+              onPress={() => setShowChildModal(true)}
+            >
+              <Text style={[styles.filterButtonText, selectedChild && styles.filterButtonTextActive]}>
+                {selectedChild
+                  ? mockChildren.find(c => c.id === selectedChild)?.firstName
+                  : "All Children"}
+              </Text>
+              <ChevronDown size={16} color={selectedChild ? "#FFFFFF" : "#475569"} />
+            </Pressable>
+
+            <Pressable
+              style={[styles.filterButton, selectedType && styles.filterButtonActive]}
+              onPress={() => setShowTypeModal(true)}
+            >
+              <Text style={[styles.filterButtonText, selectedType && styles.filterButtonTextActive]}>
+                {selectedType || "All Types"}
+              </Text>
+              <ChevronDown size={16} color={selectedType ? "#FFFFFF" : "#475569"} />
+            </Pressable>
+          </View>
+        </View>
+      </>
+    );
+  }, [insets.top, filteredEntries.length, searchText, handleSearchChange, handleClearSearch, selectedClass, selectedChild, selectedType]);
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -205,76 +279,7 @@ export default function TeacherMessages() {
         renderSectionHeader={({ section: { title } }) => (
           <Text style={styles.dateHeader}>{title}</Text>
         )}
-        ListHeaderComponent={() => (
-          <>
-            {/* Header */}
-            <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-              <Text style={styles.title}>Activity Log</Text>
-              <Text style={styles.subtitle}>
-                {filteredEntries.length} {filteredEntries.length === 1 ? "entry" : "entries"}
-              </Text>
-            </View>
-
-            {/* Search and Filters */}
-            <View style={styles.searchContainer}>
-              {/* Search Bar */}
-              <View style={styles.searchBar}>
-                <Search size={20} color="#64748B" />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Search by child, activity, or details..."
-                  value={searchText}
-                  onChangeText={handleSearchChange}
-                  placeholderTextColor="#94A3B8"
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                />
-                {searchText.length > 0 && (
-                  <Pressable onPress={handleClearSearch}>
-                    <X size={20} color="#64748B" />
-                  </Pressable>
-                )}
-              </View>
-
-              {/* Filter Buttons */}
-              <View style={styles.filterScroll}>
-                <Pressable
-                  style={[styles.filterButton, selectedClass && styles.filterButtonActive]}
-                  onPress={() => setShowClassModal(true)}
-                >
-                  <Text style={[styles.filterButtonText, selectedClass && styles.filterButtonTextActive]}>
-                    {selectedClass
-                      ? mockClasses.find(c => c.id === selectedClass)?.name
-                      : "All Classes"}
-                  </Text>
-                  <ChevronDown size={16} color={selectedClass ? "#FFFFFF" : "#475569"} />
-                </Pressable>
-
-                <Pressable
-                  style={[styles.filterButton, selectedChild && styles.filterButtonActive]}
-                  onPress={() => setShowChildModal(true)}
-                >
-                  <Text style={[styles.filterButtonText, selectedChild && styles.filterButtonTextActive]}>
-                    {selectedChild
-                      ? mockChildren.find(c => c.id === selectedChild)?.firstName
-                      : "All Children"}
-                  </Text>
-                  <ChevronDown size={16} color={selectedChild ? "#FFFFFF" : "#475569"} />
-                </Pressable>
-
-                <Pressable
-                  style={[styles.filterButton, selectedType && styles.filterButtonActive]}
-                  onPress={() => setShowTypeModal(true)}
-                >
-                  <Text style={[styles.filterButtonText, selectedType && styles.filterButtonTextActive]}>
-                    {selectedType || "All Types"}
-                  </Text>
-                  <ChevronDown size={16} color={selectedType ? "#FFFFFF" : "#475569"} />
-                </Pressable>
-              </View>
-            </View>
-          </>
-        )}
+        ListHeaderComponent={ListHeader}
         ListEmptyComponent={() => (
           <View style={styles.emptyState}>
             <Filter size={48} color="#CBD5E1" strokeWidth={1.5} />
