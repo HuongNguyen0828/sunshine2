@@ -873,6 +873,11 @@ const styles = StyleSheet.create({
     width: "25%",
     justifyContent: "center",
   },
+  cellDateWithStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   cellDateText: {
     fontSize: 13,
     color: "#1E293B",
@@ -881,7 +886,23 @@ const styles = StyleSheet.create({
   cellTimeText: {
     fontSize: 11,
     color: "#64748B",
-    marginTop: 2,
+    marginTop: 4,
+  },
+  statusSent: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#D1FAE5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusPending: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#FEF3C7",
+    alignItems: "center",
+    justifyContent: "center",
   },
   cellChild: {
     width: "35%",
