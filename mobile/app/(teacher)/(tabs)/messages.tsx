@@ -92,6 +92,15 @@ export default function TeacherMessages() {
   const [showChildModal, setShowChildModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
 
+  // Memoize handlers to prevent re-renders
+  const handleSearchChange = useCallback((text: string) => {
+    setSearchText(text);
+  }, []);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchText("");
+  }, []);
+
   // Generate entries once and memoize
   const entries = useMemo(() => generateMockEntries(), []);
 
