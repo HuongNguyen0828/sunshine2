@@ -79,18 +79,13 @@ export default function TeacherReports() {
   // Generate entries once and memoize
   const entries = useMemo(() => generateMockEntries(), []);
 
-  // Filter entries based on selections
-  const filteredEntries = useMemo(() => {
+  // Generate daily reports grouped by child and date
+  const dailyReports = useMemo(() => {
     let filtered = [...entries];
 
     // Filter by class
     if (selectedClass) {
       filtered = filtered.filter(entry => entry.classId === selectedClass);
-    }
-
-    // Filter by type
-    if (selectedType) {
-      filtered = filtered.filter(entry => entry.type === selectedType);
     }
 
     // Filter by date range
@@ -134,11 +129,62 @@ export default function TeacherReports() {
         break;
     }
 
-    return filtered.sort((a, b) => {
-      const dateA = a.occurredAt ? new Date(a.occurredAt).getTime() : 0;
-      const dateB = b.occurredAt ? new Date(b.occurredAt).getTime() : 0;
-      return dateB - dateA;
+    // Group by child and date
+    const reportsMap = new Map<string, DailyReport>();
+
+    filtered.forEach(entry => {
+      if (!entry.occurredAt || !entry.childId) return;
+
+      const entryDate = new Date(entry.occurredAt);
+      const dateKey = `${entryDate.getFullYear()}-${entryDate.getMonth()}-${entryDate.getDate()}`;
+      const key = `${entry.childId}-${dateKey}`;
+
+      if (!reportsMap.has(key)) {
+        reportsMap.set(key, {
+          id: key,
+          date: new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate()),
+          childId: entry.childId,
+          childName: entry.childName || "",
+          className: entry.className || "",
+          classId: entry.classId || "",
+          entries: [],
+          activitySummary: "",
+          totalActivities: 0,
+        });
+      }
+
+      const report = reportsMap.get(key)!;
+      report.entries.push(entry);
     });
+
+    // Generate summaries and filter by type if needed
+    const reports = Array.from(reportsMap.values()).map(report => {
+      const typeCounts: { [key: string]: number } = {};
+      report.entries.forEach(entry => {
+        if (entry.type) {
+          typeCounts[entry.type] = (typeCounts[entry.type] || 0) + 1;
+        }
+      });
+
+      report.totalActivities = report.entries.length;
+      const summaryParts = Object.entries(typeCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([type, count]) => `${count} ${type}`);
+      report.activitySummary = summaryParts.join(", ");
+
+      return report;
+    });
+
+    // Filter by type if selected
+    const finalReports = selectedType
+      ? reports.filter(report =>
+          report.entries.some(entry => entry.type === selectedType)
+        )
+      : reports;
+
+    // Sort by date descending
+    return finalReports.sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [entries, selectedClass, selectedType, dateRange, customStartDate, customEndDate]);
 
   // Calculate statistics
