@@ -73,6 +73,8 @@ export default function TeacherReports() {
   const [showDateModal, setShowDateModal] = useState(false);
   const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
   const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
+  const [selectedReport, setSelectedReport] = useState<DailyReport | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Generate entries once and memoize
   const entries = useMemo(() => generateMockEntries(), []);
