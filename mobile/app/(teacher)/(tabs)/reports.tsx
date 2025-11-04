@@ -209,13 +209,10 @@ export default function TeacherReports() {
           <View style={[styles.typeIcon, { backgroundColor: config?.bg }]}>
             <IconComponent size={16} color={config?.color} />
           </View>
-          <Text style={styles.cellTypeText}>{entry.type}</Text>
-        </View>
-        <View style={styles.cellDetail}>
-          <Text style={styles.cellDetailText} numberOfLines={2}>
-            {entry.subtype && `${entry.subtype}: `}
-            {entry.detail || "—"}
-          </Text>
+          <View style={styles.cellTypeTextContainer}>
+            <Text style={styles.cellTypeText}>{entry.type}</Text>
+            {entry.subtype && <Text style={styles.cellSubtypeText}>{entry.subtype}</Text>}
+          </View>
         </View>
       </View>
     );
