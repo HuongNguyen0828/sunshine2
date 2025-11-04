@@ -61,6 +61,7 @@ type DailyReport = {
   entries: Partial<EntryDoc>[];
   activitySummary: string;
   totalActivities: number;
+  sent: boolean;
 };
 
 export default function TeacherReports() {
