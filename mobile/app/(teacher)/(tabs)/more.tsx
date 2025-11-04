@@ -280,16 +280,6 @@ export default function TeacherMore() {
       label: 'Photos Plus',
       onPress: () => handleNavigation('Photos Plus'),
     },
-    {
-      icon: Bell,
-      label: 'Notifications',
-      onPress: () => handleNavigation('Notifications'),
-    },
-    {
-      icon: Settings,
-      label: 'App Settings',
-      onPress: () => handleNavigation('App Settings'),
-    },
   ];
 
   return (
