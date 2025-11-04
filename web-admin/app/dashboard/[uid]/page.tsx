@@ -335,64 +335,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // const handleUpdateChild = async (id: string, patch: Partial<NewChildInput>): Promise<Types.Child | null> => {
-  //   //   try {
-  //   //     const res = await updateChild(id, {
-  //   //       firstName: patch.firstName.trim(),
-  //   //       lastName: patch.lastName.trim(),
-  //   //       gender: patch.gender,
-  //   //       birthDate: patch.birthDate,
-  //   //       parentId: Array.isArray(patch.parentId) ? patch.parentId : undefined,
-  //   //       locationId: scope.mode === "fixed" ? scope.fixedLocationId : patch.locationId?.trim(),
-  //   //       notes: patch.notes?.trim(),
-  //   //       enrollmentStatus: patch.enrollmentStatus,
-  //   //       classId: patch.classId,
-  //   //       startDate: patch.startDate
-  //   //     });
-
-  //   //     if (res && typeof res === "object") {
-  //   //       const updated = res as Types.Child;
-
-  //   //       const prevChild = children.find(c => c.id === id);
-  //   //       const prevClassId = prevChild?.classId;
-  //   //       const nextClassId = updated.classId;
-
-  //   //       setChildren(prev => prev.map(c => (c.id === id ? { ...c, ...updated } : c)));
-
-  //   //       if (prevClassId !== nextClassId) {
-  //   //         if (prevClassId) {
-  //   //           setClasses(prev =>
-  //   //             prev.map(cls =>
-  //   //               cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls
-  //   //             )
-  //   //           );
-  //   //         }
-  //   //         if (nextClassId) {
-  //   //           setClasses(prev =>
-  //   //             prev.map(cls =>
-  //   //               cls.id === nextClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) + 1) } : cls
-  //   //             )
-  //   //           );
-  //   //         }
-  //   //       }
-  //   //     } else {
-  //   //       startTransition(() => {
-  //   //         refetchChildrenLite();
-  //   //         refetchClassesLite();
-  //   //       });
-  //   //     }
-  //   //   } catch (e) {
-  //   //     const msg = getErrorMessage(e, "Failed to update child.");
-  //   //     alert(msg);
-  //   //     return null;
-  //   //   }
-
-  //   //   startTransition(() => {
-  //   //     refetchChildrenLite();
-  //   //   });
-
-  //   return null;
-  // };
 
   const handleDeleteChild = async (id: string): Promise<boolean> => {
     try {
@@ -453,53 +395,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // const onUnassignChild = async (childId: string) => {
-  //   try {
-  //     const prevChild = children.find((c) => c.id === childId);
-  //     const prevClassId = prevChild?.classId;
-
-  //     // await unassignChildFromClass(childId);
-
-  //     setChildren((prev) =>
-  //       prev.map((c) =>
-  //         c.id === childId
-  //           ? {
-  //             ...c,
-  //             classId: undefined,
-  //             enrollmentStatus: (c.parentId?.length ?? 0) > 0 ? Types.EnrollmentStatus.Waitlist : Types.EnrollmentStatus.New,
-  //           }
-  //           : c
-  //       )
-  //     );
-
-  //     if (prevClassId) {
-  //       setClasses((prev) =>
-  //         prev.map((cls) => (cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls))
-  //       );
-  //     }
-
-  //     startTransition(() => {
-  //       // refetchChildrenLite();
-  //       refetchClassesLite();
-  //     });
-
-  //     return true;
-  //   } catch {
-  //     alert("Failed to unassign child. Please try again.");
-  //     return false;
-  //   }
-  // };
-
-  /**
-   * 
-   * @param created Link and Unlinked parent to child is removed to be inside AddChildWithParent
-   * @returns 
-   */
-  // const onLinkParentByEmail = async (childId: string, email: string) => {
-  // };
-
-  // const onUnlinkParent = async (childId: string, parentUserId: string) => {
-  // };
 
 
   /* ---------- classes passthrough ---------- */
@@ -539,8 +434,27 @@ export default function AdminDashboard() {
   const passingClassesLite: ClassLite[] = useMemo(() => classes.map(cls => ({ id: cls.id, name: cls.name })), [classes]);
   /* ---------- render ---------- */
 
+  // Add proper authentication handling
   if (authLoading) {
-    return <div>Loading</div>;
+    return <div>Loading authentication...</div>;
+  }
+
+  // Protected page
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="bg-white p-8 rounded-xl shadow-md max-w-sm w-full mx-4">
+          <h1 className="text-xl font-semibold text-gray-800 text-center mb-3">Access Denied</h1>
+          <p className="text-gray-600 text-center mb-6">You need to be logged in to view this page.</p>
+          <a
+            href="/login"
+            className="block w-full py-2 px-4 text-center font-semibold rounded-lg transition-all duration-200 mt-6 bg-gray-900 hover:bg-gray-800 text-white cursor-pointer"
+          >
+            Sign In
+          </a>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -638,6 +552,7 @@ export default function AdminDashboard() {
                   parents={parents}
                   children={children}
                   setParents={setParents}
+                  locations={filteredLocations}
                 />
               )
             }
