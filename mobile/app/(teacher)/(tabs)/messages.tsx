@@ -119,12 +119,12 @@ export default function TeacherMessages() {
   const filteredEntries = useMemo(() => {
     let filtered = [...entries];
 
-    // Filter by search text
-    if (searchText) {
+    // Filter by search text (using debounced value)
+    if (debouncedSearchText) {
       filtered = filtered.filter(entry =>
-        entry.childName?.toLowerCase().includes(searchText.toLowerCase()) ||
-        entry.detail?.toLowerCase().includes(searchText.toLowerCase()) ||
-        entry.type?.toLowerCase().includes(searchText.toLowerCase())
+        entry.childName?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
+        entry.detail?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
+        entry.type?.toLowerCase().includes(debouncedSearchText.toLowerCase())
       );
     }
 
@@ -144,7 +144,7 @@ export default function TeacherMessages() {
     }
 
     return filtered;
-  }, [entries, searchText, selectedClass, selectedChild, selectedType]);
+  }, [entries, debouncedSearchText, selectedClass, selectedChild, selectedType]);
 
   // Group entries by date for SectionList
   const sections = useMemo(() => {
