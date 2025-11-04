@@ -303,12 +303,11 @@ export default function TeacherReports() {
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.title}>Reports</Text>
-          <Text style={styles.subtitle}>
-            {stats.totalReports} daily {stats.totalReports === 1 ? "report" : "reports"}
-            {stats.unsentReports > 0 && (
-              <Text style={styles.unsentBadge}> • {stats.unsentReports} unsent</Text>
-            )}
-          </Text>
+          {stats.unsentReports > 0 && (
+            <Text style={styles.subtitle}>
+              <Text style={styles.unsentBadge}>{stats.unsentReports} unsent</Text>
+            </Text>
+          )}
         </View>
         <View style={styles.headerActions}>
           {stats.unsentReports > 0 && (
