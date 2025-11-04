@@ -189,7 +189,7 @@ export default function TeacherMessages() {
     setSearchText("");
   };
 
-  const hasActiveFilters = selectedClass || selectedChild || selectedType || searchText;
+  const hasActiveFilters = selectedClass || selectedChild || selectedType || debouncedSearchText;
 
   return (
     <View style={styles.container}>
