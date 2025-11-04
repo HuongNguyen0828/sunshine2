@@ -16,7 +16,6 @@ import { ENDPOINTS } from "@/api/endpoint";
 import {
   type LocationLite,
 } from "@/services/useLocationsAPI";
-import { type ClassLite } from "@/app/dashboard/[uid]/page";
 
 export default function TeachersTab({
   teachers,
@@ -54,12 +53,6 @@ export default function TeachersTab({
     return found?.name || locId;
   };
 
-  // Sync rows with teachers prop
-  useEffect(() => {
-    setRows(teachers);
-  }, [teachers]); // This will update rows whenever teachers prop changes
-
-  // Restore draft when form opens
   useEffect(() => {
     if (isFormOpen && !editingTeacher) {
       const draft = sessionStorage.getItem("teacher-form-draft");
@@ -174,16 +167,10 @@ export default function TeachersTab({
 
     if (editingTeacher) {
       const id = editingTeacher.id;
-      const updated = await api.put<Types.Teacher>(
-        `${ENDPOINTS.teachers}/${id}`,
-        { ...newTeacher }
-      );
-      setRows((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...updated } : t))
-      );
-      // Passing state back to parent component dashboard, to support ClassTab
-      setTeachers(prev => prev.map(t => t.id === id ? { ...t, ...updated } : t));
-
+      const updated = await api.put<Types.Teacher>(`${ENDPOINTS.teachers}/${id}`, {
+        ...newTeacher,
+      });
+      setRows((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
       setEditingTeacher(null);
       resetForm();
     } else {
@@ -367,22 +354,6 @@ export default function TeachersTab({
                   {String(teacher.startDate)}
                   {teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
                 </div>
-
-                <div className="flex items-center gap-3 text-sm text-gray-500">
-                  <span>Class:</span>
-                  {!teacher.classIds || teacher.classIds.length === 0 ? (
-                    <span>___</span>
-                  ) : (
-                    teacher.classIds.map((classId) => {
-                      const cls = classesLite.find((c) => c.id === classId);
-                      return (
-                        <span key={classId} >
-                          {cls ? cls.name : 'Unknown class'}
-                        </span>
-                      );
-                    })
-                  )}
-                </div>
               </div>
 
               <div className="flex gap-2">
@@ -417,10 +388,11 @@ export default function TeachersTab({
           <button
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
+              currentPage === 1
                 ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                 : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-              }`}
+            }`}
           >
             ← Previous
           </button>
@@ -429,10 +401,11 @@ export default function TeachersTab({
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page
+                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
+                  currentPage === page
                     ? "bg-blue-600 text-white"
                     : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-                  }`}
+                }`}
               >
                 {page}
               </button>
@@ -441,10 +414,11 @@ export default function TeachersTab({
           <button
             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
+              currentPage === totalPages
                 ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                 : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-              }`}
+            }`}
           >
             Next →
           </button>
