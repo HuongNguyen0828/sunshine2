@@ -17,6 +17,7 @@ type Props = {
   classes: Types.Class[];
   teachers: Types.Teacher[];
   setClasses: React.Dispatch<React.SetStateAction<Types.Class[]>>;
+  setTeachers: React.Dispatch<React.SetStateAction<Types.Teacher[]>>;
   locations: LocationLite[];
   newClass: NewClassInput;
   setNewClass: React.Dispatch<React.SetStateAction<NewClassInput>>;
@@ -46,6 +47,7 @@ export default function ClassesTab({
   classes,
   teachers,
   setClasses,
+  setTeachers,
   locations,
   newClass,
   setNewClass,
@@ -324,6 +326,7 @@ export default function ClassesTab({
       setIsAssigning(true);
       const ok = await assignTeachersToClass(showAssignTeachers, selectedTeachers);
       if (ok) {
+        // Update state of Classes
         setClasses(prev => prev.map(cls => {
           const currentClass = cls;
           if (cls.id === showAssignTeachers) {
@@ -331,6 +334,28 @@ export default function ClassesTab({
             return newClass;
           }
           return currentClass;
+        }));
+
+        // Update state of Teachers 
+        setTeachers(prev => prev.map(teacher => {
+          const wasAssigned = (teacher.classIds || []).includes(showAssignTeachers);
+          const isNowAssigned = selectedTeachers.includes(teacher.id);
+
+          if (wasAssigned && !isNowAssigned) {
+            // Remove this class from teacher
+            return {
+              ...teacher,
+              classIds: (teacher.classIds || []).filter(id => id !== showAssignTeachers)
+            };
+          } else if (!wasAssigned && isNowAssigned) {
+            // Add this class to teacher
+            return {
+              ...teacher,
+              classIds: [...(teacher.classIds || []), showAssignTeachers],
+              status: Types.TeacherStatus.Active // Ensure teacher becomes Active when assigned
+            };
+          }
+          return teacher;
         }));
         await onAssigned?.();
         setShowAssignTeachers(null);

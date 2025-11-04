@@ -601,6 +601,7 @@ export default function AdminDashboard() {
                   classes={classes}
                   teachers={teachers}
                   setClasses={setClasses}
+                  setTeachers={setTeachers}
                   locations={filteredLocations}
                   newClass={newClass}
                   setNewClass={setNewClass}
