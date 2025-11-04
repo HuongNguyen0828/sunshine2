@@ -4,33 +4,55 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
 
 /**
- * Pick an image from the device and upload it to Firebase Storage.
- * Returns download URL, or null if user cancelled.
+ * Opens the gallery, uploads picked image to Firebase Storage,
+ * and returns the download URL.
+ * Returns null when user cancels.
  */
 export async function pickAndUploadImage(
   pathPrefix: string = "entry-photos"
 ): Promise<string | null> {
+  // 0. clear any pending picker result (important on Android)
+  try {
+    const pending = await ImagePicker.getPendingResultAsync?.();
+    // we don't actually need pending, just calling it drains stale overlays
+    void pending;
+  } catch {
+    // older versions might not have this; ignore
+  }
+
   // 1. permission
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) {
     throw new Error("Photo permission not granted");
   }
 
-  // 2. open picker 
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  // 2. open picker (support both old and new API)
+  const pickerOpts: any = {
     quality: 0.85,
     allowsEditing: false,
-  });
+  };
 
-  if (result.canceled) return null;
+  // older expo-image-picker: MediaTypeOptions.Images
+  // newer expo-image-picker: mediaTypes: [ImagePicker.MediaType.IMAGE]
+  if ((ImagePicker as any).MediaType) {
+    pickerOpts.mediaTypes = [(ImagePicker as any).MediaType.IMAGE];
+  } else {
+    pickerOpts.mediaTypes = ImagePicker.MediaTypeOptions.Images;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync(pickerOpts);
+
+  // user cancelled
+  if (result.canceled) {
+    return null;
+  }
 
   const asset = result.assets?.[0];
   if (!asset?.uri) {
     throw new Error("No image selected");
   }
 
-  // 3. uri → blob
+  // 3. uri -> blob
   const resp = await fetch(asset.uri);
   const blob = await resp.blob();
 
@@ -43,7 +65,7 @@ export async function pickAndUploadImage(
     contentType: blob.type || "image/jpeg",
   });
 
-  // 5. get url
-  const downloadUrl = await getDownloadURL(storageRef);
-  return downloadUrl;
+  // 5. download url
+  const url = await getDownloadURL(storageRef);
+  return url;
 }
