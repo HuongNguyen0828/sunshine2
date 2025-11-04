@@ -80,6 +80,8 @@ const EntryCard = memo(({ entry }: { entry: Partial<EntryDoc> }) => {
   );
 });
 
+EntryCard.displayName = "EntryCard";
+
 export default function TeacherMessages() {
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
