@@ -461,11 +461,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   searchContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "transparent",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomWidth: 0,
   },
   searchBar: {
     flexDirection: "row",
