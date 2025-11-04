@@ -14,6 +14,8 @@ import {
   Modal,
   FlatList,
 } from "react-native";
+
+import { FlashList } from "@shopify/flash-list";
 import { useState, useMemo } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -418,7 +420,7 @@ export default function TeacherReports() {
         style={styles.gradientBackground}
       />
 
-      <FlatList
+      <FlashList
         data={dailyReports}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => renderReport(item, index)}
