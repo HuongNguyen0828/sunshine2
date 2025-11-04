@@ -42,6 +42,7 @@ export default function TeacherTabs() {
           name="messages"
           options={{
             title: "Messages",
+            headerShown: false,
             tabBarIcon: (p) => (
               <Ionicons name="chatbubble-ellipses-outline" {...p} />
             ),
@@ -51,6 +52,7 @@ export default function TeacherTabs() {
           name="reports"
           options={{
             title: "Reports",
+            headerShown: false,
             tabBarIcon: (p) => (
               <Ionicons name="document-text-outline" {...p} />
             ),
