@@ -790,12 +790,20 @@ const styles = StyleSheet.create({
     color: "#475569",
     textTransform: "uppercase",
   },
-  headerType: {
-    width: "40%",
+  headerSummary: {
+    flex: 1,
     fontSize: 12,
     fontWeight: "600",
     color: "#475569",
     textTransform: "uppercase",
+  },
+  headerShare: {
+    width: 60,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#475569",
+    textTransform: "uppercase",
+    textAlign: "center",
   },
   tableContent: {
     paddingBottom: 40,
