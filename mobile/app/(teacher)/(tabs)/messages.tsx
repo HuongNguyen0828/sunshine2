@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "transparent",
   },
   entryCard: {
     flexDirection: "row",
