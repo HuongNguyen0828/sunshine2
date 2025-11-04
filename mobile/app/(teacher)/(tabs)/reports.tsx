@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FAFBFC",
   },
   cellDate: {
-    width: "22%",
+    width: "25%",
     justifyContent: "center",
   },
   cellDateText: {
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   cellChild: {
-    width: "28%",
+    width: "35%",
     justifyContent: "center",
   },
   cellChildName: {
@@ -674,30 +674,30 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   cellType: {
-    width: "20%",
+    width: "40%",
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   typeIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
   },
+  cellTypeTextContainer: {
+    flex: 1,
+  },
   cellTypeText: {
-    fontSize: 12,
-    color: "#475569",
+    fontSize: 13,
+    color: "#1E293B",
+    fontWeight: "500",
   },
-  cellDetail: {
-    width: "30%",
-    justifyContent: "center",
-  },
-  cellDetailText: {
-    fontSize: 12,
+  cellSubtypeText: {
+    fontSize: 11,
     color: "#64748B",
-    lineHeight: 16,
+    marginTop: 2,
   },
   emptyState: {
     alignItems: "center",
