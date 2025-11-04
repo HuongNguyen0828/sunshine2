@@ -328,7 +328,6 @@ export default function TeacherReports() {
           <Text style={styles.headerDate}>Date/Time</Text>
           <Text style={styles.headerChild}>Child</Text>
           <Text style={styles.headerType}>Type</Text>
-          <Text style={styles.headerDetail}>Details</Text>
         </View>
 
         {/* Table Content */}
