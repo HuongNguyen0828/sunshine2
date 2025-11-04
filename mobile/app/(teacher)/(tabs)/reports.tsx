@@ -33,6 +33,7 @@ import {
   Heart,
   CheckCircle,
   Share2,
+  Send,
 } from "lucide-react-native";
 import { generateMockEntries, mockClasses, mockChildren } from "../../../src/data/mockData";
 import { EntryDoc } from "@sunshine/src/types/type";
