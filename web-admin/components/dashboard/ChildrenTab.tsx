@@ -1593,7 +1593,12 @@ export default function ChildrenTab({
                           <span className="font-semibold">Status:</span>{" "}
                           {newChild.enrollmentStatus}
                         </p>
-                        <p className="md:col-span-2">
+                        <p>
+                          <span className="font-semibold">Start Date:</span>{" "}
+                          {newChild.startDate}
+                        </p>
+
+                        <p>
                           <span className="font-semibold">Notes:</span>{" "}
                           {newChild.notes || "None"}
                         </p>
