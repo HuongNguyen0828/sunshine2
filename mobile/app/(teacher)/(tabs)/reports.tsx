@@ -287,7 +287,7 @@ export default function TeacherReports() {
         <View>
           <Text style={styles.title}>Reports</Text>
           <Text style={styles.subtitle}>
-            {filteredEntries.length} {filteredEntries.length === 1 ? "entry" : "entries"}
+            {stats.totalReports} daily {stats.totalReports === 1 ? "report" : "reports"}
           </Text>
         </View>
         <Pressable style={styles.exportButton}>
