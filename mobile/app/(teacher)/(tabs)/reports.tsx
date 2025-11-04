@@ -239,42 +239,44 @@ export default function TeacherReports() {
     }
   };
 
-  const renderEntry = (entry: Partial<EntryDoc>, index: number) => {
-    const config = entryTypeConfig[entry.type as keyof typeof entryTypeConfig];
-    const IconComponent = config?.icon || Activity;
-    const date = entry.occurredAt
-      ? new Date(entry.occurredAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        })
-      : "";
-    const time = entry.occurredAt
-      ? new Date(entry.occurredAt).toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        })
-      : "";
+  const renderReport = (report: DailyReport, index: number) => {
+    const date = report.date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
 
     return (
-      <View style={[styles.tableRow, index % 2 === 0 && styles.tableRowEven]}>
+      <Pressable
+        style={[styles.tableRow, index % 2 === 0 && styles.tableRowEven]}
+        onPress={() => {
+          setSelectedReport(report);
+          setShowReportModal(true);
+        }}
+      >
         <View style={styles.cellDate}>
           <Text style={styles.cellDateText}>{date}</Text>
-          <Text style={styles.cellTimeText}>{time}</Text>
+          <Text style={styles.cellTimeText}>
+            {report.totalActivities} {report.totalActivities === 1 ? "activity" : "activities"}
+          </Text>
         </View>
         <View style={styles.cellChild}>
-          <Text style={styles.cellChildName} numberOfLines={1}>{entry.childName}</Text>
-          <Text style={styles.cellClassName}>{entry.className}</Text>
+          <Text style={styles.cellChildName} numberOfLines={1}>{report.childName}</Text>
+          <Text style={styles.cellClassName}>{report.className}</Text>
         </View>
-        <View style={styles.cellType}>
-          <View style={[styles.typeIcon, { backgroundColor: config?.bg }]}>
-            <IconComponent size={16} color={config?.color} />
-          </View>
-          <View style={styles.cellTypeTextContainer}>
-            <Text style={styles.cellTypeText}>{entry.type}</Text>
-            {entry.subtype && <Text style={styles.cellSubtypeText}>{entry.subtype}</Text>}
-          </View>
+        <View style={styles.cellSummary}>
+          <Text style={styles.cellSummaryText} numberOfLines={2}>{report.activitySummary}</Text>
         </View>
-      </View>
+        <Pressable
+          style={styles.shareButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            setSelectedReport(report);
+            setShowReportModal(true);
+          }}
+        >
+          <Share2 size={18} color="#6366F1" strokeWidth={2} />
+        </Pressable>
+      </Pressable>
     );
   };
 
