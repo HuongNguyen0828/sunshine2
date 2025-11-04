@@ -494,6 +494,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
     marginRight: 8,
+    minWidth: 110,
+    justifyContent: "center",
   },
   filterButtonActive: {
     backgroundColor: "#6366F1",
