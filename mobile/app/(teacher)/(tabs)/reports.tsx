@@ -306,8 +306,8 @@ export default function TeacherReports() {
         contentContainerStyle={styles.statsContainer}
       >
         <View style={[styles.statCard, { backgroundColor: "#EEF2FF" }]}>
-          <Text style={styles.statNumber}>{stats.totalEntries}</Text>
-          <Text style={styles.statLabel}>Total Entries</Text>
+          <Text style={styles.statNumber}>{stats.totalReports}</Text>
+          <Text style={styles.statLabel}>Daily Reports</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: "#F0FDF4" }]}>
           <Text style={styles.statNumber}>{stats.uniqueChildren}</Text>
@@ -318,10 +318,8 @@ export default function TeacherReports() {
           <Text style={styles.statLabel}>Top Activity</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: "#FDF2F8" }]}>
-          <Text style={styles.statNumber}>
-            {mockClasses.find(c => c.id === stats.topClass)?.name?.split(" ")[0] || "N/A"}
-          </Text>
-          <Text style={styles.statLabel}>Most Active</Text>
+          <Text style={styles.statNumber}>{stats.totalEntries}</Text>
+          <Text style={styles.statLabel}>Total Activities</Text>
         </View>
       </ScrollView>
 
