@@ -508,6 +508,11 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     letterSpacing: -0.5,
   },
+  subtitle: {
+    fontSize: 15,
+    color: "#64748B",
+    marginTop: 4,
+  },
   exportButton: {
     flexDirection: "row",
     alignItems: "center",
