@@ -51,6 +51,18 @@ const entryTypeConfig = {
 
 type DateRange = "today" | "week" | "month" | "custom";
 
+type DailyReport = {
+  id: string;
+  date: Date;
+  childId: string;
+  childName: string;
+  className: string;
+  classId: string;
+  entries: Partial<EntryDoc>[];
+  activitySummary: string;
+  totalActivities: number;
+};
+
 export default function TeacherReports() {
   const insets = useSafeAreaInsets();
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
