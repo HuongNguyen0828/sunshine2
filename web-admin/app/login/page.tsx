@@ -8,7 +8,7 @@
 // app/login/page.tsx
 'use client';
 
-import { useEffect, useMemo, useState,  } from 'react';
+import { useEffect, useMemo, useState, } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -24,6 +24,11 @@ export default function LoginPage() {
   const [pw, setPw] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const uid = Cookies.get("uid");
+
+  useEffect(() => {
+    router.replace("/");
+  }, []); // Force to go to mainpage vaidation when mount
 
 
   console.log('[Login Page] Component state:', { email, loading, hasError: !!err });
@@ -46,14 +51,15 @@ export default function LoginPage() {
       await signIn(email.trim().toLowerCase(), pw);
       // If success, direct user to the entrance page: app/page.tsx
       router.replace('/');
-      
+
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Login failed';
       setErr(message);
     } finally {
     }
   };
-  return (
+  if (uid) return <div>Loading</div> // Wait for useEffect redirect
+  else return (
     <div className="flex min-h-screen">
       {/* Left Side - Hero Section */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
@@ -124,9 +130,8 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.currentTarget.value)}
-                className={`w-full h-11 px-3 text-base rounded-lg border ${
-                  err ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-gray-900 focus:ring-gray-900'
-                } focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200 placeholder:text-gray-400`}
+                className={`w-full h-11 px-3 text-base rounded-lg border ${err ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-gray-900 focus:ring-gray-900'
+                  } focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200 placeholder:text-gray-400`}
                 placeholder="you@example.com"
                 autoComplete="email"
                 required
@@ -146,9 +151,8 @@ export default function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={pw}
                   onChange={(e) => setPw(e.currentTarget.value)}
-                  className={`w-full h-11 px-3 pr-10 text-base rounded-lg border ${
-                    err ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-gray-900 focus:ring-gray-900'
-                  } focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200 placeholder:text-gray-400`}
+                  className={`w-full h-11 px-3 pr-10 text-base rounded-lg border ${err ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-gray-900 focus:ring-gray-900'
+                    } focus:ring-2 focus:ring-offset-0 focus:outline-none transition-all duration-200 placeholder:text-gray-400`}
                   placeholder="••••••••"
                   autoComplete="current-password"
                   required
@@ -191,11 +195,10 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={!valid || loading}
-              className={`w-full h-11 font-semibold rounded-lg transition-all duration-200 mt-6 ${
-                valid && !loading
-                  ? 'bg-gray-900 hover:bg-gray-800 text-white cursor-pointer'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
+              className={`w-full h-11 font-semibold rounded-lg transition-all duration-200 mt-6 ${valid && !loading
+                ? 'bg-gray-900 hover:bg-gray-800 text-white cursor-pointer'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>

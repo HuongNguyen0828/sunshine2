@@ -418,12 +418,12 @@ export async function assignTeachersToClass(
       ? Array.from(new Set(teacherIds.map((s) => s.trim()).filter((s) => s.length > 0)))
       : [];
 
-  // Auto-pick "New" teachers in the same location as the class
+  // Auto-pick All teachers in the same location as the class, except "Inactive"
   if (candidateIds.length === 0) {
     const elig = await db
       .collection("users")
       .where("role", "==", "teacher")
-      .where("status", "==", "New")
+      .where("status", "!=", "Inactive")
       .where("locationId", "==", classLoc)
       .get();
     candidateIds = elig.docs.map((d) => d.id);
