@@ -234,10 +234,14 @@ export default function TeacherReports() {
       >
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <Text style={styles.title}>Reports</Text>
+          <View>
+            <Text style={styles.title}>Reports</Text>
+            <Text style={styles.subtitle}>
+              {filteredEntries.length} {filteredEntries.length === 1 ? "entry" : "entries"}
+            </Text>
+          </View>
           <Pressable style={styles.exportButton}>
             <Download size={20} color="#FFFFFF" />
-            <Text style={styles.exportButtonText}>Export PDF</Text>
             <View style={styles.comingSoonBadge}>
               <Text style={styles.comingSoonText}>Soon</Text>
             </View>
