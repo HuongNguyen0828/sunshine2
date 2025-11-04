@@ -656,7 +656,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F3F4F6',
   },
   dropdownContent: {
-    padding: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
   dropdownItem: {
     flexDirection: 'row',
@@ -664,9 +665,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 12,
   },
+  dropdownItemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
   dropdownText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#475569',
+    flex: 1,
+    fontWeight: '500',
   },
   dropdownHeader: {
     fontSize: 13,
