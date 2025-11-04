@@ -330,10 +330,35 @@ export default function TeacherMore() {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Profile Header */}
         <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarInitials}>TN</Text>
-          </View>
-          <Text style={styles.userName}>Teacher Name</Text>
+          <Pressable style={styles.avatarContainer} onPress={pickImage}>
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarInitials}>
+                {teacherName ? teacherName.substring(0, 2).toUpperCase() : 'TN'}
+              </Text>
+            )}
+            <View style={styles.cameraButton}>
+              <Camera size={18} color="#FFFFFF" strokeWidth={2.5} />
+            </View>
+          </Pressable>
+
+          {isEditingName ? (
+            <TextInput
+              style={styles.userNameInput}
+              value={teacherName}
+              onChangeText={setTeacherName}
+              onBlur={() => setIsEditingName(false)}
+              autoFocus
+              selectTextOnFocus
+              placeholder="Enter your name"
+            />
+          ) : (
+            <Pressable onPress={() => setIsEditingName(true)}>
+              <Text style={styles.userName}>{teacherName || 'Teacher Name'}</Text>
+            </Pressable>
+          )}
+
           <View style={styles.badgesContainer}>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>Sunshine Daycare</Text>
