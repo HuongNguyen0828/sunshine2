@@ -1,71 +1,3 @@
-/**
- * Teacher Reports Tab
- *
- * Displays daily reports grouped by child with filtering and date range selection.
- * Teachers can view, edit, and share reports with parents.
- */
-
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  Pressable,
-  Modal,
-  FlatList,
-} from "react-native";
-
-import { FlashList } from "@shopify/flash-list";
-import { useState, useMemo } from "react";
-import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  Filter,
-  ChevronDown,
-  Calendar,
-  Download,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-  Activity,
-  Coffee,
-  Moon,
-  Toilet,
-  Camera,
-  Heart,
-  CheckCircle,
-  Share2,
-  Send,
-} from "lucide-react-native";
-import { generateMockEntries, mockClasses, mockChildren } from "../../../src/data/mockData";
-import { EntryDoc } from "@sunshine/src/types/type";
-
-// Entry type icons and colors (matching messages tab)
-const entryTypeConfig = {
-  Attendance: { icon: CheckCircle, color: "#10B981", bg: "#D1FAE5" },
-  Food: { icon: Coffee, color: "#F59E0B", bg: "#FEF3C7" },
-  Sleep: { icon: Moon, color: "#8B5CF6", bg: "#EDE9FE" },
-  Toilet: { icon: Toilet, color: "#06B6D4", bg: "#CFFAFE" },
-  Activity: { icon: Activity, color: "#3B82F6", bg: "#DBEAFE" },
-  Photo: { icon: Camera, color: "#EC4899", bg: "#FCE7F3" },
-  Note: { icon: FileText, color: "#6B7280", bg: "#F3F4F6" },
-  Health: { icon: Heart, color: "#EF4444", bg: "#FEE2E2" },
-};
-
-type DateRange = "today" | "week" | "month" | "custom";
-
-type DailyReport = {
-  id: string;
-  date: Date;
-  childId: string;
-  childName: string;
-  className: string;
-  classId: string;
-  entries: Partial<EntryDoc>[];
-  activitySummary: string;
-  totalActivities: number;
-  sent: boolean;
-};
 
 export default function TeacherReports() {
   const insets = useSafeAreaInsets();
@@ -1166,3 +1098,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
