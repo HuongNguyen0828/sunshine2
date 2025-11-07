@@ -1,6 +1,9 @@
 // backend/src/routes/mobile/entriesRoutes.ts
 import { Router, Request, Response, NextFunction } from "express";
-import { bulkCreateEntries, listEntries } from "../../controllers/mobile/entriesController";
+import {
+  bulkCreateEntries,
+  listEntries,
+} from "../../controllers/mobile/entriesController";
 import { verifyIdToken } from "../../middleware/verifyIdToken";
 import { rateLimit } from "../../middleware/rateLimit";
 
@@ -22,7 +25,7 @@ const ENTRY_TYPES = new Set([
   "Health",
 ]);
 
-// ISO datetime guard (e.g., 2025-11-01T12:34:56.789Z)
+// ISO datetime guard (e.g. 2025-11-01T12:34:56.789Z)
 function isIsoDateTime(v: unknown): v is string {
   if (typeof v !== "string") return false;
   const d = new Date(v);
@@ -41,15 +44,15 @@ function normalizeAll(v?: unknown): string | undefined {
   return String(v);
 }
 
-// Unique & sanitized child id array
+// Unique & sanitized childIds
 function sanitizeChildIds(v: unknown): string[] {
   const arr = Array.isArray(v) ? v : [];
-  const s = new Set<string>();
-  for (const it of arr) {
-    const id = toStr(it);
-    if (id) s.add(id);
+  const out = new Set<string>();
+  for (const item of arr) {
+    const id = toStr(item);
+    if (id) out.add(id);
   }
-  return Array.from(s);
+  return Array.from(out);
 }
 
 /* ===============================
@@ -58,11 +61,17 @@ function sanitizeChildIds(v: unknown): string[] {
 
 /**
  * Validate request body for bulk creation and normalize payload.
- * Notes:
- * - occurredAt must be ISO datetime for all items
- * - applyToAllInClass=true requires classId
- * - Type-specific required fields enforced here
- * - We do not allow empty items
+ *
+ * Rules:
+ * - items must be a non-empty array
+ * - each item must have a valid type
+ * - each item must have occurredAt in ISO format
+ * - applyToAllInClass=true → classId is required
+ * - type-specific requirements checked here to give early feedback
+ *
+ * Note:
+ * - We **allow** childIds to be empty when applyToAllInClass=false.
+ *   The service layer will fan-out (or return "no_children") later.
  */
 function bulkValidator(req: Request, res: Response, next: NextFunction) {
   const body = (req.body || {}) as { items?: any[] };
@@ -74,6 +83,7 @@ function bulkValidator(req: Request, res: Response, next: NextFunction) {
 
   for (let i = 0; i < body.items.length; i++) {
     const raw = body.items[i] || {};
+
     const type = toStr(raw.type);
     if (!ENTRY_TYPES.has(type)) {
       return res.status(400).json({ message: `invalid_type_at_${i}` });
@@ -84,7 +94,6 @@ function bulkValidator(req: Request, res: Response, next: NextFunction) {
       return res.status(400).json({ message: `invalid_occurredAt_at_${i}` });
     }
 
-    // classId can be null; applyToAllInClass requires classId
     const classId = raw.classId == null ? null : toStr(raw.classId);
     const applyToAllInClass = Boolean(raw.applyToAllInClass);
     const childIds = sanitizeChildIds(raw.childIds);
@@ -93,43 +102,55 @@ function bulkValidator(req: Request, res: Response, next: NextFunction) {
       return res.status(400).json({ message: `classId_required_at_${i}` });
     }
 
-    // Type-specific validations
+    // Type-specific checks (mirror shared/types)
     switch (type) {
       case "Attendance":
         if (!["Check in", "Check out"].includes(toStr(raw.subtype))) {
-          return res.status(400).json({ message: `attendance_subtype_required_at_${i}` });
+          return res
+            .status(400)
+            .json({ message: `attendance_subtype_required_at_${i}` });
         }
         break;
       case "Food":
         if (!["Breakfast", "Lunch", "Snack"].includes(toStr(raw.subtype))) {
-          return res.status(400).json({ message: `food_subtype_required_at_${i}` });
+          return res
+            .status(400)
+            .json({ message: `food_subtype_required_at_${i}` });
         }
         break;
       case "Sleep":
         if (!["Started", "Woke up"].includes(toStr(raw.subtype))) {
-          return res.status(400).json({ message: `sleep_subtype_required_at_${i}` });
+          return res
+            .status(400)
+            .json({ message: `sleep_subtype_required_at_${i}` });
         }
         break;
       case "Toilet":
         if (!["urine", "bm"].includes(toStr(raw.toiletKind))) {
-          return res.status(400).json({ message: `toilet_kind_required_at_${i}` });
+          return res
+            .status(400)
+            .json({ message: `toilet_kind_required_at_${i}` });
         }
         break;
       case "Activity":
       case "Note":
       case "Health":
         if (!toStr(raw.detail)) {
-          return res.status(400).json({ message: `detail_required_at_${i}` });
+          return res
+            .status(400)
+            .json({ message: `detail_required_at_${i}` });
         }
         break;
       case "Photo":
+        // Frontend will usually upload and send a URL
         if (!toStr(raw.photoUrl)) {
-          return res.status(400).json({ message: `photo_url_required_at_${i}` });
+          return res
+            .status(400)
+            .json({ message: `photo_url_required_at_${i}` });
         }
         break;
     }
 
-    // Normalize final object sent to controller/service
     normalized.push({
       type,
       occurredAt,
@@ -148,11 +169,11 @@ function bulkValidator(req: Request, res: Response, next: NextFunction) {
 }
 
 /**
- * Validate and normalize query for listing entries.
- * Notes:
- * - parent/teacher scoping is enforced in the controller
- * - We ignore “All/All Classes/All Children” by converting to undefined
- * - Clamp limit into [1,100]
+ * Validate and normalize list query.
+ *
+ * - Converts “All …” to undefined
+ * - Validates dates
+ * - Clamps limit
  */
 function listValidator(req: Request, res: Response, next: NextFunction) {
   const q = req.query as any;
@@ -160,14 +181,16 @@ function listValidator(req: Request, res: Response, next: NextFunction) {
 
   const childId = normalizeAll(q.childId);
   const classId = normalizeAll(q.classId);
-  const typeMaybe = normalizeAll(q.type);
+  const maybeType = normalizeAll(q.type);
 
   if (childId) out.childId = toStr(childId);
   if (classId) out.classId = toStr(classId);
 
-  if (typeMaybe) {
-    const t = toStr(typeMaybe);
-    if (!ENTRY_TYPES.has(t)) return res.status(400).json({ message: "invalid_type" });
+  if (maybeType) {
+    const t = toStr(maybeType);
+    if (!ENTRY_TYPES.has(t)) {
+      return res.status(400).json({ message: "invalid_type" });
+    }
     out.type = t;
   }
 
@@ -176,6 +199,7 @@ function listValidator(req: Request, res: Response, next: NextFunction) {
     if (!isIsoDateTime(v)) return res.status(400).json({ message: "invalid_dateFrom" });
     out.dateFrom = v;
   }
+
   if (q.dateTo) {
     const v = toStr(q.dateTo);
     if (!isIsoDateTime(v)) return res.status(400).json({ message: "invalid_dateTo" });
@@ -193,10 +217,10 @@ function listValidator(req: Request, res: Response, next: NextFunction) {
  * Routes
  * =============================== */
 
-// Bulk create entries (teacher scope)
+// POST /v1/entries/bulk → create multiple entries
 r.post("/v1/entries/bulk", rateLimit, verifyIdToken, bulkValidator, bulkCreateEntries);
 
-// List entries (parent/teacher scope)
+// GET /v1/entries → list entries with filters
 r.get("/v1/entries", rateLimit, verifyIdToken, listValidator, listEntries);
 
 export default r;

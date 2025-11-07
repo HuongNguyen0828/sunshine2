@@ -1,6 +1,15 @@
 // web-admin/app/dashboard/[uid]/page.tsx
 "use client";
+export type CountStats =
+  {
+    total: number;
+    byLocation: Record<string, number>;
+  }
 
+export type ClassLite = {
+  id: string,
+  name: string,
+}
 import React, { useEffect, useState, useCallback, useMemo, useTransition } from "react";
 import AppHeader from "@/components/AppHeader";
 import SidebarNav from "@/components/dashboard/SidebarNav";
@@ -34,7 +43,7 @@ import {
 } from "@/services/useChildrenAPI";
 import TeachersTab from "@/components/dashboard/TeachersTab";
 import { fetchParents } from "@/services/useParentsAPI";
-import { type NewParentInputWithChildId } from "@/services/useParentsAPI";
+import { type CustomParentInput } from "@/components/dashboard/ChildrenTab"
 import { a } from "framer-motion/client";
 
 /* ---------------- utils ---------------- */
@@ -120,7 +129,6 @@ export default function AdminDashboard() {
   const [children, setChildren] = useState<Types.Child[]>([]); // return a List of (object of child and parent1 and parent2)
   const [parents, setParents] = useState<Types.Parent[]>([]);
   // const [parentLites, setParentLites] = useState<Array<{ id: string; firstName?: string; lastName?: string; email?: string }>>([]);
-  // const [parentLites, setParentLites] = useState<Types.Parent[]>([]); //// Array of parent 1 and parent 2 extracted from Child
 
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [updateLoading, setUpdateLoading] = useState<boolean>(false); // Separate state of loading initally vs of actions
@@ -128,7 +136,7 @@ export default function AdminDashboard() {
   const [createdChildId, setcreatedChildId] = useState<string | null>(null); /// Initally, chidId is null, To later link with parent
 
   /* forms */
-  const [newTeacher, setNewTeacher] = useState<NewTeacherInput>({
+  const initialTeacherValue = {
     firstName: "",
     lastName: "",
     email: "",
@@ -143,7 +151,8 @@ export default function AdminDashboard() {
     locationId: "",
     startDate: "",
     endDate: undefined,
-  });
+  };
+  const [newTeacher, setNewTeacher] = useState<NewTeacherInput>(initialTeacherValue);
 
   const [newChild, setNewChild] = useState<NewChildInput>({
     firstName: "",
@@ -272,39 +281,28 @@ export default function AdminDashboard() {
   /* ---------- teachers ---------- */
 
   const handleAddTeacher = async () => {
-
-    await addTeacher(newTeacher);
-    startTransition(async () => {
-      setUpdateLoading(true);
+    setUpdateLoading(true);
+    const addedTeacher = await addTeacher(newTeacher);
+    try {
       const tcs: Types.Teacher[] = await fetchTeachers();
       setTeachers(tcs);
+      setNewTeacher(initialTeacherValue);
+    } catch (error: any) {
+      // Error alert - loading still shows
+      await swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.message || "Failed to add teacher"
+      });
+    } finally {
       setUpdateLoading(false);
-    });
-    setNewTeacher({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      address1: "",
-      address2: "",
-      city: "",
-      province: "",
-      country: "",
-      postalcode: "",
-      classIds: [],
-      locationId: "",
-      startDate: "",
-      endDate: undefined,
-    });
-
+    }
   };
 
   /* ---------- children (optimistic) ---------- */
 
-  const handleAddChild = async (parent1: NewParentInput, parent2: NewParentInput | null): Promise<returnChildWithParents | null> => {
-
+  const handleAddChild = async (parent1: CustomParentInput, parent2: CustomParentInput | null): Promise<returnChildWithParents | null> => {
     setUpdateLoading(true);
-
     const child: NewChildInput = {
       firstName: newChild.firstName.trim(),
       lastName: newChild.lastName.trim(),
@@ -322,8 +320,10 @@ export default function AdminDashboard() {
       const created = await addChildWithParents({ child, parent1, parent2 });
 
       // Refresh data: child and parents involved;
-      await fetchChildren();
-      await fetchParents();
+      const children = await fetchChildren();
+      const parents = await fetchParents();
+      setChildren(children);
+      setParents(parents);
 
       return created;
     } catch (error: any) {
@@ -335,64 +335,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleUpdateChild = async (id: string, patch: Partial<NewChildInput>): Promise<Types.Child | null> => {
-    //   try {
-    //     const res = await updateChild(id, {
-    //       firstName: patch.firstName.trim(),
-    //       lastName: patch.lastName.trim(),
-    //       gender: patch.gender,
-    //       birthDate: patch.birthDate,
-    //       parentId: Array.isArray(patch.parentId) ? patch.parentId : undefined,
-    //       locationId: scope.mode === "fixed" ? scope.fixedLocationId : patch.locationId?.trim(),
-    //       notes: patch.notes?.trim(),
-    //       enrollmentStatus: patch.enrollmentStatus,
-    //       classId: patch.classId,
-    //       startDate: patch.startDate
-    //     });
-
-    //     if (res && typeof res === "object") {
-    //       const updated = res as Types.Child;
-
-    //       const prevChild = children.find(c => c.id === id);
-    //       const prevClassId = prevChild?.classId;
-    //       const nextClassId = updated.classId;
-
-    //       setChildren(prev => prev.map(c => (c.id === id ? { ...c, ...updated } : c)));
-
-    //       if (prevClassId !== nextClassId) {
-    //         if (prevClassId) {
-    //           setClasses(prev =>
-    //             prev.map(cls =>
-    //               cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls
-    //             )
-    //           );
-    //         }
-    //         if (nextClassId) {
-    //           setClasses(prev =>
-    //             prev.map(cls =>
-    //               cls.id === nextClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) + 1) } : cls
-    //             )
-    //           );
-    //         }
-    //       }
-    //     } else {
-    //       startTransition(() => {
-    //         refetchChildrenLite();
-    //         refetchClassesLite();
-    //       });
-    //     }
-    //   } catch (e) {
-    //     const msg = getErrorMessage(e, "Failed to update child.");
-    //     alert(msg);
-    //     return null;
-    //   }
-
-    //   startTransition(() => {
-    //     refetchChildrenLite();
-    //   });
-
-    return null;
-  };
 
   const handleDeleteChild = async (id: string): Promise<boolean> => {
     try {
@@ -453,107 +395,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const onUnassignChild = async (childId: string) => {
-    try {
-      const prevChild = children.find((c) => c.id === childId);
-      const prevClassId = prevChild?.classId;
-
-      // await unassignChildFromClass(childId);
-
-      setChildren((prev) =>
-        prev.map((c) =>
-          c.id === childId
-            ? {
-              ...c,
-              classId: undefined,
-              enrollmentStatus: (c.parentId?.length ?? 0) > 0 ? Types.EnrollmentStatus.Waitlist : Types.EnrollmentStatus.New,
-            }
-            : c
-        )
-      );
-
-      if (prevClassId) {
-        setClasses((prev) =>
-          prev.map((cls) => (cls.id === prevClassId ? { ...cls, volume: Math.max(0, (cls.volume ?? 0) - 1) } : cls))
-        );
-      }
-
-      startTransition(() => {
-        // refetchChildrenLite();
-        refetchClassesLite();
-      });
-
-      return true;
-    } catch {
-      alert("Failed to unassign child. Please try again.");
-      return false;
-    }
-  };
-
-  const onLinkParentByEmail = async (childId: string, email: string) => {
-    try {
-      // await linkParentToChildByEmail(childId, email);
-
-      // const foundParent = parentLites.find((p) => (p.email ?? "").toLowerCase() === email.toLowerCase());
-      // if (foundParent) {
-      //   setChildren((prev) =>
-      //     prev.map((c) =>
-      //       c.id === childId
-      //         ? {
-      //           ...c,
-      //           parentId: Array.from(new Set([...(c.parentId ?? []), foundParent.id])),
-      //           enrollmentStatus: c.classId ? Types.EnrollmentStatus.Active : Types.EnrollmentStatus.Waitlist,
-      //         }
-      //         : c
-      //     )
-      //   );
-      //   } else {
-      //     startTransition(() => {
-      //       refetchChildrenLite();
-      //     });
-      //   }
-
-      //   startTransition(() => {
-      //     refetchChildrenLite();
-      //   });
-
-      //   return true;
-    } catch (e: unknown) {
-      //   const msg = getErrorMessage(e, "Failed to link parent by email.");
-      //   alert(msg);
-      //   return false;
-    }
-  };
-
-  const onUnlinkParent = async (childId: string, parentUserId: string) => {
-    try {
-      // await unlinkParentFromChild(childId, parentUserId);
-
-      // setChildren((prev) =>
-      //   prev.map((c) => {
-      //     if (c.id !== childId) return c;
-      //     const nextParentIds = (c.parentId ?? []).filter((pid) => pid !== parentUserId);
-      //     const nextStatus = c.classId
-      //       ? nextParentIds.length > 0
-      //         ? Types.EnrollmentStatus.Active
-      //         : Types.EnrollmentStatus.Waitlist
-      //       : nextParentIds.length > 0
-      //         ? Types.EnrollmentStatus.Waitlist
-      //         : Types.EnrollmentStatus.New;
-      //     return { ...c, parentId: nextParentIds, enrollmentStatus: nextStatus };
-      //   })
-      // );
-
-      // startTransition(() => {
-      //   refetchChildrenLite();
-      // });
-
-      return true;
-    } catch {
-      alert("Failed to unlink parent.");
-      return false;
-    }
-  };
 
 
   /* ---------- classes passthrough ---------- */
@@ -567,10 +408,53 @@ export default function AdminDashboard() {
     });
   };
 
+
+
+  const computeTeacherCounts = useCallback((countFors: Types.Teacher[] | Types.Child[] | Types.Parent[] | Types.Class[]): CountStats => {
+    const countsByLocation: Record<string, number> = {};
+    let total = 0;
+
+    // Initialize all locations with 0
+    locations.forEach(location => {
+      countsByLocation[location.id] = 0;
+    });
+
+    // Count teachers per location
+    countFors.forEach(countFor => {
+      if (countFor.locationId && countsByLocation[countFor.locationId] !== undefined) {
+        countsByLocation[countFor.locationId]++;
+        total++;
+      }
+    });
+
+    return { total, byLocation: countsByLocation };
+  }, [teachers, children, classes, parents, locations]);
+
+
+  const passingClassesLite: ClassLite[] = useMemo(() => classes.map(cls => ({ id: cls.id, name: cls.name })), [classes]);
   /* ---------- render ---------- */
 
+  // Add proper authentication handling
   if (authLoading) {
-    return <div>Loading</div>;
+    return <div>Loading authentication...</div>;
+  }
+
+  // Protected page
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="bg-white p-8 rounded-xl shadow-md max-w-sm w-full mx-4">
+          <h1 className="text-xl font-semibold text-gray-800 text-center mb-3">Access Denied</h1>
+          <p className="text-gray-600 text-center mb-6">You need to be logged in to view this page.</p>
+          <a
+            href="/login"
+            className="block w-full py-2 px-4 text-center font-semibold rounded-lg transition-all duration-200 mt-6 bg-gray-900 hover:bg-gray-800 text-white cursor-pointer"
+          >
+            Sign In
+          </a>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -588,61 +472,50 @@ export default function AdminDashboard() {
         </header>
 
         {/*  Loading/ Updating status */}
-        {initialLoading && <div className="text-center"> Loading data ....</div>}
-        {updateLoading && <div className="text-center"> Updating data ....</div>}
+        {initialLoading && (
+          <div className="text-center p-4 bg-blue-100 text-blue-800 font-semibold rounded-lg mb-4">
+            Loading data ....
+          </div>
+        )}
+
+        {updateLoading && (
+          <div className="text-center p-4 bg-blue-100 text-blue-800 font-semibold rounded-lg mb-4">
+            ⏳ Updating data...
+          </div>
+        )}
 
         <div style={dash.content}>
           <SidebarNav active={activeTab} onChange={setActiveTab} />
           <main style={dash.main}>
             {activeTab === "overview" && (
-              <Overview teacherCount={teachers.length} childCount={children.length} parentCount={parents.length} classCount={classes.length} />
+              <Overview
+                teacherCount={computeTeacherCounts(teachers)} // total: teachers.leng, locationId: teachers.filter(teacher.locationId === locationId),lengthh
+                childCount={computeTeacherCounts(children)}
+                parentCount={computeTeacherCounts(parents)}
+                classCount={computeTeacherCounts(classes)}
+                locations={filteredLocations}
+              />
             )}
 
             {activeTab === "teachers" && (
               <TeachersTab
                 teachers={teachers}
+                setTeachers={setTeachers} // to catch any other change from teacher (edit, delete) => reflecting in Dashboard => share other compinent
                 newTeacher={newTeacher}
                 setNewTeacher={setNewTeacher}
                 onAdd={handleAddTeacher}
                 locations={filteredLocations}
+                classesLite={passingClassesLite}
               />
             )}
-
-            {activeTab === "children" && (
-              <ChildrenTab
-                children={children}
-                classes={classes}
-                parents={parents}
-                locations={filteredLocations}
-                newChild={newChild}
-                setNewChild={setNewChild}
-                addChild={handleAddChild}
-                updateChild={handleUpdateChild}
-                deleteChild={handleDeleteChild}
-                onAssign={onAssignChild}
-                onUnassign={onUnassignChild}
-                // onLinkParentByEmail={onLinkParentByEmail}
-                onUnlinkParent={onUnlinkParent}
-              // Parent
-              />
-            )}
-
-            {/* {
-              activeTab === "parents" && (
-                <ParentsTab
-                  parents={parents}
-                // newParent={newParent}
-                // setNewParent={setNewParent}
-                // onAdd={handleAddParent}
-                />
-              )
-            } */}
 
             {
               activeTab === "classes" && (
                 <ClassesTab
                   classes={classes}
                   teachers={teachers}
+                  setClasses={setClasses}
+                  setTeachers={setTeachers}
                   locations={filteredLocations}
                   newClass={newClass}
                   setNewClass={setNewClass}
@@ -653,6 +526,38 @@ export default function AdminDashboard() {
                 />
               )
             }
+
+            {activeTab === "children" && (
+              <ChildrenTab
+                children={children}
+                setChildren={setChildren} // Passing down to child component
+                classes={classes}
+                parents={parents}
+                locations={filteredLocations}
+                newChild={newChild}
+                setNewChild={setNewChild}
+                addChild={handleAddChild}
+                deleteChild={handleDeleteChild}
+                onAssign={onAssignChild} // including both initial Assign child to the class and switching class
+              // onUnassign={onUnassignChild}
+              // onLinkParentByEmail={onLinkParentByEmail}
+              // onUnlinkParent={onUnlinkParent}
+              // Parent
+              />
+            )}
+
+            {
+              activeTab === "parents" && (
+                <ParentsTab
+                  parents={parents}
+                  children={children}
+                  setParents={setParents}
+                  locations={filteredLocations}
+                />
+              )
+            }
+
+
 
             {activeTab === "scheduler-labs" && <SchedulerLabsTab />}
           </main >

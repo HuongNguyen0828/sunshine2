@@ -25,45 +25,46 @@ const BASE_URL =
  * Client-side rules (mirror of server)
  * =============================== */
 
-// Types that require a subtype
+// Types requiring subtype
 const NEEDS_SUBTYPE: EntryType[] = ["Attendance", "Food", "Sleep"];
 
-// Types that require a free-text detail
-const NEEDS_DETAIL: EntryType[] = ["Activity", "Note", "Health"];
+// Types requiring free-text detail
+// → Food도 여기 포함시킴 (메뉴/설명 필드)
+const NEEDS_DETAIL: EntryType[] = ["Activity", "Note", "Health", "Food"];
 
-// Types that require a photo url
+// Types requiring photo url
+// (모바일에선 업로드해서 URL을 만든 다음 여기로 보냄)
 const NEEDS_PHOTO: EntryType[] = ["Photo"];
 
-// Toilet requires toiletKind but no subtype
-function needsToiletKind(t: EntryType) {
-  return t === "Toilet";
-}
+// Toilet requires toiletKind (no subtype)
+const needsToiletKind = (t: EntryType) => t === "Toilet";
 
 /* ===============================
  * Small utilities
  * =============================== */
 
-// ISO datetime guard
-function isIsoDateTime(v: unknown): v is string {
+const isIsoDateTime = (v: unknown): v is string => {
   if (typeof v !== "string") return false;
   const d = new Date(v);
   return !isNaN(d.getTime());
-}
+};
 
-// Now in ISO
-function nowIso() {
-  return new Date().toISOString();
-}
+const nowIso = () => new Date().toISOString();
 
-// Build auth header using Firebase ID token
 async function authHeader() {
   const idToken = await auth.currentUser?.getIdToken(true);
   if (!idToken) throw new Error("Not authenticated");
   return { Authorization: `Bearer ${idToken}` };
 }
 
-function toStr(v: unknown) {
-  return String(v ?? "").trim();
+const toStr = (v: unknown) => String(v ?? "").trim();
+
+/** Treat “All / All Classes / All Children” as undefined (no filter) */
+function normalizeAll(v?: unknown): string | undefined {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (!s) return undefined;
+  if (s === "all" || s === "all classes" || s === "all children") return undefined;
+  return String(v);
 }
 
 /* ===============================
@@ -72,7 +73,7 @@ function toStr(v: unknown) {
 
 /** Client-side validation before hitting the API */
 function validateItem(p: EntryCreateInput): string | null {
-  // childIds rule: unless applyToAllInClass is true, we need at least one child
+  // unless applyToAllInClass, we need at least one child
   if (!Array.isArray(p.childIds)) return "childIds must be an array";
   if (!p.applyToAllInClass && p.childIds.length === 0) {
     return "At least one child is required";
@@ -82,7 +83,7 @@ function validateItem(p: EntryCreateInput): string | null {
   const occ = (p as any).occurredAt;
   if (!isIsoDateTime(occ ?? "")) return "occurredAt must be an ISO datetime";
 
-  // subtype rules
+  // subtype rule
   if (NEEDS_SUBTYPE.includes(p.type as EntryType) && !(p as any).subtype) {
     return "Subtype is required";
   }
@@ -97,12 +98,12 @@ function validateItem(p: EntryCreateInput): string | null {
     return "Photo URL is required";
   }
 
-  // detail rule
+  // detail rule (Food 포함)
   if (NEEDS_DETAIL.includes(p.type as EntryType) && !toStr((p as any).detail)) {
     return "Detail is required";
   }
 
-  // applyToAllInClass requires classId
+  // class fan-out requires classId
   if ((p as any).applyToAllInClass && !toStr(p.classId)) {
     return "classId is required when applyToAllInClass is true";
   }
@@ -114,9 +115,10 @@ function validateItem(p: EntryCreateInput): string | null {
 function normalizeItem(p: EntryCreateInput) {
   return {
     ...p,
-    occurredAt: (p as any).occurredAt && isIsoDateTime((p as any).occurredAt)
-      ? (p as any).occurredAt
-      : nowIso(),
+    occurredAt:
+      (p as any).occurredAt && isIsoDateTime((p as any).occurredAt)
+        ? (p as any).occurredAt
+        : nowIso(),
   };
 }
 
@@ -131,7 +133,7 @@ export async function bulkCreateEntries(
   try {
     if (!items?.length) return { ok: false, reason: "No items" };
 
-    // Validate each item on client to provide quick feedback
+    // client-side validation
     for (const it of items) {
       const normalized = normalizeItem(it);
       const err = validateItem(normalized);
@@ -211,9 +213,13 @@ export async function listEntries(
     };
 
     const qs = new URLSearchParams();
-    if (filter.childId) qs.set("childId", filter.childId);
-    if (filter.classId) qs.set("classId", filter.classId);
-    if (filter.type) qs.set("type", filter.type as EntryType);
+    const childId = normalizeAll(filter.childId);
+    const classId = normalizeAll(filter.classId);
+    const type = normalizeAll(filter.type as string | undefined);
+
+    if (childId) qs.set("childId", childId);
+    if (classId) qs.set("classId", classId);
+    if (type) qs.set("type", type as EntryType);
     if (filter.dateFrom) qs.set("dateFrom", filter.dateFrom);
     if (filter.dateTo) qs.set("dateTo", filter.dateTo);
     qs.set("limit", String(Math.max(1, Math.min(limit, 100))));
