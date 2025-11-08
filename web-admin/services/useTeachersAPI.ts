@@ -1,3 +1,4 @@
+//web-admin/services/useTeachersAPI.ts
 "use client";
 
 import * as Types from "../../shared/types/type";
@@ -63,15 +64,3 @@ export async function deleteTeacher(
   }
 }
 
-export async function assignTeacherToClass(
-  id: string,
-  classId: string
-): Promise<{ ok: boolean }> {
-  try {
-    const res = await api.post<{ ok: boolean }>(`${ENDPOINTS.teachers}/${id}/assign`, { classId });
-    return res;
-  } catch (err: unknown) {
-    console.error(err);
-    throw err; // Rethrow the error to be handled by the caller
-  }
-}
