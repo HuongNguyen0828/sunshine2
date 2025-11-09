@@ -1,160 +1,257 @@
-// app/(parent)/(tabs)/dashboard.tsx
-import { View, Text, ActivityIndicator, ScrollView } from "react-native";
-import { useEffect, useMemo, useState } from "react";
+// mobile/app/(parent)/(tabs)/dashboard.tsx
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  ScrollView,
+  Pressable,
+  Image,
+} from "react-native";
+import { auth, db } from "@/lib/firebase";
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+  limit,
+} from "firebase/firestore";
 import { colors } from "@/constants/color";
 import { fontSize } from "@/constants/typography";
-import { parentDashboardStyles as s, pillStyles as p } from "@/styles/screens/parentDashboard";
-import { auth, db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, orderBy } from "firebase/firestore";
 
-// Firestore entry shape used in UI
 type Entry = {
   id: string;
-  type: "Attendance" | "Food" | "Sleep" | "Toilet" | "Note" | string;
+  type: string;
   subtype?: string;
   detail?: any;
   childId: string;
-  createdAt?: any; // Firestore Timestamp
+  createdAt?: any;
+  photoUrl?: string;
+  classId?: string;
+  teacherName?: string;
 };
 
-type ChildRow = { id: string; name: string };
+type ChildRef = {
+  id: string;
+  name: string;
+};
+
+async function getUserDocId(): Promise<string | null> {
+  const u = auth.currentUser;
+  if (!u) return null;
+  const tok = await u.getIdTokenResult(true);
+  const userDocId = (tok.claims as any)?.userDocId as string | undefined;
+  return userDocId || null;
+}
 
 export default function ParentDashboard() {
-  const [children, setChildren] = useState<ChildRow[]>([]);
-  // Map childId -> today's entries (ordered desc by createdAt)
-  const [entriesByChild, setEntriesByChild] = useState<Record<string, Entry[]>>({});
   const [loading, setLoading] = useState(true);
+  const [children, setChildren] = useState<ChildRef[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
 
-  // Build today's window (local) + formatted label (e.g. "Sep 20, 2025")
-  const { startTs, endTs, todayLabel } = useMemo(() => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    const label = now.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-    return { startTs: start, endTs: end, todayLabel: label };
-  }, []);
-
-  // Subscribe to children and then to each child's entries for today
   useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) {
-      setChildren([]);
-      setEntriesByChild({});
-      setLoading(false);
-      return;
-    }
+    let unsubEntries: (() => void) | null = null;
 
-    const qChildren = query(collection(db, "children"), where("guardianUids", "array-contains", uid));
-    let entryUnsubs: Array<() => void> = [];
-
-    const unsubChildren = onSnapshot(
-      qChildren,
-      (snap) => {
-        const kids = snap.docs
-          .map((d) => ({ id: d.id, name: (d.data() as any).name ?? "(no name)" }))
-          .sort((a, b) => a.name.localeCompare(b.name));
-
-        setChildren(kids);
-
-        // Reset previous listeners & data
-        entryUnsubs.forEach((u) => u());
-        entryUnsubs = [];
-        setEntriesByChild({});
-        setLoading(true);
-
-        // Per-child live query for today's entries (newest -> oldest)
-        kids.forEach((k) => {
-          const qEnt = query(
-            collection(db, "entries"),
-            where("childId", "==", k.id),
-            where("createdAt", ">=", startTs),
-            where("createdAt", "<=", endTs),
-            orderBy("createdAt", "desc")
-          );
-
-          const u = onSnapshot(
-            qEnt,
-            (esnap) => {
-              const rows: Entry[] = esnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-              setEntriesByChild((prev) => ({ ...prev, [k.id]: rows }));
-              setLoading(false);
-            },
-            () => setLoading(false)
-          );
-
-          entryUnsubs.push(u);
-        });
-
-        if (kids.length === 0) setLoading(false);
-      },
-      () => {
+    (async () => {
+      setLoading(true);
+      const userDocId = await getUserDocId();
+      if (!userDocId) {
         setChildren([]);
-        setEntriesByChild({});
+        setEntries([]);
         setLoading(false);
+        return;
       }
-    );
+
+      const userSnap = await getDoc(doc(db, "users", userDocId));
+      const userData = userSnap.exists() ? (userSnap.data() as any) : {};
+      const rels: Array<{ childId: string; relationship?: string }> =
+        Array.isArray(userData.childRelationships) ? userData.childRelationships : [];
+
+      const childIds = rels.map((r) => r.childId).filter(Boolean);
+      if (childIds.length === 0) {
+        setChildren([]);
+        setEntries([]);
+        setLoading(false);
+        return;
+      }
+
+      const childDocs: ChildRef[] = [];
+      for (const cid of childIds) {
+        const cSnap = await getDoc(doc(db, "children", cid));
+        if (cSnap.exists()) {
+          const c = cSnap.data() as any;
+          const fullName =
+            `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() ||
+            c.name ||
+            cid;
+          childDocs.push({ id: cid, name: fullName });
+        } else {
+          childDocs.push({ id: cid, name: cid });
+        }
+      }
+      childDocs.sort((a, b) => a.name.localeCompare(b.name));
+      setChildren(childDocs);
+
+      const qEnt = query(
+        collection(db, "entries"),
+        where("childId", "in", childIds.slice(0, 10)),
+        orderBy("createdAt", "desc"),
+        limit(80)
+      );
+
+      unsubEntries = onSnapshot(
+        qEnt,
+        (snap) => {
+          const rows: Entry[] = snap.docs.map((d) => ({
+            id: d.id,
+            ...(d.data() as any),
+          }));
+          setEntries(rows);
+          setLoading(false);
+        },
+        () => {
+          setEntries([]);
+          setLoading(false);
+        }
+      );
+    })();
 
     return () => {
-      unsubChildren();
-      entryUnsubs.forEach((u) => u());
+      if (unsubEntries) unsubEntries();
     };
-  }, [startTs, endTs]);
+  }, []);
+
+  const childNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    children.forEach((c) => {
+      m[c.id] = c.name;
+    });
+    return m;
+  }, [children]);
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <ActivityIndicator size="large" color={colors.activityIndicator} />
-        <Text style={{ marginTop: 8, color: colors.textDim, fontSize: fontSize.md, lineHeight: 22 }}>Loading...</Text>
+        <Text
+          style={{
+            marginTop: 8,
+            color: colors.textDim,
+            fontSize: fontSize.md,
+          }}
+        >
+          Loading...
+        </Text>
       </View>
     );
   }
 
   return (
-    // Root background stretches behind the tab bar
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
-        style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={s.container}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 14 }}
+        showsVerticalScrollIndicator={false}
       >
+        <Text
+          style={{
+            fontSize: 26,
+            fontWeight: "700",
+            color: colors.text,
+            marginBottom: 6,
+          }}
+        >
+          Activity Feed
+        </Text>
         {children.length === 0 ? (
-          <View style={{ alignItems: "center", marginTop: 28 }}>
-            <Text style={{ color: colors.textDim, fontSize: fontSize.md, lineHeight: 22 }}>No children</Text>
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 14,
+              padding: 18,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: colors.textDim, fontSize: 15 }}>
+              No children linked
+            </Text>
+          </View>
+        ) : entries.length === 0 ? (
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 14,
+              padding: 18,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: colors.textDim, fontSize: 15 }}>
+              No entries yet
+            </Text>
           </View>
         ) : (
-          children.map((k) => {
-            const list = entriesByChild[k.id] ?? [];
-
+          entries.map((e) => {
+            const childName = childNameById[e.childId] || e.childId;
+            const emoji = iconFor(e);
+            const title = titleFor(e);
+            const detail = detailFor(e);
+            const time = toHM(e.createdAt);
             return (
-              <View key={k.id} style={s.card}>
-                {/* Child header with date */}
-                <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
-                  <Text style={s.childName}>{k.name}</Text>
-                  <Text style={{ color: colors.textDim, fontSize: fontSize.md }}>{todayLabel}</Text>
+              <View
+                key={e.id}
+                style={{
+                  backgroundColor: "#fff",
+                  borderRadius: 16,
+                  padding: 14,
+                  flexDirection: "row",
+                  gap: 12,
+                  alignItems: "flex-start",
+                }}
+              >
+                <View
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 12,
+                    backgroundColor: "#EEF2FF",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ fontSize: 20 }}>{emoji}</Text>
                 </View>
-
-                {/* Today entries as pills (newest -> oldest) */}
-                <View style={s.pillRow}>
-                  {list.length === 0 ? (
-                    <View style={[p.container, p.placeholder]}>
-                      <Text style={p.meta}>No entries today</Text>
-                    </View>
-                  ) : (
-                    list.map((e) => {
-                      const emoji = iconFor(e);
-                      const title = titleFor(e);
-                      const detail = detailFor(e);
-                      const time = toHM(e.createdAt);
-
-                      return (
-                        <View key={e.id} style={p.container}>
-                          <Text style={p.emoji}>{emoji}</Text>
-                          <Text style={p.title}>{title}</Text>
-                          {!!detail && <Text style={p.meta}>{` • ${detail}`}</Text>}
-                          {!!time && <Text style={p.meta}>{` • ${time}`}</Text>}
-                        </View>
-                      );
-                    })
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={{ fontWeight: "600", fontSize: 15 }}>{title}</Text>
+                  <Text style={{ color: colors.textDim, fontSize: 13 }}>
+                    {childName}
+                    {time ? ` • ${time}` : ""}
+                  </Text>
+                  {!!detail && (
+                    <Text style={{ color: colors.text, fontSize: 14 }}>{detail}</Text>
                   )}
+                  {e.photoUrl ? (
+                    <Image
+                      source={{ uri: e.photoUrl }}
+                      style={{
+                        width: "100%",
+                        height: 160,
+                        borderRadius: 12,
+                        marginTop: 6,
+                        backgroundColor: "#E2E8F0",
+                      }}
+                      resizeMode="cover"
+                    />
+                  ) : null}
                 </View>
               </View>
             );
@@ -165,65 +262,55 @@ export default function ParentDashboard() {
   );
 }
 
-/* ----------------- helpers ----------------- */
-
-// Emoji by entry type
 function iconFor(e: Entry): string {
-  switch (e.type) {
-    case "Attendance":
-      return e.subtype?.toLowerCase().includes("in") ? "✅" : "🚪";
-    case "Food":
-      return "🍽️";
-    case "Nap":
-      return "😴";
-    case "Toilet":
-      return "🚽";
-    case "Note":
-      return "📝";
-    default:
-      return "🧩";
+  const t = e.type;
+  if (t === "Attendance") {
+    if (e.subtype && e.subtype.toLowerCase().includes("in")) return "✅";
+    if (e.subtype && e.subtype.toLowerCase().includes("out")) return "🚪";
+    return "🟣";
   }
+  if (t === "Food") return "🍽️";
+  if (t === "Sleep") return "😴";
+  if (t === "Toilet") return "🚽";
+  if (t === "Photo") return "📷";
+  if (t === "Activity") return "🎨";
+  if (t === "Health") return "❤️";
+  return "📝";
 }
 
-// Short title per entry
 function titleFor(e: Entry): string {
-  switch (e.type) {
-    case "Attendance":
-      return "Attendance";
-    case "Food":
-      return "Meal";
-    case "Sleep":
-      return "Nap";
-    case "Toilet":
-      return "Toilet";
-    case "Note":
-      return "Note";
-    default:
-      return e.type || "Entry";
-  }
+  const t = e.type;
+  if (t === "Attendance") return "Attendance";
+  if (t === "Food") return e.subtype ? `Meal • ${e.subtype}` : "Meal";
+  if (t === "Sleep") return "Nap";
+  if (t === "Toilet") return "Toilet";
+  if (t === "Photo") return "Photo";
+  if (t === "Activity") return "Activity";
+  if (t === "Health") return "Health";
+  if (t === "Note") return "Note";
+  return t || "Entry";
 }
 
-// Detail text per entry
 function detailFor(e: Entry): string | undefined {
-  switch (e.type) {
-    case "Attendance":
-      return e.subtype || undefined;
-    case "Food":
-      if (Array.isArray(e.detail?.menu)) return e.detail.menu.join(", ");
-      return typeof e.detail === "string" ? e.detail : undefined;
-    case "Sleep":
-      if (typeof e.detail?.duration_min === "number") return `${e.detail.duration_min} min`;
-      return typeof e.detail === "string" ? e.detail : undefined;
-    case "Toilet":
-      return e.detail?.note || (typeof e.detail === "string" ? e.detail : undefined);
-    case "Note":
-      return e.detail?.text || (typeof e.detail === "string" ? e.detail : undefined);
-    default:
-      return typeof e.detail === "string" ? e.detail : undefined;
+  if (e.type === "Food") {
+    if (Array.isArray(e.detail?.menu)) return e.detail.menu.join(", ");
+    if (typeof e.detail === "string") return e.detail;
   }
+  if (e.type === "Sleep") {
+    if (typeof e.detail?.duration_min === "number")
+      return `${e.detail.duration_min} min`;
+  }
+  if (e.type === "Toilet") {
+    if (typeof e.detail?.note === "string") return e.detail.note;
+    if (typeof e.detail === "string") return e.detail;
+  }
+  if (e.type === "Note" || e.type === "Activity" || e.type === "Health") {
+    if (typeof e.detail?.text === "string") return e.detail.text;
+    if (typeof e.detail === "string") return e.detail;
+  }
+  return undefined;
 }
 
-// Firestore Timestamp -> "HH:MM" local time
 function toHM(v: any): string | undefined {
   if (!v) return undefined;
   if (typeof v === "object" && typeof v.seconds === "number") {
