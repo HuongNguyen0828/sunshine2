@@ -4,7 +4,6 @@ import { admin } from "../lib/firebase";
 import { findDaycareAndLocationByEmail, findRoleByEmail } from "../services/authService";
 import { UserRole } from "../models/user";
 
-// Use a different property name to avoid clashing with Request['user'] from other libs
 export interface AuthRequest extends Request {
   user?: {
     uid: string;
@@ -12,70 +11,56 @@ export interface AuthRequest extends Request {
     role: UserRole;
     daycareId: string;
     locationId: string;
+    userDocId?: string;
   };
 }
 
-/**
- * Auth middleware:
- * - Verifies Firebase ID token from Authorization header (Bearer <token>)
- * - Resolves user role by email across collections
- * - Attaches { uid, email, role } to req.auth
- */
 export const authMiddleware = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
   const authHeader = req.headers.authorization;
-
-  // If no input header
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res
-      .status(401)
-      .send({ message: "Missing or invalid Authorization header" });
+    return res.status(401).send({ message: "Missing or invalid Authorization header" });
   }
 
-  // Else, if have header starting with "Bearer ", extract the token at index [1],
   const idToken = authHeader.split("Bearer ")[1];
-  if (!idToken)
-    return res
-      .status(401)
-      .send({ message: "Missing or invalid idToken in Authorization header" });
+  if (!idToken) {
+    return res.status(401).send({ message: "Missing or invalid idToken in Authorization header" });
+  }
 
-  // Else if idToken is string
   try {
     const decoded = await admin.auth().verifyIdToken(idToken);
     const email = decoded.email ?? null;
     const role = await findRoleByEmail(email);
+    if (!role) {
+      return res.status(403).send({ message: "Unauthorized email!" });
+    }
 
-    if (!role) return res.status(403).send({ message: "Unauthorized email!" });
-
-    // Adding: check if admin accessing their own resource
-      // Case: if not passing uid in rquest link, and 
-      // Case: if uid passing in  request link, but doesn't match the uid of user login (from decode JWT)
     if (req.params.uid && req.params.uid !== decoded.uid) {
       return res.status(403).send({ message: "Forbidden: cannot access other user's data" });
     }
 
-    // Extract daycarId and locationId from user in Firestore
     const daycareAndLocationResult = await findDaycareAndLocationByEmail(email);
     if (!daycareAndLocationResult) {
       return res.status(403).send({ message: "No daycare/location found for this user" });
     }
 
-    // Else: extract daycareId and locationId
-    const {daycareId, locationId} = daycareAndLocationResult;
-    // Attach auth info to req.auth
-    req.user = { 
-      uid: decoded.uid, 
-      email: email!, 
+    const { daycareId, locationId } = daycareAndLocationResult;
+    const userDocId = (decoded as any).userDocId as string | undefined;
+
+    req.user = {
+      uid: decoded.uid,
+      email: email!,
       role,
-      daycareId, 
+      daycareId,
       locationId,
+      userDocId,
     };
-    // Room for call next function as getRole from controller
+
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).send({ message: "Invalid token" });
   }
 };
