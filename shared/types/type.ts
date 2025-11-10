@@ -469,3 +469,21 @@ export type DailyReport = {
   entries: Entry[]; // legacy usage in reports; ok to keep
   createdAt: string; // ISO date
 };
+
+/* =============================
+ * Parent feed (mobile)
+ * - lightweight view sent to parent app
+ * ============================= */
+export type ParentFeedEntry = {
+  id: string;
+  type: EntryType | string; // keep flexible for old data
+  subtype?: string;
+  detail?: any;
+  childId: string;
+  occurredAt?: string;      // ISO (preferred)
+  createdAt?: string;       // ISO (fallback)
+  photoUrl?: string;
+  classId?: string;
+  teacherName?: string;
+  childName?: string;
+};
