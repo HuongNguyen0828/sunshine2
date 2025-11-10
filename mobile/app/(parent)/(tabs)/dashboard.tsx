@@ -5,22 +5,13 @@ import {
   Text,
   ActivityIndicator,
   ScrollView,
-  Pressable,
   Image,
 } from "react-native";
 import { auth, db } from "@/lib/firebase";
-import {
-  collection,
-  doc,
-  getDoc,
-  onSnapshot,
-  query,
-  where,
-  orderBy,
-  limit,
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { colors } from "@/constants/color";
 import { fontSize } from "@/constants/typography";
+import { fetchParentFeed } from "@/services/useParentFeedAPI";
 
 type Entry = {
   id: string;
@@ -53,8 +44,6 @@ export default function ParentDashboard() {
   const [entries, setEntries] = useState<Entry[]>([]);
 
   useEffect(() => {
-    let unsubEntries: (() => void) | null = null;
-
     (async () => {
       setLoading(true);
       const userDocId = await getUserDocId();
@@ -67,8 +56,9 @@ export default function ParentDashboard() {
 
       const userSnap = await getDoc(doc(db, "users", userDocId));
       const userData = userSnap.exists() ? (userSnap.data() as any) : {};
-      const rels: Array<{ childId: string; relationship?: string }> =
-        Array.isArray(userData.childRelationships) ? userData.childRelationships : [];
+      const rels: Array<{ childId: string }> = Array.isArray(userData.childRelationships)
+        ? userData.childRelationships
+        : [];
 
       const childIds = rels.map((r) => r.childId).filter(Boolean);
       if (childIds.length === 0) {
@@ -95,33 +85,10 @@ export default function ParentDashboard() {
       childDocs.sort((a, b) => a.name.localeCompare(b.name));
       setChildren(childDocs);
 
-      const qEnt = query(
-        collection(db, "entries"),
-        where("childId", "in", childIds.slice(0, 10)),
-        orderBy("createdAt", "desc"),
-        limit(80)
-      );
-
-      unsubEntries = onSnapshot(
-        qEnt,
-        (snap) => {
-          const rows: Entry[] = snap.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as any),
-          }));
-          setEntries(rows);
-          setLoading(false);
-        },
-        () => {
-          setEntries([]);
-          setLoading(false);
-        }
-      );
+      const feed = await fetchParentFeed();
+      setEntries(feed);
+      setLoading(false);
     })();
-
-    return () => {
-      if (unsubEntries) unsubEntries();
-    };
   }, []);
 
   const childNameById = useMemo(() => {
