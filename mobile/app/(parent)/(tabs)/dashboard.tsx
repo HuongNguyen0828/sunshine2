@@ -12,18 +12,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { colors } from "@/constants/color";
 import { fontSize } from "@/constants/typography";
 import { fetchParentFeed } from "@/services/useParentFeedAPI";
-
-type Entry = {
-  id: string;
-  type: string;
-  subtype?: string;
-  detail?: any;
-  childId: string;
-  createdAt?: any;
-  photoUrl?: string;
-  classId?: string;
-  teacherName?: string;
-};
+import { ParentFeedEntry } from "../../../../shared/types/type";
 
 type ChildRef = {
   id: string;
@@ -41,7 +30,7 @@ async function getUserDocId(): Promise<string | null> {
 export default function ParentDashboard() {
   const [loading, setLoading] = useState(true);
   const [children, setChildren] = useState<ChildRef[]>([]);
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [entries, setEntries] = useState<ParentFeedEntry[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -54,9 +43,12 @@ export default function ParentDashboard() {
         return;
       }
 
+      // 1) load parent user doc → childIds
       const userSnap = await getDoc(doc(db, "users", userDocId));
       const userData = userSnap.exists() ? (userSnap.data() as any) : {};
-      const rels: Array<{ childId: string }> = Array.isArray(userData.childRelationships)
+      const rels: Array<{ childId: string }> = Array.isArray(
+        userData.childRelationships
+      )
         ? userData.childRelationships
         : [];
 
@@ -68,6 +60,7 @@ export default function ParentDashboard() {
         return;
       }
 
+      // 2) resolve child names (still from Firestore)
       const childDocs: ChildRef[] = [];
       for (const cid of childIds) {
         const cSnap = await getDoc(doc(db, "children", cid));
@@ -85,8 +78,10 @@ export default function ParentDashboard() {
       childDocs.sort((a, b) => a.name.localeCompare(b.name));
       setChildren(childDocs);
 
+      // 3) fetch feed from backend (already sorted)
       const feed = await fetchParentFeed();
       setEntries(feed);
+
       setLoading(false);
     })();
   }, []);
@@ -168,11 +163,11 @@ export default function ParentDashboard() {
           </View>
         ) : (
           entries.map((e) => {
-            const childName = childNameById[e.childId] || e.childId;
+            const childName = childNameById[e.childId] || e.childName || e.childId;
             const emoji = iconFor(e);
             const title = titleFor(e);
             const detail = detailFor(e);
-            const time = toHM(e.createdAt);
+            const time = toHM(e.occurredAt || e.createdAt);
             return (
               <View
                 key={e.id}
@@ -204,7 +199,9 @@ export default function ParentDashboard() {
                     {time ? ` • ${time}` : ""}
                   </Text>
                   {!!detail && (
-                    <Text style={{ color: colors.text, fontSize: 14 }}>{detail}</Text>
+                    <Text style={{ color: colors.text, fontSize: 14 }}>
+                      {detail}
+                    </Text>
                   )}
                   {e.photoUrl ? (
                     <Image
@@ -229,7 +226,9 @@ export default function ParentDashboard() {
   );
 }
 
-function iconFor(e: Entry): string {
+/* ----------------- helpers ----------------- */
+
+function iconFor(e: ParentFeedEntry): string {
   const t = e.type;
   if (t === "Attendance") {
     if (e.subtype && e.subtype.toLowerCase().includes("in")) return "✅";
@@ -245,7 +244,7 @@ function iconFor(e: Entry): string {
   return "📝";
 }
 
-function titleFor(e: Entry): string {
+function titleFor(e: ParentFeedEntry): string {
   const t = e.type;
   if (t === "Attendance") return "Attendance";
   if (t === "Food") return e.subtype ? `Meal • ${e.subtype}` : "Meal";
@@ -258,28 +257,38 @@ function titleFor(e: Entry): string {
   return t || "Entry";
 }
 
-function detailFor(e: Entry): string | undefined {
+function detailFor(e: ParentFeedEntry): string | undefined {
+  if (!e.detail) return undefined;
+
+  // Food can be array-like
   if (e.type === "Food") {
-    if (Array.isArray(e.detail?.menu)) return e.detail.menu.join(", ");
-    if (typeof e.detail === "string") return e.detail;
+    const anyDetail = e.detail as any;
+    if (Array.isArray(anyDetail?.menu)) return anyDetail.menu.join(", ");
+    if (typeof anyDetail === "string") return anyDetail;
   }
-  if (e.type === "Sleep") {
-    if (typeof e.detail?.duration_min === "number")
-      return `${e.detail.duration_min} min`;
-  }
-  if (e.type === "Toilet") {
-    if (typeof e.detail?.note === "string") return e.detail.note;
-    if (typeof e.detail === "string") return e.detail;
-  }
-  if (e.type === "Note" || e.type === "Activity" || e.type === "Health") {
-    if (typeof e.detail?.text === "string") return e.detail.text;
-    if (typeof e.detail === "string") return e.detail;
-  }
+
+  // To match Activity / Note / Health structure
+  const anyDetail = e.detail as any;
+  if (typeof anyDetail?.text === "string") return anyDetail.text;
+  if (typeof anyDetail === "string") return anyDetail;
+
   return undefined;
 }
 
+// backend now sends ISO string; still keep Firestore-style fallback
 function toHM(v: any): string | undefined {
   if (!v) return undefined;
+
+  // ISO string
+  if (typeof v === "string") {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return undefined;
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  // Firestore Timestamp (just in case)
   if (typeof v === "object" && typeof v.seconds === "number") {
     const ms = v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6);
     const d = new Date(ms);
@@ -287,5 +296,6 @@ function toHM(v: any): string | undefined {
     const mm = String(d.getMinutes()).padStart(2, "0");
     return `${hh}:${mm}`;
   }
+
   return undefined;
 }
