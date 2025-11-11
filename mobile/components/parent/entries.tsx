@@ -4,19 +4,9 @@ import { View, Text, StyleSheet, Image } from "react-native";
 import { colors } from "@/constants/color";
 import { fontSize, fontWeight } from "@/constants/typography";
 import { emojiCollection } from "@/components/emoji";
+import { ParentFeedEntry } from "../../../shared/types/type";
 
-type ParentEntry = {
-  id: string;
-  type: string;
-  subtype?: string;
-  detail?: any;
-  childId: string;
-  createdAt?: any;
-  photoUrl?: string;
-  teacherName?: string;
-};
-
-export const EntryCard: FC<{ entry: ParentEntry; childName?: string }> = ({
+export const EntryCard: FC<{ entry: ParentFeedEntry; childName?: string }> = ({
   entry,
   childName,
 }) => {
@@ -26,8 +16,10 @@ export const EntryCard: FC<{ entry: ParentEntry; childName?: string }> = ({
   const detailText = useMemo(() => {
     if (!entry.detail) return "";
     if (typeof entry.detail === "string") return entry.detail;
-    if (Array.isArray(entry.detail?.menu)) return entry.detail.menu.join(", ");
-    if (typeof entry.detail?.text === "string") return entry.detail.text;
+    if (Array.isArray((entry.detail as any)?.menu))
+      return (entry.detail as any).menu.join(", ");
+    if (typeof (entry.detail as any)?.text === "string")
+      return (entry.detail as any).text;
     return "";
   }, [entry.detail]);
 
@@ -36,23 +28,15 @@ export const EntryCard: FC<{ entry: ParentEntry; childName?: string }> = ({
       <Text style={styles.entryType}>
         {emoji} {entry.type}
       </Text>
-      {!!childName && (
-        <Text style={styles.childName}>
-          {childName}
-        </Text>
-      )}
-      {!!entry.subtype && (
-        <Text style={styles.subType}>{entry.subtype}</Text>
-      )}
-      {!!detailText && (
-        <Text style={styles.detail}>{detailText}</Text>
-      )}
+
+      {!!childName && <Text style={styles.childName}>{childName}</Text>}
+
+      {!!entry.subtype && <Text style={styles.subType}>{entry.subtype}</Text>}
+
+      {!!detailText && <Text style={styles.detail}>{detailText}</Text>}
+
       {!!entry.photoUrl && (
-        <Image
-          source={{ uri: entry.photoUrl }}
-          style={styles.photo}
-          resizeMode="cover"
-        />
+        <Image source={{ uri: entry.photoUrl }} style={styles.photo} resizeMode="cover" />
       )}
     </View>
   );
