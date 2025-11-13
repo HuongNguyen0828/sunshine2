@@ -4,6 +4,8 @@
 import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
 import Cookies from "js-cookie";
 
+// For production, the base URL is set via environment variable, 
+// For local development, fallback to empty string to use relative paths.
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
 
 /** Wait until Firebase Auth is initialized and a user (if any) is available. */

@@ -14,19 +14,24 @@ import AutoCompleteAddress, { Address } from "@/components/AutoCompleteAddress";
 import api from "@/api/client";
 import { ENDPOINTS } from "@/api/endpoint";
 import { type LocationLite } from "@/services/useLocationsAPI";
+import { ClassLite } from "@/app/dashboard/[uid]/page";
 
 export default function TeachersTab({
   teachers,
+  setTeachers,
   newTeacher,
   setNewTeacher,
   onAdd,
   locations,
+  classesLite,
 }: {
   teachers: Types.Teacher[];
+  setTeachers: React.Dispatch<React.SetStateAction<Types.Teacher[]>>;
   newTeacher: NewTeacherInput;
   setNewTeacher: React.Dispatch<React.SetStateAction<NewTeacherInput>>;
   onAdd: (t: NewTeacherInput) => void;
   locations: LocationLite[];
+  classesLite?: ClassLite[];
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -73,7 +78,7 @@ export default function TeachersTab({
 
   const resetForm = useCallback(() => {
     setNewTeacher((prev) => ({
-      ...prev, 
+      ...prev,
       firstName: "",
       lastName: "",
       email: "",
@@ -207,7 +212,7 @@ export default function TeachersTab({
       id: localId,
       firstName: newTeacher.firstName,
       lastName: newTeacher.lastName,
-      locationId: effectiveLocationId, 
+      locationId: effectiveLocationId,
       email: newTeacher.email,
       phone: newTeacher.phone,
       address1: newTeacher.address1,
@@ -436,11 +441,10 @@ export default function TeachersTab({
           <button
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              currentPage === 1
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              }`}
           >
             ← Previous
           </button>
@@ -449,11 +453,10 @@ export default function TeachersTab({
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${
-                  currentPage === page
-                    ? "bg-blue-600 text-white"
-                    : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-                }`}
+                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                  }`}
               >
                 {page}
               </button>
@@ -464,11 +467,10 @@ export default function TeachersTab({
               setCurrentPage((prev) => Math.min(totalPages, prev + 1))
             }
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${
-              currentPage === totalPages
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              }`}
           >
             Next →
           </button>

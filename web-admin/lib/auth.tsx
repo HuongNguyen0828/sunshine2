@@ -32,7 +32,7 @@ interface AuthContextType {
 type CheckEmailResponse = { role: string };
 
 // Is the user from middleware 
-type GetAdminResponse = { user: { uid: string, email: string, role: string, daycareID: string, locationId: string} };
+type GetAdminResponse = { user: { uid: string, email: string, role: string, daycareID: string, locationId: string } };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -81,6 +81,8 @@ async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   return (await res.json()) as T;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -93,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   
   /** Keep Firebase Auth state in sync with React state */
   useEffect(() => {
-   
+
     // Determine initial auth state: when user already login and idToken valid and not expired
     // onAuthStateChanged will be triggered right away with current user (or null)
     // We wait for that before marking loading=false
@@ -137,10 +139,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   ): Promise<void> => {
     try {
 
-      // 1) Email check against backend policy
-      console.log('  Step 1: Checking email with backend...');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/check-email`, {
-
+      // Step 1: email check
+      console.log("  Step 1: Checking email against backend...");
+      const check = await fetchJson<CheckEmailResponse>(`${API_BASE}/api/auth/check-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -155,21 +156,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       const { role } = await res.json(); // get the role: example: role: "parent"
 
-      // Step 2: create Firebase Authentication user
-      console.log('  Step 2: Creating Firebase Auth user...');
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-
-      await updateProfile(userCredential.user, { displayName: name });
-
-      // Step 3: Verify role in backend, and create users collection with same uid
-      console.log('  Step 3: Verifying role and creating user profile...');
-      const idToken = await userCredential.user.getIdToken();
-
-      const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-role`, {
+      // Step 3: verify role + create profile in backend
+      console.log("  Step 3: Verifying role & creating profile...");
+      const idToken = await cred.user.getIdToken();
+      const verify = await fetchJson<{ ok: true }>(`${API_BASE}/api/auth/verify-role`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, name }),
@@ -210,20 +200,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // 3. Call backend to get role
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/get-admin`, {
-        method: "GET",
-        // Input Header autherization inside Request extended
-        headers: { Authorization: `Bearer ${idToken}` },
-      });
-
-      console.log(`  Response status: ${res.status}`);
-
-      // Case not Admin
-      if (!res.ok) {
-        // Extract message from respond: custome with role-based or general message
-        const errData = await res.json();
-        console.log('Access denied:', errData.message);
-        throw new Error(errData.message || "Access denied");
+      // Step 3: role from backend (or bypass)
+      let role: string;
+      let locationId: string;
+      if (bypassAuth) {
+        console.log("  ⚠️ Bypass mode: force role=admin");
+        role = "admin";
+      } else {
+        console.log("  Step 3: Calling backend /api/auth/get-admin ...");
+        const data = await fetchJson<GetAdminResponse>(`${API_BASE}/api/auth/get-admin`, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        role = data.user.role;
+        console.log("  ✅ Backend role:", role);
       }
       // else, Case: Admin
       const data = await res.json();
@@ -264,7 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       Cookies.remove("idToken");
       Cookies.remove("uid");
     }
-    
+
     // 🔔 Notify all other tabs about Logout
     localStorage.setItem("logout", Date.now().toString());
     // Then, redirect to /login page
@@ -272,7 +262,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
 
-   // --- Sync logout across tabs ---
+  // --- Sync logout across tabs ---
   useEffect(() => {
     const syncLogout = (event: StorageEvent) => {
       if (event.key === "logout") {
