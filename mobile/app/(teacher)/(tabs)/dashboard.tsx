@@ -295,6 +295,7 @@ export default function TeacherDashboard() {
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <Text style={styles.greeting}>Good Morning! 👋</Text>
           <Text style={styles.title}>Create Entry</Text>
+          <Text style={styles.subtitle}> Select class before creating entries</Text>
         </View>
 
         {/* selectors */}
@@ -323,10 +324,10 @@ export default function TeacherDashboard() {
                 {filteredChildren.length === 0
                   ? "No children"
                   : selectedChildren.length === 0
-                  ? "Select"
-                  : selectedChildren.length === filteredChildren.length
-                  ? "All Selected"
-                  : `${selectedChildren.length} Selected`}
+                    ? "Select"
+                    : selectedChildren.length === filteredChildren.length
+                      ? "All Selected"
+                      : `${selectedChildren.length} Selected`}
               </Text>
             </View>
             <ChevronDown size={20} color="#94A3B8" />
@@ -525,6 +526,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#1E293B",
     letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#94A3B8",
+    marginTop: 4,
   },
   selectionContainer: { paddingHorizontal: 20, marginBottom: 16 },
   selector: {

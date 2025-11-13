@@ -163,6 +163,7 @@ export function WeeklyScheduler() {
         dayOfWeek: params.dayOfWeek,
         timeSlot: params.timeSlot,
         activityTitle: activity.title,
+        locationId: activity.locationId, // location passed from filter context, or by select in form
         activityDescription: activity.description,
         activityMaterials: activity.materials,
         classId: assignToClassId,

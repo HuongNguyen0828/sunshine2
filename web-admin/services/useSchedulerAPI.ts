@@ -7,7 +7,8 @@ export interface ScheduleData {
   activityTitle: string;
   activityDescription: string;
   activityMaterials: string;
-  classId: string | null; // null = applies to all classes
+  locationId: string; // location scope of the schedule if classId is null
+  classId: string | null; // null = applies to all classes within the location
   color: string; // hex color code for activity pill
   order: number; // order within the time slot (0 = first, 1 = second, etc.)
 }
