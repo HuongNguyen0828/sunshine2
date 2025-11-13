@@ -341,7 +341,7 @@ export const getAllChildren = async (
     }
 
     // Firestore 'in' operator can only take up to 30 values
-    const chunks = [];
+    const chunks: string[][] = [];
     while (locationIds.length) {
       chunks.push(locationIds.splice(0, 30));
     }

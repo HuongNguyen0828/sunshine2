@@ -21,7 +21,7 @@ import ChildrenTab from "@/components/dashboard/ChildrenTab";
 import { dash } from "@/styles/dashboard";
 import { useAuth } from "@/lib/auth";
 import * as Types from "../../../../shared/types/type";
-import type { Tab, NewParentInput, NewClassInput, NewTeacherInput, NewChildInput } from "@/types/forms";
+import type { Tab, NewClassInput, NewTeacherInput, NewChildInput } from "@/types/forms";
 import swal from "sweetalert2";
 import { fetchTeachers, addTeacher } from "@/services/useTeachersAPI";
 import { fetchClasses } from "@/services/useClassesAPI";
@@ -30,7 +30,7 @@ import {
   // fetchChildren as fetchChildrenAPI,
   addChildWithParents,
   fetchChildren,
-  updateChild,
+  // updateChild,
   deleteChild,
   assignChildToClass,
   returnChildWithParents,
@@ -133,7 +133,7 @@ export default function AdminDashboard() {
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [updateLoading, setUpdateLoading] = useState<boolean>(false); // Separate state of loading initally vs of actions
   const [, startTransition] = useTransition();
-  const [createdChildId, setcreatedChildId] = useState<string | null>(null); /// Initally, chidId is null, To later link with parent
+  // const [createdChildId, setcreatedChildId] = useState<string | null>(null); /// Initally, chidId is null, To later link with parent
 
   /* forms */
   const initialTeacherValue = {

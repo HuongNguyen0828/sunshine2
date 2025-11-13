@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { useState, useRef, useEffect } from 'react';
 
 export default function AppHeader() {
-  const { signOutUser, user } = useAuth();
+  const { signOutUser, currentUser } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -57,9 +57,9 @@ export default function AppHeader() {
           {/* Right side - User menu */}
           <div className="flex items-center gap-4">
             {/* User info - hidden on mobile */}
-            {user?.email && (
+            {currentUser?.email && (
               <span className="hidden sm:block text-xs text-gray-500">
-                {user.email}
+                {currentUser.email}
               </span>
             )}
 
@@ -70,7 +70,7 @@ export default function AppHeader() {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors duration-200"
               >
                 <div className="w-7 h-7 rounded-full bg-gray-700 text-white flex items-center justify-center text-xs font-medium">
-                  {user?.email ? user.email.charAt(0).toUpperCase() : 'A'}
+                  {currentUser?.email ? currentUser.email.charAt(0).toUpperCase() : 'A'}
                 </div>
                 <svg
                   className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`}
@@ -85,10 +85,10 @@ export default function AppHeader() {
               {/* Dropdown menu */}
               {isMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                  {user?.email && (
+                  {currentUser?.email && (
                     <div className="px-4 py-3 border-b border-gray-100">
                       <p className="text-xs text-gray-500 mb-1">Signed in as</p>
-                      <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{currentUser.email}</p>
                     </div>
                   )}
 
