@@ -19,27 +19,25 @@ import {
   orderBy,
 } from "firebase/firestore";
 
-// Firestore entry shape used in UI
 type Entry = {
   id: string;
   type: "Attendance" | "Food" | "Sleep" | "Toilet" | "Note" | string;
   subtype?: string;
   detail?: any;
   childId: string;
-  createdAt?: any; // Firestore Timestamp
+  createdAt?: any;
 };
 
 type ChildRow = { id: string; name: string };
 
 export default function ParentDashboard() {
   const [children, setChildren] = useState<ChildRow[]>([]);
-  // Map childId -> today's entries (ordered desc by createdAt)
-  const [entriesByChild, setEntriesByChild] = useState<
-    Record<string, Entry[]>
-  >({});
+  const [entriesByChild, setEntriesByChild] = useState<Record<string, Entry[]>>(
+    {}
+  );
   const [loading, setLoading] = useState(true);
 
-  // Build today's window (local) + formatted label (e.g. "Sep 20, 2025")
+  // Build today's time window and label (e.g., "Sep 20, 2025")
   const { startTs, endTs, todayLabel } = useMemo(() => {
     const now = new Date();
     const start = new Date(
@@ -67,7 +65,6 @@ export default function ParentDashboard() {
     return { startTs: start, endTs: end, todayLabel: label };
   }, []);
 
-  // Subscribe to each child's entries for today (children는 한 번 읽고 고정)
   useEffect(() => {
     let entryUnsubs: Array<() => void> = [];
 
@@ -82,7 +79,7 @@ export default function ParentDashboard() {
 
       setLoading(true);
 
-      // 1) users 컬렉션에서 authUid == uid 인 문서 찾기
+      // 1) Resolve parent user document by authUid
       const qUser = query(
         collection(db, "users"),
         where("authUid", "==", user.uid)
@@ -111,7 +108,7 @@ export default function ParentDashboard() {
         return;
       }
 
-      // 2) children 컬렉션에서 이름 가져오기
+      // 2) Load child names from children collection
       const kids: ChildRow[] = [];
       for (const cid of childIds) {
         const cSnap = await getDoc(doc(db, "children", cid));
@@ -129,12 +126,12 @@ export default function ParentDashboard() {
       kids.sort((a, b) => a.name.localeCompare(b.name));
       setChildren(kids);
 
-      // 3) 기존 entry 리스너 정리
+      // 3) Clear previous entry listeners
       entryUnsubs.forEach((u) => u());
       entryUnsubs = [];
       setEntriesByChild({});
 
-      // 4) 각 child에 대해 오늘자 entries 구독
+      // 4) Subscribe to today's entries per child
       kids.forEach((k) => {
         const qEnt = query(
           collection(db, "entries"),
@@ -224,7 +221,7 @@ export default function ParentDashboard() {
 
             return (
               <View key={k.id} style={s.card}>
-                {/* Child header with date */}
+                {/* Child header with current date */}
                 <View
                   style={{
                     flexDirection: "row",
@@ -244,7 +241,7 @@ export default function ParentDashboard() {
                   </Text>
                 </View>
 
-                {/* Today entries as pills (newest -> oldest) */}
+                {/* Today's entries rendered as pills (newest → oldest) */}
                 <View style={s.pillRow}>
                   {list.length === 0 ? (
                     <View style={[p.container, p.placeholder]}>
@@ -281,9 +278,8 @@ export default function ParentDashboard() {
   );
 }
 
-/* ----------------- helpers ----------------- */
+/* ---------- helper functions ---------- */
 
-// Emoji by entry type
 function iconFor(e: Entry): string {
   switch (e.type) {
     case "Attendance":
@@ -301,7 +297,6 @@ function iconFor(e: Entry): string {
   }
 }
 
-// Short title per entry
 function titleFor(e: Entry): string {
   switch (e.type) {
     case "Attendance":
@@ -319,7 +314,6 @@ function titleFor(e: Entry): string {
   }
 }
 
-// Detail text per entry
 function detailFor(e: Entry): string | undefined {
   switch (e.type) {
     case "Attendance":
@@ -328,8 +322,9 @@ function detailFor(e: Entry): string | undefined {
       if (Array.isArray(e.detail?.menu)) return e.detail.menu.join(", ");
       return typeof e.detail === "string" ? e.detail : undefined;
     case "Sleep":
-      if (typeof e.detail?.duration_min === "number")
+      if (typeof e.detail?.duration_min === "number") {
         return `${e.detail.duration_min} min`;
+      }
       return typeof e.detail === "string" ? e.detail : undefined;
     case "Toilet":
       return (
@@ -346,7 +341,6 @@ function detailFor(e: Entry): string | undefined {
   }
 }
 
-// Firestore Timestamp -> "HH:MM" local time
 function toHM(v: any): string | undefined {
   if (!v) return undefined;
   if (typeof v === "object" && typeof v.seconds === "number") {
