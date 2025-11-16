@@ -1,7 +1,10 @@
 // backend/src/middleware/authMiddleware.ts
 import { Request, Response, NextFunction } from "express";
 import { admin } from "../lib/firebase";
-import { findDaycareAndLocationByEmail, findRoleByEmail } from "../services/authService";
+import {
+  findDaycareAndLocationByEmail,
+  findRoleByEmail,
+} from "../services/authService";
 import { UserRole } from "../models/user";
 
 export interface AuthRequest extends Request {
@@ -22,37 +25,61 @@ export const authMiddleware = async (
 ) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).send({ message: "Missing or invalid Authorization header" });
+    return res
+      .status(401)
+      .send({ message: "Missing or invalid Authorization header" });
   }
 
   const idToken = authHeader.split("Bearer ")[1];
   if (!idToken) {
-    return res.status(401).send({ message: "Missing or invalid idToken in Authorization header" });
+    return res
+      .status(401)
+      .send({ message: "Missing or invalid idToken in Authorization header" });
   }
 
   try {
     const decoded = await admin.auth().verifyIdToken(idToken);
     const email = decoded.email ?? null;
+
+    if (!email) {
+      return res.status(401).send({ message: "Email missing in token" });
+    }
+
     const role = await findRoleByEmail(email);
     if (!role) {
       return res.status(403).send({ message: "Unauthorized email!" });
     }
 
     if (req.params.uid && req.params.uid !== decoded.uid) {
-      return res.status(403).send({ message: "Forbidden: cannot access other user's data" });
+      return res
+        .status(403)
+        .send({ message: "Forbidden: cannot access other user's data" });
     }
 
-    const daycareAndLocationResult = await findDaycareAndLocationByEmail(email);
-    if (!daycareAndLocationResult) {
-      return res.status(403).send({ message: "No daycare/location found for this user" });
+    let daycareId = "";
+    let locationId = "";
+
+    if (role === "parent") {
+      daycareId = "";
+      locationId = "";
+    } else {
+      const daycareAndLocationResult = await findDaycareAndLocationByEmail(
+        email
+      );
+      if (!daycareAndLocationResult) {
+        return res
+          .status(403)
+          .send({ message: "No daycare/location found for this user" });
+      }
+      daycareId = daycareAndLocationResult.daycareId;
+      locationId = daycareAndLocationResult.locationId;
     }
 
-    const { daycareId, locationId } = daycareAndLocationResult;
     const userDocId = (decoded as any).userDocId as string | undefined;
 
     req.user = {
       uid: decoded.uid,
-      email: email!,
+      email,
       role,
       daycareId,
       locationId,
