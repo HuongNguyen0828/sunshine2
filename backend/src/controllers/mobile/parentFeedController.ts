@@ -15,6 +15,8 @@ function tsToIso(v: any): string | undefined {
 }
 
 export const getParentFeed = async (req: AuthRequest, res: Response) => {
+  console.log("🔎 getParentFeed controller reached"); // log for debug
+
   try {
     const user = req.user;
 
