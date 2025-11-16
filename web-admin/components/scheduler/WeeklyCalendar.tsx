@@ -99,7 +99,10 @@ export function WeeklyCalendar({
   };
 
   const formatDayHeader = (day: string) => {
-    const date = new Date(weekStart);
+    // Parse the weekStart string properly (same as your formatWeekRange)
+    const [year, month, dayNum] = weekStart.split('-').map(Number);
+    const date = new Date(year, month - 1, dayNum, 12); // Use noon to avoid timezone issues
+
     const dayIndex = WEEKDAYS.indexOf(day as any);
     date.setDate(date.getDate() + dayIndex);
 

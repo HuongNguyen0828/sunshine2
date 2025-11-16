@@ -10,7 +10,7 @@ import { useState, useEffect, useMemo } from "react";
 import { WeeklyCalendar } from "./WeeklyCalendar";
 import { ActivityLibrary } from "./ActivityLibrary";
 import { ActivityForm } from "./ActivityForm";
-import type { Activity, Schedule } from "@/types/scheduler";
+import { WEEKDAYS, type Activity, type Schedule } from "@/types/scheduler";
 import type { Class } from "../../../shared/types/type";
 // import { fetchClasses } from "@/services/useClassesAPI";
 import * as SchedulerAPI from "@/services/useSchedulerAPI";
@@ -22,9 +22,22 @@ import { LocationLite } from "@/services/useLocationsAPI";
 export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class[], locations: LocationLite[] }) {
   const [currentWeek, setCurrentWeek] = useState(() => {
     const today = new Date();
+
+    // Force the time to noon to avoid timezone boundary issues
+    today.setHours(12, 0, 0, 0);
+
+    // Get Monday of current week
     const monday = new Date(today);
-    monday.setDate(today.getDate() - today.getDay() + 1);
-    return monday.toISOString().split('T')[0];
+    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+
+    // Reset to noon to avoid timezone issues
+    monday.setHours(12, 0, 0, 0);
+
+    const year = monday.getFullYear();
+    const month = String(monday.getMonth() + 1).padStart(2, '0');
+    const day = String(monday.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
   });
 
   const [showActivityForm, setShowActivityForm] = useState(false);
@@ -94,22 +107,48 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
       }
     };
 
+    console.log('Week range debug:', {
+      weekStart: currentWeek,
+      monday: new Date(currentWeek).toDateString(),
+      friday: new Date(new Date(currentWeek).setDate(new Date(currentWeek).getDate() + 4)).toDateString(),
+      weekdays: WEEKDAYS // Check this has 5 days
+    });
+
     loadData();
   }, [currentWeek]); // always load all classes and all locations on week change
 
   const navigateWeek = (direction: 'prev' | 'next') => {
-    const current = new Date(currentWeek);
+    const [year, month, day] = currentWeek.split('-').map(Number);
+    const current = new Date(year, month - 1, day, 12); // Use noon to avoid timezone issues
+
     const days = direction === 'next' ? 7 : -7;
     current.setDate(current.getDate() + days);
-    setCurrentWeek(current.toISOString().split('T')[0]);
+
+    const newYear = current.getFullYear();
+    const newMonth = String(current.getMonth() + 1).padStart(2, '0');
+    const newDay = String(current.getDate()).padStart(2, '0');
+
+    setCurrentWeek(`${newYear}-${newMonth}-${newDay}`);
   };
 
   const formatWeekRange = (weekStart: string) => {
-    const start = new Date(weekStart);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 4);
+    // Parse the date properly without timezone issues
+    const [year, month, day] = weekStart.split('-').map(Number);
+    const start = new Date(year, month - 1, day); // Local date
+    const end = new Date(year, month - 1, day + 4); // Local date + 4 days
 
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    const startFormatted = start.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    });
+
+    const endFormatted = end.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+
+    return `${startFormatted} - ${endFormatted}`;
   };
 
   const handleActivityCreated = async (activityData: Omit<Activity, 'id' | '_creationTime' | 'userId'>) => {
