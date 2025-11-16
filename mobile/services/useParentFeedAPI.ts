@@ -4,12 +4,9 @@ import { ParentFeedEntry } from "../../shared/types/type";
 import { Platform } from "react-native";
 
 const getDefaultBaseUrl = () => {
-  // Android emulator needs to use 10.0.2.2 to reach the host machine
   if (Platform.OS === "android") {
     return "http://10.0.2.2:5001";
   }
-
-  // iOS simulator or web can still use localhost
   return "http://localhost:5001";
 };
 
@@ -25,18 +22,37 @@ type ParentFeedResponse = {
   message?: string;
 };
 
+type FetchParentFeedOptions = {
+  childId?: string;
+};
+
 /**
- * Fetch parent activity feed from backend
+ * Fetch parent activity feed from backend.
  * Returns a list of ParentFeedEntry[] for the logged-in parent.
  */
-export async function fetchParentFeed(): Promise<ParentFeedEntry[]> {
+export async function fetchParentFeed(
+  options: FetchParentFeedOptions = {}
+): Promise<ParentFeedEntry[]> {
   const user = auth.currentUser;
-  if (!user) return [];
+  if (!user) {
+    console.warn("fetchParentFeed: no authenticated user");
+    return [];
+  }
 
   try {
     const token = await user.getIdToken();
+    const params = new URLSearchParams();
 
-    const res = await fetch(`${BASE_URL}/api/mobile/parent-feed`, {
+    if (options.childId) {
+      params.append("childId", options.childId);
+    }
+
+    const url =
+      params.toString().length > 0
+        ? `${BASE_URL}/api/mobile/parent-feed?${params.toString()}`
+        : `${BASE_URL}/api/mobile/parent-feed`;
+
+    const res = await fetch(url, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -45,13 +61,25 @@ export async function fetchParentFeed(): Promise<ParentFeedEntry[]> {
     });
 
     if (!res.ok) {
-      console.warn("fetchParentFeed: HTTP", res.status);
+      const text = await res.text().catch(() => "");
+      if (res.status === 401) {
+        console.warn("fetchParentFeed: 401 Unauthorized", text);
+      } else if (res.status === 403) {
+        console.warn("fetchParentFeed: 403 Forbidden", text);
+      } else {
+        console.warn(
+          "fetchParentFeed: HTTP",
+          res.status,
+          res.statusText,
+          text
+        );
+      }
       return [];
     }
 
     const data = (await res.json()) as ParentFeedResponse;
 
-    if (!data.ok || !data.entries) {
+    if (!data.ok || !Array.isArray(data.entries)) {
       console.warn("fetchParentFeed: invalid payload", data);
       return [];
     }
