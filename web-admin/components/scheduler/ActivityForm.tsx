@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import type { Activity } from "@/types/scheduler";
-import type { Class } from "../../../shared/types/type";
+import { Class } from "../../../shared/types/type";
 
 interface ActivityFormProps {
   onClose: () => void;

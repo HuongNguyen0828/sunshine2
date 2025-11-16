@@ -559,6 +559,7 @@ export default function AdminDashboard() {
             {activeTab === "scheduler-labs" &&
               <SchedulerLabsTab
                 locations={filteredLocations}
+                showClasses={classes}
               />
             }
           </main >

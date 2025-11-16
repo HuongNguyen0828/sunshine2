@@ -1,4 +1,6 @@
+import { get } from "http";
 import { db, admin } from "../../lib/firebase";
+import { daycareLocationIds } from "../authService";
 
 export interface ScheduleCreate {
   weekStart: string;
@@ -7,22 +9,34 @@ export interface ScheduleCreate {
   activityTitle: string;
   activityDescription: string;
   activityMaterials: string;
-  classId: string | null; // null = applies to all classes
+  classId: string; // null = applies to all classes
+  locationId: string; // location scope of the schedule if classId is "*"
   color: string; // hex color code for activity pill
   order: number; // order within the time slot (0 = first, 1 = second, etc.)
 }
 
-export async function listSchedules(weekStart: string, classId?: string) {
-  let query = db.collection("schedules").where("weekStart", "==", weekStart);
+export async function listSchedules(weekStart: string, classId: string, locationId: string, daycareId: string) {
+  // Need to handle boundary to fetch schedules for this specific daycare and location only
+  let query = null;
+  if (locationId !== "*") {
+   query = db.collection("schedules")
+    .where("weekStart", "==", weekStart)
+    .where("locationId", "==", locationId);
+  } else {
+    const locationIds = await daycareLocationIds(daycareId);
+    query = db.collection("schedules")
+    .where("weekStart", "==", weekStart)
+    .where("locationId", "in", locationIds);
+  }
 
-  if (classId && classId !== "all") {
+  if (classId && classId !== "*") {
     // Get schedules for specific class OR schedules that apply to all classes (classId = null)
     // Note: Firestore doesn't support OR queries easily, so we'll fetch all and filter in memory
     const snapshot = await query.get();
     return snapshot.docs
       .filter(doc => {
         const data = doc.data();
-        return data.classId === classId || data.classId === null;
+        return data.classId === classId;
       })
       .map(doc => ({ id: doc.id, ...doc.data() }));
   }
@@ -31,7 +45,7 @@ export async function listSchedules(weekStart: string, classId?: string) {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-export async function createSchedule(data: ScheduleCreate, userId: string) {
+export async function createSchedule(data: ScheduleCreate, userId: string, locationId: string, daycareId: string) {
   const now = admin.firestore.Timestamp.now();
   const schedule = {
     ...data,

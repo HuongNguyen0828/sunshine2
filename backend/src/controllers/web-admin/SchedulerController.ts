@@ -22,9 +22,13 @@ export async function getSchedules(req: AuthRequest, res: Response) {
 export async function createSchedule(req: AuthRequest, res: Response) {
   try {
     const userId = req.user?.uid;
+    const locationId = req.body.locationId;
+    const classId = req.body.classId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const schedule = await schedulerService.createSchedule(req.body, userId);
+    if (!locationId) return res.status(400).json({ message: "locationId is missing from admin doc" });
+    const daycareId = req.body.daycareId;
+    if (!daycareId) return res.status(400).json({ message: "daycareId is missing from admin doc" });
+    const schedule = await schedulerService.createSchedule(req.body, userId, locationId, daycareId);
     return res.status(201).json(schedule);
   } catch (error) {
     console.error("[createSchedule] error:", error);

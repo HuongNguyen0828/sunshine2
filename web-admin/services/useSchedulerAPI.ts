@@ -22,7 +22,7 @@ export interface Schedule extends ScheduleData {
 
 export async function fetchSchedules(weekStart: string, classId?: string): Promise<Schedule[]> {
   const params = new URLSearchParams({ weekStart });
-  if (classId && classId !== "all") params.append("classId", classId);
+  if (classId && classId !== "*") params.append("classId", classId);
 
   return await api.get<Schedule[]>(`/api/schedules?${params}`);
 }

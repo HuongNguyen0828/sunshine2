@@ -6,16 +6,22 @@
  */
 'use client';
 
+import { LocationLite } from "@/services/useLocationsAPI";
 import { WeeklyScheduler } from "../scheduler/WeeklyScheduler";
+// import { ClassLite } from "@/app/dashboard/[uid]/page";
+import { Class } from "../../../shared/types/type";
 
 // This tab component serves as the bridge between the web-admin's consciousness
 // and the transplanted scheduler components - a meeting space for different UI paradigms
-export default function SchedulerLabsTab() {
+export default function SchedulerLabsTab({ showClasses, locations }: { showClasses: Class[], locations: LocationLite[] }) {
   return (
     <div className="h-full">
       {/* Container that adapts the scheduler to web-admin's layout patterns */}
       <div className="h-full overflow-auto">
-        <WeeklyScheduler />
+        <WeeklyScheduler
+          showClasses={showClasses}
+          locations={locations}
+        />
       </div>
     </div>
   );
