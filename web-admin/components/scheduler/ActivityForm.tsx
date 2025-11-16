@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import type { Activity } from "@/types/scheduler";
-import { Class } from "../../../shared/types/type";
+import { Class, EventType } from "../../../shared/types/type";
 
 interface ActivityFormProps {
   onClose: () => void;
@@ -30,7 +30,10 @@ const ACTIVITY_COLORS = [
   { name: 'Teal', value: '#14B8A6', bg: 'bg-teal-500' },
 ];
 
+export type EventTypeForm = Omit<EventType, "birthday" | "holiday">; // left with dalilyActivity (every weekday), childActivity (ocational) and meeting (for Teacher)
+
 export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFormProps) {
+  const [activityType, setActivityType] = useState<EventTypeForm>("dailyActivity");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [materials, setMaterials] = useState("");
@@ -51,6 +54,7 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
 
     try {
       await onActivityCreated({
+        type: activityType,
         title: title.trim(),
         description: description.trim(),
         materials: materials.trim(),
@@ -92,6 +96,24 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+              Activity Type *
+            </label>
+            <select
+              id="activityType"
+              value={activityType as string}
+              onChange={(e) => setActivityType(e.target.value as EventType)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              disabled={isSubmitting}
+            >
+              <option value="dailyActivity">Daily Activity</option>
+              <option value="childActivity">Child Activity</option>
+              {/* <option value="birthday">Birthday</option> */}
+              <option value="meeting">Meeting</option>
+              {/* <option value="holiday">Holiday</option> */}
+            </select>
+          </div>
 
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">

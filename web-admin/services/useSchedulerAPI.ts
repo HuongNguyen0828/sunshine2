@@ -1,6 +1,8 @@
 import api from "@/api/client";
+import { EventTypeForm } from "@/components/scheduler/ActivityForm";
 
 export interface ScheduleData {
+  type: EventTypeForm; // limited to dailyActivity, childActivity, meeting
   weekStart: string;
   dayOfWeek: string;
   timeSlot: string;

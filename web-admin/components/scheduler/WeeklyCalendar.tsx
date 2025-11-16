@@ -354,6 +354,9 @@ export function WeeklyCalendar({
                                 >
                                   {schedule.activity?.title}
                                 </h4>
+                                <h6 className="font-medium text-xs truncate">
+                                  {" (" + schedule.activity?.type + ")"}
+                                </h6>
                                 {schedule.activity?.description && (
                                   <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">
                                     {schedule.activity.description}

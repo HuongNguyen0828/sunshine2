@@ -40,7 +40,7 @@ import {
 } from "lucide-react-native";
 import { mockDaycareEvents } from "../../../src/data/mockData";
 
-type EventType = "dailyActivity" | "childActivity" | "birthday" | "meeting" | "holiday";
+import { EventType } from "../../../../shared/types/type";
 
 type Event = {
   id: string;

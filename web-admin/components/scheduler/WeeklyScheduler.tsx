@@ -72,6 +72,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
           if (!uniqueActivities.has(key)) {
             uniqueActivities.set(key, {
               id: key,
+              type: schedule.type,
               title: schedule.activityTitle,
               description: schedule.activityDescription,
               materials: schedule.activityMaterials,
@@ -84,6 +85,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
         setActivities(Array.from(uniqueActivities.values()));
         setSchedules(rawSchedulesData.map(s => ({
           id: s.id,
+          type: s.type,
           userId: s.userId,
           weekStart: s.weekStart,
           dayOfWeek: s.dayOfWeek,
@@ -92,6 +94,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
           order: s.order || 0,
           activity: {
             id: s.activityTitle,
+            type: s.type,
             title: s.activityTitle,
             description: s.activityDescription,
             materials: s.activityMaterials,
@@ -208,6 +211,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
 
         newSchedule = await SchedulerAPI.createSchedule({
           weekStart: currentWeek,
+          type: activity.type,
           dayOfWeek: params.dayOfWeek,
           timeSlot: params.timeSlot,
           activityTitle: activity.title,
@@ -222,6 +226,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
         // Assigning to location
         newSchedule = await SchedulerAPI.createSchedule({
           weekStart: currentWeek,
+          type: activity.type,
           dayOfWeek: params.dayOfWeek,
           timeSlot: params.timeSlot,
           activityTitle: activity.title,
@@ -238,6 +243,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
 
       setSchedules(prev => [...prev, {
         id: newSchedule.id,
+        type: newSchedule.type,
         userId: newSchedule.userId,
         weekStart: newSchedule.weekStart,
         dayOfWeek: newSchedule.dayOfWeek,

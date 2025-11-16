@@ -469,3 +469,9 @@ export type DailyReport = {
   entries: Entry[]; // legacy usage in reports; ok to keep
   createdAt: string; // ISO date
 };
+
+/* =============================
+ * For Calendar events
+ * ============================= */
+export type EventType = "dailyActivity" | "childActivity" | "birthday" | "meeting" | "holiday";
+
