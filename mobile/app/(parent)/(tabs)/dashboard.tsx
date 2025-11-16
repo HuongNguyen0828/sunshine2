@@ -17,6 +17,12 @@ import { ParentFeedEntry } from "../../../../shared/types/type";
 type ChildRef = {
   id: string;
   name: string;
+  relationship?: string;
+};
+
+type ChildRelationship = {
+  childId: string;
+  relationship?: string;
 };
 
 async function getUserDocId(): Promise<string | null> {
@@ -35,61 +41,95 @@ export default function ParentDashboard() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const userDocId = await getUserDocId();
-      if (!userDocId) {
-        setChildren([]);
-        setEntries([]);
-        setLoading(false);
-        return;
-      }
 
-      // 1) load parent user doc → childIds
-      const userSnap = await getDoc(doc(db, "users", userDocId));
-      const userData = userSnap.exists() ? (userSnap.data() as any) : {};
-      const rels: Array<{ childId: string }> = Array.isArray(
-        userData.childRelationships
-      )
-        ? userData.childRelationships
-        : [];
-
-      const childIds = rels.map((r) => r.childId).filter(Boolean);
-      if (childIds.length === 0) {
-        setChildren([]);
-        setEntries([]);
-        setLoading(false);
-        return;
-      }
-
-      // 2) resolve child names (still from Firestore)
-      const childDocs: ChildRef[] = [];
-      for (const cid of childIds) {
-        const cSnap = await getDoc(doc(db, "children", cid));
-        if (cSnap.exists()) {
-          const c = cSnap.data() as any;
-          const fullName =
-            `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() ||
-            c.name ||
-            cid;
-          childDocs.push({ id: cid, name: fullName });
-        } else {
-          childDocs.push({ id: cid, name: cid });
+      try {
+        const userDocId = await getUserDocId();
+        if (!userDocId) {
+          setChildren([]);
+          setEntries([]);
+          setLoading(false);
+          return;
         }
+
+        // 1) load parent user doc → childRelationships
+        const userSnap = await getDoc(doc(db, "users", userDocId));
+        const userData = userSnap.exists() ? (userSnap.data() as any) : {};
+
+        let rels: ChildRelationship[] = [];
+
+        if (Array.isArray(userData.childRelationships)) {
+          rels = userData.childRelationships as ChildRelationship[];
+        } else if (
+          userData.childRelationships &&
+          typeof userData.childRelationships === "object"
+        ) {
+          // in case it's stored as an object map
+          rels = Object.values(
+            userData.childRelationships
+          ) as ChildRelationship[];
+        }
+
+        const childIds = rels
+          .map((r) => r.childId)
+          .filter((id): id is string => typeof id === "string" && !!id);
+
+        if (childIds.length === 0) {
+          setChildren([]);
+          setEntries([]);
+          setLoading(false);
+          return;
+        }
+
+        // 2) resolve child names (children collection)
+        const childDocs: ChildRef[] = [];
+        for (const rel of rels) {
+          if (!rel.childId) continue;
+
+          const cSnap = await getDoc(doc(db, "children", rel.childId));
+          if (cSnap.exists()) {
+            const c = cSnap.data() as any;
+            const fullName =
+              `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim() ||
+              c.name ||
+              rel.childId;
+
+            childDocs.push({
+              id: rel.childId,
+              name: fullName,
+              relationship: rel.relationship,
+            });
+          } else {
+            childDocs.push({
+              id: rel.childId,
+              name: rel.childId,
+              relationship: rel.relationship,
+            });
+          }
+        }
+
+        childDocs.sort((a, b) => a.name.localeCompare(b.name));
+        setChildren(childDocs);
+
+        // 3) fetch feed from backend (already filtered for this parent)
+        const feed = await fetchParentFeed();
+        setEntries(feed);
+      } catch (e) {
+        console.warn("ParentDashboard load error:", e);
+        setChildren([]);
+        setEntries([]);
+      } finally {
+        setLoading(false);
       }
-      childDocs.sort((a, b) => a.name.localeCompare(b.name));
-      setChildren(childDocs);
-
-      // 3) fetch feed from backend (already sorted)
-      const feed = await fetchParentFeed();
-      setEntries(feed);
-
-      setLoading(false);
     })();
   }, []);
 
-  const childNameById = useMemo(() => {
-    const m: Record<string, string> = {};
+  const childInfoById = useMemo(() => {
+    const m: Record<
+      string,
+      { name: string; relationship?: string }
+    > = {};
     children.forEach((c) => {
-      m[c.id] = c.name;
+      m[c.id] = { name: c.name, relationship: c.relationship };
     });
     return m;
   }, [children]);
@@ -135,6 +175,7 @@ export default function ParentDashboard() {
         >
           Activity Feed
         </Text>
+
         {children.length === 0 ? (
           <View
             style={{
@@ -163,11 +204,14 @@ export default function ParentDashboard() {
           </View>
         ) : (
           entries.map((e) => {
-            const childName = childNameById[e.childId] || e.childName || e.childId;
+            const info = childInfoById[e.childId] || {
+              name: e.childName || e.childId,
+            };
             const emoji = iconFor(e);
             const title = titleFor(e);
             const detail = detailFor(e);
             const time = toHM(e.occurredAt || e.createdAt);
+
             return (
               <View
                 key={e.id}
@@ -192,17 +236,24 @@ export default function ParentDashboard() {
                 >
                   <Text style={{ fontSize: 20 }}>{emoji}</Text>
                 </View>
+
                 <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={{ fontWeight: "600", fontSize: 15 }}>{title}</Text>
+                  <Text style={{ fontWeight: "600", fontSize: 15 }}>
+                    {title}
+                  </Text>
+
                   <Text style={{ color: colors.textDim, fontSize: 13 }}>
-                    {childName}
+                    {info.name}
+                    {info.relationship ? ` (${info.relationship})` : ""}
                     {time ? ` • ${time}` : ""}
                   </Text>
+
                   {!!detail && (
                     <Text style={{ color: colors.text, fontSize: 14 }}>
                       {detail}
                     </Text>
                   )}
+
                   {e.photoUrl ? (
                     <Image
                       source={{ uri: e.photoUrl }}
@@ -260,14 +311,12 @@ function titleFor(e: ParentFeedEntry): string {
 function detailFor(e: ParentFeedEntry): string | undefined {
   if (!e.detail) return undefined;
 
-  // Food can be array-like
   if (e.type === "Food") {
     const anyDetail = e.detail as any;
     if (Array.isArray(anyDetail?.menu)) return anyDetail.menu.join(", ");
     if (typeof anyDetail === "string") return anyDetail;
   }
 
-  // To match Activity / Note / Health structure
   const anyDetail = e.detail as any;
   if (typeof anyDetail?.text === "string") return anyDetail.text;
   if (typeof anyDetail === "string") return anyDetail;
@@ -275,11 +324,9 @@ function detailFor(e: ParentFeedEntry): string | undefined {
   return undefined;
 }
 
-// backend now sends ISO string; still keep Firestore-style fallback
 function toHM(v: any): string | undefined {
   if (!v) return undefined;
 
-  // ISO string
   if (typeof v === "string") {
     const d = new Date(v);
     if (isNaN(d.getTime())) return undefined;
@@ -288,7 +335,6 @@ function toHM(v: any): string | undefined {
     return `${hh}:${mm}`;
   }
 
-  // Firestore Timestamp (just in case)
   if (typeof v === "object" && typeof v.seconds === "number") {
     const ms = v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6);
     const d = new Date(ms);
