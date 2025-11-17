@@ -460,33 +460,23 @@ export default function AdminDashboard() {
   return (
     <>
       <div style={dash.container}>
-        <header style={dash.header}>
-          <AppHeader />
-          <h1 style={dash.headerTitle}>Admin Dashboard</h1>
-          <div style={dash.headerActions}>
-            <span style={dash.welcome}>Welcome, {currentUser?.displayName}</span>
-            <button onClick={signOutUser} style={dash.logoutButton}>
-              Logout
-            </button>
-          </div>
-        </header>
-
-        {/*  Loading/ Updating status */}
-        {initialLoading && (
-          <div className="text-center p-4 bg-blue-100 text-blue-800 font-semibold rounded-lg mb-4">
-            Loading data ....
-          </div>
-        )}
-
-        {updateLoading && (
-          <div className="text-center p-4 bg-blue-100 text-blue-800 font-semibold rounded-lg mb-4">
-            ⏳ Updating data...
-          </div>
-        )}
+        <AppHeader />
 
         <div style={dash.content}>
           <SidebarNav active={activeTab} onChange={setActiveTab} />
           <main style={dash.main}>
+            {/*  Loading/ Updating status */}
+            {initialLoading && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-6 text-sm font-medium">
+                Loading data...
+              </div>
+            )}
+
+            {updateLoading && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-6 text-sm font-medium">
+                ⏳ Updating data...
+              </div>
+            )}
             {activeTab === "overview" && (
               <Overview
                 teacherCount={computeTeacherCounts(teachers)} // total: teachers.leng, locationId: teachers.filter(teacher.locationId === locationId),lengthh
