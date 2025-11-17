@@ -282,7 +282,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
     }
   };
 
-  const handleScheduleDeleted = async (scheduleId: string, cls: string) => {
+  const handleScheduleDeleted = async (scheduleId: string) => {
     try {
       await SchedulerAPI.deleteSchedule(scheduleId);
       setSchedulesData(prev => prev.filter(s => s.id !== scheduleId));
