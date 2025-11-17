@@ -102,7 +102,7 @@ export default function SidebarNav({
                 isCollapsed ? 'justify-center aspect-square p-3' : 'px-3 py-2.5'
               } ${
                 active === item.id
-                  ? 'bg-blue-50 text-blue-600 font-semibold border-l-3 border-blue-600'
+                  ? 'bg-blue-50 text-blue-600 font-semibold'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
               }`}
               title={isCollapsed ? item.label : undefined}
