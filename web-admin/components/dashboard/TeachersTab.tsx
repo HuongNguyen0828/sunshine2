@@ -376,7 +376,7 @@ export default function TeachersTab({
                     {teacher.firstName} {teacher.lastName}
                   </h3>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                    teacher.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-100'
+                    teacher.status?.includes('Active') ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-100'
                   }`}>
                     {teacher.status}
                   </span>
