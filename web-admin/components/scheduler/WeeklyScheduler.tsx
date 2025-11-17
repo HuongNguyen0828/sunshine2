@@ -16,6 +16,8 @@ import type { Class } from "../../../shared/types/type";
 import * as SchedulerAPI from "@/services/useSchedulerAPI";
 import { LocationLite } from "@/services/useLocationsAPI";
 // import { ClassLite } from "@/app/dashboard/[uid]/page";
+export const defaultLocationView = "all";
+
 
 // This component represents the consciousness transplant - taking the original
 // scheduler's reactive patterns and adapting them to local state management
@@ -48,7 +50,6 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<Class[]>(showClasses); // using Class type, loading class from dashboard props, not backend calls
   const [selectedClassId, setSelectedClassId] = useState<string>("all");
-  const defaultLocationView = "all";
   const [locationView, setLocationView] = useState<string>(defaultLocationView);
   const [selectedClassOrAllClasses, setSelectedClassOrAllClasses] = useState<boolean>(true); //default to class itself, else location
 
@@ -197,6 +198,11 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
         return;
       }
 
+      if (locationView === defaultLocationView) {
+        alert("Cannot assign activity: please select a location first.");
+        return;
+      }
+
       // Calculate the next order position for this slot
       const existingSchedulesInSlot = schedules.filter(s =>
         s.dayOfWeek === params.dayOfWeek && s.timeSlot === params.timeSlot
@@ -207,7 +213,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
       // Use targetClassId if provided (from multi-calendar view), otherwise use selectedClassId'
       let newSchedule: any;
       if (selectedClassOrAllClasses) { // Assigning to specific class
-        const assignToClassId = params.targetClassId || (selectedClassId === "all" ? null : selectedClassId);
+        const assignToClassId = params.targetClassId || selectedClassId;
 
         newSchedule = await SchedulerAPI.createSchedule({
           weekStart: currentWeek,
@@ -276,7 +282,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
     }
   };
 
-  const handleScheduleDeleted = async (scheduleId: string) => {
+  const handleScheduleDeleted = async (scheduleId: string, cls: string) => {
     try {
       await SchedulerAPI.deleteSchedule(scheduleId);
       setSchedulesData(prev => prev.filter(s => s.id !== scheduleId));

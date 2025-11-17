@@ -33,6 +33,6 @@ export async function createSchedule(data: ScheduleData): Promise<Schedule> {
   return await api.post<Schedule>("/api/schedules", data);
 }
 
-export async function deleteSchedule(id: string): Promise<void> {
-  return await api.delete<void>(`/api/schedules/${id}`);
+export async function deleteSchedule(scheduleid: string): Promise<void> {
+  return await api.delete<void>(`/api/schedules/${scheduleid}`);
 }

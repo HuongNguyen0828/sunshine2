@@ -69,5 +69,7 @@ export async function createSchedule(data: ScheduleCreate, userId: string, locat
 }
 
 export async function deleteSchedule(scheduleId: string) {
+  // Need gradually delete related data if the classId === "*"
+
   await db.collection("schedules").doc(scheduleId).delete();
 }

@@ -9,11 +9,11 @@ export async function getSchedules(req: AuthRequest, res: Response) {
 
     const locationId = req.user?.locationId;
     if (!locationId) {
-      return res.status(400).json({ message: "locationId is missing from admin doc" });
+      return res.status(400).json({ message: "Fetching schedules: locationId is missing from admin doc" });
     }
     const daycareId = req.user?.daycareId;
     if (!daycareId) {
-      return res.status(400).json({ message: "daycareId is missing from admin doc" });
+      return res.status(400).json({ message: "Fetching schedules: daycareId is missing from admin doc" });
     }
     if (!weekStart) {
       return res.status(400).json({ message: "weekStart is required" });
@@ -33,12 +33,12 @@ export async function getSchedules(req: AuthRequest, res: Response) {
 export async function createSchedule(req: AuthRequest, res: Response) {
   try {
     const userId = req.user?.uid;
-    const locationId = req.body.locationId;
-    const classId = req.body.classId;
+    const locationId = req.user?.locationId;
+    // const classId = req.body.classId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    if (!locationId) return res.status(400).json({ message: "locationId is missing from admin doc" });
-    const daycareId = req.body.daycareId;
-    if (!daycareId) return res.status(400).json({ message: "daycareId is missing from admin doc" });
+    if (!locationId) return res.status(400).json({ message: "Create schedule failed: locationId is missing from admin doc" });
+    const daycareId = req.user?.daycareId;
+    if (!daycareId) return res.status(400).json({ message: "Create schedule failed: daycareId is missing from admin doc" });
     const schedule = await schedulerService.createSchedule(req.body, userId, locationId, daycareId);
     return res.status(201).json(schedule);
   } catch (error) {
@@ -49,8 +49,8 @@ export async function createSchedule(req: AuthRequest, res: Response) {
 
 export async function deleteSchedule(req: AuthRequest, res: Response) {
   try {
-    const { id } = req.params;
-    await schedulerService.deleteSchedule(id);
+    const scheduleId = req.params.scheduleId as string;
+    await schedulerService.deleteSchedule(scheduleId);
     return res.status(204).send();
   } catch (error) {
     console.error("[deleteSchedule] error:", error);

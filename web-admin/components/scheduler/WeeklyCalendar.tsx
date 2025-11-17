@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ActivitySelector } from "./ActivitySelector";
 import type { Activity, Schedule, SlotInfo } from "@/types/scheduler";
 import { WEEKDAYS, TIME_SLOTS } from "@/types/scheduler";
+import { defaultLocationView } from "./WeeklyScheduler";
 
 interface WeeklyCalendarProps {
   weekStart: string;
@@ -58,6 +59,11 @@ export function WeeklyCalendar({
   };
 
   const handleSlotClick = (day: string, timeSlot: string) => {
+    // Prevent opening if no location is selected
+    if (targetClassIdWithLocation.locationId === defaultLocationView) {
+      alert("Please select a location  before assigning activities.");
+      return;
+    }
     setSelectedSlot({ day, timeSlot });
   };
 
