@@ -310,60 +310,61 @@ export default function ParentsTab({
 
       {/* Parents Grid */}
       {paginatedParents.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {paginatedParents.map((parent) => (
             <div
               key={parent.id}
-              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5"
+              className="group bg-white rounded-xl border border-slate-200 hover:border-blue-200 shadow-sm hover:shadow-md transition-all duration-200 p-6"
             >
               {/* Primary Info */}
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              <div className="mb-5">
+                <h3 className="text-lg font-semibold text-slate-800 mb-1 group-hover:text-blue-600 transition-colors">
                   {parent.firstName} {parent.lastName}
                 </h3>
-                <div className="text-sm text-gray-500">{parent.email}</div>
+                <div className="text-sm text-slate-500 font-medium">{parent.email}</div>
               </div>
 
               {/* Secondary Details */}
-              <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
-                <div className="flex items-start gap-2">
-                  <span className="text-xs text-gray-500">Phone:</span>
-                  <span className="text-xs text-gray-700 font-medium">
+              <div className="space-y-3 mb-5 pb-5 border-b border-slate-100">
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Phone</span>
+                  <span className="text-sm text-slate-700 font-medium">
                     {parent.phone}
                   </span>
                 </div>
 
-                <div className="flex items-start gap-2">
-                  <span className="text-xs text-gray-500">Address:</span>
-                  <span className="text-xs text-gray-700">
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Address</span>
+                  <span className="text-sm text-slate-600 leading-relaxed">
                     {formatAddress(parent)}
                   </span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-xs text-gray-500">Child:</span>
-                  {parent.children.length > 0 ?
-                    parent.children.map((child, index) => (
-                      <span key={child.id} className="text-xs text-gray-700">
-                        {[child.firstName, child.lastName].join(' ')}
-                        {index < parent.children.length - 1 && ','}
-                      </span>)
-                    ) : (
-                      <span className="text-xs text-gray-700"> None </span>
-                    )}
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Children</span>
+                  <div className="flex flex-wrap gap-2">
+                    {parent.children.length > 0 ?
+                      parent.children.map((child) => (
+                        <span key={child.id} className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
+                          {[child.firstName, child.lastName].join(' ')}
+                        </span>
+                      )) : (
+                        <span className="text-sm text-slate-400 italic">No children assigned</span>
+                      )}
+                  </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   onClick={() => handleEditClick(parent)}
-                  className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                  className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDeleteClick(parent)}
-                  className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                  className="flex-1 bg-white border border-slate-200 hover:bg-red-50 hover:border-red-300 text-slate-700 hover:text-red-600 font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
                 >
                   Delete
                 </button>
