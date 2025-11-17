@@ -19,17 +19,19 @@ export async function listSchedules(weekStart: string, classId: string, location
   // Need to handle boundary to fetch schedules for this specific daycare and location only
   let query = null;
   if (locationId !== "*") {
+    // Case admin is scoped to a specific location
    query = db.collection("schedules")
     .where("weekStart", "==", weekStart)
     .where("locationId", "==", locationId);
   } else {
+    // Case admin is scoped to all locations within the daycare
     const locationIds = await daycareLocationIds(daycareId);
     query = db.collection("schedules")
     .where("weekStart", "==", weekStart)
     .where("locationId", "in", locationIds);
   }
 
-  if (classId && classId !== "*") {
+  if (classId !== "*") {
     // Get schedules for specific class OR schedules that apply to all classes (classId = null)
     // Note: Firestore doesn't support OR queries easily, so we'll fetch all and filter in memory
     const snapshot = await query.get();
@@ -40,7 +42,7 @@ export async function listSchedules(weekStart: string, classId: string, location
       })
       .map(doc => ({ id: doc.id, ...doc.data() }));
   }
-
+  // Get all schedules for all classes within the location(s)
   const snapshot = await query.get();
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }

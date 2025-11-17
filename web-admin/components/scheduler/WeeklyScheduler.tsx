@@ -58,7 +58,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
     const loadData = async () => {
       try {
         const [rawSchedulesData] = await Promise.all([
-          SchedulerAPI.fetchSchedules(currentWeek, "all"), // fetch all schedules for all classes at once, and change filtering logic locally
+          SchedulerAPI.fetchSchedules(currentWeek, "*"), // fetch all schedules for all classes at once, and change filtering logic locally
           // fetchClasses()
         ]);
 

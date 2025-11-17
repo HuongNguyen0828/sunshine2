@@ -5,13 +5,24 @@ import * as schedulerService from "../../services/web-admin/schedulerService";
 export async function getSchedules(req: AuthRequest, res: Response) {
   try {
     const weekStart = req.query.weekStart as string;
-    const classId = req.query.classId as string | undefined;
+    const classId = req.query.classId as string;
 
+    const locationId = req.user?.locationId;
+    if (!locationId) {
+      return res.status(400).json({ message: "locationId is missing from admin doc" });
+    }
+    const daycareId = req.user?.daycareId;
+    if (!daycareId) {
+      return res.status(400).json({ message: "daycareId is missing from admin doc" });
+    }
     if (!weekStart) {
       return res.status(400).json({ message: "weekStart is required" });
     }
+    if (!classId) {
+      return res.status(400).json({ message: "classId is required" });
+    }
 
-    const schedules = await schedulerService.listSchedules(weekStart, classId);
+    const schedules = await schedulerService.listSchedules(weekStart, classId, locationId, daycareId);
     return res.json(schedules);
   } catch (error) {
     console.error("[getSchedules] error:", error);
