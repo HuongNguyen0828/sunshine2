@@ -367,54 +367,67 @@ export default function TeachersTab({
       </div>
 
       {paginatedTeachers.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {paginatedTeachers.map((teacher) => (
             <div
               key={teacher.id}
-              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5"
+              className="group bg-white rounded-xl border border-slate-200 hover:border-emerald-200 shadow-sm hover:shadow-md transition-all duration-200 p-6"
             >
-              <div className="mb-4">
+              <div className="mb-5">
                 <div className="flex items-baseline gap-2 mb-1">
-                  <h3 className="text-xl font-bold text-gray-900 truncate">
-                    {teacher.email}
-                  </h3>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">
+                  <h3 className="text-lg font-semibold text-slate-800 truncate group-hover:text-emerald-600 transition-colors">
                     {teacher.firstName} {teacher.lastName}
+                  </h3>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                    teacher.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-100'
+                  }`}>
+                    {teacher.status}
                   </span>
-                  <span className="text-gray-300">•</span>
-                  <span className="text-sm font-medium text-gray-700">
+                </div>
+                <div className="text-sm text-slate-500 font-medium">{teacher.email}</div>
+              </div>
+
+              <div className="space-y-3 mb-5 pb-5 border-b border-slate-100">
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Phone</span>
+                  <span className="text-sm text-slate-700 font-medium">
                     {teacher.phone}
                   </span>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 text-gray-700 text-sm">
-                <span>📍</span>
-                <span className="truncate">
-                  {getLocationLabel(teacher.locationId)}
-                </span>
-              </div>
-              <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
-                <div className="text-xs text-gray-500 leading-relaxed">{formatAddress(teacher)}</div>
-                <div className="text-xs text-gray-400">
-                  {String(teacher.startDate)}
-                  {teacher.endDate
-                    ? ` → ${String(teacher.endDate)}`
-                    : " → Present"}
+
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Location</span>
+                  <span className="text-sm text-slate-600">
+                    {getLocationLabel(teacher.locationId)}
+                  </span>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Address</span>
+                  <span className="text-sm text-slate-600 leading-relaxed">
+                    {formatAddress(teacher)}
+                  </span>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Period</span>
+                  <span className="text-sm text-slate-600">
+                    {String(teacher.startDate)}
+                    {teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   onClick={() => handleEditClick(teacher)}
-                  className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                  className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDeleteClick(teacher)}
-                  className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                  className="flex-1 bg-white border border-slate-200 hover:bg-red-50 hover:border-red-300 text-slate-700 hover:text-red-600 font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
                 >
                   Delete
                 </button>
