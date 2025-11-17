@@ -285,8 +285,8 @@ function ChildCard({
             Assign to Class
           </button>
         )}
-
-    </div >
+      </div>
+    </div>
   );
 }
 
