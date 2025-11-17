@@ -164,38 +164,38 @@ function ChildCard({
   // const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 flex flex-col">
-      <div className="mb-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800 truncate">
+    <div className="group bg-white rounded-xl border border-slate-200 hover:border-purple-200 shadow-sm hover:shadow-md transition-all duration-200 p-6 flex flex-col">
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-slate-800 truncate group-hover:text-purple-600 transition-colors">
             {child.firstName} {child.lastName}
           </h3>
-          <div className="flex gap-4">
-            <span>{child.gender}</span>
-            <span className="text-xs text-gray-500">
+          <div className="flex gap-3 items-center">
+            <span className="text-sm text-slate-600 font-medium">{child.gender}</span>
+            <span className="text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-100">
               {formatAge(child.birthDate)}
             </span>
           </div>
         </div>
-        <div className="flex justify-between text-xs text-gray-500">
-          <div>
-            Status:{" "}
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Status</span>
             <span
-              className={
+              className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${
                 status === Types.EnrollmentStatus.Active
-                  ? "text-green-600 font-bold"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                   : status === Types.EnrollmentStatus.Waitlist
-                    ? "text-yellow-600"
+                    ? "bg-amber-50 text-amber-700 border-amber-100"
                     : status === Types.EnrollmentStatus.New
-                      ? "text-red-600 font-bold"
-                      : "text-gray-600"
-              }
+                      ? "bg-blue-50 text-blue-700 border-blue-100"
+                      : "bg-slate-50 text-slate-600 border-slate-100"
+              }`}
             >
               {status}
             </span>
           </div>
-          <div>
-            <span> Start: <span className="font-semibold">{child.startDate}</span></span>
+          <div className="text-sm text-slate-600">
+            <span className="text-xs text-slate-400">Start:</span> <span className="font-semibold">{child.startDate}</span>
           </div>
         </div>
       </div>
