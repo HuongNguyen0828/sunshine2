@@ -204,99 +204,87 @@ function ChildCard({
         </div>
       </div>
 
-      <div className="space-y-2 mb-4">
-        <div className="text-xs text-gray-500">
-          📍 {getLocationLabel(locations, child.locationId)}
+      <div className="space-y-3 mb-5 pb-5 border-b border-slate-100">
+        <div className="flex items-start gap-3">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Location</span>
+          <span className="text-sm text-slate-600">
+            {getLocationLabel(locations, child.locationId)}
+          </span>
         </div>
 
-        <div className="text-sm text-gray-600">
-          Class:{" "}
-          <span className="font-medium">
+        <div className="flex items-start gap-3">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Class</span>
+          <span className="text-sm text-slate-700 font-medium">
             {classLabel(classes, child.classId)}
           </span>
         </div>
 
-        {/* {cls && (
-          <div>
-            <div className="flex justify-between items-center text-xs text-gray-500">
-              <span>Capacity</span>
-              <span>{cap.text}</span>
+        {parent1And2 && parent1And2.length > 0 ? (
+          <div className="flex items-start gap-3">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Parents</span>
+            <div className="space-y-1.5">
+              {parent1And2.map((eachParent, index) => {
+                const childRelationship = eachParent.childRelationships.filter(
+                  (relationship) => relationship.childId === child.id
+                )[0].relationship;
+                const firstname = eachParent.firstName;
+                const lastname = eachParent.lastName;
+                return (
+                  <div key={index} className="text-sm text-slate-600">
+                    <span className="text-xs text-slate-400 font-medium">{childRelationship}:</span> {firstname} {lastname}
+                  </div>
+                );
+              })}
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-              <div
-                className={`h-1.5 ${cap.level === "full"
-                  ? "bg-red-500"
-                  : cap.level === "warn"
-                    ? "bg-yellow-500"
-                    : "bg-green-500"
-                  }`}
-                style={{ width: `${cap.pct}%` }}
-              />
-            </div>
-          </div>
-        )} */}
-
-        {parent1And2 ? (
-          <div className="text-xs text-gray-600">
-            {/* Add debug info
-            <div className="text-red-500 text-xs">
-              Debug: {parent1And2.length} parents found
-            </div> */}
-            {parent1And2.map((eachParent, index) => {
-              const childRelationship = eachParent.childRelationships.filter(
-                (relationship) => relationship.childId === child.id
-              )[0].relationship;
-              const firstname = eachParent.firstName;
-              const lastname = eachParent.lastName;
-              return (
-                <div key={index}>
-                  {childRelationship}: {firstname} {lastname}
-                </div>
-              );
-            })}
           </div>
         ) : (
-          <div className="text-xs text-gray-400">No parent linked</div>
+          <div className="flex items-start gap-3">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Parents</span>
+            <span className="text-sm text-slate-400 italic">No parent linked</span>
+          </div>
         )}
 
         {child.notes && (
-          <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded">
-            <span className="font-bold">Note:</span> {child.notes}{" "}
+          <div className="flex items-start gap-3">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Notes</span>
+            <div className="text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-md border border-slate-100">
+              {child.notes}
+            </div>
           </div>
         )}
       </div>
 
-      <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2 mb-1">
-        <button
-          onClick={() => onEdit(child, parent1And2[0], parent1And2[1])}
-          className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
-        >
-          Edit
-        </button>
-        <button
-          onClick={() => onDelete(child)}
-          className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-red-50 hover:border-red-300 hover:text-red-600"
-        >
-          Delete
-        </button>
-      </div>
+      <div className="mt-auto flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onEdit(child, parent1And2[0], parent1And2[1])}
+            className="bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => onDelete(child)}
+            className="bg-white border border-slate-200 hover:bg-red-50 hover:border-red-300 text-slate-700 hover:text-red-600 font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
+          >
+            Delete
+          </button>
+        </div>
 
-      {child.classId ? (
-        <button
-          // Switch class is also same, but cleanup the current class, before moving to the new 
-          onClick={() => onOpenAssign(child)}
-          className="w-1/2 mx-auto px-3 py-2 rounded-lg text-xs bg-gray-700 text-white hover:bg-gray-800"
-        >
-          Switch Class
-        </button>
-      ) : (
-        <button
-          onClick={() => onOpenAssign(child)}
-          className="w-1/2 mx-auto px-auto py-2 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700"
-        >
-          Assign to Class
-        </button>
-      )}
+        {child.classId ? (
+          <button
+            onClick={() => onOpenAssign(child)}
+            className="w-full bg-slate-700 hover:bg-slate-800 text-white font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
+          >
+            Switch Class
+          </button>
+        ) : (
+          <button
+            onClick={() => onOpenAssign(child)}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
+          >
+            Assign to Class
+          </button>
+        )}
 
     </div >
   );
