@@ -323,17 +323,6 @@ export type User = {
   classIds?: string[];
 };
 
-/* =============================
- * Schedule
- * ============================= */
-export type Schedule = {
-  id: string;
-  classId: string;
-  dayOfWeek: number; // 0..6
-  startTime: string; // "HH:MM"
-  endTime: string;   // "HH:MM"
-  morningAfternoon: "Morning" | "Afternoon" | "Full day";
-};
 
 /* =============================
  * Teacher
@@ -474,4 +463,30 @@ export type DailyReport = {
  * For Calendar events
  * ============================= */
 export type EventType = "dailyActivity" | "childActivity" | "birthday" | "meeting" | "holiday";
+export type EventTypeForm = Omit<EventType, "birthday" | "holiday">; // left with dalilyActivity (every weekday), childActivity (ocational) and meeting (for Teacher)
 
+export interface Activity {
+  id: string;
+  type: EventTypeForm; // limited to dailyActivity, childActivity, meeting
+  title: string;
+  description: string;
+  materials: string;
+  color: string; // hex color code for activity pill
+  userId?: string; // Optional for local state
+  _creationTime?: number; // Optional timestamp
+}
+
+/* =============================
+ * Schedule
+ * ============================= */
+export interface Schedule {
+  id: string;
+  type: EventTypeForm; // limited to dailyActivity, childActivity, meeting
+  userId?: string;
+  weekStart: string; // ISO date string for Monday of the week
+  dayOfWeek: string; // "monday", "tuesday", etc.
+  timeSlot: string; // "morning", "mid-morning", "afternoon"
+  activityId: string;
+  activity?: Activity | null; // Populated activity reference
+  order: number; // order within the time slot (0 = first, 1 = second, etc.)
+}

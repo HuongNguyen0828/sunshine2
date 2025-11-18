@@ -16,7 +16,7 @@ export type ApiRes<T> = Ok<T> | Err;
 /* ===============================
  * API base (Android emulator uses 10.0.2.2)
  * =============================== */
-const BASE_URL =
+export const BASE_URL =
   Platform.OS === "android"
     ? "http://10.0.2.2:5001/api/mobile"
     : "http://localhost:5001/api/mobile";
