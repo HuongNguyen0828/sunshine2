@@ -328,7 +328,7 @@ export default function ChildrenTab({
   const [selectedClassId, setSelectedClassId] = useState("");
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const defaultLocationView: string = "all";
+  const defaultLocationView: string = locations.length > 1 ? "all" : locations[0].id;
   const [locationView, setLocationView] = useState<string>(defaultLocationView); // default is viewing all locations
 
 
@@ -994,7 +994,7 @@ export default function ChildrenTab({
                 </option>
               ))}
               {/* Default all locations: all ids */}
-              <option value={defaultLocationView}>All locations</option>
+              {locations.length > 1 && <option value={defaultLocationView}>All locations</option>}
             </select>
           </div>
           <button

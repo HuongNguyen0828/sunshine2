@@ -11,25 +11,37 @@ async function getClassesForTeacherId(teacherId: string, locationId: string) {
 }
 
 // List schedules for a given weekStart, teacherId (in proven of classId and locationId)
-export async function listSchedules(weekStart: string, teacherId: string, locationId: string) {
+export async function listSchedules(monthStart: string, teacherId: string, locationId: string) {
     // 1. First, get classes for the teacher at the specified location
     const classes = await getClassesForTeacherId(teacherId, locationId);
     const classIds = classes.map(c => c.id);
     let query = null;
     let wildcardQuery = null;
 
+    /* ================
+    Example of weekStart(2025-11-10) included in monthStart(2025-11-01): matching year and month 2025-11
+        As Firestore Doesn't support "Contains substring", so we can use in range: (2025-11-1, 2025-11-32)
+    Also, need to consider case: classId === "*"
+    =======================
+    */
+   const rangeStart = monthStart;
+//    const rangeEnd = monthStart.slice( 0, 6).concat("-32");  // get at YYYY-MM, adding boundary "-32"
+    const rangeEnd = `${monthStart.slice(0, 6)}-32`; // better approach
+
     // 2. Build the query to fetch schedules for those classes
     if (classIds.length > 0) {
-        // Checking if classId inside Schedules === "*", then we need to fetch those schedules as well
+        // Checking if inside Schedules, classId === "*", then we need to fetch those schedules as well
         // 2.1. Case when exactly match classId on Schedules
         query = db.collection("schedules")
-        .where("weekStart", "==", weekStart)
+        .where("weekStart", ">=", rangeStart) // >= rangeStart
+        .where("weekStart", "<=", rangeEnd) // <= rangeEnd
         .where("locationId", "==", locationId)
         .where("classId", "in", classIds); // it's safe as 1 teacher won't have more than 2 classes
 
         // 2.2. Case when classId iscould be "*", find any schedules that apply to all classes and with this locationId
         wildcardQuery = db.collection("schedules")
-        .where("weekStart", "==", weekStart)
+        .where("weekStart", ">=", rangeStart) // >= rangeStart
+        .where("weekStart", "<=", rangeEnd) // <= rangeEnd        
         .where("locationId", "==", locationId)
         .where("classId", "==", "*");
 

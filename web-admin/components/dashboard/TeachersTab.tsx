@@ -43,7 +43,7 @@ export default function TeachersTab({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [phoneError, setPhoneError] = useState<string>("");
 
-  const defaultLocationView = "all";
+  const defaultLocationView: string = locations.length > 1 ? "all" : locations[0].id;
   const [locationView, setLocationView] =
     useState<string>(defaultLocationView);
 
@@ -327,7 +327,7 @@ export default function TeachersTab({
                   {location.name}
                 </option>
               ))}
-              <option value={defaultLocationView}>All locations</option>
+              {locations.length > 1 && <option value={defaultLocationView}>All locations</option>}
             </select>
           </div>
           <button

@@ -39,8 +39,9 @@ import {
   AlertCircle,
 } from "lucide-react-native";
 import { mockDaycareEvents } from "../../../src/data/mockData";
-
 import { EventType } from "../../../../shared/types/type";
+import { fetchSchedulesForTeacher } from "@/services/useScheduleAPI";
+import { Schedule } from "../../../../shared/types/type";
 
 type Event = {
   id: string;
@@ -69,6 +70,12 @@ export default function TeacherCalendar() {
   const insets = useSafeAreaInsets();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+
+  const schedulesData = async () => {
+    const results = await fetchSchedulesForTeacher(currentMonth.toISOString());
+    setSchedules(results);
+  }
 
   // Get calendar days for current month
   const calendarDays = useMemo(() => {
