@@ -7,6 +7,7 @@
 'use client';
 
 import type { Activity, SlotInfo } from "@/types/scheduler";
+import { useState } from "react";
 
 interface ActivitySelectorProps {
   activities: Activity[];
@@ -15,7 +16,10 @@ interface ActivitySelectorProps {
   onRemove: () => void;
   onClose: () => void;
   slotInfo: SlotInfo;
+  targetClassIdWithLocation: { classId: string; locationId: string }; // IDs for class or location
   targetClassName?: string; // Name of the class this activity is being assigned to
+  targetLocationName: string; // Name of the location this activity is being assigned to
+  setSelectedClassOrAllClasses: React.Dispatch<React.SetStateAction<boolean>>; // Setter to indicate class or location selection
 }
 
 // This component preserves its modal interaction patterns but adapts to new data types
@@ -27,15 +31,32 @@ export function ActivitySelector({
   onRemove,
   onClose,
   slotInfo,
-  targetClassName
+  targetClassName,
+  targetClassIdWithLocation, // Ids for classs including location Id
+  targetLocationName,
+  setSelectedClassOrAllClasses
 }: ActivitySelectorProps) {
+  const handleSelectClassOrLocation = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = event.target.value;
+    // Notify parent component of the change
+    if (selectedId === targetClassIdWithLocation.classId) {
+      setSelectedClassOrAllClasses(true); // Selected class
+      alert("Selected Class ID: " + selectedId);
+    } else {
+      if (selectedId === "all") {
+        alert("Are you sure to select all location. Please select location view first");
+        return; // Prevent selecting "All Locations"
+      }
+      setSelectedClassOrAllClasses(false); // Selected location
+    }
+  };
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-900">
-              Select Activity
+              Select Activity - {targetLocationName}
             </h3>
             <button
               onClick={onClose}
@@ -100,9 +121,17 @@ export function ActivitySelector({
         <div className="p-6 border-t border-gray-200">
           {targetClassName && (
             <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-900">
-                <span className="font-medium">Assigning to:</span> {targetClassName}
-              </p>
+              <div className="text-sm text-blue-900">
+                <span className="font-medium">Assigning to:</span> {"     "}
+                <select
+                  className="border border-blue-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  defaultValue={targetClassName} // set to current class name
+                  onChange={handleSelectClassOrLocation} // passing to parent component handles
+                >
+                  <option value={targetClassIdWithLocation.classId} >{targetClassName}</option>
+                  <option value={targetClassIdWithLocation.locationId}>{targetLocationName}</option>
+                </select>
+              </div>
             </div>
           )}
           <button

@@ -456,6 +456,7 @@ export default function AdminDashboard() {
   }
 
   return (
+
     <Shell activeTab={activeTab} onTabChange={setActiveTab}>
       {/* Loading/Updating status */}
       {initialLoading && (

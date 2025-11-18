@@ -16,6 +16,8 @@ import parentRoutes from "./routes/web-admin/parentRoutes";
 // mobile
 import mobileRegistrationRoutes from "./routes/mobile/registrationRoutes";
 import mobileEntriesRoutes from "./routes/mobile/entriesRoutes";
+import mobileParentFeedRoutes from "./routes/mobile/parentFeedRoutes";
+import scheduleRoutes from "./routes/mobile/scheduleRoutes";
 
 const app = express();
 
@@ -81,6 +83,8 @@ app.use("/api/parents", parentRoutes)
 // mobile routes
 app.use("/api/mobile", mobileRegistrationRoutes);
 app.use("/api/mobile", mobileEntriesRoutes);
+app.use("/api/mobile", mobileParentFeedRoutes);
+app.use("/api/mobile", scheduleRoutes); // /api/mobile/schedules (GET only)
 
 // 404
 app.use((req, res) => {

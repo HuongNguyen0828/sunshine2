@@ -6,22 +6,27 @@
  */
 'use client';
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ActivitySelector } from "./ActivitySelector";
 import type { Activity, Schedule, SlotInfo } from "@/types/scheduler";
 import { WEEKDAYS, TIME_SLOTS } from "@/types/scheduler";
+import { defaultLocationView } from "./WeeklyScheduler";
 
 interface WeeklyCalendarProps {
   weekStart: string;
   schedules: Schedule[];
   activities: Activity[];
-  targetClassId?: string; // The specific class this calendar is for (used in multi-calendar view)
-  targetClassName?: string; // The name of the class (for display in modal)
-  onActivityAssigned: (params: { dayOfWeek: string; timeSlot: string; activityId: string; targetClassId?: string }) => void;
+  // setTargetClassId, no need as we have SelectedClassOrAllClasses: boolean and object of targetClassIdWithLocation: {classId, locationId }
+  targetClassIdWithLocation: { classId: string; locationId: string }; // The specific class this calendar is for (used in multi-calendar view)
+  targetClassName: string; // The name of the class (for display in modal)
+  targetLocationName: string; // The name of the location (for display in modal)
+  onActivityAssigned: (params: { dayOfWeek: string; timeSlot: string; activityId: string; targetClassId?: string; targetLocationId?: string }) => void;
   onActivityRemoved: (params: { dayOfWeek: string; timeSlot: string }) => void;
   onScheduleDeleted: (scheduleId: string) => void;
   onScheduleReordered: (scheduleId: string, newOrder: number, dayOfWeek: string, timeSlot: string) => void;
+  setSelectedClassOrAllClasses: React.Dispatch<React.SetStateAction<boolean>>; // Setter to indicate class or location selection
+  selectedClassOrAllClasses: boolean; // Boolean indicating if a class or location
 }
 
 // This component embodies the core transformation: from reactive mutations to callback-based updates
@@ -30,12 +35,16 @@ export function WeeklyCalendar({
   weekStart,
   schedules,
   activities,
-  targetClassId,
+  // setTargetClassId, no need as we have SelectedClassOrAllClasses: boolean and object of targetClassIdWithLocation: {classId, locationId }
+  targetClassIdWithLocation, // The specific class this calendar, Or location for shared activities
   targetClassName,
+  targetLocationName,
   onActivityAssigned,
   onActivityRemoved,
   onScheduleDeleted,
-  onScheduleReordered
+  onScheduleReordered,
+  setSelectedClassOrAllClasses,
+  selectedClassOrAllClasses, // Boolean indicating if a class or location is selected
 }: WeeklyCalendarProps) {
   const [selectedSlot, setSelectedSlot] = useState<SlotInfo | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -50,35 +59,56 @@ export function WeeklyCalendar({
   };
 
   const handleSlotClick = (day: string, timeSlot: string) => {
+    // Prevent opening if no location is selected
+    if (targetClassIdWithLocation.locationId === defaultLocationView) {
+      alert("Please select a location  before assigning activities.");
+      return;
+    }
     setSelectedSlot({ day, timeSlot });
   };
 
   const handleActivitySelect = async (activityId: string) => {
     if (!selectedSlot) return;
 
-    await onActivityAssigned({
-      dayOfWeek: selectedSlot.day,
-      timeSlot: selectedSlot.timeSlot,
-      activityId,
-      targetClassId, // Pass the target class ID
-    });
+    // Handle updating schedule with the selected activity assigned to class or all classes of the location
+    if (selectedClassOrAllClasses) {
+      onActivityAssigned({
+        dayOfWeek: selectedSlot.day,
+        timeSlot: selectedSlot.timeSlot,
+        activityId,
+        targetClassId: targetClassIdWithLocation.classId, // Pass the target class ID
+        targetLocationId: targetClassIdWithLocation.locationId, // Pass the target location ID
+      });
+    } else {
+      // Assign to all classes within the location
+      onActivityAssigned({
+        dayOfWeek: selectedSlot.day,
+        timeSlot: selectedSlot.timeSlot,
+        activityId,
+        targetClassId: "*", // Indicates all classes within the location
+        targetLocationId: targetClassIdWithLocation.locationId, // Pass the target location ID
+      });
+    }
 
     setSelectedSlot(null);
   };
 
   const handleRemoveActivity = async () => {
     if (!selectedSlot) return;
-    
-    await onActivityRemoved({
+
+    onActivityRemoved({
       dayOfWeek: selectedSlot.day,
       timeSlot: selectedSlot.timeSlot,
     });
-    
+
     setSelectedSlot(null);
   };
 
   const formatDayHeader = (day: string) => {
-    const date = new Date(weekStart);
+    // Parse the weekStart string properly (same as your formatWeekRange)
+    const [year, month, dayNum] = weekStart.split('-').map(Number);
+    const date = new Date(year, month - 1, dayNum, 12); // Use noon to avoid timezone issues
+
     const dayIndex = WEEKDAYS.indexOf(day as any);
     date.setDate(date.getDate() + dayIndex);
 
@@ -126,7 +156,7 @@ export function WeeklyCalendar({
 
     // Only allow reordering within the same slot
     if (draggedSchedule.dayOfWeek === targetSchedule.dayOfWeek &&
-        draggedSchedule.timeSlot === targetSchedule.timeSlot) {
+      draggedSchedule.timeSlot === targetSchedule.timeSlot) {
       e.dataTransfer.dropEffect = 'move';
 
       // Calculate if we should show indicator before or after this pill
@@ -148,7 +178,7 @@ export function WeeklyCalendar({
 
     // Only allow reordering within the same slot
     if (draggedSchedule.dayOfWeek === targetSchedule.dayOfWeek &&
-        draggedSchedule.timeSlot === targetSchedule.timeSlot) {
+      draggedSchedule.timeSlot === targetSchedule.timeSlot) {
       onScheduleReordered(
         draggedSchedule.id,
         targetSchedule.order,
@@ -170,6 +200,11 @@ export function WeeklyCalendar({
     setDragPreviewPosition(null);
     setDropIndicatorPosition(null);
   };
+  const formatActivityType = {
+    childActivity: "Child Activity",
+    dailyActivity: "Daily Activity",
+    meeting: "Meeting",
+  }
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm relative">
@@ -229,7 +264,7 @@ export function WeeklyCalendar({
         <div className="bg-gray-50 p-4 font-medium text-gray-700">
           Time
         </div>
-        
+
         {/* Day headers */}
         {WEEKDAYS.map(day => {
           const { name, date } = formatDayHeader(day);
@@ -249,7 +284,7 @@ export function WeeklyCalendar({
               <div>{timeSlot.label}</div>
               <div className="text-xs text-gray-500">{timeSlot.time}</div>
             </div>
-            
+
             {/* Day slots - Stacked activity pills UI */}
             {WEEKDAYS.map(day => {
               const slotSchedules = getSchedulesForSlot(day, timeSlot.key);
@@ -266,25 +301,25 @@ export function WeeklyCalendar({
                           {/* Drop indicator line - shows BEFORE this pill */}
                           {dropIndicatorPosition?.scheduleId === schedule.id &&
                             dropIndicatorPosition.position === 'before' && (
-                            <motion.div
-                              initial={{ opacity: 0, scaleX: 0 }}
-                              animate={{ opacity: 1, scaleX: 1 }}
-                              exit={{ opacity: 0, scaleX: 0 }}
-                              transition={{
-                                type: "spring",
-                                damping: 20,
-                                stiffness: 300,
-                              }}
-                              className="absolute -top-1 left-0 right-0 h-[3px] bg-blue-500 rounded-full z-10"
-                              style={{
-                                boxShadow: '0 0 12px rgba(59, 130, 246, 0.8)',
-                              }}
-                            />
-                          )}
+                              <motion.div
+                                initial={{ opacity: 0, scaleX: 0 }}
+                                animate={{ opacity: 1, scaleX: 1 }}
+                                exit={{ opacity: 0, scaleX: 0 }}
+                                transition={{
+                                  type: "spring",
+                                  damping: 20,
+                                  stiffness: 300,
+                                }}
+                                className="absolute -top-1 left-0 right-0 h-[3px] bg-blue-500 rounded-full z-10"
+                                style={{
+                                  boxShadow: '0 0 12px rgba(59, 130, 246, 0.8)',
+                                }}
+                              />
+                            )}
 
                           <motion.div
-                            layoutId={schedule.id}
-                            initial={{ opacity: 0, y: -10 }}
+                            // REMOVE layoutId - it causes animation conflicts during filtering
+                            key={schedule.id} // Use key instead of layoutId                            initial={{ opacity: 0, y: -10 }}
                             animate={{
                               opacity: draggedSchedule?.id === schedule.id ? 0.3 : 1,
                               y: 0,
@@ -308,83 +343,85 @@ export function WeeklyCalendar({
                             }}
                             onDragOver={(e) => handleDragOver(e, schedule)}
                             onDrop={(e) => handleDrop(e, schedule)}
-                            className={`group relative rounded-lg px-3 py-2 ${
-                              openMenuId === schedule.id || draggedSchedule?.id === schedule.id ? '' : 'shadow-sm'
-                            }`}
+                            className={`group relative rounded-lg px-3 py-2 ${openMenuId === schedule.id || draggedSchedule?.id === schedule.id ? '' : 'shadow-sm'
+                              }`}
                             style={{
                               backgroundColor: schedule.activity?.color + '20',
                               borderLeft: `4px solid ${schedule.activity?.color}`,
                             }}
                           >
-                        <div className="flex items-start justify-between gap-2">
-                          <div
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, schedule)}
-                            onDrag={handleDrag}
-                            onDragEnd={handleDragEnd}
-                            className="flex-1 min-w-0 cursor-move"
-                            onClick={() => handleSlotClick(day, timeSlot.key)}
-                          >
-                            <h4
-                              className="font-medium text-sm truncate"
-                              style={{ color: schedule.activity?.color }}
-                            >
-                              {schedule.activity?.title}
-                            </h4>
-                            {schedule.activity?.description && (
-                              <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">
-                                {schedule.activity.description}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Menu button with dropdown */}
-                          <div className="relative">
-                            <button
-                              onClick={(e) => handleMenuToggle(e, schedule.id)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 text-xs p-1 hover:bg-white rounded cursor-pointer z-[110]"
-                            >
-                              ⋮⋮
-                            </button>
-
-                            {/* Dropdown menu - backdrop is at calendar root level */}
-                            {openMenuId === schedule.id && (
+                            <div className="flex items-start justify-between gap-2">
                               <div
-                                className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[110] min-w-[120px]"
-                                onMouseEnter={() => setDraggedSchedule(null)}
-                                onMouseOver={(e) => e.stopPropagation()}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, schedule)}
+                                onDrag={handleDrag}
+                                onDragEnd={handleDragEnd}
+                                className="flex-1 min-w-0 cursor-move"
+                                onClick={() => handleSlotClick(day, timeSlot.key)}
                               >
-                                <button
-                                  onClick={(e) => handleDeleteSchedule(e, schedule.id)}
-                                  onMouseEnter={(e) => e.stopPropagation()}
-                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                <h4
+                                  className="font-medium text-sm truncate"
+                                  style={{ color: schedule.activity?.color }}
                                 >
-                                  Delete
-                                </button>
+                                  {schedule.activity?.title}
+                                </h4>
+                                <h6 className="font-medium text-xs truncate">
+                                  {" (" + formatActivityType[schedule.activity?.type as keyof typeof formatActivityType] + ")"}
+                                </h6>
+                                {schedule.activity?.description && (
+                                  <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">
+                                    {schedule.activity.description}
+                                  </p>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        </div>
+
+                              {/* Menu button with dropdown */}
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => handleMenuToggle(e, schedule.id)}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 text-xs p-1 hover:bg-white rounded cursor-pointer z-[110]"
+                                >
+                                  ⋮⋮
+                                </button>
+
+                                {/* Dropdown menu - backdrop is at calendar root level */}
+                                {openMenuId === schedule.id && (
+                                  <div
+                                    className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[110] min-w-[120px]"
+                                    onMouseEnter={() => setDraggedSchedule(null)}
+                                    onMouseOver={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      onClick={(e) => handleDeleteSchedule(e, schedule.id)}
+                                      onMouseEnter={(e) => e.stopPropagation()}
+                                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </motion.div>
 
                           {/* Drop indicator line - shows AFTER this pill */}
                           {dropIndicatorPosition?.scheduleId === schedule.id &&
                             dropIndicatorPosition.position === 'after' && (
-                            <motion.div
-                              initial={{ opacity: 0, scaleX: 0 }}
-                              animate={{ opacity: 1, scaleX: 1 }}
-                              exit={{ opacity: 0, scaleX: 0 }}
-                              transition={{
-                                type: "spring",
-                                damping: 20,
-                                stiffness: 300,
-                              }}
-                              className="absolute -bottom-1 left-0 right-0 h-[3px] bg-blue-500 rounded-full z-10"
-                              style={{
-                                boxShadow: '0 0 12px rgba(59, 130, 246, 0.8)',
-                              }}
-                            />
-                          )}
+                              <motion.div
+                                initial={{ opacity: 0, scaleX: 0 }}
+                                animate={{ opacity: 1, scaleX: 1 }}
+                                exit={{ opacity: 0, scaleX: 0 }}
+                                transition={{
+                                  type: "spring",
+                                  damping: 20,
+                                  stiffness: 300,
+                                }}
+                                className="absolute -bottom-1 left-0 right-0 h-[3px] bg-blue-500 rounded-full z-10"
+                                style={{
+                                  boxShadow: '0 0 12px rgba(59, 130, 246, 0.8)',
+                                }}
+                              />
+                            )}
                         </div>
                       ))}
                     </AnimatePresence>
@@ -421,6 +458,9 @@ export function WeeklyCalendar({
             timeSlot: TIME_SLOTS.find(ts => ts.key === selectedSlot.timeSlot)?.label || selectedSlot.timeSlot
           }}
           targetClassName={targetClassName}
+          targetClassIdWithLocation={targetClassIdWithLocation}
+          targetLocationName={targetLocationName}
+          setSelectedClassOrAllClasses={setSelectedClassOrAllClasses} // boolean setter
         />
       )}
     </div>

@@ -299,22 +299,22 @@ export function generateMockEntries(): Partial<EntryDoc>[] {
 export const mockDaycareEvents = {
   // Current month events
   '2025-11-05': [
-    { id: 'event-1', type: 'meeting', title: 'Staff Meeting', time: '4:00 PM', description: 'Monthly staff meeting - daycare closes at 3:30 PM' },
+    { id: 'event-1', type: 'meeting', title: 'Staff Meeting', time: '6:10 PM', description: 'Monthly staff meeting' },
   ],
   '2025-11-08': [
-    { id: 'event-2', type: 'activity', title: 'Picture Day', time: 'All Day', description: 'Professional photos for all classes' },
+    { id: 'event-2', type: 'childActivity', title: 'Picture Day', time: 'All Day', description: 'Professional photos for all classes' },
   ],
   '2025-11-11': [
     { id: 'event-3', type: 'holiday', title: 'Veterans Day', time: 'All Day', description: 'Daycare closed' },
   ],
   '2025-11-15': [
-    { id: 'event-4', type: 'activity', title: 'Parent-Teacher Conferences', time: '3:00-6:00 PM', description: 'Schedule your time slot with your teacher' },
+    { id: 'event-4', type: 'childActivity', title: 'Parent-Teacher Conferences', time: '3:00-6:00 PM', description: 'Schedule your time slot with your teacher' },
   ],
   '2025-11-20': [
     { id: 'event-5', type: 'birthday', title: 'Thanksgiving Feast', time: '11:30 AM', description: 'Parents invited to join us for lunch' },
   ],
   '2025-11-22': [
-    { id: 'event-6', type: 'activity', title: 'Fall Festival', time: '10:00 AM', description: 'Outdoor activities and games' },
+    { id: 'event-6', type: 'childActivity', title: 'Fall Festival', time: '10:00 AM', description: 'Outdoor activities and games' },
   ],
   '2025-11-27': [
     { id: 'event-7', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
@@ -327,13 +327,13 @@ export const mockDaycareEvents = {
   ],
   // Next month preview
   '2025-12-06': [
-    { id: 'event-10', type: 'activity', title: 'Holiday Concert', time: '6:00 PM', description: 'All classes perform holiday songs' },
+    { id: 'event-10', type: 'childActivity', title: 'Holiday Concert', time: '6:00 PM', description: 'All classes perform holiday songs' },
   ],
   '2025-12-13': [
-    { id: 'event-11', type: 'activity', title: 'Cookie Decorating', time: '2:00 PM', description: 'Parents welcome to join' },
+    { id: 'event-11', type: 'childActivity', title: 'Cookie Decorating', time: '2:00 PM', description: 'Parents welcome to join' },
   ],
   '2025-12-20': [
-    { id: 'event-12', type: 'activity', title: 'Holiday Party', time: '10:00 AM', description: 'Class parties and gift exchange' },
+    { id: 'event-12', type: 'childActivity', title: 'Holiday Party', time: '10:00 AM', description: 'Class parties and gift exchange' },
   ],
   '2025-12-24': [
     { id: 'event-13', type: 'holiday', title: 'Winter Break Begins', time: 'All Day', description: 'Daycare closed Dec 24 - Jan 1' },

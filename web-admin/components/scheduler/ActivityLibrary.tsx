@@ -43,6 +43,11 @@ export function ActivityLibrary({ activities, onClose, onActivityDeleted }: Acti
       setDeletingId(null);
     }
   };
+  const formatActivityType = {
+    childActivity: "Child Activity",
+    dailyActivity: "Daily Activity",
+    meeting: "Meeting",
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -95,9 +100,11 @@ export function ActivityLibrary({ activities, onClose, onActivityDeleted }: Acti
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        {activity.title}
+                      <h4 className=" text-gray-900 mb-2">
+                        <span className="font-semibold">{activity.title}</span> - {` `}
+                        <span className="font-medium">{`(${formatActivityType[activity.type as keyof typeof formatActivityType]})`}</span>
                       </h4>
+
                       {activity.description && (
                         <p className="text-sm text-gray-600 mb-2">
                           {activity.description}

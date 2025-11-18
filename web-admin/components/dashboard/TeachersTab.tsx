@@ -193,6 +193,9 @@ export default function TeachersTab({
       setRows((prev) =>
         prev.map((t) => (t.id === id ? { ...t, ...updated } : t))
       );
+      // Passing state back to parent component dashboard, to support ClassTab
+      setTeachers(prev => prev.map(t => t.id === id ? { ...t, ...updated } : t));
+
       setEditingTeacher(null);
       clearDraft();
       setIsFormOpen(false);
@@ -274,6 +277,8 @@ export default function TeachersTab({
       if (currentPage > maxPage) setCurrentPage(maxPage);
       return next;
     });
+    // Updating teachers state
+    setTeachers(prev => prev.filter(t => t.id !== teacher.id));
   };
 
   const formatAddress = (teacher: Types.Teacher) => {
@@ -413,6 +418,21 @@ export default function TeachersTab({
                     {teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
                   </span>
                 </div>
+                <div className="flex items-center gap-3 text-sm text-gray-500">
+                  <span>Class:</span>
+                  {!teacher.classIds || teacher.classIds.length === 0 ? (
+                    <span>___</span>
+                  ) : (
+                    teacher.classIds.map((classId) => {
+                      const cls = classesLite.find((c) => c.id === classId);
+                      return (
+                        <span key={classId} >
+                          {cls ? cls.name : 'Unknown class'}
+                        </span>
+                      );
+                    })
+                  )}
+                </div>
               </div>
 
               <div className="flex gap-3">
@@ -451,9 +471,11 @@ export default function TeachersTab({
           <button
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
+
             className={`px-4 py-2 font-medium transition duration-200 border ${currentPage === 1
               ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200"
               : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
+
               }`}
           >
             ← Previous
