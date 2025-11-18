@@ -168,7 +168,7 @@ function ChildCard({
   // const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   return (
-    <div className="group bg-white rounded-xl border border-slate-200 hover:border-purple-200 shadow-sm hover:shadow-md transition-all duration-200 p-6 flex flex-col">
+    <div className="group bg-white border border-neutral-200 hover:border-neutral-400 transition-all duration-200 p-6 flex flex-col">
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-semibold text-slate-800 truncate group-hover:text-purple-600 transition-colors">
@@ -176,7 +176,7 @@ function ChildCard({
           </h3>
           <div className="flex gap-3 items-center">
             <span className="text-sm text-slate-600 font-medium">{child.gender}</span>
-            <span className="text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-100">
+            <span className="text-xs text-slate-500 bg-slate-50 px-2 py-1 border border-slate-100">
               {formatAge(child.birthDate)}
             </span>
           </div>
@@ -185,7 +185,7 @@ function ChildCard({
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Status</span>
             <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${
+              className={`inline-flex items-center px-2.5 py-1 text-xs font-medium border ${
                 status === Types.EnrollmentStatus.Active
                   ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                   : status === Types.EnrollmentStatus.Waitlist
@@ -247,7 +247,7 @@ function ChildCard({
         {child.notes && (
           <div className="flex items-start gap-3">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Notes</span>
-            <div className="text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-md border border-slate-100">
+            <div className="text-sm text-slate-600 bg-slate-50 px-3 py-2 border border-slate-100">
               {child.notes}
             </div>
           </div>
@@ -258,13 +258,13 @@ function ChildCard({
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => onEdit(child, parent1And2[0], parent1And2[1])}
-            className="bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
+            className="bg-white border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 text-neutral-700 font-medium px-4 py-2.5 transition-all duration-200 text-sm"
           >
             Edit
           </button>
           <button
             onClick={() => onDelete(child)}
-            className="bg-white border border-slate-200 hover:bg-red-50 hover:border-red-300 text-slate-700 hover:text-red-600 font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
+            className="bg-white border border-neutral-200 hover:bg-red-50 hover:border-red-300 text-neutral-700 hover:text-red-600 font-medium px-4 py-2.5 transition-all duration-200 text-sm"
           >
             Delete
           </button>
@@ -273,14 +273,14 @@ function ChildCard({
         {child.classId ? (
           <button
             onClick={() => onOpenAssign(child)}
-            className="w-full bg-slate-700 hover:bg-slate-800 text-white font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
+            className="w-full bg-neutral-700 hover:bg-neutral-800 text-white font-medium px-4 py-2.5 transition-all duration-200 text-sm"
           >
             Switch Class
           </button>
         ) : (
           <button
             onClick={() => onOpenAssign(child)}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg transition-all duration-200 text-sm"
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2.5 transition-all duration-200 text-sm"
           >
             Assign to Class
           </button>
@@ -962,7 +962,7 @@ export default function ChildrenTab({
             <h2 className="text-3xl font-bold text-gray-800">Children</h2>
             {/* Location scope */}
             <select
-              className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="appearance-none px-4 py-2 border border-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900"
               value={locationView}
               // Reset search filter everytime change location scope
               onChange={(e) => {
@@ -987,7 +987,7 @@ export default function ChildrenTab({
           </div>
           <button
             onClick={handleAddClick}
-            className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
+            className="bg-black hover:bg-neutral-900 text-white font-medium px-4 py-2 transition duration-200 flex items-center gap-2 text-sm"
             title={
               (locations ?? []).length === 0
                 ? "No locations available"
@@ -999,7 +999,7 @@ export default function ChildrenTab({
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+        <div className="bg-white border border-neutral-200 p-4 mb-4">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
             <div className="flex-1 relative">
               <input
@@ -1010,7 +1010,7 @@ export default function ChildrenTab({
                   setSearchTerm(e.target.value);
                   setPage(1);
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
               />
               {searchTerm && (
                 <button
@@ -1033,7 +1033,7 @@ export default function ChildrenTab({
                 setStatusFilter(e.target.value as typeof statusFilter);
                 setPage(1);
               }}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg"
+              className="px-4 py-2 bg-white border border-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-300 focus:border-neutral-400"
             >
               <option value="all">All Status</option>
               <option value={Types.EnrollmentStatus.New}>New</option>
@@ -1048,7 +1048,7 @@ export default function ChildrenTab({
                 setClassFilter(e.target.value);
                 setPage(1);
               }}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg"
+              className="px-4 py-2 bg-white border border-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-300 focus:border-neutral-400"
             >
               <option value="all">All Classes</option>
               <option value="unassigned">Unassigned</option>
@@ -1088,7 +1088,7 @@ export default function ChildrenTab({
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <div className="bg-white border border-neutral-200 p-12 text-center">
             <div className="text-gray-400 text-6xl mb-4">🧒</div>
             <h3 className="text-xl font-semibold text-gray-600 mb-2">
               No children found
@@ -1106,9 +1106,9 @@ export default function ChildrenTab({
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${page === 1
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              className={`px-4 py-2 font-medium transition duration-200 border ${page === 1
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200"
+                : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
                 }`}
             >
               ← Previous
@@ -1118,9 +1118,9 @@ export default function ChildrenTab({
                 <button
                   key={n}
                   onClick={() => setPage(n)}
-                  className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${page === n
-                    ? "bg-gray-800 text-white"
-                    : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                  className={`w-10 h-10 font-medium transition duration-200 border ${page === n
+                    ? "bg-black text-white border-black"
+                    : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
                     }`}
                 >
                   {n}
@@ -1130,9 +1130,9 @@ export default function ChildrenTab({
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${page === totalPages
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              className={`px-4 py-2 font-medium transition duration-200 border ${page === totalPages
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200"
+                : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
                 }`}
             >
               Next →
@@ -1150,7 +1150,7 @@ export default function ChildrenTab({
             }}
           >
             <div
-              className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[100vh] overflow-y-auto border border-gray-100"
+              className="bg-white max-w-2xl w-full max-h-[100vh] overflow-y-auto border border-neutral-200"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="sticky top-0">
@@ -1233,7 +1233,7 @@ export default function ChildrenTab({
                           First Name *
                         </span>
                         <input
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                           value={newChild.firstName}
                           onChange={(e) =>
                             updateDraft({ firstName: e.target.value })
@@ -1247,7 +1247,7 @@ export default function ChildrenTab({
                           Last Name *
                         </span>
                         <input
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                           value={newChild.lastName}
                           onChange={(e) =>
                             updateDraft({ lastName: e.target.value })
@@ -1299,7 +1299,7 @@ export default function ChildrenTab({
                         </span>
                         <input
                           type="date"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                           value={newChild.birthDate}
                           onChange={(e) =>
                             updateDraft({ birthDate: e.target.value })
@@ -1313,7 +1313,7 @@ export default function ChildrenTab({
                           Location *
                         </span>
                         <select
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                          className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-gray-100"
                           value={newChild.locationId ?? ""}
                           onChange={(e) =>
                             updateDraft({ locationId: e.target.value })
@@ -1338,7 +1338,7 @@ export default function ChildrenTab({
                           Status *
                         </span>
                         <select
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                          className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-gray-100"
                           value={
                             newChild.enrollmentStatus ??
                             Types.EnrollmentStatus.New
@@ -1373,7 +1373,7 @@ export default function ChildrenTab({
                         </span>
                         <input
                           type="date"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                           value={newChild.startDate}
                           onChange={(e) =>
                             updateDraft({ startDate: e.target.value })
@@ -1388,7 +1388,7 @@ export default function ChildrenTab({
                           Notes
                         </span>
                         <textarea
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg read-only:bg-gray-100"
+                          className="w-full px-4 py-2 border border-neutral-200 read-only:bg-gray-100"
                           value={newChild.notes ?? ""}
                           onChange={(e) =>
                             updateDraft({ notes: e.target.value })
@@ -1476,7 +1476,7 @@ export default function ChildrenTab({
                           <label className="block">
                             <span className="text-gray-700 font-medium mb-1">Relationship to child*</span>
                             <select
-                              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                              className="appearance-none px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-gray-100"
                               value={newChildRelationshipParent1}
                               onChange={(e) => setNewChildRelationshipParent1(e.target.value)}
                               required
@@ -1515,7 +1515,7 @@ export default function ChildrenTab({
                           <label className="block">
                             <span className="text-gray-700 font-medium mb-1">Relationship to child*</span>
                             <select
-                              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                              className="appearance-none px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-gray-100"
                               value={newChildRelationshipParent2}
                               onChange={(e) => setNewChildRelationshipParent2(e.target.value)}
                               required
@@ -1546,14 +1546,14 @@ export default function ChildrenTab({
                     </h2>
 
                     {/* 🧒 Child Information */}
-                    <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                    <div className="bg-gray-50 p-4 border border-neutral-200">
                       <div className="flex justify-between items-center gap-4 ">
                         <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
                           👶 Child Information
                         </h3>
                         <button
                           onClick={() => { setActiveStep(0); setIsClickEditFromSumarry(true); }} // Back to Child form and Aware that want to review from Summary
-                          className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                          className="bg-neutral-100 hover:bg-neutral-200 text-gray-600 font-medium px-8 border-2 border-neutral-300 py-2 transition duration-200 text-sm"
                         >
                           Edit
                         </button>
@@ -1598,14 +1598,14 @@ export default function ChildrenTab({
                     </div>
 
                     {/* 👨‍👩‍👧 Parent 1 Information */}
-                    <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                    <div className="bg-gray-50 p-4 border border-neutral-200">
                       <div className="flex justify-between items-center gap-4 ">
                         <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
                           👩 Parent 1 Information
                         </h3>
                         <button
                           onClick={() => { setActiveStep(1); setIsClickEditFromSumarry(true); }} // Back to modifying parent1
-                          className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                          className="bg-neutral-100 hover:bg-neutral-200 text-gray-600 font-medium px-8 border-2 border-neutral-300 py-2 transition duration-200 text-sm"
                         >
                           Edit
                         </button>
@@ -1651,7 +1651,7 @@ export default function ChildrenTab({
 
                     {/* Optionally: Parent 2 */}
                     {parent2 ? (
-                      <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                      <div className="bg-gray-50 p-4 border border-neutral-200">
                         <div className="flex justify-between items-center gap-4 ">
                           <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
                             👨 Parent 2 Information
@@ -1672,13 +1672,13 @@ export default function ChildrenTab({
                                 });
                               }
                             }}
-                            className="bg-red-100 hover:bg-red-200 text-red-600 font-medium px-4 py-2 rounded-lg transition duration-200 text-sm border border-red-200"
+                            className="bg-red-100 hover:bg-red-200 text-red-600 font-medium px-4 py-2 transition duration-200 text-sm border border-red-200"
                           >
                             Remove
                           </button>
                           <button
                             onClick={() => setActiveStep(2)} // Backe to parent 2 form
-                            className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                            className="bg-neutral-100 hover:bg-neutral-200 text-gray-600 font-medium px-8 border-2 border-neutral-300 py-2 transition duration-200 text-sm"
                           >
                             Edit
                           </button>
@@ -1741,7 +1741,7 @@ export default function ChildrenTab({
                               return newSkipped;
                             });
                           }}
-                          className="bg-blue-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                          className="bg-blue-100 hover:bg-neutral-200 text-gray-600 font-medium px-8 border-2 border-neutral-300 py-2 transition duration-200 text-sm"
                         >
                           + Add Parent 2
                         </button>
@@ -1801,7 +1801,7 @@ export default function ChildrenTab({
                       setIsFormOpen(false);
                       setEditingChild(null);
                     }}
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                    className="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-medium px-6 py-3 transition duration-200"
                   >
                     Cancel
                   </button>
@@ -1809,14 +1809,14 @@ export default function ChildrenTab({
                     <button
                       type="button"
                       onClick={clearDraft}
-                      className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                      className="bg-neutral-100 hover:bg-neutral-200 text-neutral-600 font-medium px-6 py-3 transition duration-200 text-sm"
                     >
                       Clear Draft
                     </button>
                   )}
                   <button
                     type="submit"
-                    className="flex-1 disabled:bg-gray-400 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                    className="flex-1 disabled:bg-gray-400 bg-black hover:bg-neutral-900 text-white font-medium px-6 py-3 transition duration-200"
                     title={
                       (locations ?? []).length === 0
                         ? "No locations available"
@@ -1842,7 +1842,7 @@ export default function ChildrenTab({
             }}
           >
             <div
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100"
+              className="bg-white max-w-md w-full border border-neutral-200"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
@@ -1863,7 +1863,7 @@ export default function ChildrenTab({
 
               <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="appearance-none w-full px-3 py-2 border border-neutral-200"
                   value={assignClassId}
                   onChange={(e) => setAssignClassId(e.target.value)}
                 >
@@ -1894,7 +1894,7 @@ export default function ChildrenTab({
                     setAssignChild(null);
                     setAssignClassId("");
                   }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
+                  className="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-medium px-4 py-2"
                 >
                   Cancel
                 </button>
@@ -1919,7 +1919,7 @@ export default function ChildrenTab({
                   className={`flex-1 ${assignClassId
                     ? "bg-green-600 hover:bg-green-700"
                     : "bg-green-400 cursor-not-allowed"
-                    } text-white font-medium px-4 py-2 rounded-lg`}
+                    } text-white font-medium px-4 py-2`}
                 >
                   Assign
                 </button>

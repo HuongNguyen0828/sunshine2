@@ -11,14 +11,12 @@ export type ClassLite = {
   name: string,
 }
 import React, { useEffect, useState, useCallback, useMemo, useTransition } from "react";
-import AppHeader from "@/components/AppHeader";
-import SidebarNav from "@/components/dashboard/SidebarNav";
+import { Shell } from "@/components/layout/shell";
 import Overview from "@/components/dashboard/Overview";
 import ParentsTab from "@/components/dashboard/ParentsTab";
 import ClassesTab from "@/components/dashboard/ClassesTab";
 import SchedulerLabsTab from "@/components/dashboard/SchedulerLabsTab";
 import ChildrenTab from "@/components/dashboard/ChildrenTab";
-import { dash } from "@/styles/dashboard";
 import { useAuth } from "@/lib/auth";
 import * as Types from "../../../../shared/types/type";
 import type { Tab, NewClassInput, NewTeacherInput, NewChildInput } from "@/types/forms";
@@ -458,101 +456,85 @@ export default function AdminDashboard() {
   }
 
   return (
-    <>
-      <div style={dash.container}>
-        <AppHeader />
+    <Shell activeTab={activeTab} onTabChange={setActiveTab}>
+      {/* Loading/Updating status */}
+      {initialLoading && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-6 text-sm font-medium">
+          Loading data...
+        </div>
+      )}
 
-        <div style={dash.content}>
-          <SidebarNav active={activeTab} onChange={setActiveTab} />
-          <main style={dash.main}>
-            {/*  Loading/ Updating status */}
-            {initialLoading && (
-              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-6 text-sm font-medium">
-                Loading data...
-              </div>
-            )}
+      {updateLoading && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-6 text-sm font-medium">
+          ⏳ Updating data...
+        </div>
+      )}
 
-            {updateLoading && (
-              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-6 text-sm font-medium">
-                ⏳ Updating data...
-              </div>
-            )}
-            {activeTab === "overview" && (
-              <Overview
-                teacherCount={computeTeacherCounts(teachers)} // total: teachers.leng, locationId: teachers.filter(teacher.locationId === locationId),lengthh
-                childCount={computeTeacherCounts(children)}
-                parentCount={computeTeacherCounts(parents)}
-                classCount={computeTeacherCounts(classes)}
-                locations={filteredLocations}
-              />
-            )}
+      {activeTab === "overview" && (
+        <Overview
+          teacherCount={computeTeacherCounts(teachers)}
+          childCount={computeTeacherCounts(children)}
+          parentCount={computeTeacherCounts(parents)}
+          classCount={computeTeacherCounts(classes)}
+          locations={filteredLocations}
+        />
+      )}
 
-            {activeTab === "teachers" && (
-              <TeachersTab
-                teachers={teachers}
-                setTeachers={setTeachers} // to catch any other change from teacher (edit, delete) => reflecting in Dashboard => share other compinent
-                newTeacher={newTeacher}
-                setNewTeacher={setNewTeacher}
-                onAdd={handleAddTeacher}
-                locations={filteredLocations}
-                classesLite={passingClassesLite}
-              />
-            )}
+      {activeTab === "teachers" && (
+        <TeachersTab
+          teachers={teachers}
+          setTeachers={setTeachers}
+          newTeacher={newTeacher}
+          setNewTeacher={setNewTeacher}
+          onAdd={handleAddTeacher}
+          locations={filteredLocations}
+          classesLite={passingClassesLite}
+        />
+      )}
 
-            {
-              activeTab === "classes" && (
-                <ClassesTab
-                  classes={classes}
-                  teachers={teachers}
-                  setClasses={setClasses}
-                  setTeachers={setTeachers}
-                  locations={filteredLocations}
-                  newClass={newClass}
-                  setNewClass={setNewClass}
-                  onCreated={onClassCreated}
-                  onUpdated={onClassUpdated}
-                  onDeleted={onClassDeleted}
-                  onAssigned={onClassAssigned}
-                />
-              )
-            }
+      {activeTab === "classes" && (
+        <ClassesTab
+          classes={classes}
+          teachers={teachers}
+          setClasses={setClasses}
+          setTeachers={setTeachers}
+          locations={filteredLocations}
+          newClass={newClass}
+          setNewClass={setNewClass}
+          onCreated={onClassCreated}
+          onUpdated={onClassUpdated}
+          onDeleted={onClassDeleted}
+          onAssigned={onClassAssigned}
+        />
+      )}
 
-            {activeTab === "children" && (
-              <ChildrenTab
-                children={children}
-                setChildren={setChildren} // Passing down to child component
-                classes={classes}
-                parents={parents}
-                locations={filteredLocations}
-                newChild={newChild}
-                setNewChild={setNewChild}
-                addChild={handleAddChild}
-                deleteChild={handleDeleteChild}
-                onAssign={onAssignChild} // including both initial Assign child to the class and switching class
-              // onUnassign={onUnassignChild}
-              // onLinkParentByEmail={onLinkParentByEmail}
-              // onUnlinkParent={onUnlinkParent}
-              // Parent
-              />
-            )}
+      {activeTab === "children" && (
+        <ChildrenTab
+          children={children}
+          setChildren={setChildren}
+          classes={classes}
+          parents={parents}
+          locations={filteredLocations}
+          newChild={newChild}
+          setNewChild={setNewChild}
+          addChild={handleAddChild}
+          deleteChild={handleDeleteChild}
+          onAssign={onAssignChild}
+        />
+      )}
 
-            {
-              activeTab === "parents" && (
-                <ParentsTab
-                  parents={parents}
-                  children={children}
-                  setParents={setParents}
-                  locations={filteredLocations}
-                />
-              )
-            }
+      {activeTab === "parents" && (
+        <ParentsTab
+          parents={parents}
+          children={children}
+          setParents={setParents}
+          locations={filteredLocations}
+        />
+      )}
 
 
 
-            {activeTab === "scheduler-labs" && <SchedulerLabsTab />}
-          </main >
-        </div >
-      </div >
-    </>
+      {activeTab === "scheduler-labs" && <SchedulerLabsTab />}
+    </Shell>
   );
 }
