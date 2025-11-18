@@ -1,8 +1,10 @@
 // Scheduler types - decoupled from Convex backend
 // These mirror the original Convex schema but exist independently
+ import { EventTypeForm } from "@/components/scheduler/ActivityForm";
 
 export interface Activity {
   id: string;
+  type: EventTypeForm; // limited to dailyActivity, childActivity, meeting
   title: string;
   description: string;
   materials: string;
@@ -13,6 +15,7 @@ export interface Activity {
 
 export interface Schedule {
   id: string;
+  type: EventTypeForm; // limited to dailyActivity, childActivity, meeting
   userId?: string;
   weekStart: string; // ISO date string for Monday of the week
   dayOfWeek: string; // "monday", "tuesday", etc.

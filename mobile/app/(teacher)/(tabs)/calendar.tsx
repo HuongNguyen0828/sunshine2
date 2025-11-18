@@ -40,7 +40,7 @@ import {
 } from "lucide-react-native";
 import { mockDaycareEvents } from "../../../src/data/mockData";
 
-type EventType = "activity" | "birthday" | "meeting" | "holiday";
+import { EventType } from "../../../../shared/types/type";
 
 type Event = {
   id: string;
@@ -57,10 +57,12 @@ type DayEvents = {
 };
 
 const eventColors = {
-  activity: { bg: "#E0F2FE", color: "#0EA5E9", icon: Star },
-  birthday: { bg: "#FCE7F3", color: "#EC4899", icon: Cake },
-  meeting: { bg: "#F3E8FF", color: "#9333EA", icon: Users },
-  holiday: { bg: "#FEF3C7", color: "#F59E0B", icon: CalendarIcon },
+  dailyActivity: { bg: "#DCFCE7", color: "#16A34A", icon: School }, // FROM DASHBOARD, happend every weekdays except holidays
+  childActivity: { bg: "#E0F2FE", color: "#0EA5E9", icon: Star }, // FROM DASHBOARD, special activities for children, happend occasionally
+  meeting: { bg: "#F3E8FF", color: "#9333EA", icon: Users }, // FROM DASHBOARD - teacher and taff meetings. (applied for all classes with details)
+
+  holiday: { bg: "#FEF3C7", color: "#F59E0B", icon: CalendarIcon }, // AUTO-computed based on public holidays
+  birthday: { bg: "#FCE7F3", color: "#EC4899", icon: Cake }, // AUTO- computed based on children's birthdates
 };
 
 export default function TeacherCalendar() {
@@ -98,7 +100,7 @@ export default function TeacherCalendar() {
   };
 
   // Get events for selected date
-  const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate)] || [];
+  const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
 
   // Navigate months
   const goToPreviousMonth = () => {
@@ -229,7 +231,7 @@ export default function TeacherCalendar() {
               const isSelected =
                 date.toDateString() === selectedDate.toDateString();
               const dateKey = formatDateKey(date);
-              const hasEvents = mockDaycareEvents[dateKey]?.length > 0;
+              const hasEvents = mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents]?.length > 0;
 
               return (
                 <Pressable
@@ -253,12 +255,12 @@ export default function TeacherCalendar() {
                   </Text>
                   {hasEvents && (
                     <View style={styles.eventDotsContainer}>
-                      {mockDaycareEvents[dateKey].slice(0, 3).map((event, i) => (
+                      {mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents].slice(0, 3).map((event, i) => (
                         <View
                           key={i}
                           style={[
                             styles.eventDot,
-                            { backgroundColor: eventColors[event.type].color },
+                            { backgroundColor: eventColors[event.type as keyof typeof eventColors].color },
                           ]}
                         />
                       ))}
@@ -282,7 +284,7 @@ export default function TeacherCalendar() {
 
           {selectedDateEvents.length > 0 ? (
             <View style={styles.eventsList}>
-              {selectedDateEvents.map(renderEvent)}
+              {selectedDateEvents.map(renderEvent as any)}
             </View>
           ) : (
             <View style={styles.noEventsContainer}>
