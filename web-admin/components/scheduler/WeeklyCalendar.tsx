@@ -20,7 +20,7 @@ interface WeeklyCalendarProps {
   // setTargetClassId, no need as we have SelectedClassOrAllClasses: boolean and object of targetClassIdWithLocation: {classId, locationId }
   targetClassIdWithLocation: { classId: string; locationId: string }; // The specific class this calendar is for (used in multi-calendar view)
   targetClassName: string; // The name of the class (for display in modal)
-  targetLocationName: string | undefined; // The name of the location (for display in modal)
+  targetLocationName: string; // The name of the location (for display in modal)
   onActivityAssigned: (params: { dayOfWeek: string; timeSlot: string; activityId: string; targetClassId?: string; targetLocationId?: string }) => void;
   onActivityRemoved: (params: { dayOfWeek: string; timeSlot: string }) => void;
   onScheduleDeleted: (scheduleId: string) => void;
@@ -200,6 +200,11 @@ export function WeeklyCalendar({
     setDragPreviewPosition(null);
     setDropIndicatorPosition(null);
   };
+  const formatActivityType = {
+    childActivity: "Child Activity",
+    dailyActivity: "Daily Activity",
+    meeting: "Meeting",
+  }
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm relative">
@@ -361,7 +366,7 @@ export function WeeklyCalendar({
                                   {schedule.activity?.title}
                                 </h4>
                                 <h6 className="font-medium text-xs truncate">
-                                  {" (" + schedule.activity?.type + ")"}
+                                  {" (" + formatActivityType[schedule.activity?.type as keyof typeof formatActivityType] + ")"}
                                 </h6>
                                 {schedule.activity?.description && (
                                   <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">
