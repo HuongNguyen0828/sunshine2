@@ -250,7 +250,7 @@ export default function ParentsTab({
             <h2 className="text-3xl font-bold text-gray-800">Parents</h2>
             {/* Location scope */}
             <select
-              className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="appearance-none px-4 py-2 border border-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900"
               value={locationView}
               onChange={(e) => setLocationView(e.target.value)}
               required
@@ -288,7 +288,7 @@ export default function ParentsTab({
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-400"
+              className="w-full px-4 py-2 bg-white border border-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-300 focus:border-neutral-400"
             />
             {searchTerm && (
               <button
@@ -310,60 +310,61 @@ export default function ParentsTab({
 
       {/* Parents Grid */}
       {paginatedParents.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {paginatedParents.map((parent) => (
             <div
               key={parent.id}
-              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5"
+              className="group bg-white border border-neutral-200 hover:border-neutral-400 transition-all duration-200 p-6"
             >
               {/* Primary Info */}
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              <div className="mb-5">
+                <h3 className="text-lg font-semibold text-slate-800 mb-1 group-hover:text-neutral-600 transition-colors">
                   {parent.firstName} {parent.lastName}
                 </h3>
-                <div className="text-sm text-gray-500">{parent.email}</div>
+                <div className="text-sm text-slate-500 font-medium">{parent.email}</div>
               </div>
 
               {/* Secondary Details */}
-              <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
-                <div className="flex items-start gap-2">
-                  <span className="text-xs text-gray-500">Phone:</span>
-                  <span className="text-xs text-gray-700 font-medium">
+              <div className="space-y-3 mb-5 pb-5 border-b border-slate-100">
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Phone</span>
+                  <span className="text-sm text-slate-700 font-medium">
                     {parent.phone}
                   </span>
                 </div>
 
-                <div className="flex items-start gap-2">
-                  <span className="text-xs text-gray-500">Address:</span>
-                  <span className="text-xs text-gray-700">
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Address</span>
+                  <span className="text-sm text-slate-600 leading-relaxed">
                     {formatAddress(parent)}
                   </span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-xs text-gray-500">Child:</span>
-                  {parent.children.length > 0 ?
-                    parent.children.map((child, index) => (
-                      <span key={child.id} className="text-xs text-gray-700">
-                        {[child.firstName, child.lastName].join(' ')}
-                        {index < parent.children.length - 1 && ','}
-                      </span>)
-                    ) : (
-                      <span className="text-xs text-gray-700"> None </span>
-                    )}
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Children</span>
+                  <div className="flex flex-wrap gap-2">
+                    {parent.children.length > 0 ?
+                      parent.children.map((child) => (
+                        <span key={child.id} className="inline-flex items-center px-2.5 py-1 bg-neutral-50 text-neutral-700 text-xs font-medium border border-neutral-200">
+                          {[child.firstName, child.lastName].join(' ')}
+                        </span>
+                      )) : (
+                        <span className="text-sm text-slate-400 italic">No children assigned</span>
+                      )}
+                  </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   onClick={() => handleEditClick(parent)}
-                  className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                  className="flex-1 bg-white border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 text-neutral-700 font-medium px-4 py-2.5 transition-all duration-200 text-sm"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDeleteClick(parent)}
-                  className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                  className="flex-1 bg-white border border-neutral-200 hover:bg-red-50 hover:border-red-300 text-neutral-700 hover:text-red-600 font-medium px-4 py-2.5 transition-all duration-200 text-sm"
                 >
                   Delete
                 </button>
@@ -372,7 +373,7 @@ export default function ParentsTab({
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+        <div className="bg-white border border-neutral-200 p-12 text-center">
           <h3 className="text-xl font-semibold text-gray-600 mb-2">
             No parents found
           </h3>
@@ -390,9 +391,9 @@ export default function ParentsTab({
           <button
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
-              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+            className={`px-4 py-2 font-medium transition duration-200 border ${currentPage === 1
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200"
+              : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
               }`}
           >
             ← Previous
@@ -403,9 +404,9 @@ export default function ParentsTab({
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page
-                  ? "bg-gray-800 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                className={`w-10 h-10 font-medium transition duration-200 border ${currentPage === page
+                  ? "bg-black text-white border-black"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
                   }`}
               >
                 {page}
@@ -418,9 +419,9 @@ export default function ParentsTab({
               setCurrentPage((prev) => Math.min(totalPages, prev + 1))
             }
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
-              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+            className={`px-4 py-2 font-medium transition duration-200 border ${currentPage === totalPages
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200"
+              : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
               }`}
           >
             Next →
@@ -438,7 +439,7 @@ export default function ParentsTab({
           }}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+            className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-neutral-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
@@ -472,7 +473,7 @@ export default function ParentsTab({
                       First Name *
                     </span>
                     <input
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="First Name"
                       value={editingParent.firstName}
                       onChange={(e) =>
@@ -487,7 +488,7 @@ export default function ParentsTab({
                       Last Name *
                     </span>
                     <input
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="Last Name"
                       value={editingParent.lastName}
                       onChange={(e) =>
@@ -507,7 +508,7 @@ export default function ParentsTab({
                     </span>
                     <input
                       type="email"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="Email"
                       value={editingParent.email}
                       onChange={(e) => updateParent({ email: e.target.value })}
@@ -520,7 +521,7 @@ export default function ParentsTab({
                       Phone *  <span className="text-red-500 text-sm">{phoneError}</span>
                     </span>
                     <input
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="Phone"
                       value={editingParent.phone}
                       onChange={(e) => handlePhoneChange(e)}
@@ -543,7 +544,7 @@ export default function ParentsTab({
                       Marital Status *
                     </span>
                     <select
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       value={editingParent.maritalStatus}
                       onChange={(e) =>
                         updateParent({ maritalStatus: e.target.value })
@@ -564,7 +565,7 @@ export default function ParentsTab({
                       Relationship to child*
                     </span>
                     <select
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       value={editingParent.childRelationships[0].relationship} // Come back later
                       onChange={(e) =>
                         updateParent({ newChildRelationship: e.target.value })
@@ -588,7 +589,7 @@ export default function ParentsTab({
                     setIsFormOpen(false);
                     setEditingParent(initalEditingParent);
                   }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                  className="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-medium px-6 py-3 transition duration-200"
                 >
                   Cancel
                 </button>
@@ -596,7 +597,7 @@ export default function ParentsTab({
                   <button
                     type="button"
                     onClick={() => clearDraft()}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                    className="bg-neutral-100 hover:bg-neutral-200 text-neutral-600 font-medium px-6 py-3 transition duration-200 text-sm"
                   >
                     {/* reset fields too */}
                     Clear Draft
@@ -604,7 +605,7 @@ export default function ParentsTab({
                 )}
                 <button
                   type="submit"
-                  className="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                  className="flex-1 bg-black hover:bg-neutral-900 text-white font-medium px-6 py-3 transition duration-200"
                 >
                   {editingParent ? "Update Parent" : "Add Parent"}
                 </button>

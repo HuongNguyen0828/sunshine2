@@ -36,7 +36,7 @@ export async function addChildWithParents(
     swal.fire({
       icon: "success",
       title: "New Parent",
-      text: `Successfully added ${NewChildAndParents.child.firstName} ${NewChildAndParents.child.lastName} \n Parent1:${NewChildAndParents.parent1.firstName}  \n Parent2: ${NewChildAndParents.parent2 ? NewChildAndParents.parent2.firstName : "none"}`,
+      text: `Successfully added ${NewChildAndParents.child.firstName} ${NewChildAndParents.child.lastName}`,
     });
 
     return childAndParents;

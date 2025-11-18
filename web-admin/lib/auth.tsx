@@ -32,7 +32,7 @@ interface AuthContextType {
 type CheckEmailResponse = { role: string };
 
 // Is the user from middleware 
-type GetAdminResponse = { user: { uid: string, email: string, role: string, daycareID: string, locationId: string} };
+type GetAdminResponse = { user: { uid: string, email: string, role: string, daycareID: string, locationId: string } };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -81,6 +81,8 @@ async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   return (await res.json()) as T;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -96,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   /** Keep Firebase Auth state in sync with React state */
   useEffect(() => {
-   
+
     // Determine initial auth state: when user already login and idToken valid and not expired
     // onAuthStateChanged will be triggered right away with current user (or null)
     // We wait for that before marking loading=false
@@ -145,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Step 1: email check
       console.log("  Step 1: Checking email against backend...");
-      const check = await fetchJson<CheckEmailResponse>("/api/auth/check-email", {
+      const check = await fetchJson<CheckEmailResponse>(`${API_BASE}/api/auth/check-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -162,7 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Step 3: verify role + create profile in backend
       console.log("  Step 3: Verifying role & creating profile...");
       const idToken = await cred.user.getIdToken();
-      const verify = await fetchJson<{ ok: true }>("/api/auth/verify-role", {
+      const verify = await fetchJson<{ ok: true }>(`${API_BASE}/api/auth/verify-role`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, name }),
@@ -208,7 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         role = "admin";
       } else {
         console.log("  Step 3: Calling backend /api/auth/get-admin ...");
-        const data = await fetchJson<GetAdminResponse>("/api/auth/get-admin", {
+        const data = await fetchJson<GetAdminResponse>(`${API_BASE}/api/auth/get-admin`, {
           method: "GET",
           headers: { Authorization: `Bearer ${idToken}` },
         });
@@ -248,7 +250,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       Cookies.remove("idToken");
       Cookies.remove("uid");
     }
-    
+
     // 🔔 Notify all other tabs about Logout
     localStorage.setItem("logout", Date.now().toString());
     // Then, redirect to /login page
@@ -256,7 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
 
-   // --- Sync logout across tabs ---
+  // --- Sync logout across tabs ---
   useEffect(() => {
     const syncLogout = (event: StorageEvent) => {
       if (event.key === "logout") {

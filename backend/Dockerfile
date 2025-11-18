@@ -2,20 +2,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm install
-
-# Copy source code
 COPY . .
 
-# Build TypeScript
-RUN npm run build
+WORKDIR /app/backend
 
-# Expose port
+RUN npm install
+RUN npm run build:docker
+
 EXPOSE 5001
 
-# Start the server
 CMD ["npm", "start"]

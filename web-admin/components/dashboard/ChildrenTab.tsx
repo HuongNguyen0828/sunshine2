@@ -168,137 +168,125 @@ function ChildCard({
   // const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 flex flex-col">
-      <div className="mb-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800 truncate">
+    <div className="group bg-white border border-neutral-200 hover:border-neutral-400 transition-all duration-200 p-6 flex flex-col">
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-slate-800 truncate group-hover:text-purple-600 transition-colors">
             {child.firstName} {child.lastName}
           </h3>
-          <div className="flex gap-4">
-            <span>{child.gender}</span>
-            <span className="text-xs text-gray-500">
+          <div className="flex gap-3 items-center">
+            <span className="text-sm text-slate-600 font-medium">{child.gender}</span>
+            <span className="text-xs text-slate-500 bg-slate-50 px-2 py-1 border border-slate-100">
               {formatAge(child.birthDate)}
             </span>
           </div>
         </div>
-        <div className="flex justify-between text-xs text-gray-500">
-          <div>
-            Status:{" "}
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Status</span>
             <span
-              className={
+              className={`inline-flex items-center px-2.5 py-1 text-xs font-medium border ${
                 status === Types.EnrollmentStatus.Active
-                  ? "text-green-600 font-bold"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                   : status === Types.EnrollmentStatus.Waitlist
-                    ? "text-yellow-600"
+                    ? "bg-amber-50 text-amber-700 border-amber-100"
                     : status === Types.EnrollmentStatus.New
-                      ? "text-red-600 font-bold"
-                      : "text-gray-600"
-              }
+                      ? "bg-blue-50 text-blue-700 border-blue-100"
+                      : "bg-slate-50 text-slate-600 border-slate-100"
+              }`}
             >
               {status}
             </span>
           </div>
-          <div>
-            <span> Start: <span className="font-semibold">{child.startDate}</span></span>
+          <div className="text-sm text-slate-600">
+            <span className="text-xs text-slate-400">Start:</span> <span className="font-semibold">{child.startDate}</span>
           </div>
         </div>
       </div>
 
-      <div className="space-y-2 mb-4">
-        <div className="text-xs text-gray-500">
-          📍 {getLocationLabel(locations, child.locationId)}
+      <div className="space-y-3 mb-5 pb-5 border-b border-slate-100">
+        <div className="flex items-start gap-3">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Location</span>
+          <span className="text-sm text-slate-600">
+            {getLocationLabel(locations, child.locationId)}
+          </span>
         </div>
 
-        <div className="text-sm text-gray-600">
-          Class:{" "}
-          <span className="font-medium">
+        <div className="flex items-start gap-3">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Class</span>
+          <span className="text-sm text-slate-700 font-medium">
             {classLabel(classes, child.classId)}
           </span>
         </div>
 
-        {/* {cls && (
-          <div>
-            <div className="flex justify-between items-center text-xs text-gray-500">
-              <span>Capacity</span>
-              <span>{cap.text}</span>
+        {parent1And2 && parent1And2.length > 0 ? (
+          <div className="flex items-start gap-3">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Parents</span>
+            <div className="space-y-1.5">
+              {parent1And2.map((eachParent, index) => {
+                const childRelationship = eachParent.childRelationships.filter(
+                  (relationship) => relationship.childId === child.id
+                )[0].relationship;
+                const firstname = eachParent.firstName;
+                const lastname = eachParent.lastName;
+                return (
+                  <div key={index} className="text-sm text-slate-600">
+                    <span className="text-xs text-slate-400 font-medium">{childRelationship}:</span> {firstname} {lastname}
+                  </div>
+                );
+              })}
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-              <div
-                className={`h-1.5 ${cap.level === "full"
-                  ? "bg-red-500"
-                  : cap.level === "warn"
-                    ? "bg-yellow-500"
-                    : "bg-green-500"
-                  }`}
-                style={{ width: `${cap.pct}%` }}
-              />
-            </div>
-          </div>
-        )} */}
-
-        {parent1And2 ? (
-          <div className="text-xs text-gray-600">
-            {/* Add debug info
-            <div className="text-red-500 text-xs">
-              Debug: {parent1And2.length} parents found
-            </div> */}
-            {parent1And2.map((eachParent, index) => {
-              const childRelationship = eachParent.childRelationships.filter(
-                (relationship) => relationship.childId === child.id
-              )[0].relationship;
-              const firstname = eachParent.firstName;
-              const lastname = eachParent.lastName;
-              return (
-                <div key={index}>
-                  {childRelationship}: {firstname} {lastname}
-                </div>
-              );
-            })}
           </div>
         ) : (
-          <div className="text-xs text-gray-400">No parent linked</div>
+          <div className="flex items-start gap-3">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Parents</span>
+            <span className="text-sm text-slate-400 italic">No parent linked</span>
+          </div>
         )}
 
         {child.notes && (
-          <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded">
-            <span className="font-bold">Note:</span> {child.notes}{" "}
+          <div className="flex items-start gap-3">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Notes</span>
+            <div className="text-sm text-slate-600 bg-slate-50 px-3 py-2 border border-slate-100">
+              {child.notes}
+            </div>
           </div>
         )}
       </div>
 
-      <div className="mt-auto pt-4 border-t border-gray-200 grid grid-cols-2 gap-2 mb-1">
-        <button
-          onClick={() => onEdit(child, parent1And2[0], parent1And2[1])}
-          className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-gray-50"
-        >
-          Edit
-        </button>
-        <button
-          onClick={() => onDelete(child)}
-          className="px-3 py-2 rounded-lg text-xs border border-gray-200 hover:bg-red-50 hover:border-red-300 hover:text-red-600"
-        >
-          Delete
-        </button>
+      <div className="mt-auto flex flex-col gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onEdit(child, parent1And2[0], parent1And2[1])}
+            className="bg-white border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 text-neutral-700 font-medium px-4 py-2.5 transition-all duration-200 text-sm"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => onDelete(child)}
+            className="bg-white border border-neutral-200 hover:bg-red-50 hover:border-red-300 text-neutral-700 hover:text-red-600 font-medium px-4 py-2.5 transition-all duration-200 text-sm"
+          >
+            Delete
+          </button>
+        </div>
+
+        {child.classId ? (
+          <button
+            onClick={() => onOpenAssign(child)}
+            className="w-full bg-neutral-700 hover:bg-neutral-800 text-white font-medium px-4 py-2.5 transition-all duration-200 text-sm"
+          >
+            Switch Class
+          </button>
+        ) : (
+          <button
+            onClick={() => onOpenAssign(child)}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2.5 transition-all duration-200 text-sm"
+          >
+            Assign to Class
+          </button>
+        )}
       </div>
-
-      {child.classId ? (
-        <button
-          // Switch class is also same, but cleanup the current class, before moving to the new 
-          onClick={() => onOpenAssign(child)}
-          className="w-1/2 mx-auto px-3 py-2 rounded-lg text-xs bg-gray-700 text-white hover:bg-gray-800"
-        >
-          Switch Class
-        </button>
-      ) : (
-        <button
-          onClick={() => onOpenAssign(child)}
-          className="w-1/2 mx-auto px-auto py-2 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700"
-        >
-          Assign to Class
-        </button>
-      )}
-
-    </div >
+    </div>
   );
 }
 
@@ -974,7 +962,7 @@ export default function ChildrenTab({
             <h2 className="text-3xl font-bold text-gray-800">Children</h2>
             {/* Location scope */}
             <select
-              className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="appearance-none px-4 py-2 border border-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900"
               value={locationView}
               // Reset search filter everytime change location scope
               onChange={(e) => {
@@ -999,7 +987,7 @@ export default function ChildrenTab({
           </div>
           <button
             onClick={handleAddClick}
-            className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
+            className="bg-black hover:bg-neutral-900 text-white font-medium px-4 py-2 transition duration-200 flex items-center gap-2 text-sm"
             title={
               (locations ?? []).length === 0
                 ? "No locations available"
@@ -1011,7 +999,7 @@ export default function ChildrenTab({
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+        <div className="bg-white border border-neutral-200 p-4 mb-4">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
             <div className="flex-1 relative">
               <input
@@ -1022,7 +1010,7 @@ export default function ChildrenTab({
                   setSearchTerm(e.target.value);
                   setPage(1);
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
               />
               {searchTerm && (
                 <button
@@ -1045,7 +1033,7 @@ export default function ChildrenTab({
                 setStatusFilter(e.target.value as typeof statusFilter);
                 setPage(1);
               }}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg"
+              className="px-4 py-2 bg-white border border-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-300 focus:border-neutral-400"
             >
               <option value="all">All Status</option>
               <option value={Types.EnrollmentStatus.New}>New</option>
@@ -1060,7 +1048,7 @@ export default function ChildrenTab({
                 setClassFilter(e.target.value);
                 setPage(1);
               }}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg"
+              className="px-4 py-2 bg-white border border-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-300 focus:border-neutral-400"
             >
               <option value="all">All Classes</option>
               <option value="unassigned">Unassigned</option>
@@ -1100,7 +1088,7 @@ export default function ChildrenTab({
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <div className="bg-white border border-neutral-200 p-12 text-center">
             <div className="text-gray-400 text-6xl mb-4">🧒</div>
             <h3 className="text-xl font-semibold text-gray-600 mb-2">
               No children found
@@ -1118,9 +1106,9 @@ export default function ChildrenTab({
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${page === 1
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              className={`px-4 py-2 font-medium transition duration-200 border ${page === 1
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200"
+                : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
                 }`}
             >
               ← Previous
@@ -1130,9 +1118,9 @@ export default function ChildrenTab({
                 <button
                   key={n}
                   onClick={() => setPage(n)}
-                  className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${page === n
-                    ? "bg-gray-800 text-white"
-                    : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                  className={`w-10 h-10 font-medium transition duration-200 border ${page === n
+                    ? "bg-black text-white border-black"
+                    : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
                     }`}
                 >
                   {n}
@@ -1142,9 +1130,9 @@ export default function ChildrenTab({
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${page === totalPages
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+              className={`px-4 py-2 font-medium transition duration-200 border ${page === totalPages
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200"
+                : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
                 }`}
             >
               Next →
@@ -1162,7 +1150,7 @@ export default function ChildrenTab({
             }}
           >
             <div
-              className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[100vh] overflow-y-auto border border-gray-100"
+              className="bg-white max-w-2xl w-full max-h-[100vh] overflow-y-auto border border-neutral-200"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="sticky top-0">
@@ -1245,7 +1233,7 @@ export default function ChildrenTab({
                           First Name *
                         </span>
                         <input
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                           value={newChild.firstName}
                           onChange={(e) =>
                             updateDraft({ firstName: e.target.value })
@@ -1259,7 +1247,7 @@ export default function ChildrenTab({
                           Last Name *
                         </span>
                         <input
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                           value={newChild.lastName}
                           onChange={(e) =>
                             updateDraft({ lastName: e.target.value })
@@ -1311,7 +1299,7 @@ export default function ChildrenTab({
                         </span>
                         <input
                           type="date"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                           value={newChild.birthDate}
                           onChange={(e) =>
                             updateDraft({ birthDate: e.target.value })
@@ -1325,7 +1313,7 @@ export default function ChildrenTab({
                           Location *
                         </span>
                         <select
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                          className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-gray-100"
                           value={newChild.locationId ?? ""}
                           onChange={(e) =>
                             updateDraft({ locationId: e.target.value })
@@ -1350,7 +1338,7 @@ export default function ChildrenTab({
                           Status *
                         </span>
                         <select
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                          className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-gray-100"
                           value={
                             newChild.enrollmentStatus ??
                             Types.EnrollmentStatus.New
@@ -1385,7 +1373,7 @@ export default function ChildrenTab({
                         </span>
                         <input
                           type="date"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-gray-100"
+                          className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                           value={newChild.startDate}
                           onChange={(e) =>
                             updateDraft({ startDate: e.target.value })
@@ -1400,7 +1388,7 @@ export default function ChildrenTab({
                           Notes
                         </span>
                         <textarea
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg read-only:bg-gray-100"
+                          className="w-full px-4 py-2 border border-neutral-200 read-only:bg-gray-100"
                           value={newChild.notes ?? ""}
                           onChange={(e) =>
                             updateDraft({ notes: e.target.value })
@@ -1488,7 +1476,7 @@ export default function ChildrenTab({
                           <label className="block">
                             <span className="text-gray-700 font-medium mb-1">Relationship to child*</span>
                             <select
-                              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                              className="appearance-none px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-gray-100"
                               value={newChildRelationshipParent1}
                               onChange={(e) => setNewChildRelationshipParent1(e.target.value)}
                               required
@@ -1527,7 +1515,7 @@ export default function ChildrenTab({
                           <label className="block">
                             <span className="text-gray-700 font-medium mb-1">Relationship to child*</span>
                             <select
-                              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                              className="appearance-none px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-gray-100"
                               value={newChildRelationshipParent2}
                               onChange={(e) => setNewChildRelationshipParent2(e.target.value)}
                               required
@@ -1558,14 +1546,14 @@ export default function ChildrenTab({
                     </h2>
 
                     {/* 🧒 Child Information */}
-                    <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                    <div className="bg-gray-50 p-4 border border-neutral-200">
                       <div className="flex justify-between items-center gap-4 ">
                         <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
                           👶 Child Information
                         </h3>
                         <button
                           onClick={() => { setActiveStep(0); setIsClickEditFromSumarry(true); }} // Back to Child form and Aware that want to review from Summary
-                          className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                          className="bg-neutral-100 hover:bg-neutral-200 text-gray-600 font-medium px-8 border-2 border-neutral-300 py-2 transition duration-200 text-sm"
                         >
                           Edit
                         </button>
@@ -1610,14 +1598,14 @@ export default function ChildrenTab({
                     </div>
 
                     {/* 👨‍👩‍👧 Parent 1 Information */}
-                    <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                    <div className="bg-gray-50 p-4 border border-neutral-200">
                       <div className="flex justify-between items-center gap-4 ">
                         <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
                           👩 Parent 1 Information
                         </h3>
                         <button
                           onClick={() => { setActiveStep(1); setIsClickEditFromSumarry(true); }} // Back to modifying parent1
-                          className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                          className="bg-neutral-100 hover:bg-neutral-200 text-gray-600 font-medium px-8 border-2 border-neutral-300 py-2 transition duration-200 text-sm"
                         >
                           Edit
                         </button>
@@ -1663,7 +1651,7 @@ export default function ChildrenTab({
 
                     {/* Optionally: Parent 2 */}
                     {parent2 ? (
-                      <div className="bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                      <div className="bg-gray-50 p-4 border border-neutral-200">
                         <div className="flex justify-between items-center gap-4 ">
                           <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center gap-2">
                             👨 Parent 2 Information
@@ -1684,13 +1672,13 @@ export default function ChildrenTab({
                                 });
                               }
                             }}
-                            className="bg-red-100 hover:bg-red-200 text-red-600 font-medium px-4 py-2 rounded-lg transition duration-200 text-sm border border-red-200"
+                            className="bg-red-100 hover:bg-red-200 text-red-600 font-medium px-4 py-2 transition duration-200 text-sm border border-red-200"
                           >
                             Remove
                           </button>
                           <button
                             onClick={() => setActiveStep(2)} // Backe to parent 2 form
-                            className="bg-purple-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                            className="bg-neutral-100 hover:bg-neutral-200 text-gray-600 font-medium px-8 border-2 border-neutral-300 py-2 transition duration-200 text-sm"
                           >
                             Edit
                           </button>
@@ -1753,7 +1741,7 @@ export default function ChildrenTab({
                               return newSkipped;
                             });
                           }}
-                          className="bg-blue-100 hover:bg-gray-200 text-gray-600 font-medium px-8 border border-2 py-2 rounded-lg transition duration-200 text-sm"
+                          className="bg-blue-100 hover:bg-neutral-200 text-gray-600 font-medium px-8 border-2 border-neutral-300 py-2 transition duration-200 text-sm"
                         >
                           + Add Parent 2
                         </button>
@@ -1813,7 +1801,7 @@ export default function ChildrenTab({
                       setIsFormOpen(false);
                       setEditingChild(null);
                     }}
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                    className="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-medium px-6 py-3 transition duration-200"
                   >
                     Cancel
                   </button>
@@ -1821,14 +1809,14 @@ export default function ChildrenTab({
                     <button
                       type="button"
                       onClick={clearDraft}
-                      className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                      className="bg-neutral-100 hover:bg-neutral-200 text-neutral-600 font-medium px-6 py-3 transition duration-200 text-sm"
                     >
                       Clear Draft
                     </button>
                   )}
                   <button
                     type="submit"
-                    className="flex-1 disabled:bg-gray-400 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                    className="flex-1 disabled:bg-gray-400 bg-black hover:bg-neutral-900 text-white font-medium px-6 py-3 transition duration-200"
                     title={
                       (locations ?? []).length === 0
                         ? "No locations available"
@@ -1854,7 +1842,7 @@ export default function ChildrenTab({
             }}
           >
             <div
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-100"
+              className="bg-white max-w-md w-full border border-neutral-200"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
@@ -1875,7 +1863,7 @@ export default function ChildrenTab({
 
               <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
                 <select
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="appearance-none w-full px-3 py-2 border border-neutral-200"
                   value={assignClassId}
                   onChange={(e) => setAssignClassId(e.target.value)}
                 >
@@ -1906,7 +1894,7 @@ export default function ChildrenTab({
                     setAssignChild(null);
                     setAssignClassId("");
                   }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-lg"
+                  className="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-medium px-4 py-2"
                 >
                   Cancel
                 </button>
@@ -1931,7 +1919,7 @@ export default function ChildrenTab({
                   className={`flex-1 ${assignClassId
                     ? "bg-green-600 hover:bg-green-700"
                     : "bg-green-400 cursor-not-allowed"
-                    } text-white font-medium px-4 py-2 rounded-lg`}
+                    } text-white font-medium px-4 py-2`}
                 >
                   Assign
                 </button>

@@ -59,7 +59,7 @@ export default function ParentForm({
                 <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">First Name *</span>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 read-only:bg-gray-100"
+                        className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                         placeholder="First Name"
                         value={parent.firstName}
                         onChange={(e) => updateParent({ firstName: e.target.value })}
@@ -71,7 +71,7 @@ export default function ParentForm({
                 <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">Last Name *</span>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 read-only:bg-gray-100"
+                        className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                         placeholder="Last Name"
                         value={parent.lastName}
                         onChange={(e) => updateParent({ lastName: e.target.value })}
@@ -87,7 +87,7 @@ export default function ParentForm({
                     <span className="text-gray-700 font-medium mb-1 block">Email *</span>
                     <input
                         type="email"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 read-only:bg-gray-100"
+                        className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                         placeholder="Email"
                         value={parent.email}
                         onChange={(e) => updateParent({ email: e.target.value })}
@@ -101,7 +101,7 @@ export default function ParentForm({
                         Phone * <span className="text-red-500 text-sm">{phoneError}</span>
                     </span>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 read-only:bg-gray-100"
+                        className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                         placeholder="Phone"
                         value={parent.phone}
                         onChange={handlePhoneChange}
@@ -124,7 +124,7 @@ export default function ParentForm({
                 <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">Marital Status *</span>
                     <select
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                        className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-gray-100"
                         value={parent.maritalStatus}
                         onChange={(e) => updateParent({ maritalStatus: e.target.value })}
                         required
@@ -142,7 +142,7 @@ export default function ParentForm({
                 <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">Relationship to child*</span>
                     <select
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
+                        className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-gray-100"
                         value={parent.newChildRelationship}
                         onChange={(e) => updateParent({ newChildRelationship: e.target.value })}
                         required

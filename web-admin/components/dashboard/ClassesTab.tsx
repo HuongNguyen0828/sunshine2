@@ -377,7 +377,7 @@ export default function ClassesTab({
             <h2 className="text-3xl font-bold text-gray-800">Classes</h2>
             {/* Location scope */}
             <select
-              className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="appearance-none px-4 py-2 border border-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900"
               value={locationView}
               onChange={(e) => setLocationView(e.target.value)}
               required
@@ -397,7 +397,7 @@ export default function ClassesTab({
 
           <button
             onClick={handleAddClick}
-            className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
+            className="bg-black hover:bg-neutral-900 text-white font-medium px-4 py-2 transition duration-200 flex items-center gap-2 text-sm"
             title={(locations ?? []).length === 0 ? "No locations available" : "Add class"}
           >
             <span className="text-lg">+</span>
@@ -405,7 +405,7 @@ export default function ClassesTab({
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+        <div className="bg-white border border-neutral-200 p-4 mb-4">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
             <div className="flex-1 relative">
               <input
@@ -416,7 +416,7 @@ export default function ClassesTab({
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
               />
               {searchTerm && (
                 <button
@@ -437,7 +437,7 @@ export default function ClassesTab({
                 setCapacityFilter(e.target.value as typeof capacityFilter);
                 setCurrentPage(1);
               }}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-400"
+              className="appearance-none px-4 py-2 bg-white border border-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-300 focus:border-neutral-400"
             >
               <option value="all">All Capacities</option>
               <option value="available">Available (&lt;70%)</option>
@@ -476,98 +476,98 @@ export default function ClassesTab({
             return (
               <div
                 key={cls.id}
-                className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5 flex flex-col"
+                className="group bg-white border border-neutral-200 hover:border-neutral-400 transition-all duration-200 p-6 flex flex-col"
               >
-                <div className="mb-4">
-                  <h3 className="text-xl font-bold text-gray-800 truncate mb-2">{cls.name}</h3>
-                  <div className="flex items-center gap-2 text-gray-600 text-sm">
-                    <span>📍</span>
-                    <span className="truncate">{getLocationLabel(cls.locationId)}</span>
+                <div className="mb-5">
+                  <h3 className="text-lg font-semibold text-slate-800 truncate mb-2 group-hover:text-indigo-600 transition-colors">{cls.name}</h3>
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <span className="text-sm text-slate-600">{getLocationLabel(cls.locationId)}</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-sm text-slate-600">Room {cls.classroom}</span>
                   </div>
-                  <span className=" p-4 text-gray-600 text-sm">Classroom: {cls.classroom}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-2.5 py-1 bg-neutral-50 text-neutral-700 text-xs font-medium border border-neutral-200">
+                      Ages {cls.ageStart}–{cls.ageEnd}
+                    </span>
+                  </div>
                 </div>
 
                 {capacityStatus === "full" && (
-                  <div className="bg-red-100 border border-red-300 text-red-700 px-3 py-2 rounded-lg mb-4 text-sm font-medium">
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 mb-4 text-sm font-medium">
                     ⚠️ Class is at full capacity
                   </div>
                 )}
 
-                <div className="space-y-3 mb-4 flex-grow">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-600 text-sm">👶 Age Range:</span>
-                    <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-semibold">
-                      {cls.ageStart}–{cls.ageEnd} years
-                    </span>
-                  </div>
-
+                <div className="space-y-4 mb-5 pb-5 border-b border-slate-100 flex-grow">
                   <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-gray-600 text-sm">Capacity:</span>
-                      <span className="text-gray-800 font-semibold text-sm">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Capacity</span>
+                      <span className="text-sm text-slate-800 font-semibold">
                         {cls.volume}/{cls.capacity}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                    <div className="w-full bg-neutral-100 h-2 overflow-hidden">
                       <div
-                        className={`h-1.5 ${getCapacityColor(capacityStatus)} transition-all duration-300`}
+                        className={`h-2 ${getCapacityColor(capacityStatus)} transition-all duration-300`}
                         style={{ width: `${capacityPct}%` }}
                       />
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      {Math.round(capacityPct)}% {capacityStatus === "full" ? "(Full)" : ""}
+                    <div className="text-xs text-slate-500 mt-1.5 font-medium">
+                      {Math.round(capacityPct)}% {capacityStatus === "full" ? "Full" : "Filled"}
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-gray-500 text-xs mb-1">Teachers</div>
+                    <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Teachers</div>
                     {assigned.length > 0 ? (
-                      <div className="text-sm text-gray-700">
+                      <div className="space-y-1">
                         {assigned.slice(0, 2).map(t => (
-                          <span key={t.id} className="block text-xs">
-                            {t.firstName} {t.lastName} - {t.email}
-                          </span>
+                          <div key={t.id} className="text-sm text-slate-600">
+                            {t.firstName} {t.lastName}
+                          </div>
                         ))}
                         {assigned.length > 2 && (
-                          <span className="text-xs text-gray-400">+{assigned.length - 2} more</span>
+                          <span className="text-xs text-slate-400 font-medium">+{assigned.length - 2} more</span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-xs">Unassigned</span>
+                      <span className="text-sm text-slate-400 italic">No teachers assigned</span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex-col pt-4 border-t border-gray-200">
-                  <div className="flex gap-4 mb-2">
+                <div className="flex flex-col gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => handleEditClick(cls)}
-                      className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                      className="bg-white border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 text-neutral-700 font-medium px-4 py-2.5 transition-all duration-200 text-sm"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDeleteClick(cls)}
-                      className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                      className="bg-white border border-neutral-200 hover:bg-red-50 hover:border-red-300 text-neutral-700 hover:text-red-600 font-medium px-4 py-2.5 transition-all duration-200 text-sm"
                     >
                       Delete
                     </button>
                   </div>
-                  <div className="flex justify-center">
-                    <button
-                      onClick={() => openAssign(cls.id, cls.locationId)}
-                      className={assigned.length >= 2 ? " bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm" : " bg-green-600 hover:bg-green-700 text-white font-medium px-3 py-2 rounded-lg transition duration-200 text-sm"}
-                    >
-                      {assigned.length >= 2 ? "Switch Teacher" : "Assign Teacher"}
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => openAssign(cls.id, cls.locationId)}
+                    className={`w-full font-medium px-4 py-2.5 transition-all duration-200 text-sm ${
+                      assigned.length >= 2
+                        ? "bg-white border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 text-neutral-700"
+                        : "bg-green-600 hover:bg-green-700 text-white"
+                    }`}
+                  >
+                    {assigned.length >= 2 ? "Switch Teacher" : "Assign Teacher"}
+                  </button>
                 </div>
               </div>
             );
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+        <div className="bg-white border border-neutral-200 p-12 text-center">
           <div className="text-gray-400 text-6xl mb-4">🎓</div>
           <h3 className="text-xl font-semibold text-gray-600 mb-2">No classes found</h3>
           <p className="text-gray-500">
@@ -584,9 +584,9 @@ export default function ClassesTab({
           <button
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
-              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+            className={`px-4 py-2 font-medium transition duration-200 border ${currentPage === 1
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200"
+              : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
               }`}
           >
             ← Previous
@@ -596,7 +596,7 @@ export default function ClassesTab({
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page ? "bg-gray-800 text-white" : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                className={`w-10 h-10 font-medium transition duration-200 border ${currentPage === page ? "bg-black text-white border-black" : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
                   }`}
               >
                 {page}
@@ -606,9 +606,9 @@ export default function ClassesTab({
           <button
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
-              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+            className={`px-4 py-2 font-medium transition duration-200 border ${currentPage === totalPages
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200"
+              : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
               }`}
           >
             Next →
@@ -626,7 +626,7 @@ export default function ClassesTab({
           }}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+            className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-neutral-200"
             onClick={e => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
@@ -654,7 +654,7 @@ export default function ClassesTab({
                 <label className="block">
                   <span className="text-gray-700 font-medium mb-1 block">Class Name *</span>
                   <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                     placeholder="Class Name"
                     value={newClass.name}
                     onChange={e => updateClass({ name: e.target.value })}
@@ -665,7 +665,7 @@ export default function ClassesTab({
                 <label className="block">
                   <span className="text-gray-700 font-medium mb-1 block">Location *</span>
                   <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                     value={newClass.locationId ?? ""}
                     onChange={e => updateClass({ locationId: e.target.value })}
                     required
@@ -685,7 +685,7 @@ export default function ClassesTab({
                     <span className="text-gray-700 font-medium mb-1 block">Capacity *</span>
                     <input
                       type="number"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="Capacity"
                       value={newClass.capacity}
                       onChange={e => updateClass({ capacity: Number(e.target.value) })}
@@ -697,7 +697,7 @@ export default function ClassesTab({
                     <span className="text-gray-700 font-medium mb-1 block">Volume *</span>
                     <input
                       type="number"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="Volume"
                       value={newClass.volume}
                       onChange={e => updateClass({ volume: Number(e.target.value) })}
@@ -711,7 +711,7 @@ export default function ClassesTab({
                     <span className="text-gray-700 font-medium mb-1 block">Age Start *</span>
                     <input
                       type="number"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="Age Start"
                       value={newClass.ageStart}
                       onChange={e => updateClass({ ageStart: Number(e.target.value) })}
@@ -723,7 +723,7 @@ export default function ClassesTab({
                     <span className="text-gray-700 font-medium mb-1 block">Age End *</span>
                     <input
                       type="number"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="Age End"
                       value={newClass.ageEnd}
                       onChange={e => updateClass({ ageEnd: Number(e.target.value) })}
@@ -735,7 +735,7 @@ export default function ClassesTab({
                 <label className="block">
                   <span className="text-gray-700 font-medium mb-1 block">Classroom (optional)</span>
                   <input
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                     placeholder="Room name / number"
                     value={newClass.classroom || ""}
                     onChange={e => updateClass({ classroom: e.target.value })}
@@ -750,7 +750,7 @@ export default function ClassesTab({
                     setIsFormOpen(false);
                     setEditingClass(null);
                   }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                  className="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-medium px-6 py-3 transition duration-200"
                 >
                   Cancel
                 </button>
@@ -758,14 +758,14 @@ export default function ClassesTab({
                   <button
                     type="button"
                     onClick={() => clearDraft(true)}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                    className="bg-neutral-100 hover:bg-neutral-200 text-neutral-600 font-medium px-6 py-3 transition duration-200 text-sm"
                   >
                     Clear Draft
                   </button>
                 )}
                 <button
                   type="submit"
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                  className="flex-1 bg-black hover:bg-neutral-900 text-white font-medium px-6 py-3 transition duration-200"
                   title={(locations ?? []).length === 0 ? "No locations available" : "Submit"}
                 >
                   {editingClass ? "Update Class" : "Add Class"}
@@ -786,7 +786,7 @@ export default function ClassesTab({
           }}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+            className="bg-white max-w-md w-full max-h-[90vh] overflow-y-auto border border-neutral-200"
             onClick={e => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
@@ -814,7 +814,7 @@ export default function ClassesTab({
                   teacherOptions.map(t => (
                     <label
                       key={t.id}
-                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition duration-150"
+                      className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer transition duration-150 border border-neutral-200"
                     >
                       <input
                         type="checkbox"
@@ -834,9 +834,9 @@ export default function ClassesTab({
                           }
                         }
                         }
-                        className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        className="w-5 h-5 text-black border-neutral-300 focus:ring-neutral-500"
                       />
-                      <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      <div className="w-10 h-10 bg-black text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
                         {getTeacherInitials(t.firstName, t.lastName)}
                       </div>
                       <div className="flex-1">
@@ -864,7 +864,7 @@ export default function ClassesTab({
                     setShowAssignTeachers(null);
                     setSelectedTeachers([]);
                   }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                  className="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-medium px-6 py-3 transition duration-200"
                 >
                   Cancel
                 </button>
@@ -872,7 +872,7 @@ export default function ClassesTab({
                   onClick={handleSaveTeachers}
                   disabled={isAssigning}
                   className={`flex-1 ${isAssigning ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
-                    } text-white font-medium px-6 py-3 rounded-lg transition duration-200`}
+                    } text-white font-medium px-6 py-3 transition duration-200`}
                 >
                   {isAssigning ? "Saving..." : `Save (${selectedTeachers.length})`}
                 </button>

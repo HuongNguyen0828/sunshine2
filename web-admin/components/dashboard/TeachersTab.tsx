@@ -31,7 +31,7 @@ export default function TeachersTab({
   setNewTeacher: React.Dispatch<React.SetStateAction<NewTeacherInput>>;
   onAdd: (t: NewTeacherInput) => void;
   locations: LocationLite[];
-  classesLite: ClassLite[];
+  classesLite?: ClassLite[];
 }) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -311,7 +311,7 @@ export default function TeachersTab({
           <div className="flex justify-between gap-4">
             <h2 className="text-3xl font-bold text-gray-800">Teachers</h2>
             <select
-              className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="appearance-none px-4 py-2 border border-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-900"
               value={locationView}
               onChange={(e) => {
                 setLocationView(e.target.value);
@@ -332,7 +332,7 @@ export default function TeachersTab({
           </div>
           <button
             onClick={handleAddClick}
-            className="bg-gray-700 hover:bg-gray-800 text-white font-medium px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 text-sm shadow-sm"
+            className="bg-black hover:bg-neutral-900 text-white font-medium px-4 py-2 transition duration-200 flex items-center gap-2 text-sm"
           >
             <span className="text-lg">+</span> Add Teacher
           </button>
@@ -348,7 +348,7 @@ export default function TeachersTab({
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-400"
+              className="w-full px-4 py-2 bg-white border border-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-300 focus:border-neutral-400"
             />
             {searchTerm && (
               <button
@@ -369,44 +369,54 @@ export default function TeachersTab({
       </div>
 
       {paginatedTeachers.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {paginatedTeachers.map((teacher) => (
             <div
               key={teacher.id}
-              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-5"
+              className="group bg-white border border-neutral-200 hover:border-neutral-400 transition-all duration-200 p-6"
             >
-              <div className="mb-4">
+              <div className="mb-5">
                 <div className="flex items-baseline gap-2 mb-1">
-                  <h3 className="text-xl font-bold text-gray-900 truncate">
-                    {teacher.email}
-                  </h3>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">
+                  <h3 className="text-lg font-semibold text-slate-800 truncate group-hover:text-neutral-600 transition-colors">
                     {teacher.firstName} {teacher.lastName}
+                  </h3>
+                  <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium ${
+                    teacher.status?.includes('Active') ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-slate-50 text-slate-600 border border-slate-100'
+                  }`}>
+                    {teacher.status}
                   </span>
-                  <span className="text-gray-300">•</span>
-                  <span className="text-sm font-medium text-gray-700">
+                </div>
+                <div className="text-sm text-slate-500 font-medium">{teacher.email}</div>
+              </div>
+
+              <div className="space-y-3 mb-5 pb-5 border-b border-slate-100">
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Phone</span>
+                  <span className="text-sm text-slate-700 font-medium">
                     {teacher.phone}
                   </span>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 text-gray-700 text-sm">
-                <span>📍</span>
-                <span className="truncate">
-                  {getLocationLabel(teacher.locationId)}
-                </span>
-              </div>
-              <div className="space-y-2 mb-4 pb-4 border-b border-gray-100">
-                <div className="text-xs text-gray-500 leading-relaxed">
-                  <span>🏠</span> {formatAddress(teacher)}
+
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Location</span>
+                  <span className="text-sm text-slate-600">
+                    {getLocationLabel(teacher.locationId)}
+                  </span>
                 </div>
-                <div className="text-sm text-gray-400">
-                  <div>Status: {teacher.status}</div>
-                  {String(teacher.startDate)}
-                  {teacher.endDate
-                    ? ` → ${String(teacher.endDate)}`
-                    : " → Present"}
+
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Address</span>
+                  <span className="text-sm text-slate-600 leading-relaxed">
+                    {formatAddress(teacher)}
+                  </span>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[60px]">Period</span>
+                  <span className="text-sm text-slate-600">
+                    {String(teacher.startDate)}
+                    {teacher.endDate ? ` → ${String(teacher.endDate)}` : " → Present"}
+                  </span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-gray-500">
                   <span>Class:</span>
@@ -425,16 +435,16 @@ export default function TeachersTab({
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   onClick={() => handleEditClick(teacher)}
-                  className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-gray-300 text-gray-700 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                  className="flex-1 bg-white border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 text-neutral-700 font-medium px-4 py-2.5 transition-all duration-200 text-sm"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDeleteClick(teacher)}
-                  className="flex-1 bg-white/60 backdrop-blur-sm border border-gray-200 hover:bg-white/80 hover:border-red-300 text-gray-700 hover:text-red-600 font-medium px-3 py-2 rounded-lg transition-all duration-200 text-xs shadow-sm"
+                  className="flex-1 bg-white border border-neutral-200 hover:bg-red-50 hover:border-red-300 text-neutral-700 hover:text-red-600 font-medium px-4 py-2.5 transition-all duration-200 text-sm"
                 >
                   Delete
                 </button>
@@ -443,7 +453,7 @@ export default function TeachersTab({
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+        <div className="bg-white border border-neutral-200 p-12 text-center">
           <div className="text-gray-400 text-6xl mb-4">👥</div>
           <h3 className="text-xl font-semibold text-gray-600 mb-2">
             No teachers found
@@ -461,9 +471,11 @@ export default function TeachersTab({
           <button
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === 1
-              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+
+            className={`px-4 py-2 font-medium transition duration-200 border ${currentPage === 1
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200"
+              : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
+
               }`}
           >
             ← Previous
@@ -473,9 +485,9 @@ export default function TeachersTab({
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-medium transition duration-200 ${currentPage === page
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+                className={`w-10 h-10 font-medium transition duration-200 border ${currentPage === page
+                  ? "bg-black text-white border-black"
+                  : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
                   }`}
               >
                 {page}
@@ -487,9 +499,9 @@ export default function TeachersTab({
               setCurrentPage((prev) => Math.min(totalPages, prev + 1))
             }
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg font-medium transition duration-200 ${currentPage === totalPages
-              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-100 shadow-sm"
+            className={`px-4 py-2 font-medium transition duration-200 border ${currentPage === totalPages
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200"
+              : "bg-white text-gray-700 hover:bg-gray-100 border-neutral-200"
               }`}
           >
             Next →
@@ -506,7 +518,7 @@ export default function TeachersTab({
           }}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100"
+            className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-neutral-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
@@ -538,7 +550,7 @@ export default function TeachersTab({
                     </span>
                     <input
                       type="text"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="First Name"
                       value={newTeacher.firstName}
                       onChange={(e) =>
@@ -553,7 +565,7 @@ export default function TeachersTab({
                     </span>
                     <input
                       type="text"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="Last Name"
                       value={newTeacher.lastName}
                       onChange={(e) =>
@@ -569,7 +581,7 @@ export default function TeachersTab({
                     Location *
                   </span>
                   <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                     value={newTeacher.locationId}
                     onChange={(e) =>
                       updateTeacher({ locationId: e.target.value })
@@ -596,7 +608,7 @@ export default function TeachersTab({
                     </span>
                     <input
                       type="email"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="Email"
                       value={newTeacher.email}
                       onChange={(e) =>
@@ -614,7 +626,7 @@ export default function TeachersTab({
                       </span>
                     </span>
                     <input
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="e.g. 403 111 2284"
                       value={newTeacher.phone}
                       onChange={handlePhoneChange}
@@ -636,7 +648,7 @@ export default function TeachersTab({
                       Status *
                     </span>
                     <select
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       value={newTeacher.status}
                       onChange={(e) =>
                         updateTeacher({
@@ -662,7 +674,7 @@ export default function TeachersTab({
                     </span>
                     <input
                       type="date"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       value={newTeacher.startDate}
                       onChange={(e) =>
                         updateTeacher({ startDate: e.target.value })
@@ -676,7 +688,7 @@ export default function TeachersTab({
                     </span>
                     <input
                       type="date"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="appearance-none w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                       placeholder="End Date (optional)"
                       value={newTeacher.endDate || ""}
                       onChange={(e) =>
@@ -696,7 +708,7 @@ export default function TeachersTab({
                     setIsFormOpen(false);
                     setEditingTeacher(null);
                   }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-6 py-3 rounded-lg transition duration-200"
+                  className="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-medium px-6 py-3 transition duration-200"
                 >
                   Cancel
                 </button>
@@ -704,14 +716,14 @@ export default function TeachersTab({
                   <button
                     type="button"
                     onClick={() => clearDraft()}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium px-6 py-3 rounded-lg transition duration-200 text-sm"
+                    className="bg-neutral-100 hover:bg-neutral-200 text-neutral-600 font-medium px-6 py-3 transition duration-200 text-sm"
                   >
                     Clear Draft
                   </button>
                 )}
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition duration-200"
+                  className="flex-1 bg-black hover:bg-neutral-900 text-white font-medium px-6 py-3 transition duration-200"
                 >
                   {editingTeacher ? "Update Teacher" : "Add Teacher"}
                 </button>

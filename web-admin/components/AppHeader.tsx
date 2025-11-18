@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { useState, useRef, useEffect } from 'react';
 
 export default function AppHeader() {
-  const { signOutUser, user } = useAuth();
+  const { signOutUser, currentUser } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -38,12 +38,18 @@ export default function AppHeader() {
     await signOutUser();
   };
 
+  // Get display name or fallback to email username
+  const displayName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User';
+  const initials = currentUser?.displayName
+    ? currentUser.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : currentUser?.email?.charAt(0).toUpperCase() || 'A';
+
   return (
-    <header className="bg-white border-b border-gray-200">
-      <div className="mx-auto px-6 py-3">
+    <header className="bg-white border-b border-slate-200">
+      <div className="mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
             <Image
               src="/logo.svg"
               alt="Sunshine Daycare"
@@ -51,56 +57,55 @@ export default function AppHeader() {
               height={32}
               className="h-8 w-8"
             />
-            <span className="ml-3 text-sm font-medium text-gray-700">Sunshine Daycare</span>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-slate-800">Sunshine Daycare</span>
+              <span className="text-xs text-slate-500">Admin Dashboard</span>
+            </div>
           </div>
 
-          {/* Right side - User menu */}
-          <div className="flex items-center gap-4">
-            {/* User info - hidden on mobile */}
-            {user?.email && (
-              <span className="hidden sm:block text-xs text-gray-500">
-                {user.email}
-              </span>
-            )}
-
-            {/* User menu dropdown */}
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+          {/* User menu */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 transition-all duration-200 group"
+            >
+              <div className="hidden sm:flex flex-col items-end">
+                <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">{displayName}</span>
+                <span className="text-xs text-slate-500">Admin</span>
+              </div>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center text-sm font-semibold shadow-sm">
+                {initials}
+              </div>
+              <svg
+                className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                <div className="w-7 h-7 rounded-full bg-gray-700 text-white flex items-center justify-center text-xs font-medium">
-                  {user?.email ? user.email.charAt(0).toUpperCase() : 'A'}
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Dropdown menu */}
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden z-50">
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Account</p>
+                  <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+                  <p className="text-xs text-slate-600 truncate mt-0.5">{currentUser?.email}</p>
                 </div>
-                <svg
-                  className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors duration-150 flex items-center gap-2"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {/* Dropdown menu */}
-              {isMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                  {user?.email && (
-                    <div className="px-4 py-3 border-b border-gray-100">
-                      <p className="text-xs text-gray-500 mb-1">Signed in as</p>
-                      <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150"
-                  >
-                    Sign out
-                  </button>
-                </div>
-              )}
-            </div>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Sign out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

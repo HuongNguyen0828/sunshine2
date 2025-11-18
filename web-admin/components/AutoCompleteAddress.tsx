@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-import { CountryType } from '@/utils/autoCompleteAddress';
+export enum CountryType {
+    Us = 'us',
+    Ca = 'ca'
+};
+
 import { Autocomplete } from "@react-google-maps/api"
 import { sharedStyles } from '@/styles/sharedStyle';
-import { Teacher as type } from "../../shared/types/type"
 
 
 export interface Address {
@@ -129,7 +132,7 @@ export default function AutoCompleteAddress({ onAddressChanged, addressValues, d
                 <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">Street Address *</span>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 read-only:bg-gray-100"
+                        className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                         placeholder="123 Main St"
                         value={addressValues ? addressValues.address1 : address1}
                         onChange={(e) => setAddress1(e.target.value)}
@@ -145,7 +148,7 @@ export default function AutoCompleteAddress({ onAddressChanged, addressValues, d
                 <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">Apt, Unit, Suite, or Floor #</span>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 read-only:bg-gray-100"
+                        className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                         placeholder="Unit 37"
                         value={addressValues ? addressValues.address2 : address2}
                         onChange={(e) => setAddress2(e.target.value)}
@@ -156,7 +159,7 @@ export default function AutoCompleteAddress({ onAddressChanged, addressValues, d
                 <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">Postal Code *</span>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 read-only:bg-gray-100"
+                        className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                         placeholder="T2K 1K5"
                         value={addressValues ? addressValues.postalcode : postalcode}
                         onChange={(e) => setPostalCode(e.target.value)}
@@ -172,7 +175,7 @@ export default function AutoCompleteAddress({ onAddressChanged, addressValues, d
                 <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">City *</span>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 read-only:bg-gray-100"
+                        className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                         placeholder="Calgary"
                         value={addressValues ? addressValues.city : city}
                         onChange={(e) => setCity(e.target.value)}
@@ -184,7 +187,7 @@ export default function AutoCompleteAddress({ onAddressChanged, addressValues, d
                 <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">Province *</span>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 read-only:bg-gray-100"
+                        className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                         placeholder="AB"
                         value={addressValues ? addressValues.province : province}
                         onChange={(e) => setProvince(e.target.value)}
@@ -196,7 +199,7 @@ export default function AutoCompleteAddress({ onAddressChanged, addressValues, d
                 <label className="block">
                     <span className="text-gray-700 font-medium mb-1 block">Country *</span>
                     <input
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 read-only:bg-gray-100"
+                        className="w-full px-4 py-2 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-900 read-only:bg-gray-100"
                         placeholder="Canada"
                         value={addressValues ? addressValues.country : country}
                         onChange={(e) => setCountry(e.target.value)}

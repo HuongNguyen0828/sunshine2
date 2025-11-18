@@ -90,24 +90,26 @@ export default function SidebarNav({
   ];
 
   return (
-    <aside className={`p-3 transition-all duration-300 ease-in-out ${isCollapsed ? 'w-[72px]' : 'w-72'
-      }`}>
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col h-full overflow-hidden">
+    <aside className={`transition-all duration-300 ease-in-out ${isCollapsed ? 'w-[72px]' : 'w-64'}`}>
+      <div className="bg-white border-r border-slate-200 flex flex-col h-full">
         {/* Navigation Items */}
-        <nav className="flex-1 p-2 space-y-1">
+        <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => onChange(item.id)}
-              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 text-sm overflow-hidden ${isCollapsed ? 'justify-center aspect-square' : 'px-3 py-2.5'
-                } ${active === item.id
-                  ? 'bg-gray-900 text-white font-medium shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`}
+              className={`w-full flex items-center gap-3 rounded-lg transition-all duration-200 text-sm overflow-hidden ${
+                isCollapsed ? 'justify-center aspect-square p-3' : 'px-3 py-2.5'
+              } ${
+                active === item.id
+                  ? 'bg-blue-50 text-blue-600 font-semibold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+              }`}
               title={isCollapsed ? item.label : undefined}
             >
-              <span className={`flex-shrink-0 flex items-center justify-center ${isCollapsed ? 'w-full' : 'w-5'
-                }`}>{item.icon}</span>
+              <span className={`flex-shrink-0 flex items-center justify-center ${isCollapsed ? 'w-full' : 'w-5'}`}>
+                {item.icon}
+              </span>
               {!isCollapsed && (
                 <span className="transition-opacity duration-200 opacity-100 whitespace-nowrap">
                   {item.label}
@@ -118,16 +120,18 @@ export default function SidebarNav({
         </nav>
 
         {/* Toggle Button at Bottom */}
-        <div className="p-2 border-t border-gray-100">
+        <div className="p-3 border-t border-slate-100">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 overflow-hidden ${isCollapsed ? 'justify-center aspect-square' : 'px-3 py-2.5'
-              }`}
+            className={`w-full flex items-center gap-3 rounded-lg transition-all duration-200 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-700 overflow-hidden font-medium ${
+              isCollapsed ? 'justify-center aspect-square p-3' : 'px-3 py-2.5'
+            }`}
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={isCollapsed ? 'Expand sidebar' : undefined}
           >
-            <span className={`flex-shrink-0 flex items-center justify-center ${isCollapsed ? 'w-full' : 'w-5'
-              }`}><ToggleIcon /></span>
+            <span className={`flex-shrink-0 flex items-center justify-center ${isCollapsed ? 'w-full' : 'w-5'}`}>
+              <ToggleIcon />
+            </span>
             {!isCollapsed && <span className="whitespace-nowrap">Toggle</span>}
           </button>
         </div>
