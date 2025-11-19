@@ -2,10 +2,22 @@ import { db, admin } from "../../lib/firebase";
 
 // Helper function to get classes for a given teacherId and locationId
 async function getClassesForTeacherId(teacherId: string, locationId: string) {
-  const classesSnapshot = await db.collection("classes")
-    .where("teacherIds", "array-contains", teacherId) // matching teacherId
-    .where("locationId", "==", locationId)   // matching locationId
-    .get();
+    // First, need to get Teacher docId from teacherID (authUid)
+    const teacherSnapshot = await db.collection("users")
+        .where("role", "==", "teacher")
+        .where("authUid", "==", teacherId) // Matching uid
+        .get();
+
+    if (teacherSnapshot.empty) {
+        throw new Error("Cannot match user with teacher doc")
+    }
+    const teacherRef = teacherSnapshot.docs[0].ref;
+    const teacherDocId = teacherRef.id;
+
+    const classesSnapshot = await db.collection("classes")
+        .where("teacherIds", "array-contains", teacherDocId) // matching teacherId
+        .where("locationId", "==", locationId)   // matching locationId
+        .get();
 
     return classesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
@@ -24,26 +36,47 @@ export async function listSchedules(monthStart: string, teacherId: string, locat
     Also, need to consider case: classId === "*"
     =======================
     */
-   const rangeStart = monthStart;
-//    const rangeEnd = monthStart.slice( 0, 6).concat("-32");  // get at YYYY-MM, adding boundary "-32"
-    const rangeEnd = `${monthStart.slice(0, 6)}-32`; // better approach
+
+    // Add null checks and debugging
+    if (!monthStart) {
+      console.error('Month parameter is undefined or null');
+      throw new Error('Month parameter is required');
+    }
+    // console.log(monthStart);
+    const rangeStart = `${monthStart.slice(0, 7)}-00`; 
+    //const rangeEnd = monthStart.slice( 0, 7).concat("-32");  // get at YYYY-MM, adding boundary "-32"
+    const rangeEnd = `${monthStart.slice(0, 7)}-32`; // better approach
 
     // 2. Build the query to fetch schedules for those classes
     if (classIds.length > 0) {
         // Checking if inside Schedules, classId === "*", then we need to fetch those schedules as well
         // 2.1. Case when exactly match classId on Schedules
+        console.log("ClassIds: ", classIds);
+        // 2.2. Case when classId iscould be "*", find any schedules that apply to all classes and with this locationId
+        const combinedClassIds = [...classIds, '*'];
+        
+        // Using index for performance of Firestore query and it's required as this is a complex query (with range and in condition)
+        /*===========
+        from Firestore Recommendation
+            The schedules collection requires additional indexing to run your query
+
+                Composite indexes 
+                Fields	Order	Status 
+                classId
+                locationId
+                weekStart
+                __name__
+                Ascending
+                Ascending
+                Ascending
+                Ascending
+                Needs creation
+        */
         query = db.collection("schedules")
         .where("weekStart", ">=", rangeStart) // >= rangeStart
         .where("weekStart", "<=", rangeEnd) // <= rangeEnd
         .where("locationId", "==", locationId)
-        .where("classId", "in", classIds); // it's safe as 1 teacher won't have more than 2 classes
-
-        // 2.2. Case when classId iscould be "*", find any schedules that apply to all classes and with this locationId
-        wildcardQuery = db.collection("schedules")
-        .where("weekStart", ">=", rangeStart) // >= rangeStart
-        .where("weekStart", "<=", rangeEnd) // <= rangeEnd        
-        .where("locationId", "==", locationId)
-        .where("classId", "==", "*");
+        .where("classId", "in", combinedClassIds); // it's safe as 1 teacher won't have more than 2 classes + '*' = 3
 
     } else {
         // If the teacher has no classes, return an empty array
@@ -53,10 +86,8 @@ export async function listSchedules(monthStart: string, teacherId: string, locat
     // 3. Execute the query 
     const snapshotQuery = await query.get();
     const resultExactlyMatched = snapshotQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    const snapshotWildcard = await wildcardQuery.get();
-    const resultWildcard = snapshotWildcard.docs.map(doc => ({ id: doc.id, ...doc.data() })); // meaning both classes have this schedule
+    console.log("Exactly match" + resultExactlyMatched);
 
     // 4. Combine results from both queries
-    return [...resultExactlyMatched, ...resultWildcard];
+    return resultExactlyMatched;
 }

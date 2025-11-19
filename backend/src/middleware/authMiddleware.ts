@@ -69,7 +69,7 @@ export const authMiddleware = async (
       if (!daycareAndLocationResult) {
         return res
           .status(403)
-          .send({ message: "No daycare/location found for this user" });
+          .send({ message: "No daycare or location found for this user" });
       }
       daycareId = daycareAndLocationResult.daycareId;
       locationId = daycareAndLocationResult.locationId;

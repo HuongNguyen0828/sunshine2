@@ -9,7 +9,15 @@ export const getSchedulesForTeacher = async (req: AuthRequest, res: Response) =>
         const locationId = req.user?.locationId;
 
         // Extract weekStart from query parameters
-        const monthStart  = req.query.monthStart as string;
+        const monthStart  = req.query.month as string;
+
+         console.log('🔍 Received parameters:', {
+            teacherId,
+            locationId,
+            monthStart,
+            query: req.query, // Log all query parameters
+            params: req.params // Log all route parameters
+        });
 
         if (!teacherId || !locationId) {
             return res.status(400).json({ ok: false, message: "Invalid teacher or location ID" });

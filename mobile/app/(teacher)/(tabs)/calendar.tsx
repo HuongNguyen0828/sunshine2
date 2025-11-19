@@ -22,7 +22,7 @@ import {
   Pressable,
   FlatList,
 } from "react-native";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -41,7 +41,7 @@ import {
 import { mockDaycareEvents } from "../../../src/data/mockData";
 import { EventType } from "../../../../shared/types/type";
 import { fetchSchedulesForTeacher } from "@/services/useScheduleAPI";
-import { Schedule } from "../../../../shared/types/type";
+import { type Schedule } from "../../../../shared/types/type";
 
 type Event = {
   id: string;
@@ -72,10 +72,23 @@ export default function TeacherCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [schedules, setSchedules] = useState<Schedule[]>([]);
 
-  const schedulesData = async () => {
-    const results = await fetchSchedulesForTeacher(currentMonth.toISOString());
-    setSchedules(results);
-  }
+  // Fetch schedules when month changes
+  useEffect(() => {
+    fetchSchedulesData();
+    console.log("Working ok")
+  }, [currentMonth]);
+
+  const fetchSchedulesData = async () => {
+    const currentMonthString = currentMonth.toISOString().split('T')[0];
+    console.log("MONTH" + currentMonthString); // "2025-01-18"
+    try {
+      const results = await fetchSchedulesForTeacher(currentMonthString);
+      setSchedules(results);
+      console.log(results);
+    } catch (error) {
+      console.error('Error fetching schedules:', error);
+    }
+  };
 
   // Get calendar days for current month
   const calendarDays = useMemo(() => {
