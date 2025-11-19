@@ -27,8 +27,6 @@ export async function listSchedules(monthStart: string, teacherId: string, locat
     // 1. First, get classes for the teacher at the specified location
     const classes = await getClassesForTeacherId(teacherId, locationId);
     const classIds = classes.map(c => c.id);
-    let query = null;
-    let wildcardQuery = null;
 
     /* ================
     Example of weekStart(2025-11-10) included in monthStart(2025-11-01): matching year and month 2025-11
@@ -72,22 +70,24 @@ export async function listSchedules(monthStart: string, teacherId: string, locat
                 Ascending
                 Needs creation
         */
-        query = db.collection("schedules")
+        const query = db.collection("schedules")
         .where("weekStart", ">=", rangeStart) // >= rangeStart
         .where("weekStart", "<=", rangeEnd) // <= rangeEnd
         .where("locationId", "==", locationId)
         .where("classId", "in", combinedClassIds); // it's safe as 1 teacher won't have more than 2 classes + '*' = 3
+
+          // 3. Execute the query 
+        const snapshotQuery = await query.get();
+        const resultExactlyMatched = snapshotQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log("Exactly match" + resultExactlyMatched);
+
+        // 4. Combine results from both queries
+        return resultExactlyMatched;
 
     } else {
         // If the teacher has no classes, return an empty array
         return [];
     }
   
-    // 3. Execute the query 
-    const snapshotQuery = await query.get();
-    const resultExactlyMatched = snapshotQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    console.log("Exactly match" + resultExactlyMatched);
-
-    // 4. Combine results from both queries
-    return resultExactlyMatched;
+  
 }
