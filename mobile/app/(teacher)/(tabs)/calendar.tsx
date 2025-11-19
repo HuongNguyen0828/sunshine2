@@ -22,7 +22,7 @@ import {
   Pressable,
   FlatList,
 } from "react-native";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, act } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -38,10 +38,70 @@ import {
   School,
   AlertCircle,
 } from "lucide-react-native";
-import { mockDaycareEvents } from "../../../src/data/mockData";
+
+type EventByMonth = {
+  [date: string]: Event[];
+};
+export const fake: EventByMonth = {
+  // Current month events
+  '2025-11-05': [
+    { id: 'event-1', type: 'meeting', title: 'Staff Meeting', time: '6:10 PM', description: 'Monthly staff meeting' },
+  ],
+  '2025-11-08': [
+    { id: 'event-2', type: 'childActivity', title: 'Picture Day', time: 'All Day', description: 'Professional photos for all classes' },
+  ],
+  '2025-11-11': [
+    { id: 'event-3', type: 'holiday', title: 'Veterans Day', time: 'All Day', description: 'Daycare closed' },
+  ],
+  '2025-11-15': [
+    { id: 'event-4', type: 'childActivity', title: 'Parent-Teacher Conferences', time: '3:00-6:00 PM', description: 'Schedule your time slot with your teacher' },
+  ],
+  '2025-11-20': [
+    { id: 'event-5', type: 'birthday', title: 'Thanksgiving Feast', time: '11:30 AM', description: 'Parents invited to join us for lunch' },
+  ],
+  '2025-11-22': [
+    { id: 'event-6', type: 'childActivity', title: 'Fall Festival', time: '10:00 AM', description: 'Outdoor activities and games' },
+  ],
+  '2025-11-27': [
+    { id: 'event-7', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
+  ],
+  '2025-11-28': [
+    { id: 'event-8', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
+  ],
+  '2025-11-29': [
+    { id: 'event-9', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
+  ],
+  // Next month preview
+  // '2025-12-06': [
+  //   { id: 'event-10', type: 'childActivity', title: 'Holiday Concert', time: '6:00 PM', description: 'All classes perform holiday songs' },
+  // ],
+  // '2025-12-13': [
+  //   { id: 'event-11', type: 'childActivity', title: 'Cookie Decorating', time: '2:00 PM', description: 'Parents welcome to join' },
+  // ],
+  // '2025-12-20': [
+  //   { id: 'event-12', type: 'childActivity', title: 'Holiday Party', time: '10:00 AM', description: 'Class parties and gift exchange' },
+  // ],
+  // '2025-12-24': [
+  //   { id: 'event-13', type: 'holiday', title: 'Winter Break Begins', time: 'All Day', description: 'Daycare closed Dec 24 - Jan 1' },
+  // ],
+};
 import { EventType } from "../../../../shared/types/type";
 import { fetchSchedulesForTeacher } from "@/services/useScheduleAPI";
 import { type Schedule } from "../../../../shared/types/type";
+export type ScheduleDate = { // MAtching backend data returned
+  id: string;
+  type: EventType;
+  weekStart: string;
+  dayOfWeek: string;
+  timeSlot: string;
+  activityTitle: string;
+  activityDescription: string;
+  activityMaterials: string;
+  classId: string; // null = applies to all classes
+  locationId: string; // location scope of the schedule if classId is "*"
+  color: string; // hex color code for activity pill
+  order: number; // order within the time slot (0 = first, 1 = second, etc.)
+};
 
 type Event = {
   id: string;
@@ -70,7 +130,7 @@ export default function TeacherCalendar() {
   const insets = useSafeAreaInsets();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleDate[]>([]);
 
   // Fetch schedules when month changes
   useEffect(() => {
@@ -83,7 +143,7 @@ export default function TeacherCalendar() {
     console.log("MONTH" + currentMonthString); // "2025-01-18"
     try {
       const results = await fetchSchedulesForTeacher(currentMonthString);
-      setSchedules(results);
+      setSchedules(results); // GEt schedule for the current month REPLACING mock data
       console.log(results);
     } catch (error) {
       console.error('Error fetching schedules:', error);
@@ -118,6 +178,34 @@ export default function TeacherCalendar() {
       "0"
     )}-${String(date.getDate()).padStart(2, "0")}`;
   };
+
+  // Convert Monthly Schedule into Object of mockDaycareEvents
+  const mockDaycareEvents = schedules.reduce((acc, activity) => {
+    const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"]; // 0, 1, 2, 3, 4, 5
+
+    const dateString = activity.weekStart; // "2025-10-20"
+    const dayIndex = numberInWeek.indexOf(activity.dayOfWeek);
+
+    // Convert string to Date
+    const baseDate: Date = new Date(dateString);
+    // Add the days
+    baseDate.setDate(baseDate.getDate() + dayIndex);
+
+    // Convert date backe to string
+    const date = baseDate.toISOString().split('T')[0]; // "2025-11-19" //2025-11-19T00:00:00.000Z at index[0]
+    console.log("Date string: ", date);
+
+    const eventOnDate: Event = {
+      id: activity.id,
+      title: activity.activityTitle,
+      time: activity.timeSlot,
+      type: activity.type,
+      description: activity.activityDescription,
+    };
+    const initialEventList: Event[] = [];
+    acc[date] = [eventOnDate, ...initialEventList]; // is object of list event
+    return acc;
+  }, {} as EventByMonth);
 
   // Get events for selected date
   const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
@@ -251,8 +339,8 @@ export default function TeacherCalendar() {
               const isSelected =
                 date.toDateString() === selectedDate.toDateString();
               const dateKey = formatDateKey(date);
-              const hasEvents = mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents]?.length > 0;
-
+              const hasEvents = mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents]?.length > 0; // Does This month has event?
+              // const hasEvents = schedules.length > 0; // Does This month has event?
               return (
                 <Pressable
                   key={index}

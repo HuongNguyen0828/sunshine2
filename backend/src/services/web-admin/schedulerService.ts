@@ -1,11 +1,13 @@
 import { get } from "http";
 import { db, admin } from "../../lib/firebase";
 import { daycareLocationIds } from "../authService";
+import { EventType } from "../../../../shared/types/type";
 
 export interface ScheduleCreate {
   weekStart: string;
   dayOfWeek: string;
   timeSlot: string;
+  type: EventType;
   activityTitle: string;
   activityDescription: string;
   activityMaterials: string;

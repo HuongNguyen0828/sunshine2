@@ -1,6 +1,7 @@
-import { Schedule } from "../../shared/types/type";
+// import { Schedule } from "../../shared/types/type";
 import { BASE_URL } from "./useEntriesAPI";
 import { auth } from "../lib/firebase"
+import { ScheduleDate } from "@/app/(teacher)/(tabs)/calendar";
 
 
 async function authHeader() {
@@ -10,17 +11,19 @@ async function authHeader() {
 }
 
 
-export async function fetchSchedulesForTeacher(month: string): Promise<Schedule[]> {
+export async function fetchSchedulesForTeacher(month: string): Promise<ScheduleDate[]> {
     try {
-        const schedules = await fetch(`${BASE_URL}/schedules?month=${month}`, {
+        const result = await fetch(`${BASE_URL}/schedules?month=${month}`, {
             method: "GET",
             headers: {
             "Content-Type": "application/json",
             ...(await authHeader()),
           }
         });
-        
-        return schedules.json();
+
+        const  json = await result.json();
+        const data = json.data;
+        return data;
   } catch (e: any) {
     throw e;
   }
