@@ -16,7 +16,6 @@ import type { Class } from "../../../shared/types/type";
 import * as SchedulerAPI from "@/services/useSchedulerAPI";
 import { LocationLite } from "@/services/useLocationsAPI";
 // import { ClassLite } from "@/app/dashboard/[uid]/page";
-export const defaultLocationView = "all";
 
 
 // This component represents the consciousness transplant - taking the original
@@ -50,6 +49,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
   const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<Class[]>(showClasses); // using Class type, loading class from dashboard props, not backend calls
   const [selectedClassId, setSelectedClassId] = useState<string>("all");
+  const defaultLocationView: string = locations.length > 1 ? "all" : locations[0].id;
   const [locationView, setLocationView] = useState<string>(defaultLocationView);
   const [selectedClassOrAllClasses, setSelectedClassOrAllClasses] = useState<boolean>(true); //default to class itself, else location
 
@@ -390,7 +390,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
                   </option>
                 ))}
                 {/* Default all locations: all ids */}
-                <option value={defaultLocationView}>All locations</option>
+                {locations.length > 1 && <option value={defaultLocationView}>All locations</option>}
               </select>
             </div>
             <p className="text-gray-600 text-sm">

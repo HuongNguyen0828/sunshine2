@@ -11,7 +11,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ActivitySelector } from "./ActivitySelector";
 import type { Activity, Schedule, SlotInfo } from "@/types/scheduler";
 import { WEEKDAYS, TIME_SLOTS } from "@/types/scheduler";
-import { defaultLocationView } from "./WeeklyScheduler";
 
 interface WeeklyCalendarProps {
   weekStart: string;
@@ -51,6 +50,8 @@ export function WeeklyCalendar({
   const [draggedSchedule, setDraggedSchedule] = useState<Schedule | null>(null);
   const [dragPreviewPosition, setDragPreviewPosition] = useState<{ x: number; y: number } | null>(null);
   const [dropIndicatorPosition, setDropIndicatorPosition] = useState<{ scheduleId: string; position: 'before' | 'after' } | null>(null);
+
+  const defaultLocationView = 'all';
 
   const getSchedulesForSlot = (day: string, timeSlot: string) => {
     return schedules

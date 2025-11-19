@@ -496,7 +496,7 @@ export interface Activity {
 /* =============================
  * Schedule
  * ============================= */
-export interface Schedule {
+export type Schedule = {
   id: string;
   type: EventTypeForm; // limited to dailyActivity, childActivity, meeting
   userId?: string;

@@ -130,6 +130,8 @@ export async function deleteUserFirebaseAuth(uid: string) {
  * Find daycareId and locationId by email for each user role
  */
 export async function findDaycareAndLocationByEmail(email: string | null): Promise<{daycareId: string, locationId: string} | null> {
+    console.log(`🔍 Searching for daycare/location with email: ${email}`);
+
   // Case: not provide email
   if (!email || !email.trim()) {
     throw new Error("Email required to find daycare and location");
@@ -143,6 +145,9 @@ export async function findDaycareAndLocationByEmail(email: string | null): Promi
     if (userDoc.empty) {
       return null;
     }
+
+    console.log(`📊 Users found: ${userDoc.size}`);
+
 
     // Get user role
     const userData = userDoc.docs[0]?.data();
@@ -160,6 +165,9 @@ export async function findDaycareAndLocationByEmail(email: string | null): Promi
       const locationId = userData?.locationId;
       
     // Find the location document by its ID in subCollection locations
+    /* ====================
+    Creating single-field index Exemption in Firestore for locations: with id field in ASC order in Collection Group scope setting
+    */
     const locationSnapshot = await db.collectionGroup("locations")
       .where("id", "==", locationId)
       .get();

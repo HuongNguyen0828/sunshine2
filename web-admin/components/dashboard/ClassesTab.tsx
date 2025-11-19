@@ -58,7 +58,7 @@ export default function ClassesTab({
 }: Props) {
   // UI state
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const defaultLocationView: string = "all";
+  const defaultLocationView: string = locations.length > 1 ? "all" : locations[0].id;
   const [locationView, setLocationView] = useState<string>(defaultLocationView); // default is viewing all locations
   const [searchTerm, setSearchTerm] = useState("");
   const [capacityFilter, setCapacityFilter] =
@@ -391,7 +391,7 @@ export default function ClassesTab({
                 </option>
               ))}
               {/* Default all locations: all ids */}
-              <option value={defaultLocationView}>All locations</option>
+              {locations.length > 1 && <option value={defaultLocationView}>All locations</option>}
             </select>
           </div>
 
