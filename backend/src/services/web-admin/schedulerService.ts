@@ -17,16 +17,17 @@ export interface ScheduleCreate {
 
 export async function listSchedules(weekStart: string, classId: string, locationId: string, daycareId: string) {
   // Need to handle boundary to fetch schedules for this specific daycare and location only
-  let query = null;
+  let scheduleRef = db.collection("schedules");
+  let query: FirebaseFirestore.Query; // Declare as Firestore Query type
   if (locationId !== "*") {
     // Case admin is scoped to a specific location
-   query = db.collection("schedules")
+   query = scheduleRef
     .where("weekStart", "==", weekStart)
     .where("locationId", "==", locationId);
   } else {
     // Case admin is scoped to all locations within the daycare
     const locationIds = await daycareLocationIds(daycareId);
-    query = db.collection("schedules")
+    query = scheduleRef
     .where("weekStart", "==", weekStart)
     .where("locationId", "in", locationIds);
   }
