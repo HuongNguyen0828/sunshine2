@@ -316,15 +316,37 @@ function titleFor(e: ParentFeedEntry): string {
 
   if (t === "Attendance") {
     const subtype = e.subtype?.toLowerCase() ?? "";
-
     if (subtype.includes("in")) return "Attendance • Check in";
     if (subtype.includes("out")) return "Attendance • Check out";
-
     return e.subtype ? `Attendance • ${e.subtype}` : "Attendance";
   }
 
-  if (t === "Food") return e.subtype ? `Meal • ${e.subtype}` : "Meal";
-  if (t === "Sleep") return "Nap";
+  if (t === "Food") {
+    return e.subtype ? `Meal • ${e.subtype}` : "Meal";
+  }
+
+  if (t === "Sleep") {
+    const subtype = e.subtype?.toLowerCase() ?? "";
+
+    if (
+      subtype.includes("start") ||
+      subtype.includes("begin") ||
+      subtype.includes("down")
+    ) {
+      return "Nap • Started";
+    }
+
+    if (
+      subtype.includes("end") ||
+      subtype.includes("wake") ||
+      subtype.includes("up")
+    ) {
+      return "Nap • Woke up";
+    }
+
+    return e.subtype ? `Nap • ${e.subtype}` : "Nap";
+  }
+
   if (t === "Toilet") return "Toilet";
   if (t === "Photo") return "Photo";
   if (t === "Activity") return "Activity";
@@ -332,6 +354,7 @@ function titleFor(e: ParentFeedEntry): string {
   if (t === "Note") return "Note";
   return t || "Entry";
 }
+
 
 
 function detailFor(e: ParentFeedEntry): string | undefined {
