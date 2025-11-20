@@ -9,7 +9,8 @@ import {
   Modal,
   Alert,
 } from "react-native";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useAppContext } from "@/contexts/AppContext"; // useAppContext 
+import { useEffect, useMemo, useState, useCallback, useContext } from "react";
 import { colors } from "@/constants/color";
 import { useRouter } from "expo-router";
 import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
@@ -126,6 +127,10 @@ async function getUserDocId(): Promise<string | null> {
 }
 
 export default function TeacherDashboard() {
+
+  // Sharing classes in the context
+  const { updateSharedData } = useAppContext(); // sharing classes data
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -172,6 +177,8 @@ export default function TeacherDashboard() {
           }
           loaded.sort((a, b) => a.name.localeCompare(b.name));
           setClasses(loaded);
+
+          updateSharedData("classes", loaded); // Add Classed into the context
         } else {
           setClasses([]);
         }

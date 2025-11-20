@@ -22,6 +22,7 @@ import {
   Pressable,
   FlatList,
 } from "react-native";
+import { useAppContext } from "@/contexts/AppContext";
 import { useState, useMemo, useEffect, act } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -110,7 +111,8 @@ type Event = {
   location?: string;
   type: EventType;
   description?: string;
-  children?: string[];
+  // children?: string[];
+  // class: string; // classId || '*' (event applied to all classes inside context)
 };
 
 type DayEvents = {
@@ -132,19 +134,23 @@ export default function TeacherCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [schedules, setSchedules] = useState<ScheduleDate[]>([]);
 
+  // Import classes from useAppContext
+  const { sharedData } = useAppContext();
+
   // Fetch schedules when month changes
   useEffect(() => {
     fetchSchedulesData();
-    console.log("Working ok")
+    // console.log("Working ok")
+    console.log("SharedClasses: ", sharedData["classes"])
   }, [currentMonth]);
 
   const fetchSchedulesData = async () => {
     const currentMonthString = currentMonth.toISOString().split('T')[0];
-    console.log("MONTH" + currentMonthString); // "2025-01-18"
+    // console.log("MONTH" + currentMonthString); // "2025-01-18"
     try {
       const results = await fetchSchedulesForTeacher(currentMonthString);
       setSchedules(results); // GEt schedule for the current month REPLACING mock data
-      console.log(results);
+      // console.log(results);
     } catch (error) {
       console.error('Error fetching schedules:', error);
     }
@@ -180,32 +186,36 @@ export default function TeacherCalendar() {
   };
 
   // Convert Monthly Schedule into Object of mockDaycareEvents
-  const mockDaycareEvents = schedules.reduce((acc, activity) => {
-    const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"]; // 0, 1, 2, 3, 4, 5
+  const mockDaycareEvents = useMemo(() => {
+    const scheduleByMonth = schedules.reduce((acc, activity) => {
+      const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"]; // 0, 1, 2, 3, 4, 5
 
-    const dateString = activity.weekStart; // "2025-10-20"
-    const dayIndex = numberInWeek.indexOf(activity.dayOfWeek);
+      const dateString = activity.weekStart; // "2025-10-20"
+      const dayIndex = numberInWeek.indexOf(activity.dayOfWeek);
 
-    // Convert string to Date
-    const baseDate: Date = new Date(dateString);
-    // Add the days
-    baseDate.setDate(baseDate.getDate() + dayIndex);
+      // Convert string to Date
+      const baseDate: Date = new Date(dateString);
+      // Add the days
+      baseDate.setDate(baseDate.getDate() + dayIndex);
 
-    // Convert date backe to string
-    const date = baseDate.toISOString().split('T')[0]; // "2025-11-19" //2025-11-19T00:00:00.000Z at index[0]
-    console.log("Date string: ", date);
+      // Convert date backe to string
+      const date = baseDate.toISOString().split('T')[0]; // "2025-11-19" //2025-11-19T00:00:00.000Z at index[0]
+      // console.log("Date string: ", date);
 
-    const eventOnDate: Event = {
-      id: activity.id,
-      title: activity.activityTitle,
-      time: activity.timeSlot,
-      type: activity.type,
-      description: activity.activityDescription,
-    };
-    const initialEventList: Event[] = [];
-    acc[date] = [eventOnDate, ...initialEventList]; // is object of list event
-    return acc;
-  }, {} as EventByMonth);
+      const eventOnDate: Event = {
+        id: activity.id,
+        title: activity.activityTitle,
+        time: activity.timeSlot,
+        type: activity.type,
+        description: activity.activityDescription,
+      };
+      const initialEventList: Event[] = [];
+      acc[date] = [eventOnDate, ...initialEventList]; // is object of list event
+      return acc;
+    }, {} as EventByMonth);
+
+    return scheduleByMonth;
+  }, [schedules]);
 
   // Get events for selected date
   const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
