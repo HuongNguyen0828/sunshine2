@@ -25,6 +25,12 @@ type ChildRelationship = {
   relationship?: string;
 };
 
+type EntrySection = {
+  dateKey: string;
+  label: string;
+  items: ParentFeedEntry[];
+};
+
 async function getUserDocId(): Promise<string | null> {
   const u = auth.currentUser;
   if (!u) return null;
@@ -51,7 +57,6 @@ export default function ParentDashboard() {
           return;
         }
 
-        // 1) load parent user doc → childRelationships
         const userSnap = await getDoc(doc(db, "users", userDocId));
         const userData = userSnap.exists() ? (userSnap.data() as any) : {};
 
@@ -63,7 +68,6 @@ export default function ParentDashboard() {
           userData.childRelationships &&
           typeof userData.childRelationships === "object"
         ) {
-          // in case it's stored as an object map
           rels = Object.values(
             userData.childRelationships
           ) as ChildRelationship[];
@@ -80,7 +84,6 @@ export default function ParentDashboard() {
           return;
         }
 
-        // 2) resolve child names (children collection)
         const childDocs: ChildRef[] = [];
         for (const rel of rels) {
           if (!rel.childId) continue;
@@ -110,7 +113,6 @@ export default function ParentDashboard() {
         childDocs.sort((a, b) => a.name.localeCompare(b.name));
         setChildren(childDocs);
 
-        // 3) fetch feed from backend (already filtered for this parent)
         const feed = await fetchParentFeed();
         setEntries(feed);
       } catch (e) {
@@ -124,15 +126,16 @@ export default function ParentDashboard() {
   }, []);
 
   const childInfoById = useMemo(() => {
-    const m: Record<
-      string,
-      { name: string; relationship?: string }
-    > = {};
+    const m: Record<string, { name: string; relationship?: string }> = {};
     children.forEach((c) => {
       m[c.id] = { name: c.name, relationship: c.relationship };
     });
     return m;
   }, [children]);
+
+  const sections = useMemo<EntrySection[]>(() => {
+    return groupEntriesByDate(entries);
+  }, [entries]);
 
   if (loading) {
     return (
@@ -203,81 +206,94 @@ export default function ParentDashboard() {
             </Text>
           </View>
         ) : (
-          entries.map((e) => {
-            const info = childInfoById[e.childId] || {
-              name: e.childName || e.childId,
-            };
-            const emoji = iconFor(e);
-            const title = titleFor(e);
-            const detail = detailFor(e);
-            const time = toHM(e.occurredAt || e.createdAt);
-
-            return (
-              <View
-                key={e.id}
+          sections.map((section) => (
+            <View key={section.dateKey} style={{ gap: 10 }}>
+              <Text
                 style={{
-                  backgroundColor: "#fff",
-                  borderRadius: 16,
-                  padding: 14,
-                  flexDirection: "row",
-                  gap: 12,
-                  alignItems: "flex-start",
+                  fontSize: 16,
+                  fontWeight: "600",
+                  color: colors.textDim,
+                  marginBottom: 4,
                 }}
               >
-                <View
-                  style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 12,
-                    backgroundColor: "#EEF2FF",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ fontSize: 20 }}>{emoji}</Text>
-                </View>
+                {section.label}
+              </Text>
 
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={{ fontWeight: "600", fontSize: 15 }}>
-                    {title}
-                  </Text>
+              {section.items.map((e) => {
+                const info = childInfoById[e.childId] || {
+                  name: e.childName || e.childId,
+                };
+                const emoji = iconFor(e);
+                const title = titleFor(e);
+                const detail = detailFor(e);
+                const time = toHM(e.occurredAt || e.createdAt);
 
-                  <Text style={{ color: colors.textDim, fontSize: 13 }}>
-                    {info.name}
-                    {info.relationship ? ` (${info.relationship})` : ""}
-                    {time ? ` • ${time}` : ""}
-                  </Text>
-
-                  {!!detail && (
-                    <Text style={{ color: colors.text, fontSize: 14 }}>
-                      {detail}
-                    </Text>
-                  )}
-
-                  {e.photoUrl ? (
-                    <Image
-                      source={{ uri: e.photoUrl }}
+                return (
+                  <View
+                    key={e.id}
+                    style={{
+                      backgroundColor: "#fff",
+                      borderRadius: 16,
+                      padding: 14,
+                      flexDirection: "row",
+                      gap: 12,
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <View
                       style={{
-                        width: "100%",
-                        height: 160,
+                        width: 42,
+                        height: 42,
                         borderRadius: 12,
-                        marginTop: 6,
-                        backgroundColor: "#E2E8F0",
+                        backgroundColor: "#EEF2FF",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
-                      resizeMode="cover"
-                    />
-                  ) : null}
-                </View>
-              </View>
-            );
-          })
+                    >
+                      <Text style={{ fontSize: 20 }}>{emoji}</Text>
+                    </View>
+
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <Text style={{ fontWeight: "600", fontSize: 15 }}>
+                        {title}
+                      </Text>
+
+                      <Text style={{ color: colors.textDim, fontSize: 13 }}>
+                        {info.name}
+                        {info.relationship ? ` (${info.relationship})` : ""}
+                        {time ? ` • ${time}` : ""}
+                      </Text>
+
+                      {!!detail && (
+                        <Text style={{ color: colors.text, fontSize: 14 }}>
+                          {detail}
+                        </Text>
+                      )}
+
+                      {e.photoUrl ? (
+                        <Image
+                          source={{ uri: e.photoUrl }}
+                          style={{
+                            width: "100%",
+                            height: 160,
+                            borderRadius: 12,
+                            marginTop: 6,
+                            backgroundColor: "#E2E8F0",
+                          }}
+                          resizeMode="cover"
+                        />
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ))
         )}
       </ScrollView>
     </View>
   );
 }
-
-/* ----------------- helpers ----------------- */
 
 function iconFor(e: ParentFeedEntry): string {
   const t = e.type;
@@ -335,13 +351,93 @@ function toHM(v: any): string | undefined {
     return `${hh}:${mm}`;
   }
 
-  if (typeof v === "object" && typeof v.seconds === "number") {
-    const ms = v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6);
+  if (typeof v === "object" && typeof (v as any).seconds === "number") {
+    const ms =
+      (v as any).seconds * 1000 + Math.floor(((v as any).nanoseconds || 0) / 1e6);
     const d = new Date(ms);
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
     return `${hh}:${mm}`;
   }
 
+  if (typeof v === "object" && typeof (v as any).toDate === "function") {
+    const d = (v as any).toDate();
+    if (d instanceof Date && !isNaN(d.getTime())) {
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      return `${hh}:${mm}`;
+    }
+  }
+
   return undefined;
+}
+
+function getDateValue(v: any): Date | undefined {
+  if (!v) return undefined;
+
+  if (typeof v === "string") {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return undefined;
+    return d;
+  }
+
+  if (typeof v === "object" && typeof (v as any).toDate === "function") {
+    const d = (v as any).toDate();
+    if (d instanceof Date && !isNaN(d.getTime())) return d;
+  }
+
+  if (typeof v === "object" && typeof (v as any).seconds === "number") {
+    const ms =
+      (v as any).seconds * 1000 + Math.floor(((v as any).nanoseconds || 0) / 1e6);
+    const d = new Date(ms);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  return undefined;
+}
+
+function getDateKey(v: any): string | undefined {
+  const d = getDateValue(v);
+  if (!d) return undefined;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateLabelFromKey(key: string): string {
+  const d = new Date(`${key}T00:00:00`);
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function groupEntriesByDate(entries: ParentFeedEntry[]): EntrySection[] {
+  const map: Record<string, ParentFeedEntry[]> = {};
+
+  entries.forEach((e) => {
+    const key = getDateKey(e.occurredAt || e.createdAt);
+    if (!key) return;
+    if (!map[key]) map[key] = [];
+    map[key].push(e);
+  });
+
+  const sortedKeys = Object.keys(map).sort((a, b) => (a < b ? 1 : -1));
+
+  return sortedKeys.map((key) => {
+    const items = map[key].slice().sort((a, b) => {
+      const da = getDateValue(a.occurredAt || a.createdAt);
+      const db = getDateValue(b.occurredAt || b.createdAt);
+      if (!da || !db) return 0;
+      return db.getTime() - da.getTime();
+    });
+
+    return {
+      dateKey: key,
+      label: formatDateLabelFromKey(key),
+      items,
+    };
+  });
 }
