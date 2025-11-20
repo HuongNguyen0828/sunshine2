@@ -313,7 +313,16 @@ function iconFor(e: ParentFeedEntry): string {
 
 function titleFor(e: ParentFeedEntry): string {
   const t = e.type;
-  if (t === "Attendance") return "Attendance";
+
+  if (t === "Attendance") {
+    const subtype = e.subtype?.toLowerCase() ?? "";
+
+    if (subtype.includes("in")) return "Attendance • Check in";
+    if (subtype.includes("out")) return "Attendance • Check out";
+
+    return e.subtype ? `Attendance • ${e.subtype}` : "Attendance";
+  }
+
   if (t === "Food") return e.subtype ? `Meal • ${e.subtype}` : "Meal";
   if (t === "Sleep") return "Nap";
   if (t === "Toilet") return "Toilet";
@@ -323,6 +332,7 @@ function titleFor(e: ParentFeedEntry): string {
   if (t === "Note") return "Note";
   return t || "Entry";
 }
+
 
 function detailFor(e: ParentFeedEntry): string | undefined {
   if (!e.detail) return undefined;
