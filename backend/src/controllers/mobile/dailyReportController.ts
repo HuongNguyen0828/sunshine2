@@ -1,6 +1,6 @@
 // backend/src/controllers/mobile/dailyReportController.ts
 
-import { Request, Response } from "express";
+import { Response } from "express";
 import { AuthRequest } from "../../middleware/authMiddleware";
 import {
   listDailyReportsForTeacher,
@@ -108,6 +108,7 @@ export const getParentDailyReports = async (
 
     const childIdsParam =
       typeof req.query.childIds === "string" ? req.query.childIds : "";
+
     const parentChildIds = childIdsParam
       .split(",")
       .map((id) => id.trim())
@@ -155,7 +156,9 @@ export const getParentDailyReports = async (
 /**
  * POST /mobile/teacher/daily-reports/:id/send
  * Marks a daily report as sent/visible to parents.
- * Used by Share button / Send All button on teacher mobile.
+ * Can be used by a Share button / Send All button on teacher mobile.
+ * Even if you currently auto-send on checkout, this endpoint is useful
+ * for future manual resend support.
  */
 export const sendDailyReport = async (req: AuthRequest, res: Response) => {
   try {
