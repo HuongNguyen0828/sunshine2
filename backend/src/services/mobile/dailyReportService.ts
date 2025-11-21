@@ -261,14 +261,30 @@ export async function listDailyReportsForParent(params: {
     return [];
   }
 
+  // Narrow down to a specific child if filter.childId is present.
+  let allowedChildIds = parentChildIds;
+  if (filter?.childId) {
+    allowedChildIds = parentChildIds.includes(filter.childId)
+      ? [filter.childId]
+      : [];
+  }
+
+  if (allowedChildIds.length === 0) {
+    return [];
+  }
+
   // Firestore "in" supports up to 10 values; caller should handle splitting if needed.
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(DAILY_REPORTS_COLLECTION)
     .where("daycareId", "==", daycareId)
-    .where("childId", "in", parentChildIds);
+    .where("childId", "in", allowedChildIds);
 
   if (locationId) {
     query = query.where("locationId", "==", locationId);
+  }
+
+  if (filter?.classId) {
+    query = query.where("classId", "==", filter.classId);
   }
 
   if (typeof filter?.sent === "boolean") {
