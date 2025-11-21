@@ -20,7 +20,7 @@ npx create-next-app@latest web-admin --typescript
 
 # App structure:
 
-daycare-app/
+daycare-app/  
 │  
 ├─ backend/ # Node.js / Express / Nest.js API  
 │ ├─ src/  
@@ -86,9 +86,7 @@ daycare-app/
 ├─ package.json  
 └─ tsconfig.json  
 
-## Work flow is:
-
-### Option C: Hybrid (common in real apps)
+## Work flow is hybrid
 
 Backend handles the “source of truth” (registering users, storing daycare entries, etc.).
 
@@ -103,7 +101,7 @@ Backend handles the “source of truth” (registering users, storing daycare en
 👉 In this setup, the backend trusts Firebase tokens and handles database + business logic.
 👉 The frontend talks to Firebase only for auth + notifications, but all daycare business data flows through the backend.
 
-### For this option:
+### For this setup:
 
 Backend: owns all business logic, database, and talks to Firebase for things like storing children’s data, attendance, reports, etc.
 
@@ -141,22 +139,3 @@ Backend verifies token with Firebase Admin SDK → then performs daycare logic (
 
 Frontend shows data returned by backend.
 
-## Note: Clear cached route types
-
-Stop Metro bundler (Ctrl+C).
-
-Run:
-
-rm -rf .expo
-yarn start
-
-# Logic Flow
-
-admin create collection of teacher and and parent
-when teacher / parent register (for their choosen password), backend checking for matching email in collections,
-
-- only matching email will be registed
-- after matching: if in parent collection => set custom claim role is parent. Same check with admin and teacher
-- Update data doc of each user with UID
-
-- when they login: check against custom claim role with UID
