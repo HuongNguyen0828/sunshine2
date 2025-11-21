@@ -21,73 +21,70 @@ npx create-next-app@latest web-admin --typescript
 # App structure:
 
 daycare-app/
+│  
+├─ backend/ # Node.js / Express / Nest.js API  
+│ ├─ src/  
+│ │ ├─ controllers/ # Handle HTTP requests  
+│ │ ├─ models/ # Database schemas (ORM or raw SQL  
+│ │ ├─ routes/ # Define routes & map to controllers  
+│ │ ├─ services/ # Business logic   
+│ │ └─ server.ts # App entry point  
+│ ├─ package.json  
+│ └─ tsconfig.json  
+│  
+├─ shared/ # Shared code (Types, API utils) # Shared code (Types + DTOs only)  
+│ ├─ types/  
+│ │ ├─ Child.ts  
+│ │ ├─ Parent.ts    
+│ │ ├─ Teacher.ts  
+│ │ └─ Entry.ts  
+│ ├─ api/  
+│ │ ├─ client.ts # Axios / fetch wrapper  
+│ │ └─ endpoints.ts # API paths constants  
+│ └─ utils/  
+│ └─ helpers.ts # shared helper functions   
 │
-├─ backend/ # Node.js / Express / Nest.js API
-│ ├─ src/
-│ │ ├─ controllers/ # Handle HTTP requests
-│ │ ├─ models/ # Database schemas (ORM or raw SQL
-│ │ ├─ routes/ # Define routes & map to controllers
-│ │ ├─ services/ # Business logic
-| | |\_firebase # Firebase Admin SDK
-| | | |\_admin.ts
-│ │ └─ server.ts # App entry point
-│ ├─ package.json
-│ └─ tsconfig.json
-│
-├─ shared/ # Shared code (Types, API utils) # Shared code (Types + DTOs only)
-│ ├─ types/
-│ │ ├─ Child.ts
-│ │ ├─ Parent.ts
-│ │ ├─ Teacher.ts
-│ │ └─ Entry.ts
-│ ├─ api/
-│ │ ├─ client.ts # Axios / fetch wrapper
-│ │ └─ endpoints.ts # API paths constants
-│ └─ utils/
-│ └─ helpers.ts # shared helper functions
-│
-├─ web-admin/ # Admin Dashboard (React / Next.js)
-│ ├─ app/
-│ ├─ components/
-│ │ ├─ KidsTable.tsx
-│ │ ├─ ParentsTable.tsx
-│ │ ├─ TeachersTable.tsx
-│ │ ├─ ClassesTable.tsx
-│ │ └─ ReportGenerator.tsx
-│ ├─ hooks/
-│ │ └─ useFetchChildren.ts
-│ ├─ lib/
-│ │ └─ api.ts # Backend API client
-| | |\_firebase.ts # Firebase client SDK
-│ ├─ package.json
-│ └─ tsconfig.json
-│
-└─ mobile-app/ # Mobile App (React Native / Expo)
-├─ app/ # Screens
-│ ├─ parent/ # Parent UI
-│ │ ├─ ParentHomeScreen.tsx
-│ │ ├─ ChildProgressScreen.tsx
-│ │ └─ PaymentsScreen.tsx
-│ ├─ teacher/ # Teacher UI
-│ │ ├─ TeacherHomeScreen.tsx
-│ │ ├─ AttendanceScreen.tsx
-│ │ └─ ReportsScreen.tsx
-│ └─ auth/
-│ ├─ SignIn.tsx
-├─ components/
-│ ├─ EntryCard.tsx
-│ └─ ChildCard.tsx
-├─ hooks/
-│ └─ useChildren.ts
-│ ├─ lib/
-│ │ └─ api.ts # Backend API client
-| | |\_firebase.ts # Firebase client SDK
+├─ web-admin/ # Admin Dashboard (React / Next.js)  
+│ ├─ app/  
+│ ├─ components/  
+│ │ ├─ KidsTable.tsx  
+│ │ ├─ ParentsTable.tsx  
+│ │ ├─ TeachersTable.tsx  
+│ │ ├─ ClassesTable.tsx  
+│ │ └─ ReportGenerator.tsx  
+│ ├─ services/  
+│ │ └─ useFetchChildren.ts  
+│ ├─ lib/  
+│ │ └─ firebase.ts # Backend API client  
+│ ├─ package.json  
+│ └─ tsconfig.json  
+│  
+└─ mobile-app/ # Mobile App (React Native / Expo)    
+├─ app/ # Screens     
+│ ├─ parent/ # Parent UI    
+│ │ ├─ ParentHomeScreen.tsx  
+│ │ ├─ ChildProgressScreen.tsx  
+│ │ └─ PaymentsScreen.tsx  
+│ ├─ teacher/ # Teacher UI  
+│ │ ├─ TeacherHomeScreen.tsx  
+│ │ ├─ AttendanceScreen.tsx  
+│ │ └─ ReportsScreen.tsx  
+│ └─ auth/    
+│ ├─ SignIn.tsx  
+├─ components/  
+│ ├─ EntryCard.tsx  
+│ └─ ChildCard.tsx      
+├─ hooks/  
+│ └─ useChildren.ts  
+│ ├─ lib/  
+│ │ └─ api.ts # Backend API client  
+| | |\_firebase.ts # Firebase client SDK  
 ├─ navigation/
-│ ├─ ParentNavigator.tsx
-│ ├─ TeacherNavigator.tsx
-│ └─ RootNavigator.tsx # decides which navigator to show based on role
-├─ package.json
-└─ tsconfig.json
+│ ├─ ParentNavigator.tsx  
+│ ├─ TeacherNavigator.tsx  
+│ └─ RootNavigator.tsx # decides which navigator to show based on role  
+├─ package.json  
+└─ tsconfig.json  
 
 ## Work flow is:
 
