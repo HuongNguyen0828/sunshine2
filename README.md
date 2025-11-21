@@ -77,9 +77,9 @@ daycare-app/
 ├─ hooks/  
 │ └─ useChildren.ts  
 │ ├─ lib/  
-│ │ └─ api.ts # Backend API client  
-| | |\_firebase.ts # Firebase client SDK  
-├─ navigation/
+│ │ ├─ api.ts # Backend API client  
+| | └─firebase.ts # Firebase client SDK  
+├─ navigation/  
 │ ├─ ParentNavigator.tsx  
 │ ├─ TeacherNavigator.tsx  
 │ └─ RootNavigator.tsx # decides which navigator to show based on role  
