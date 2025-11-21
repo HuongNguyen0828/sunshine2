@@ -13,8 +13,8 @@ const ENTRIES_COLLECTION = "entries";
 const DAILY_REPORTS_COLLECTION = "dailyReports";
 
 /**
- * Helper to build ISO date range (start/end) for a given "YYYY-MM-DD" date.
- * This assumes ISO strings are stored in UTC or in a lexicographically sortable format.
+ * Builds ISO datetime range [start, end) for a given "YYYY-MM-DD" date bucket.
+ * This assumes occurredAt is stored as an ISO string that is lexicographically sortable.
  */
 function buildDayRange(date: string) {
   // date is expected to be "YYYY-MM-DD"
@@ -68,7 +68,7 @@ async function fetchEntriesForChildAndDate(params: {
   const { daycareId, locationId, childId, date } = params;
   const { startIso, endIso } = buildDayRange(date);
 
-  let query = db
+  let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(ENTRIES_COLLECTION)
     .where("daycareId", "==", daycareId)
     .where("locationId", "==", locationId)
@@ -90,6 +90,10 @@ async function fetchEntriesForChildAndDate(params: {
 /**
  * Upserts a DailyReportDoc for a given child + date by aggregating EntryDoc records.
  * If there are no entries for that day, it returns null and does not write anything.
+ *
+ * Typical usage:
+ * - Called by backend when a "Check out" entry is created.
+ * - Can optionally make the report visible to parents immediately.
  */
 export async function upsertDailyReportForChildAndDate(params: {
   daycareId: string;
@@ -137,10 +141,12 @@ export async function upsertDailyReportForChildAndDate(params: {
     existingCreatedAt = existingData.createdAt;
   }
 
+  // If makeVisibleToParents is provided, use it; otherwise default to false.
   const visibleToParents =
     makeVisibleToParents !== undefined ? makeVisibleToParents : false;
 
-  const sent = visibleToParents; // simple assumption: visible == sent
+  // Simple convention: when a report is visible to parents, it is considered "sent".
+  const sent = visibleToParents;
   const sentAt = sent ? nowIso : undefined;
 
   const report: DailyReportDoc = {
@@ -169,7 +175,7 @@ export async function upsertDailyReportForChildAndDate(params: {
 
 /**
  * Marks a daily report as sent/visible to parents.
- * This can be used by "Share" buttons or "Send All" on teacher mobile.
+ * This is useful if you later decide to support manual re-send or manual share.
  */
 export async function markDailyReportAsSent(reportId: string): Promise<void> {
   const nowIso = new Date().toISOString();
@@ -197,7 +203,7 @@ export async function listDailyReportsForTeacher(params: {
 }): Promise<DailyReportDoc[]> {
   const { daycareId, locationId, filter } = params;
 
-  let query: FirebaseFirestore.Query = db
+  let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(DAILY_REPORTS_COLLECTION)
     .where("daycareId", "==", daycareId)
     .where("locationId", "==", locationId);
@@ -256,7 +262,7 @@ export async function listDailyReportsForParent(params: {
   }
 
   // Firestore "in" supports up to 10 values; caller should handle splitting if needed.
-  let query: FirebaseFirestore.Query = db
+  let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(DAILY_REPORTS_COLLECTION)
     .where("daycareId", "==", daycareId)
     .where("childId", "in", parentChildIds);
