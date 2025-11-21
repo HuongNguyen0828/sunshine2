@@ -17,6 +17,7 @@ import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/fire
 import { auth, db } from "@/lib/firebase";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EventByMonth } from "./calendar";
 import {
   Moon,
   Apple,
@@ -40,7 +41,7 @@ type ChildRow = {
   status?: string;
 };
 
-type ClassRow = {
+export type ClassRow = {
   id: string;
   name: string;
 };
@@ -129,7 +130,7 @@ async function getUserDocId(): Promise<string | null> {
 export default function TeacherDashboard() {
 
   // Sharing classes in the context
-  const { updateSharedData } = useAppContext(); // sharing classes data
+  const { sharedData, updateSharedData } = useAppContext(); // sharing classes data
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -145,6 +146,8 @@ export default function TeacherDashboard() {
 
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
   const [showChildPicker, setShowChildPicker] = useState(false);
+
+  const [showDetailActivity, sethowDetailActivity] = useState<boolean>(false);
 
   // load teacher scope
   useEffect(() => {
@@ -280,6 +283,28 @@ export default function TeacherDashboard() {
     });
   };
 
+  // Show Today Activity
+  const showTodayActivity = () => {
+    const dailyActivities = sharedData["dailyActivity"] as EventByMonth;
+    const today = new Date().toLocaleDateString('en-CA').split('T')[0]; // Always uses local timezone // "2025-11-19"
+    const todayEvents = dailyActivities?.[today as keyof EventByMonth] || [];
+    // alert(today);
+    if (todayEvents.length === 0) {
+      alert("No activities for today! 🎉" + dailyActivities[today]);
+      return;
+    }
+
+    const eventList = todayEvents.map(event =>
+      `• ${event.title} (${event.time})
+      ${event.description}`
+
+    ).join('\n');
+
+    alert(`Today's Activities:\n\n${eventList}`);
+    sethowDetailActivity(true);
+  };
+
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -373,7 +398,7 @@ export default function TeacherDashboard() {
                   styles.entryCard,
                   { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
-                onPress={() => toEntryForm(card)}
+                onPress={card.id !== "activity" ? (() => toEntryForm(card)) : (showTodayActivity)}
               >
                 <View
                   style={[

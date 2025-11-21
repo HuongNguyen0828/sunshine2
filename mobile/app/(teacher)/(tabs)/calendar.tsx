@@ -35,57 +35,58 @@ import {
   Star,
   Clock,
   MapPin,
-  Baby,
+  ClipboardCheck,
   School,
   AlertCircle,
 } from "lucide-react-native";
+import { ClassRow } from "./dashboard";
 
-type EventByMonth = {
+export type EventByMonth = {
   [date: string]: Event[];
 };
-export const fake: EventByMonth = {
-  // Current month events
-  '2025-11-05': [
-    { id: 'event-1', type: 'meeting', title: 'Staff Meeting', time: '6:10 PM', description: 'Monthly staff meeting' },
-  ],
-  '2025-11-08': [
-    { id: 'event-2', type: 'childActivity', title: 'Picture Day', time: 'All Day', description: 'Professional photos for all classes' },
-  ],
-  '2025-11-11': [
-    { id: 'event-3', type: 'holiday', title: 'Veterans Day', time: 'All Day', description: 'Daycare closed' },
-  ],
-  '2025-11-15': [
-    { id: 'event-4', type: 'childActivity', title: 'Parent-Teacher Conferences', time: '3:00-6:00 PM', description: 'Schedule your time slot with your teacher' },
-  ],
-  '2025-11-20': [
-    { id: 'event-5', type: 'birthday', title: 'Thanksgiving Feast', time: '11:30 AM', description: 'Parents invited to join us for lunch' },
-  ],
-  '2025-11-22': [
-    { id: 'event-6', type: 'childActivity', title: 'Fall Festival', time: '10:00 AM', description: 'Outdoor activities and games' },
-  ],
-  '2025-11-27': [
-    { id: 'event-7', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
-  ],
-  '2025-11-28': [
-    { id: 'event-8', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
-  ],
-  '2025-11-29': [
-    { id: 'event-9', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
-  ],
-  // Next month preview
-  // '2025-12-06': [
-  //   { id: 'event-10', type: 'childActivity', title: 'Holiday Concert', time: '6:00 PM', description: 'All classes perform holiday songs' },
-  // ],
-  // '2025-12-13': [
-  //   { id: 'event-11', type: 'childActivity', title: 'Cookie Decorating', time: '2:00 PM', description: 'Parents welcome to join' },
-  // ],
-  // '2025-12-20': [
-  //   { id: 'event-12', type: 'childActivity', title: 'Holiday Party', time: '10:00 AM', description: 'Class parties and gift exchange' },
-  // ],
-  // '2025-12-24': [
-  //   { id: 'event-13', type: 'holiday', title: 'Winter Break Begins', time: 'All Day', description: 'Daycare closed Dec 24 - Jan 1' },
-  // ],
-};
+// export const fake: EventByMonth = {
+//   // Current month events
+//   '2025-11-05': [
+//     { id: 'event-1', type: 'meeting', title: 'Staff Meeting', time: '6:10 PM', description: 'Monthly staff meeting' },
+//   ],
+//   '2025-11-08': [
+//     { id: 'event-2', type: 'childActivity', title: 'Picture Day', time: 'All Day', description: 'Professional photos for all classes' },
+//   ],
+//   '2025-11-11': [
+//     { id: 'event-3', type: 'holiday', title: 'Veterans Day', time: 'All Day', description: 'Daycare closed' },
+//   ],
+//   '2025-11-15': [
+//     { id: 'event-4', type: 'childActivity', title: 'Parent-Teacher Conferences', time: '3:00-6:00 PM', description: 'Schedule your time slot with your teacher' },
+//   ],
+//   '2025-11-20': [
+//     { id: 'event-5', type: 'birthday', title: 'Thanksgiving Feast', time: '11:30 AM', description: 'Parents invited to join us for lunch' },
+//   ],
+//   '2025-11-22': [
+//     { id: 'event-6', type: 'childActivity', title: 'Fall Festival', time: '10:00 AM', description: 'Outdoor activities and games' },
+//   ],
+//   '2025-11-27': [
+//     { id: 'event-7', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
+//   ],
+//   '2025-11-28': [
+//     { id: 'event-8', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
+//   ],
+//   '2025-11-29': [
+//     { id: 'event-9', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
+//   ],
+//   // Next month preview
+//   // '2025-12-06': [
+//   //   { id: 'event-10', type: 'childActivity', title: 'Holiday Concert', time: '6:00 PM', description: 'All classes perform holiday songs' },
+//   // ],
+//   // '2025-12-13': [
+//   //   { id: 'event-11', type: 'childActivity', title: 'Cookie Decorating', time: '2:00 PM', description: 'Parents welcome to join' },
+//   // ],
+//   // '2025-12-20': [
+//   //   { id: 'event-12', type: 'childActivity', title: 'Holiday Party', time: '10:00 AM', description: 'Class parties and gift exchange' },
+//   // ],
+//   // '2025-12-24': [
+//   //   { id: 'event-13', type: 'holiday', title: 'Winter Break Begins', time: 'All Day', description: 'Daycare closed Dec 24 - Jan 1' },
+//   // ],
+// };
 import { EventType } from "../../../../shared/types/type";
 import { fetchSchedulesForTeacher } from "@/services/useScheduleAPI";
 import { type Schedule } from "../../../../shared/types/type";
@@ -112,7 +113,8 @@ type Event = {
   type: EventType;
   description?: string;
   // children?: string[];
-  // class: string; // classId || '*' (event applied to all classes inside context)
+  classes: string[] | any[]; // based on backend matching classId || '*' (event applied to all classes inside context)
+  materialsRequired?: string;
 };
 
 type DayEvents = {
@@ -133,9 +135,14 @@ export default function TeacherCalendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [schedules, setSchedules] = useState<ScheduleDate[]>([]);
+  const [eventCategories, setEventCategories] = useState<{
+    all: EventByMonth; // including birthday
+    dailyActivities: EventByMonth; // only Daily
+    otherEvents: EventByMonth; // fetched from backend
+  }>({ all: {}, dailyActivities: {}, otherEvents: {} });
 
   // Import classes from useAppContext
-  const { sharedData } = useAppContext();
+  const { sharedData, updateSharedData } = useAppContext();
 
   // Fetch schedules when month changes
   useEffect(() => {
@@ -185,22 +192,18 @@ export default function TeacherCalendar() {
     )}-${String(date.getDate()).padStart(2, "0")}`;
   };
 
-  // Convert Monthly Schedule into Object of mockDaycareEvents
-  const mockDaycareEvents = useMemo(() => {
-    const scheduleByMonth = schedules.reduce((acc, activity) => {
-      const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"]; // 0, 1, 2, 3, 4, 5
+  useEffect(() => {
+    const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"];
 
-      const dateString = activity.weekStart; // "2025-10-20"
+    const all: EventByMonth = {};
+    const dailyActivities: EventByMonth = {};
+    const otherEvents: EventByMonth = {};
+
+    schedules.forEach((activity) => {
+      const baseDate = new Date(activity.weekStart);
       const dayIndex = numberInWeek.indexOf(activity.dayOfWeek);
-
-      // Convert string to Date
-      const baseDate: Date = new Date(dateString);
-      // Add the days
       baseDate.setDate(baseDate.getDate() + dayIndex);
-
-      // Convert date backe to string
-      const date = baseDate.toISOString().split('T')[0]; // "2025-11-19" //2025-11-19T00:00:00.000Z at index[0]
-      // console.log("Date string: ", date);
+      const date = baseDate.toISOString().split('T')[0];
 
       const eventOnDate: Event = {
         id: activity.id,
@@ -208,14 +211,30 @@ export default function TeacherCalendar() {
         time: activity.timeSlot,
         type: activity.type,
         description: activity.activityDescription,
+        classes: activity.classId !== "*"
+          ? [(sharedData["classes"] as ClassRow[]).find(cls => cls.id === activity.classId)?.name].filter(Boolean)
+          : (sharedData["classes"] as ClassRow[]).map((cls: any) => cls.name),
+        materialsRequired: activity.activityMaterials,
       };
-      const initialEventList: Event[] = [];
-      acc[date] = [eventOnDate, ...initialEventList]; // is object of list event
-      return acc;
-    }, {} as EventByMonth);
 
-    return scheduleByMonth;
-  }, [schedules]);
+      // Add to all
+      if (!all[date]) all[date] = [];
+      all[date] = [...(all[date] || []), eventOnDate];
+
+      // Categorize
+      if (activity.type === "dailyActivity") {
+        dailyActivities[date] = [...(dailyActivities[date] || []), eventOnDate];
+      } else {
+        otherEvents[date] = [...(otherEvents[date] || []), eventOnDate];
+      }
+    });
+
+    setEventCategories({ all, dailyActivities, otherEvents }); // Save all the event by Type
+    // Save DailyActivity to sharedData in Context
+    updateSharedData("dailyActivity", dailyActivities);
+  }, [schedules, sharedData["classes"]]); //  depend on "classes" of Context only, not sharedData (otherwise circular dependency in your useEffect)
+
+  const mockDaycareEvents = eventCategories.otherEvents;
 
   // Get events for selected date
   const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
@@ -265,6 +284,8 @@ export default function TeacherCalendar() {
         </View>
         <View style={styles.eventContent}>
           <Text style={styles.eventTitle}>{event.title}</Text>
+          {/* <Text style={styles.eventTitle}>{event.type}</Text> */}
+
           <View style={styles.eventDetails}>
             {event.time && (
               <View style={styles.eventDetailRow}>
@@ -272,17 +293,19 @@ export default function TeacherCalendar() {
                 <Text style={styles.eventDetailText}>{event.time}</Text>
               </View>
             )}
-            {event.location && (
-              <View style={styles.eventDetailRow}>
+            {/* For Classes */}
+            {event.classes.map((cls) => (
+              <View key={cls.id} style={styles.eventDetailRow}>
                 <MapPin size={12} color="#64748B" />
-                <Text style={styles.eventDetailText}>{event.location}</Text>
+                <Text style={styles.eventDetailText}>{cls}</Text>
               </View>
-            )}
-            {event.children && (
+            ))}
+
+            {event.materialsRequired && (
               <View style={styles.eventDetailRow}>
-                <Baby size={12} color="#64748B" />
+                <ClipboardCheck size={12} color="#64748B" />
                 <Text style={styles.eventDetailText}>
-                  {event.children.join(", ")}
+                  {event.materialsRequired}
                 </Text>
               </View>
             )}
