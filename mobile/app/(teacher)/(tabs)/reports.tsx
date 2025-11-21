@@ -1,10 +1,4 @@
-/**
- * Teacher Reports Tab
- *
- * Displays daily reports grouped by child with filtering and date range selection.
- * Teachers can view, edit, and share reports with parents.
- */
-
+//mobile/app/(teacher)/(tabs)/reports.tsx
 import {
   View,
   Text,

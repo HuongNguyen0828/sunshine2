@@ -323,7 +323,6 @@ export type User = {
   classIds?: string[];
 };
 
-
 /* =============================
  * Teacher
  * ============================= */
@@ -460,6 +459,58 @@ export type DailyReport = {
 };
 
 /* =============================
+ * Daily report v2 (aggregated from EntryDoc)
+ * - Used for new Teacher/Parent mobile reports screens
+ * - Stored in `dailyReports` collection (design assumption)
+ * ============================= */
+export type DailyReportDoc = {
+  id: string;
+
+  daycareId: string;
+  locationId: string;
+  classId?: string | null;
+  className?: string;
+
+  childId: string;
+  childName?: string;
+
+  /**
+   * Logical date of the report (day bucket).
+   * Recommended format: "YYYY-MM-DD" (ISO date-only).
+   */
+  date: string;
+
+  totalActivities: number;
+  activitySummary: string; // e.g. "3 Food, 2 Sleep, 1 Activity"
+
+  /**
+   * Optional embedded entries for detailed view.
+   * This can be omitted or trimmed if you want a lighter document.
+   */
+  entries?: EntryDoc[];
+
+  /**
+   * Parent visibility and delivery status.
+   * visibleToParents mirrors the idea from EntryDoc.
+   */
+  visibleToParents?: boolean;
+  sent?: boolean;
+  sentAt?: string;   // ISO datetime when report was sent/shared
+
+  createdAt: string; // ISO datetime
+  updatedAt?: string; // ISO datetime
+};
+
+/** Filter used by daily report APIs and mobile report lists */
+export type DailyReportFilter = {
+  childId?: string;
+  classId?: string;
+  dateFrom?: string;  // ISO date (inclusive)
+  dateTo?: string;    // ISO date (exclusive or inclusive based on API)
+  sent?: boolean;
+};
+
+/* =============================
  * Parent feed (mobile)
  * - lightweight view sent to parent app
  * ============================= */
@@ -476,8 +527,9 @@ export type ParentFeedEntry = {
   teacherName?: string;
   childName?: string;
 };
- /* ===========================
- For Calendar events
+
+/* =============================
+ * For Calendar events
  * ============================= */
 export type EventType = "dailyActivity" | "childActivity" | "birthday" | "meeting" | "holiday";
 export type EventTypeForm = Omit<EventType, "birthday" | "holiday">; // left with dalilyActivity (every weekday), childActivity (ocational) and meeting (for Teacher)
@@ -506,4 +558,4 @@ export type Schedule = {
   activityId: string;
   activity?: Activity | null; // Populated activity reference
   order: number; // order within the time slot (0 = first, 1 = second, etc.)
-}
+};
