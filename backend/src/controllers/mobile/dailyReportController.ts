@@ -78,17 +78,15 @@ export const getTeacherDailyReports = async (
  * GET /mobile/parent/daily-reports
  * Returns daily reports for a parent, based on childIds passed from the client.
  *
- * This controller expects:
- * - Authenticated parent user (req.user)
- * - Query params:
- *   - childIds: comma separated string of child ids (e.g. "child1,child2")
- *   - dateFrom?: string (YYYY-MM-DD)
- *   - dateTo?: string (YYYY-MM-DD)
- *   - sent?: "true" | "false"
+ * Query params:
+ * - childIds: comma separated string of child ids (e.g. "child1,child2") (required)
  *
- * Note:
- * - Resolving childIds from parent user can be added later in a separate service
- *   to keep this controller isolated and low-risk.
+ * Optional filters:
+ * - classId: string
+ * - childId: string (must be one of childIds)
+ * - dateFrom: string (YYYY-MM-DD)
+ * - dateTo: string (YYYY-MM-DD)
+ * - sent: "true" | "false"
  */
 export const getParentDailyReports = async (
   req: AuthRequest,
@@ -122,6 +120,14 @@ export const getParentDailyReports = async (
     }
 
     const filter: DailyReportFilter = {};
+
+    if (typeof req.query.classId === "string") {
+      filter.classId = req.query.classId;
+    }
+
+    if (typeof req.query.childId === "string") {
+      filter.childId = req.query.childId;
+    }
 
     if (typeof req.query.dateFrom === "string") {
       filter.dateFrom = req.query.dateFrom;
