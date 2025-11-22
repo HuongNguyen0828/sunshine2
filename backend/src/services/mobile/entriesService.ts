@@ -1,46 +1,58 @@
 // backend/src/services/mobile/entriesService.ts
-
 import { db } from "../../lib/firebase";
-import {
-  upsertDailyReportsForEntries,
-} from "./dailyReportService";
-
 import type {
   BulkEntryCreateRequest,
   BulkEntryCreateResult,
   EntryCreateInput,
   EntryDoc,
   EntryType,
+  AttendanceSubtype,
+  SleepSubtype,
 } from "../../../../shared/types/type";
+import { upsertDailyReportsForEntries } from "./dailyReportService";
 
 /* =========
  * Types
  * ========= */
 
 type AuthCtx = {
+  role?: string;
   userDocId: string;
-  locationId: string;
-  daycareId?: string | null;
+  daycareId?: string;
+  locationId?: string;
 };
 
-const ENTRIES_COLLECTION = "entries";
-const CHILDREN_COLLECTION = "children";
-
 /* =========
- * Small helpers
+ * Helpers
  * ========= */
 
+// Validate ISO datetime string (e.g. 2025-11-01T12:34:56.789Z)
 function isIsoDateTime(v: unknown): v is string {
   if (typeof v !== "string") return false;
   const d = new Date(v);
   return !isNaN(d.getTime());
 }
 
-function uniq<T>(arr: T[]): T[] {
+// Attendance subtype → normalized status key
+function mapAttendanceStatus(
+  sub: AttendanceSubtype | undefined
+): "check_in" | "check_out" | undefined {
+  if (sub === "Check in") return "check_in";
+  if (sub === "Check out") return "check_out";
+  return undefined;
+}
+
+// Sleep "Started" → start, "Woke up" → end
+function isSleepStart(sub: SleepSubtype | undefined) {
+  return sub === "Started";
+}
+
+function uniq<T>(arr: T[]) {
   return Array.from(new Set(arr));
 }
 
-function chunk<T>(arr: T[], size: number): T[][] {
+// Split array into chunks (Firestore batch hard limit is 500)
+function chunk<T>(arr: T[], size: number) {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) {
     out.push(arr.slice(i, i + size));
@@ -48,193 +60,147 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-// Attendance subtype → status key
-function mapAttendanceStatus(
-  sub: string | undefined
-): "check_in" | "check_out" | undefined {
-  if (sub === "Check in") return "check_in";
-  if (sub === "Check out") return "check_out";
-  return undefined;
-}
-
-// Sleep subtype helper
-function isSleepStart(sub: string | undefined) {
-  return sub === "Started";
-}
-
-/* =========
- * Fan-out helpers
- * ========= */
-
 /**
- * When applyToAllInClass is true, expand to all children in that class.
- * Otherwise just return provided childIds.
+ * Expand children by class when applyToAllInClass is true.
+ * Otherwise return provided childIds (deduped).
  */
 async function expandChildIds(item: EntryCreateInput): Promise<string[]> {
-  const anyItem = item as any;
-
-  if (!anyItem.applyToAllInClass || !anyItem.classId) {
-    const ids = Array.isArray(anyItem.childIds) ? anyItem.childIds : [];
-    return uniq(ids as string[]);
+  if (!item.applyToAllInClass || !item.classId) {
+    return uniq(item.childIds ?? []);
   }
 
   const snap = await db
-    .collection(CHILDREN_COLLECTION)
-    .where("classId", "==", anyItem.classId)
+    .collection("children")
+    .where("classId", "==", item.classId)
     .get();
 
-  const classChildIds = snap.docs.map((d) => d.id);
-  const explicitIds = Array.isArray(anyItem.childIds) ? anyItem.childIds : [];
-
-  return uniq<string>([...explicitIds, ...classChildIds]);
-}
-
-/* =========
- * Validation / mapping
- * ========= */
-
-/**
- * Validate one EntryCreateInput.
- * Returns error string if invalid, otherwise null.
- */
-function validateItem(item: EntryCreateInput): string | null {
-  const anyItem = item as any;
-
-  if (!isIsoDateTime(anyItem.occurredAt)) {
-    return "invalid_occurredAt";
-  }
-
-  const type = anyItem.type as EntryType;
-
-  switch (type) {
-    case "Attendance": {
-      const sub = anyItem.subtype as string | undefined;
-      if (!mapAttendanceStatus(sub)) {
-        return "attendance_subtype_required";
-      }
-      break;
-    }
-    case "Food": {
-      if (!anyItem.subtype) return "food_subtype_required";
-      if (!String(anyItem.detail ?? "").trim()) {
-        return "food_detail_required";
-      }
-      break;
-    }
-    case "Sleep": {
-      if (!anyItem.subtype) return "sleep_subtype_required";
-      break;
-    }
-    case "Toilet": {
-      const tk = anyItem.toiletKind as string | undefined;
-      if (tk !== "urine" && tk !== "bm") {
-        return "toilet_kind_required";
-      }
-      break;
-    }
-    case "Activity":
-    case "Note":
-    case "Health": {
-      if (!String(anyItem.detail ?? "").trim()) {
-        return "detail_required";
-      }
-      break;
-    }
-    case "Photo": {
-      if (!String(anyItem.photoUrl ?? "").trim()) {
-        return "photo_url_required";
-      }
-      break;
-    }
-    default:
-      return "unsupported_type";
-  }
-
-  if (anyItem.applyToAllInClass && !anyItem.classId) {
-    return "classId_required_when_applyToAllInClass";
-  }
-
-  return null;
+  const ids = snap.docs.map((d) => d.id);
+  return uniq([...(item.childIds ?? []), ...ids]);
 }
 
 /**
- * Build base EntryDoc for one child.
- * Many fields are casted to any to avoid TS strictness.
+ * Create a base document for a single child.
+ * daycareId can be blank string when not provided.
  */
 function buildDocBase(
   auth: AuthCtx,
   item: EntryCreateInput,
   childId: string
 ): EntryDoc {
-  const anyItem = item as any;
   const nowIso = new Date().toISOString();
 
-  const doc: any = {
-    id: "", // will be filled with Firestore id
-    daycareId: auth.daycareId ?? "",
-    locationId: auth.locationId,
-    classId: anyItem.classId ?? null,
+  const base: EntryDoc = {
+    id: db.collection("entries").doc().id, // will be set to ref.id later
+
+    daycareId: String(auth.daycareId ?? ""),
+    locationId: String(auth.locationId ?? ""),
+    classId: item.classId ?? null,
     childId,
-    childName: anyItem.childName ?? undefined,
-    className: anyItem.className ?? undefined,
 
     createdByUserId: auth.userDocId,
     createdByRole: "teacher",
     createdAt: nowIso,
 
-    occurredAt: anyItem.occurredAt,
-    type: anyItem.type,
+    occurredAt: item.occurredAt,
+    type: item.type,
 
     data: {},
-    detail: anyItem.detail ?? null,
-    photoUrl: anyItem.photoUrl ?? null,
+    detail: (item as any).detail,
+    photoUrl: (item as any).photoUrl,
 
     visibleToParents: true,
     publishedAt: nowIso,
   };
 
-  return doc as EntryDoc;
+  return base;
 }
 
 /**
- * Apply per-type mapping to EntryDoc (subtype, data fields, etc.).
+ * Validate a single create item. Throws Error(message) if invalid.
  */
-function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
-  const anyItem = item as any;
-  const anyDoc = doc as any;
+function validateItem(item: EntryCreateInput) {
+  if (!isIsoDateTime(item.occurredAt)) throw new Error("invalid_occurredAt");
 
-  const type = anyItem.type as EntryType;
-
-  switch (type) {
+  switch (item.type as EntryType) {
     case "Attendance": {
-      const sub = anyItem.subtype as string | undefined;
-      const status = mapAttendanceStatus(sub);
-      anyDoc.subtype = sub ?? null;
-      anyDoc.data = {
-        ...(anyDoc.data || {}),
-        status,
-      };
+      const status = mapAttendanceStatus((item as any).subtype);
+      if (!status) throw new Error("attendance_subtype_required");
       break;
     }
     case "Food": {
-      anyDoc.subtype = anyItem.subtype ?? null;
+      if (!(item as any).subtype) throw new Error("food_subtype_required");
       break;
     }
     case "Sleep": {
-      const sub = anyItem.subtype as string | undefined;
-      anyDoc.subtype = sub ?? null;
-      const key = isSleepStart(sub) ? "start" : "end";
-      anyDoc.data = {
-        ...(anyDoc.data || {}),
-        [key]: anyItem.occurredAt,
-      };
+      if (!(item as any).subtype) throw new Error("sleep_subtype_required");
       break;
     }
     case "Toilet": {
-      const tk = anyItem.toiletKind;
-      anyDoc.data = {
-        ...(anyDoc.data || {}),
-        toiletTime: anyItem.occurredAt,
+      const tk = (item as any).toiletKind;
+      if (tk !== "urine" && tk !== "bm") {
+        throw new Error("toilet_kind_required");
+      }
+      break;
+    }
+    case "Activity": {
+      if (!("detail" in item) || !item.detail?.trim()) {
+        throw new Error("activity_detail_required");
+      }
+      break;
+    }
+    case "Note": {
+      if (!("detail" in item) || !item.detail?.trim()) {
+        throw new Error("note_detail_required");
+      }
+      break;
+    }
+    case "Health": {
+      if (!("detail" in item) || !item.detail?.trim()) {
+        throw new Error("health_detail_required");
+      }
+      break;
+    }
+    case "Photo": {
+      if (!("photoUrl" in item) || !item.photoUrl?.trim()) {
+        throw new Error("photo_url_required");
+      }
+      break;
+    }
+    default:
+      throw new Error("unsupported_type");
+  }
+
+  if ((item as any).applyToAllInClass && !item.classId) {
+    throw new Error("classId_required_when_applyToAllInClass");
+  }
+}
+
+/**
+ * Apply per-type mapping to the doc (subtype/data fields).
+ */
+function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
+  switch (item.type as EntryType) {
+    case "Attendance": {
+      const status = mapAttendanceStatus((item as any).subtype);
+      doc.subtype = (item as any).subtype;
+      doc.data = { ...(doc.data || {}), status };
+      break;
+    }
+    case "Food": {
+      doc.subtype = (item as any).subtype;
+      break;
+    }
+    case "Sleep": {
+      doc.subtype = (item as any).subtype;
+      const key = isSleepStart((item as any).subtype) ? "start" : "end";
+      doc.data = { ...(doc.data || {}), [key]: item.occurredAt };
+      break;
+    }
+    case "Toilet": {
+      const tk = (item as any).toiletKind;
+      doc.data = {
+        ...(doc.data || {}),
+        toiletTime: item.occurredAt,
         toiletKind: tk,
       };
       break;
@@ -242,14 +208,10 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
     case "Activity":
     case "Note":
     case "Health": {
-      anyDoc.data = {
-        ...(anyDoc.data || {}),
-        text: String(anyItem.detail ?? ""),
-      };
+      doc.data = { ...(doc.data || {}), text: item.detail?.trim() || "" };
       break;
     }
     case "Photo": {
-      // photoUrl already set
       break;
     }
   }
@@ -259,10 +221,6 @@ function applyTypeMapping(doc: EntryDoc, item: EntryCreateInput) {
  * Service
  * ========= */
 
-/**
- * Bulk-create entries (teacher scope).
- * Also triggers daily report upsert using the newly created entries only.
- */
 export async function bulkCreateEntriesService(
   auth: AuthCtx,
   payload: BulkEntryCreateRequest
@@ -270,32 +228,23 @@ export async function bulkCreateEntriesService(
   const created: { id: string; type: EntryType }[] = [];
   const failed: { index: number; reason: string }[] = [];
 
-  if (!auth.userDocId || !auth.locationId) {
-    throw new Error("missing_auth_scope");
-  }
+  if (!auth.userDocId) throw new Error("missing_userDocId");
+  if (!auth.locationId) throw new Error("missing_locationId");
 
   const items = Array.isArray(payload?.items) ? payload.items : [];
-  if (items.length === 0) {
-    return { created, failed } as unknown as BulkEntryCreateResult;
-  }
+  if (items.length === 0) return { created, failed };
 
-  // 1) validate items
-  const validated: (EntryCreateInput | null)[] = items.map((item, index) => {
-    const err = validateItem(item);
-    if (err) {
-      failed.push({ index, reason: err });
+  const validated: (EntryCreateInput | null)[] = items.map((it, idx) => {
+    try {
+      validateItem(it);
+      return it;
+    } catch (e: any) {
+      failed.push({ index: idx, reason: String(e?.message || "invalid") });
       return null;
     }
-    return item;
   });
 
-  // 2) build Firestore writes and collect EntryDocs
-  const writeOps: {
-    ref: FirebaseFirestore.DocumentReference;
-    doc: EntryDoc;
-  }[] = [];
-
-  const newEntries: EntryDoc[] = [];
+  const writes: Array<{ index: number; refPath: string; doc: EntryDoc }> = [];
 
   for (let i = 0; i < validated.length; i++) {
     const item = validated[i];
@@ -309,48 +258,35 @@ export async function bulkCreateEntriesService(
       }
 
       for (const childId of childIds) {
-        const ref = db.collection(ENTRIES_COLLECTION).doc();
+        const ref = db.collection("entries").doc();
         const doc = buildDocBase(auth, item, childId);
-        (doc as any).id = ref.id;
-
+        doc.id = ref.id;
         applyTypeMapping(doc, item);
-
-        writeOps.push({ ref, doc });
-        newEntries.push(doc);
-        created.push({
-          id: ref.id,
-          type: (item as any).type as EntryType,
-        });
+        writes.push({ index: i, refPath: ref.path, doc });
       }
     } catch (e: any) {
-      failed.push({
-        index: i,
-        reason: String(e?.message || "expand_failed"),
-      });
+      failed.push({ index: i, reason: String(e?.message || "expand_failed") });
     }
   }
 
-  // 3) commit in batches
-  for (const part of chunk(writeOps, 450)) {
+  for (const part of chunk(writes, 450)) {
     const batch = db.batch();
-    for (const op of part) {
-      batch.set(op.ref, op.doc as any);
+    for (const w of part) {
+      const ref = db.doc(w.refPath);
+      batch.set(ref, w.doc);
+      created.push({ id: w.doc.id, type: w.doc.type });
     }
     await batch.commit();
   }
 
-  // 4) update / create dailyReports for the affected children+dates
   try {
-    await upsertDailyReportsForEntries(newEntries, {
-      makeVisibleToParents: true,
-    });
+    await upsertDailyReportsForEntries(
+      writes.map((w) => w.doc),
+      { makeVisibleToParents: false }
+    );
   } catch (e) {
     console.error("upsertDailyReportsForEntries error:", e);
-    // do not fail the main API; entries are already written
   }
 
-  return {
-    created,
-    failed,
-  } as unknown as BulkEntryCreateResult;
+  return { created, failed };
 }
