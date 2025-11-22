@@ -9,21 +9,19 @@ import {
 } from "../../services/mobile/dailyReportService";
 import type { DailyReportFilter } from "../../../../shared/types/type";
 
+function normalizeOptional(v?: string | string[] | null) {
+  if (Array.isArray(v)) v = v[0];
+  const s = String(v ?? "").trim();
+  if (!s) return undefined;
+  const t = s.toLowerCase();
+  if (t === "all" || t === "all classes" || t === "all children") return undefined;
+  return s;
+}
+
 /**
- * GET /mobile/teacher/daily-reports
- * Returns daily reports scoped to the authenticated teacher (daycare + location).
- *
- * Query params (optional):
- * - classId: string
- * - childId: string
- * - dateFrom: string (YYYY-MM-DD)
- * - dateTo: string (YYYY-MM-DD)
- * - sent: "true" | "false"
+ * GET /api/mobile/teacher/daily-reports
  */
-export const getTeacherDailyReports = async (
-  req: AuthRequest,
-  res: Response
-) => {
+export const getTeacherDailyReports = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -38,18 +36,15 @@ export const getTeacherDailyReports = async (
 
     const filter: DailyReportFilter = {};
 
-    if (typeof req.query.classId === "string") {
-      filter.classId = req.query.classId;
-    }
+    const classId = normalizeOptional(req.query.classId as any);
+    const childId = normalizeOptional(req.query.childId as any);
 
-    if (typeof req.query.childId === "string") {
-      filter.childId = req.query.childId;
-    }
+    if (classId) filter.classId = classId;
+    if (childId) filter.childId = childId;
 
     if (typeof req.query.dateFrom === "string") {
       filter.dateFrom = req.query.dateFrom;
     }
-
     if (typeof req.query.dateTo === "string") {
       filter.dateTo = req.query.dateTo;
     }
@@ -75,23 +70,9 @@ export const getTeacherDailyReports = async (
 };
 
 /**
- * GET /mobile/parent/daily-reports
- * Returns daily reports for a parent, based on childIds passed from the client.
- *
- * Query params:
- * - childIds: comma separated string of child ids (e.g. "child1,child2") (required)
- *
- * Optional filters:
- * - classId: string
- * - childId: string (must be one of childIds)
- * - dateFrom: string (YYYY-MM-DD)
- * - dateTo: string (YYYY-MM-DD)
- * - sent: "true" | "false"
+ * GET /api/mobile/parent/daily-reports
  */
-export const getParentDailyReports = async (
-  req: AuthRequest,
-  res: Response
-) => {
+export const getParentDailyReports = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -121,18 +102,15 @@ export const getParentDailyReports = async (
 
     const filter: DailyReportFilter = {};
 
-    if (typeof req.query.classId === "string") {
-      filter.classId = req.query.classId;
-    }
+    const classId = normalizeOptional(req.query.classId as any);
+    const childId = normalizeOptional(req.query.childId as any);
 
-    if (typeof req.query.childId === "string") {
-      filter.childId = req.query.childId;
-    }
+    if (classId) filter.classId = classId;
+    if (childId) filter.childId = childId;
 
     if (typeof req.query.dateFrom === "string") {
       filter.dateFrom = req.query.dateFrom;
     }
-
     if (typeof req.query.dateTo === "string") {
       filter.dateTo = req.query.dateTo;
     }
@@ -160,11 +138,7 @@ export const getParentDailyReports = async (
 };
 
 /**
- * POST /mobile/teacher/daily-reports/:id/send
- * Marks a daily report as sent/visible to parents.
- * Can be used by a Share button / Send All button on teacher mobile.
- * Even if you currently auto-send on checkout, this endpoint is useful
- * for future manual resend support.
+ * POST /api/mobile/teacher/daily-reports/:id/send
  */
 export const sendDailyReport = async (req: AuthRequest, res: Response) => {
   try {
