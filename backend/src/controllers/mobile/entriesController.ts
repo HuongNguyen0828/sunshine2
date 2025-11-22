@@ -1,6 +1,5 @@
 // backend/src/controllers/mobile/entriesController.ts
-
-import type { Request, Response } from "express";
+import type { Response } from "express";
 import { db } from "../../lib/firebase";
 import { bulkCreateEntriesService } from "../../services/mobile/entriesService";
 import type {
@@ -9,21 +8,29 @@ import type {
   EntryDoc,
   EntryType,
 } from "../../../../shared/types/type";
+import type { AuthRequest } from "../../middleware/authMiddleware";
 
 /* =========
  * Helpers
  * ========= */
 
-// Read auth info injected by authMiddleware (verifyIdToken)
-// authMiddleware puts the decoded token into req.userToken
-function getAuthCtx(req: Request) {
-  const tok: any = (req as any).userToken || {};
+// Read auth info injected by authMiddleware (req.user)
+function getAuthCtx(req: AuthRequest) {
+  const u = req.user;
+  if (!u) {
+    return {
+      role: "",
+      userDocId: "",
+      locationId: undefined,
+      daycareId: undefined,
+    };
+  }
 
   return {
-    role: String(tok.role || ""),
-    userDocId: String(tok.userDocId || ""),
-    locationId: tok.locationId ? String(tok.locationId) : undefined,
-    daycareId: tok.daycareId ? String(tok.daycareId) : undefined,
+    role: u.role,
+    userDocId: u.userDocId,
+    locationId: u.locationId,
+    daycareId: u.daycareId,
   };
 }
 
@@ -39,7 +46,6 @@ function clampLimit(v: unknown, def = 50, min = 1, max = 100) {
   return Math.max(min, Math.min(n, max));
 }
 
-// Normalize UI "All ..." sentinel values to undefined (no filter)
 function normalizeOptional(v?: string | null) {
   const s = String(v ?? "").trim();
   if (!s) return undefined;
@@ -52,28 +58,21 @@ function normalizeOptional(v?: string | null) {
  * Controllers
  * ========= */
 
-/**
- * POST /api/mobile/v1/entries/bulk
- * Body: BulkEntryCreateRequest
- * Scope: teacher only
- */
-export async function bulkCreateEntries(req: Request, res: Response) {
+/** POST /api/mobile/v1/entries/bulk */
+export async function bulkCreateEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);
     console.log("bulkCreateEntries authCtx:", auth);
 
-    // Only teachers can create entries from mobile
     if (auth.role !== "teacher") {
       return res.status(403).json({ message: "forbidden_role" });
     }
 
-    // We must know which user and which location is writing
-    if (!auth.userDocId || !auth.locationId) {
+    if (!auth.userDocId || !auth.locationId || !auth.daycareId) {
       return res.status(401).json({ message: "missing_auth_scope" });
     }
 
     const body: BulkEntryCreateRequest = (req.body as any) || { items: [] };
-
     if (!Array.isArray(body.items) || body.items.length === 0) {
       return res.status(400).json({ message: "empty_items" });
     }
@@ -82,7 +81,7 @@ export async function bulkCreateEntries(req: Request, res: Response) {
       {
         userDocId: auth.userDocId,
         locationId: auth.locationId,
-        daycareId: auth.daycareId, // may be undefined
+        daycareId: auth.daycareId,
       },
       body
     );
@@ -96,26 +95,8 @@ export async function bulkCreateEntries(req: Request, res: Response) {
   }
 }
 
-/**
- * GET /api/mobile/v1/entries
- *
- * Query params:
- *  - childId?: string
- *  - classId?: string
- *  - type?: EntryType
- *  - dateFrom?: ISO string (occurredAt >= dateFrom)
- *  - dateTo?: ISO string (occurredAt < dateTo)
- *  - limit?: number (1–100, default 50)
- *
- * Role rules:
- *  - parent:
- *      * only visibleToParents == true
- *      * must provide childId
- *  - teacher:
- *      * scoped to their locationId
- *      * childId/classId/type/date range are optional
- */
-export async function listEntries(req: Request, res: Response) {
+/** GET /api/mobile/v1/entries */
+export async function listEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);
     const role = auth.role;
@@ -136,11 +117,8 @@ export async function listEntries(req: Request, res: Response) {
     let q: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> =
       db.collection("entries");
 
-    // Role-based scoping
     if (role === "parent") {
-      // parents can only see entries that are explicitly visible
       q = q.where("visibleToParents", "==", true);
-
       if (!childId) {
         return res
           .status(400)
@@ -152,7 +130,6 @@ export async function listEntries(req: Request, res: Response) {
         return res.status(401).json({ message: "missing_location_scope" });
       }
       q = q.where("locationId", "==", auth.locationId);
-
       if (childId) {
         q = q.where("childId", "==", childId);
       }
@@ -160,24 +137,12 @@ export async function listEntries(req: Request, res: Response) {
       return res.status(403).json({ message: "forbidden_role" });
     }
 
-    // Optional filters
-    if (classId) {
-      q = q.where("classId", "==", classId);
-    }
+    if (classId) q = q.where("classId", "==", classId);
+    if (type) q = q.where("type", "==", type);
 
-    if (type) {
-      q = q.where("type", "==", type);
-    }
+    if (dateFrom && isIso(dateFrom)) q = q.where("occurredAt", ">=", dateFrom);
+    if (dateTo && isIso(dateTo)) q = q.where("occurredAt", "<", dateTo);
 
-    // Date range based on occurredAt
-    if (dateFrom && isIso(dateFrom)) {
-      q = q.where("occurredAt", ">=", dateFrom);
-    }
-    if (dateTo && isIso(dateTo)) {
-      q = q.where("occurredAt", "<", dateTo);
-    }
-
-    // Ordering & limit
     q = q.orderBy("occurredAt", "desc");
     const limitNum = clampLimit(limitQ, 50, 1, 100);
     q = q.limit(limitNum);
@@ -185,7 +150,6 @@ export async function listEntries(req: Request, res: Response) {
     const snap = await q.get();
     const items: EntryDoc[] = snap.docs.map((d) => {
       const data = d.data() as EntryDoc;
-      // ensure id field is present
       return { ...data, id: data.id || d.id };
     });
 
