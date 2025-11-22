@@ -9,21 +9,18 @@ import type {
 
 const db = admin.firestore();
 
-const ENTRIES_COLLECTION = "entries";
 const DAILY_REPORTS_COLLECTION = "dailyReports";
 
 /**
- * Builds ISO datetime range [start, end) for a given "YYYY-MM-DD" date bucket.
+ * Builds ISO date string "YYYY-MM-DD" from an ISO datetime.
  */
-function buildDayRange(date: string) {
-  const start = new Date(`${date}T00:00:00.000Z`);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-
-  return {
-    startIso: start.toISOString(),
-    endIso: end.toISOString(),
-  };
+function toDateBucket(iso: string): string | null {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -54,39 +51,9 @@ function buildActivitySummary(entries: EntryDoc[]): {
 }
 
 /**
- * Fetches entries for a given child + location + date bucket.
- * The daycareId parameter is kept for compatibility but not used in the query.
- */
-async function fetchEntriesForChildAndDate(params: {
-  daycareId: string;
-  locationId: string;
-  childId: string;
-  date: string; // "YYYY-MM-DD"
-}): Promise<EntryDoc[]> {
-  const { locationId, childId, date } = params;
-  const { startIso, endIso } = buildDayRange(date);
-
-  let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
-    .collection(ENTRIES_COLLECTION)
-    .where("locationId", "==", locationId)
-    .where("childId", "==", childId)
-    .where("occurredAt", ">=", startIso)
-    .where("occurredAt", "<", endIso);
-
-  const snapshot = await query.get();
-
-  const entries: EntryDoc[] = [];
-  snapshot.forEach((doc) => {
-    const data = doc.data() as EntryDoc;
-    entries.push({ ...data, id: doc.id });
-  });
-
-  return entries;
-}
-
-/**
- * Upserts a DailyReportDoc for a given child + date by aggregating entries.
- * If there are no entries for that day, returns null and does not write anything.
+ * Upserts a DailyReportDoc for a given child + date
+ * using the provided entries array (already filtered to that child + date).
+ * Does NOT re-query the entries collection.
  */
 export async function upsertDailyReportForChildAndDate(params: {
   daycareId: string;
@@ -96,6 +63,7 @@ export async function upsertDailyReportForChildAndDate(params: {
   childId: string;
   childName?: string;
   date: string; // "YYYY-MM-DD"
+  entries: EntryDoc[];
   makeVisibleToParents?: boolean;
 }): Promise<DailyReportDoc | null> {
   const {
@@ -106,17 +74,11 @@ export async function upsertDailyReportForChildAndDate(params: {
     childId,
     childName,
     date,
+    entries,
     makeVisibleToParents,
   } = params;
 
-  const entries = await fetchEntriesForChildAndDate({
-    daycareId,
-    locationId,
-    childId,
-    date,
-  });
-
-  if (entries.length === 0) {
+  if (!entries.length) {
     return null;
   }
 
@@ -164,36 +126,56 @@ export async function upsertDailyReportForChildAndDate(params: {
 }
 
 /**
- * Given a list of entries, upserts daily reports
- * for each (childId, date) pair covered by those entries.
+ * Given a list of entries, group them by (childId, date) and
+ * upsert one daily report per group.
+ *
+ * This function does everything in memory. It does NOT query the entries
+ * collection again, so no Firestore composite index is needed.
  */
 export async function upsertDailyReportsForEntries(
   entries: EntryDoc[],
   options?: { makeVisibleToParents?: boolean }
 ): Promise<void> {
-  const seen = new Set<string>();
+  type Group = {
+    daycareId: string;
+    locationId: string;
+    classId?: string | null;
+    className?: string;
+    childId: string;
+    childName?: string;
+    date: string;
+    entries: EntryDoc[];
+  };
+
+  const groups = new Map<string, Group>();
 
   for (const entry of entries) {
-    if (!entry.childId || !entry.occurredAt) continue;
+    if (!entry.childId || !entry.occurredAt || !entry.locationId) continue;
 
-    const occurred = new Date(entry.occurredAt);
-    const year = occurred.getUTCFullYear();
-    const month = String(occurred.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(occurred.getUTCDate()).padStart(2, "0");
-    const date = `${year}-${month}-${day}`;
+    const date = toDateBucket(entry.occurredAt);
+    if (!date) continue;
 
     const key = `${entry.childId}-${date}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
 
+    if (!groups.has(key)) {
+      groups.set(key, {
+        daycareId: (entry as any).daycareId || "",
+        locationId: entry.locationId,
+        classId: entry.classId ?? null,
+        className: (entry as any).className,
+        childId: entry.childId,
+        childName: (entry as any).childName,
+        date,
+        entries: [],
+      });
+    }
+
+    groups.get(key)!.entries.push(entry);
+  }
+
+  for (const group of groups.values()) {
     await upsertDailyReportForChildAndDate({
-      daycareId: (entry as any).daycareId || "",
-      locationId: entry.locationId,
-      classId: entry.classId ?? null,
-      className: (entry as any).className,
-      childId: entry.childId,
-      childName: (entry as any).childName,
-      date,
+      ...group,
       makeVisibleToParents: options?.makeVisibleToParents ?? false,
     });
   }
@@ -221,8 +203,7 @@ export async function markDailyReportAsSent(
 
 /**
  * Lists daily reports for a teacher.
- * Uses locationId (teachers are scoped to a single location).
- * daycareId is kept in the signature for compatibility but not used in the query.
+ * Uses locationId only (teachers are scoped to a single location).
  */
 export async function listDailyReportsForTeacher(params: {
   daycareId: string;
@@ -271,7 +252,6 @@ export async function listDailyReportsForTeacher(params: {
 /**
  * Lists daily reports for a parent.
  * Uses childId list and optional locationId.
- * daycareId is kept in the signature for compatibility but not used in the query.
  */
 export async function listDailyReportsForParent(params: {
   daycareId: string;
