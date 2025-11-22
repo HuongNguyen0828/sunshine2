@@ -1,5 +1,4 @@
 // backend/src/services/mobile/dailyReportService.ts
-
 import { admin } from "../../lib/firebase";
 import type {
   EntryDoc,
@@ -12,10 +11,6 @@ const db = admin.firestore();
 const ENTRIES_COLLECTION = "entries";
 const DAILY_REPORTS_COLLECTION = "dailyReports";
 
-/**
- * Builds ISO datetime range [start, end) for a given "YYYY-MM-DD" date bucket.
- * This assumes occurredAt is stored as an ISO string that is lexicographically sortable.
- */
 function buildDayRange(date: string) {
   const start = new Date(`${date}T00:00:00.000Z`);
   const end = new Date(start);
@@ -27,9 +22,6 @@ function buildDayRange(date: string) {
   };
 }
 
-/**
- * Aggregates EntryDoc list into a summary string such as "3 Food, 2 Sleep, 1 Activity".
- */
 function buildActivitySummary(entries: EntryDoc[]): {
   totalActivities: number;
   summary: string;
@@ -54,15 +46,11 @@ function buildActivitySummary(entries: EntryDoc[]): {
   };
 }
 
-/**
- * Fetches all EntryDoc for a given child + daycare + location + date bucket.
- * This is used as the source when generating a DailyReportDoc.
- */
 async function fetchEntriesForChildAndDate(params: {
   daycareId: string;
   locationId: string;
   childId: string;
-  date: string; // "YYYY-MM-DD"
+  date: string;
 }): Promise<EntryDoc[]> {
   const { daycareId, locationId, childId, date } = params;
   const { startIso, endIso } = buildDayRange(date);
@@ -86,26 +74,16 @@ async function fetchEntriesForChildAndDate(params: {
   return entries;
 }
 
-/**
- * Upserts a DailyReportDoc for a given child + date by aggregating EntryDoc records.
- * If there are no entries for that day, it returns null and does not write anything.
- *
- * Typical usage:
- * - Called by backend when entries are created (e.g. on check-out or bulk create).
- * - Can optionally make the report visible to parents immediately.
- */
-export async function upsertDailyReportForChildAndDate(
-  params: {
-    daycareId: string;
-    locationId: string;
-    classId?: string | null;
-    className?: string;
-    childId: string;
-    childName?: string;
-    date: string; // "YYYY-MM-DD"
-    makeVisibleToParents?: boolean;
-  }
-): Promise<DailyReportDoc | null> {
+export async function upsertDailyReportForChildAndDate(params: {
+  daycareId: string;
+  locationId: string;
+  classId?: string | null;
+  className?: string;
+  childId: string;
+  childName?: string;
+  date: string;
+  makeVisibleToParents?: boolean;
+}): Promise<DailyReportDoc | null> {
   const {
     daycareId,
     locationId,
@@ -171,11 +149,6 @@ export async function upsertDailyReportForChildAndDate(
   return report;
 }
 
-/**
- * Convenience helper: given a list of EntryDoc, upsert daily reports
- * for each (childId, date) pair covered by those entries.
- * This is designed to be called from the entries service after bulk create.
- */
 export async function upsertDailyReportsForEntries(
   entries: EntryDoc[],
   options?: { makeVisibleToParents?: boolean }
@@ -208,10 +181,6 @@ export async function upsertDailyReportsForEntries(
   }
 }
 
-/**
- * Marks a daily report as sent/visible to parents.
- * This is useful if you later decide to support manual re-send or manual share.
- */
 export async function markDailyReportAsSent(
   reportId: string
 ): Promise<void> {
@@ -229,10 +198,6 @@ export async function markDailyReportAsSent(
   );
 }
 
-/**
- * Lists daily reports for a teacher context.
- * This assumes the teacher is already scoped to a daycare/location.
- */
 export async function listDailyReportsForTeacher(params: {
   daycareId: string;
   locationId: string;
@@ -278,11 +243,6 @@ export async function listDailyReportsForTeacher(params: {
   return reports;
 }
 
-/**
- * Lists daily reports for a parent context.
- * This expects that parentChildIds is pre-resolved from Parent → Child relationships.
- * For more than 10 children you may need to split calls due to Firestore "in" limitation.
- */
 export async function listDailyReportsForParent(params: {
   daycareId: string;
   locationId?: string;
