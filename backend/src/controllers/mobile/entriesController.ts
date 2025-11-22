@@ -1,5 +1,4 @@
 // backend/src/controllers/mobile/entriesController.ts
-
 import type { Response } from "express";
 import type { AuthRequest } from "../../middleware/authMiddleware";
 import { db } from "../../lib/firebase";
@@ -11,18 +10,13 @@ import type {
   EntryType,
 } from "../../../../shared/types/type";
 
-/* =========
- * Helpers
- * ========= */
-
 type AuthCtx = {
   role: string;
   userDocId: string;
   locationId?: string;
-  daycareId?: string;
+  daycareId?: string | null;
 };
 
-// Prefer req.user (authMiddleware), fallback to legacy req.userToken if present
 function getAuthCtx(req: AuthRequest): AuthCtx {
   const u = req.user;
   const tok: any = (req as any).userToken || {};
@@ -47,7 +41,6 @@ function clampLimit(v: unknown, def = 50, min = 1, max = 100) {
   return Math.max(min, Math.min(n, max));
 }
 
-// Normalize UI "All ..." values to undefined (no filter)
 function normalizeOptional(v?: string | null) {
   const s = String(v ?? "").trim();
   if (!s) return undefined;
@@ -56,15 +49,7 @@ function normalizeOptional(v?: string | null) {
   return s;
 }
 
-/* =========
- * Controllers
- * ========= */
-
-/**
- * POST /api/mobile/v1/entries/bulk
- * Body: BulkEntryCreateRequest
- * Scope: teacher only
- */
+// POST /api/mobile/v1/entries/bulk
 export async function bulkCreateEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);
@@ -86,10 +71,9 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
 
     const result = await bulkCreateEntriesService(
       {
-        role: auth.role,
         userDocId: auth.userDocId,
         locationId: auth.locationId,
-        daycareId: auth.daycareId, // optional
+        daycareId: auth.daycareId ?? undefined,
       },
       body
     );
@@ -103,14 +87,7 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
   }
 }
 
-/**
- * GET /api/mobile/v1/entries
- * Query: childId?, classId?, type?, dateFrom?, dateTo?, limit?
- *
- * Roles:
- *  - parent: only visibleToParents == true and must provide childId
- *  - teacher: scoped to their locationId; other filters optional
- */
+// GET /api/mobile/v1/entries
 export async function listEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);
