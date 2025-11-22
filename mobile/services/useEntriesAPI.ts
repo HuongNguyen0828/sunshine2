@@ -14,12 +14,15 @@ type Err = { ok: false; reason?: string };
 export type ApiRes<T> = Ok<T> | Err;
 
 /* ===============================
- * API base (Android emulator uses 10.0.2.2)
+ * API base
  * =============================== */
-export const BASE_URL =
-  Platform.OS === "android"
-    ? "http://10.0.2.2:5001/api/mobile"
-    : "http://localhost:5001/api/mobile";
+const API_ROOT =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (Platform.OS === "android"
+    ? "http://10.0.2.2:5001"
+    : "http://localhost:5001");
+
+export const BASE_URL = `${API_ROOT}/api/mobile`;
 
 /* ===============================
  * Client-side rules (mirror of server)
@@ -28,12 +31,10 @@ export const BASE_URL =
 // Types requiring subtype
 const NEEDS_SUBTYPE: EntryType[] = ["Attendance", "Food", "Sleep"];
 
-// Types requiring free-text detail
-// → Food도 여기 포함시킴 (메뉴/설명 필드)
+// Types requiring free-text detail (Food included so menu/description is required)
 const NEEDS_DETAIL: EntryType[] = ["Activity", "Note", "Health", "Food"];
 
 // Types requiring photo url
-// (모바일에선 업로드해서 URL을 만든 다음 여기로 보냄)
 const NEEDS_PHOTO: EntryType[] = ["Photo"];
 
 // Toilet requires toiletKind (no subtype)
@@ -73,37 +74,30 @@ function normalizeAll(v?: unknown): string | undefined {
 
 /** Client-side validation before hitting the API */
 function validateItem(p: EntryCreateInput): string | null {
-  // unless applyToAllInClass, we need at least one child
   if (!Array.isArray(p.childIds)) return "childIds must be an array";
   if (!p.applyToAllInClass && p.childIds.length === 0) {
     return "At least one child is required";
   }
 
-  // occurredAt rule
   const occ = (p as any).occurredAt;
   if (!isIsoDateTime(occ ?? "")) return "occurredAt must be an ISO datetime";
 
-  // subtype rule
   if (NEEDS_SUBTYPE.includes(p.type as EntryType) && !(p as any).subtype) {
     return "Subtype is required";
   }
 
-  // toiletKind rule
   if (needsToiletKind(p.type as EntryType) && !toStr((p as any).toiletKind)) {
     return "toiletKind is required";
   }
 
-  // photo rule
   if (NEEDS_PHOTO.includes(p.type as EntryType) && !toStr((p as any).photoUrl)) {
     return "Photo URL is required";
   }
 
-  // detail rule (Food 포함)
   if (NEEDS_DETAIL.includes(p.type as EntryType) && !toStr((p as any).detail)) {
     return "Detail is required";
   }
 
-  // class fan-out requires classId
   if ((p as any).applyToAllInClass && !toStr(p.classId)) {
     return "classId is required when applyToAllInClass is true";
   }
@@ -111,14 +105,16 @@ function validateItem(p: EntryCreateInput): string | null {
   return null;
 }
 
-/** Normalize one item to the server shape (ensure occurredAt exists) */
-function normalizeItem(p: EntryCreateInput) {
+/** Normalize one item to the server shape (ensure occurredAt exists and is ISO) */
+function normalizeItem(p: EntryCreateInput): EntryCreateInput {
+  const occurredAt =
+    (p as any).occurredAt && isIsoDateTime((p as any).occurredAt)
+      ? (p as any).occurredAt
+      : nowIso();
+
   return {
     ...p,
-    occurredAt:
-      (p as any).occurredAt && isIsoDateTime((p as any).occurredAt)
-        ? (p as any).occurredAt
-        : nowIso(),
+    occurredAt,
   };
 }
 
@@ -126,14 +122,13 @@ function normalizeItem(p: EntryCreateInput) {
  * API calls
  * =============================== */
 
-/** POST /v1/entries/bulk */
+/** POST /api/mobile/v1/entries/bulk */
 export async function bulkCreateEntries(
   items: EntryCreateInput[]
 ): Promise<ApiRes<BulkEntryCreateResult>> {
   try {
     if (!items?.length) return { ok: false, reason: "No items" };
 
-    // client-side validation
     for (const it of items) {
       const normalized = normalizeItem(it);
       const err = validateItem(normalized);
@@ -164,7 +159,10 @@ export async function bulkCreateEntries(
     }
 
     if (!res.ok) {
-      return { ok: false, reason: data?.message || data?.reason || `HTTP ${res.status}` };
+      return {
+        ok: false,
+        reason: data?.message || data?.reason || `HTTP ${res.status}`,
+      };
     }
 
     return { ok: true, data: data as BulkEntryCreateResult };
@@ -202,7 +200,7 @@ export async function createForChildren(
   ]);
 }
 
-/** GET /v1/entries */
+/** GET /api/mobile/v1/entries */
 export async function listEntries(
   filter: EntryFilter = {},
   limit = 50
@@ -238,8 +236,12 @@ export async function listEntries(
     }
 
     if (!res.ok) {
-      return { ok: false, reason: data?.message || data?.reason || `HTTP ${res.status}` };
+      return {
+        ok: false,
+        reason: data?.message || data?.reason || `HTTP ${res.status}`,
+      };
     }
+
     return { ok: true, data: Array.isArray(data) ? data : [] };
   } catch (e: any) {
     return { ok: false, reason: String(e?.message || e) };
