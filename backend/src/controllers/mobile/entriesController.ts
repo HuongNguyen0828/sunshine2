@@ -1,5 +1,7 @@
 // backend/src/controllers/mobile/entriesController.ts
+
 import type { Response } from "express";
+import type { AuthRequest } from "../../middleware/authMiddleware";
 import { db } from "../../lib/firebase";
 import { bulkCreateEntriesService } from "../../services/mobile/entriesService";
 import type {
@@ -8,29 +10,28 @@ import type {
   EntryDoc,
   EntryType,
 } from "../../../../shared/types/type";
-import type { AuthRequest } from "../../middleware/authMiddleware";
 
 /* =========
  * Helpers
  * ========= */
 
-// Read auth info injected by authMiddleware (req.user)
-function getAuthCtx(req: AuthRequest) {
+type AuthCtx = {
+  role: string;
+  userDocId: string;
+  locationId?: string;
+  daycareId?: string;
+};
+
+// Prefer req.user (added by authMiddleware), fall back to req.userToken
+function getAuthCtx(req: AuthRequest): AuthCtx {
   const u = req.user;
-  if (!u) {
-    return {
-      role: "",
-      userDocId: "",
-      locationId: undefined,
-      daycareId: undefined,
-    };
-  }
+  const tok: any = (req as any).userToken || {};
 
   return {
-    role: u.role,
-    userDocId: u.userDocId,
-    locationId: u.locationId,
-    daycareId: u.daycareId,
+    role: String(u?.role ?? tok.role ?? ""),
+    userDocId: String(u?.userDocId ?? tok.userDocId ?? ""),
+    locationId: (u?.locationId ?? tok.locationId) || undefined,
+    daycareId: (u?.daycareId ?? tok.daycareId) || undefined,
   };
 }
 
@@ -46,6 +47,7 @@ function clampLimit(v: unknown, def = 50, min = 1, max = 100) {
   return Math.max(min, Math.min(n, max));
 }
 
+// Normalize UI "All ..." values to undefined
 function normalizeOptional(v?: string | null) {
   const s = String(v ?? "").trim();
   if (!s) return undefined;
@@ -58,7 +60,11 @@ function normalizeOptional(v?: string | null) {
  * Controllers
  * ========= */
 
-/** POST /api/mobile/v1/entries/bulk */
+/**
+ * POST /api/mobile/v1/entries/bulk
+ * Body: BulkEntryCreateRequest
+ * Scope: teacher only
+ */
 export async function bulkCreateEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);
@@ -68,11 +74,12 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
       return res.status(403).json({ message: "forbidden_role" });
     }
 
-    if (!auth.userDocId || !auth.locationId || !auth.daycareId) {
+    if (!auth.userDocId || !auth.locationId) {
       return res.status(401).json({ message: "missing_auth_scope" });
     }
 
     const body: BulkEntryCreateRequest = (req.body as any) || { items: [] };
+
     if (!Array.isArray(body.items) || body.items.length === 0) {
       return res.status(400).json({ message: "empty_items" });
     }
@@ -81,7 +88,7 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
       {
         userDocId: auth.userDocId,
         locationId: auth.locationId,
-        daycareId: auth.daycareId,
+        daycareId: auth.daycareId, // can be undefined, service handles it
       },
       body
     );
@@ -95,7 +102,14 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
   }
 }
 
-/** GET /api/mobile/v1/entries */
+/**
+ * GET /api/mobile/v1/entries
+ * Query: childId?, classId?, type?, dateFrom?, dateTo?, limit?
+ *
+ * Roles:
+ *  - parent: only visibleToParents == true and must provide childId
+ *  - teacher: scoped to their locationId; other filters optional
+ */
 export async function listEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);
@@ -130,9 +144,7 @@ export async function listEntries(req: AuthRequest, res: Response) {
         return res.status(401).json({ message: "missing_location_scope" });
       }
       q = q.where("locationId", "==", auth.locationId);
-      if (childId) {
-        q = q.where("childId", "==", childId);
-      }
+      if (childId) q = q.where("childId", "==", childId);
     } else {
       return res.status(403).json({ message: "forbidden_role" });
     }
@@ -148,10 +160,7 @@ export async function listEntries(req: AuthRequest, res: Response) {
     q = q.limit(limitNum);
 
     const snap = await q.get();
-    const items: EntryDoc[] = snap.docs.map((d) => {
-      const data = d.data() as EntryDoc;
-      return { ...data, id: data.id || d.id };
-    });
+    const items: EntryDoc[] = snap.docs.map((d) => d.data() as EntryDoc);
 
     return res.json(items);
   } catch (e: any) {
