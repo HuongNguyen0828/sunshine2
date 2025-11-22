@@ -17,7 +17,6 @@ const DAILY_REPORTS_COLLECTION = "dailyReports";
  * This assumes occurredAt is stored as an ISO string that is lexicographically sortable.
  */
 function buildDayRange(date: string) {
-  // date is expected to be "YYYY-MM-DD"
   const start = new Date(`${date}T00:00:00.000Z`);
   const end = new Date(start);
   end.setDate(end.getDate() + 1);
@@ -45,7 +44,7 @@ function buildActivitySummary(entries: EntryDoc[]): {
   const totalActivities = entries.length;
 
   const parts = Object.entries(typeCounts)
-    .sort((a, b) => b[1] - a[1]) // most frequent first
+    .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([type, count]) => `${count} ${type}`);
 
@@ -92,19 +91,21 @@ async function fetchEntriesForChildAndDate(params: {
  * If there are no entries for that day, it returns null and does not write anything.
  *
  * Typical usage:
- * - Called by backend when a "Check out" entry is created.
+ * - Called by backend when entries are created (e.g. on check-out or bulk create).
  * - Can optionally make the report visible to parents immediately.
  */
-export async function upsertDailyReportForChildAndDate(params: {
-  daycareId: string;
-  locationId: string;
-  classId?: string | null;
-  className?: string;
-  childId: string;
-  childName?: string;
-  date: string; // "YYYY-MM-DD"
-  makeVisibleToParents?: boolean;
-}): Promise<DailyReportDoc | null> {
+export async function upsertDailyReportForChildAndDate(
+  params: {
+    daycareId: string;
+    locationId: string;
+    classId?: string | null;
+    className?: string;
+    childId: string;
+    childName?: string;
+    date: string; // "YYYY-MM-DD"
+    makeVisibleToParents?: boolean;
+  }
+): Promise<DailyReportDoc | null> {
   const {
     daycareId,
     locationId,
@@ -124,7 +125,6 @@ export async function upsertDailyReportForChildAndDate(params: {
   });
 
   if (entries.length === 0) {
-    // Nothing to aggregate for this date
     return null;
   }
 
@@ -141,11 +141,9 @@ export async function upsertDailyReportForChildAndDate(params: {
     existingCreatedAt = existingData.createdAt;
   }
 
-  // If makeVisibleToParents is provided, use it; otherwise default to false.
   const visibleToParents =
     makeVisibleToParents !== undefined ? makeVisibleToParents : false;
 
-  // Simple convention: when a report is visible to parents, it is considered "sent".
   const sent = visibleToParents;
   const sentAt = sent ? nowIso : undefined;
 
@@ -174,10 +172,49 @@ export async function upsertDailyReportForChildAndDate(params: {
 }
 
 /**
+ * Convenience helper: given a list of EntryDoc, upsert daily reports
+ * for each (childId, date) pair covered by those entries.
+ * This is designed to be called from the entries service after bulk create.
+ */
+export async function upsertDailyReportsForEntries(
+  entries: EntryDoc[],
+  options?: { makeVisibleToParents?: boolean }
+): Promise<void> {
+  const seen = new Set<string>();
+
+  for (const entry of entries) {
+    if (!entry.childId || !entry.occurredAt) continue;
+
+    const occurred = new Date(entry.occurredAt);
+    const year = occurred.getUTCFullYear();
+    const month = String(occurred.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(occurred.getUTCDate()).padStart(2, "0");
+    const date = `${year}-${month}-${day}`;
+
+    const key = `${entry.childId}-${date}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    await upsertDailyReportForChildAndDate({
+      daycareId: entry.daycareId,
+      locationId: entry.locationId,
+      classId: entry.classId ?? null,
+      className: entry.className,
+      childId: entry.childId,
+      childName: entry.childName,
+      date,
+      makeVisibleToParents: options?.makeVisibleToParents ?? false,
+    });
+  }
+}
+
+/**
  * Marks a daily report as sent/visible to parents.
  * This is useful if you later decide to support manual re-send or manual share.
  */
-export async function markDailyReportAsSent(reportId: string): Promise<void> {
+export async function markDailyReportAsSent(
+  reportId: string
+): Promise<void> {
   const nowIso = new Date().toISOString();
   const docRef = db.collection(DAILY_REPORTS_COLLECTION).doc(reportId);
 
@@ -228,7 +265,6 @@ export async function listDailyReportsForTeacher(params: {
     query = query.where("date", "<=", filter.dateTo);
   }
 
-  // Sort newest first by date
   query = query.orderBy("date", "desc");
 
   const snapshot = await query.get();
@@ -261,7 +297,6 @@ export async function listDailyReportsForParent(params: {
     return [];
   }
 
-  // Narrow down to a specific child if filter.childId is present.
   let allowedChildIds = parentChildIds;
   if (filter?.childId) {
     allowedChildIds = parentChildIds.includes(filter.childId)
@@ -273,7 +308,6 @@ export async function listDailyReportsForParent(params: {
     return [];
   }
 
-  // Firestore "in" supports up to 10 values; caller should handle splitting if needed.
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(DAILY_REPORTS_COLLECTION)
     .where("daycareId", "==", daycareId)
