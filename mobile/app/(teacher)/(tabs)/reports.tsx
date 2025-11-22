@@ -1,4 +1,5 @@
-//mobile/app/(teacher)/(tabs)/reports.tsx
+// mobile/app/(teacher)/(tabs)/reports.tsx
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -6,21 +7,16 @@ import {
   StyleSheet,
   Pressable,
   Modal,
-  FlatList,
+  ActivityIndicator,
 } from "react-native";
-
 import { FlashList } from "@shopify/flash-list";
-import { useState, useMemo } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Filter,
   ChevronDown,
   Calendar,
   Download,
   FileText,
-  ChevronLeft,
-  ChevronRight,
   Activity,
   Coffee,
   Moon,
@@ -28,11 +24,15 @@ import {
   Camera,
   Heart,
   CheckCircle,
-  Share2,
   Send,
 } from "lucide-react-native";
-import { generateMockEntries, mockClasses, mockChildren } from "../../../src/data/mockData";
-import { EntryDoc } from "@sunshine/src/types/type";
+
+import { mockClasses } from "../../../src/data/mockData";
+import {
+  EntryDoc,
+  DailyReportDoc,
+} from "../../../../shared/types/type";
+import { fetchTeacherDailyReports } from "@/services/useDailyReportAPI";
 
 // Entry type icons and colors (matching messages tab)
 const entryTypeConfig = {
@@ -48,155 +48,118 @@ const entryTypeConfig = {
 
 type DateRange = "today" | "week" | "month" | "custom";
 
-type DailyReport = {
-  id: string;
-  date: Date;
-  childId: string;
-  childName: string;
-  className: string;
-  classId: string;
-  entries: Partial<EntryDoc>[];
-  activitySummary: string;
-  totalActivities: number;
-  sent: boolean;
-};
-
 export default function TeacherReports() {
   const insets = useSafeAreaInsets();
+
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>("week");
   const [showClassModal, setShowClassModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showDateModal, setShowDateModal] = useState(false);
-  const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
-  const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
-  const [selectedReport, setSelectedReport] = useState<DailyReport | null>(null);
+  const [selectedReport, setSelectedReport] =
+    useState<DailyReportDoc | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
 
-  // Generate entries once and memoize
-  const entries = useMemo(() => generateMockEntries(), []);
+  const [reports, setReports] = useState<DailyReportDoc[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Generate daily reports grouped by child and date
-  const dailyReports = useMemo(() => {
-    let filtered = [...entries];
+  const buildDateFilter = (): { dateFrom?: string; dateTo?: string } => {
+    const today = new Date();
+    const toIsoDate = (d: Date) => d.toISOString().slice(0, 10); // "YYYY-MM-DD"
 
-    // Filter by class
-    if (selectedClass) {
-      filtered = filtered.filter(entry => entry.classId === selectedClass);
+    const end = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+
+    if (dateRange === "today") {
+      const d = toIsoDate(end);
+      return { dateFrom: d, dateTo: d };
     }
 
-    // Filter by date range
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (dateRange === "week") {
+      const start = new Date(end);
+      start.setDate(start.getDate() - 7);
+      return { dateFrom: toIsoDate(start), dateTo: toIsoDate(end) };
+    }
 
-    switch (dateRange) {
-      case "today":
-        filtered = filtered.filter(entry => {
-          if (!entry.occurredAt) return false;
-          const entryDate = new Date(entry.occurredAt);
-          return entryDate >= today;
+    if (dateRange === "month") {
+      const start = new Date(end);
+      start.setDate(start.getDate() - 30);
+      return { dateFrom: toIsoDate(start), dateTo: toIsoDate(end) };
+    }
+
+    return {};
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadReports = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { dateFrom, dateTo } = buildDateFilter();
+
+        const data = await fetchTeacherDailyReports({
+          classId: selectedClass ?? undefined,
+          dateFrom,
+          dateTo,
         });
-        break;
-      case "week":
-        const weekAgo = new Date(today);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        filtered = filtered.filter(entry => {
-          if (!entry.occurredAt) return false;
-          const entryDate = new Date(entry.occurredAt);
-          return entryDate >= weekAgo;
-        });
-        break;
-      case "month":
-        const monthAgo = new Date(today);
-        monthAgo.setMonth(monthAgo.getMonth() - 1);
-        filtered = filtered.filter(entry => {
-          if (!entry.occurredAt) return false;
-          const entryDate = new Date(entry.occurredAt);
-          return entryDate >= monthAgo;
-        });
-        break;
-      case "custom":
-        if (customStartDate && customEndDate) {
-          filtered = filtered.filter(entry => {
-            if (!entry.occurredAt) return false;
-            const entryDate = new Date(entry.occurredAt);
-            return entryDate >= customStartDate && entryDate <= customEndDate;
-          });
+
+        if (isMounted) {
+          setReports(data);
         }
-        break;
-    }
-
-    // Group by child and date
-    const reportsMap = new Map<string, DailyReport>();
-
-    filtered.forEach(entry => {
-      if (!entry.occurredAt || !entry.childId) return;
-
-      const entryDate = new Date(entry.occurredAt);
-      const dateKey = `${entryDate.getFullYear()}-${entryDate.getMonth()}-${entryDate.getDate()}`;
-      const key = `${entry.childId}-${dateKey}`;
-
-      if (!reportsMap.has(key)) {
-        reportsMap.set(key, {
-          id: key,
-          date: new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate()),
-          childId: entry.childId,
-          childName: entry.childName || "",
-          className: entry.className || "",
-          classId: entry.classId || "",
-          entries: [],
-          activitySummary: "",
-          totalActivities: 0,
-          sent: Math.random() > 0.5, // Mock: randomly mark some as sent
-        });
+      } catch (err: any) {
+        console.error("Failed to load teacher daily reports:", err);
+        if (isMounted) {
+          setError(err?.message || "Failed to load reports");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
+    };
 
-      const report = reportsMap.get(key)!;
-      report.entries.push(entry);
-    });
+    loadReports();
 
-    // Generate summaries and filter by type if needed
-    const reports = Array.from(reportsMap.values()).map(report => {
-      const typeCounts: { [key: string]: number } = {};
-      report.entries.forEach(entry => {
-        if (entry.type) {
-          typeCounts[entry.type] = (typeCounts[entry.type] || 0) + 1;
-        }
-      });
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange, selectedClass]);
 
-      report.totalActivities = report.entries.length;
-      const summaryParts = Object.entries(typeCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([type, count]) => `${count} ${type}`);
-      report.activitySummary = summaryParts.join(", ");
+  // Apply type filter on client side
+  const filteredReports = useMemo<DailyReportDoc[]>(() => {
+    if (!selectedType) return reports;
 
-      return report;
-    });
+    return reports.filter((report) =>
+      (report.entries || []).some(
+        (entry: EntryDoc) => entry.type === selectedType
+      )
+    );
+  }, [reports, selectedType]);
 
-    // Filter by type if selected
-    const finalReports = selectedType
-      ? reports.filter(report =>
-          report.entries.some(entry => entry.type === selectedType)
-        )
-      : reports;
-
-    // Sort by date descending
-    return finalReports.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [entries, selectedClass, selectedType, dateRange, customStartDate, customEndDate]);
-
-  // Calculate statistics based on all entries in the daily reports
+  // Stats based on filtered reports
   const stats = useMemo(() => {
     const typeCount: { [key: string]: number } = {};
     const uniqueChildren = new Set<string>();
     let totalEntries = 0;
     let unsentReports = 0;
 
-    dailyReports.forEach(report => {
-      uniqueChildren.add(report.childId);
-      if (!report.sent) unsentReports++;
-      report.entries.forEach(entry => {
+    filteredReports.forEach((report) => {
+      if (report.childId) {
+        uniqueChildren.add(report.childId);
+      }
+      if (!report.sent) {
+        unsentReports++;
+      }
+      (report.entries || []).forEach((entry: EntryDoc) => {
         totalEntries++;
         if (entry.type) {
           typeCount[entry.type] = (typeCount[entry.type] || 0) + 1;
@@ -206,19 +169,19 @@ export default function TeacherReports() {
 
     return {
       totalEntries,
-      totalReports: dailyReports.length,
+      totalReports: filteredReports.length,
       unsentReports,
       uniqueChildren: uniqueChildren.size,
-      topType: Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A",
+      topType:
+        Object.entries(typeCount).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+        "N/A",
     };
-  }, [dailyReports]);
+  }, [filteredReports]);
 
   const clearFilters = () => {
     setSelectedClass(null);
     setSelectedType(null);
     setDateRange("week");
-    setCustomStartDate(null);
-    setCustomEndDate(null);
   };
 
   const hasActiveFilters = selectedClass || selectedType || dateRange !== "week";
@@ -232,23 +195,22 @@ export default function TeacherReports() {
       case "month":
         return "Last 30 Days";
       case "custom":
-        if (customStartDate && customEndDate) {
-          return `${customStartDate.toLocaleDateString()} - ${customEndDate.toLocaleDateString()}`;
-        }
         return "Custom Range";
       default:
         return "Select Range";
     }
   };
 
-  const renderReport = (report: DailyReport, index: number) => {
-    const date = report.date.toLocaleDateString("en-US", {
+  const renderReportRow = (report: DailyReportDoc, index: number) => {
+    const dateObj = new Date(`${report.date}T00:00:00`);
+    const dateLabel = dateObj.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
     });
 
     return (
       <Pressable
+        key={report.id}
         style={[styles.tableRow, index % 2 === 0 && styles.tableRowEven]}
         onPress={() => {
           setSelectedReport(report);
@@ -257,7 +219,7 @@ export default function TeacherReports() {
       >
         <View style={styles.cellDate}>
           <View style={styles.cellDateWithStatus}>
-            <Text style={styles.cellDateText}>{date}</Text>
+            <Text style={styles.cellDateText}>{dateLabel}</Text>
             {report.sent ? (
               <View style={styles.statusSent}>
                 <CheckCircle size={14} color="#10B981" strokeWidth={2} />
@@ -269,26 +231,21 @@ export default function TeacherReports() {
             )}
           </View>
           <Text style={styles.cellTimeText}>
-            {report.totalActivities} {report.totalActivities === 1 ? "activity" : "activities"}
+            {report.totalActivities}{" "}
+            {report.totalActivities === 1 ? "activity" : "activities"}
           </Text>
         </View>
         <View style={styles.cellChild}>
-          <Text style={styles.cellChildName} numberOfLines={1}>{report.childName}</Text>
-          <Text style={styles.cellClassName}>{report.className}</Text>
+          <Text style={styles.cellChildName} numberOfLines={1}>
+            {report.childName || "Unknown child"}
+          </Text>
+          <Text style={styles.cellClassName}>{report.className || ""}</Text>
         </View>
         <View style={styles.cellSummary}>
-          <Text style={styles.cellSummaryText} numberOfLines={2}>{report.activitySummary}</Text>
+          <Text style={styles.cellSummaryText} numberOfLines={2}>
+            {report.activitySummary}
+          </Text>
         </View>
-        <Pressable
-          style={styles.shareButton}
-          onPress={(e) => {
-            e.stopPropagation();
-            setSelectedReport(report);
-            setShowReportModal(true);
-          }}
-        >
-          <Share2 size={18} color="#6366F1" strokeWidth={2} />
-        </Pressable>
       </Pressable>
     );
   };
@@ -301,23 +258,18 @@ export default function TeacherReports() {
           <Text style={styles.title}>Reports</Text>
           {stats.unsentReports > 0 && (
             <Text style={styles.subtitle}>
-              <Text style={styles.unsentBadge}>{stats.unsentReports} unsent</Text>
+              <Text style={styles.unsentBadge}>
+                {stats.unsentReports} unsent
+              </Text>
+            </Text>
+          )}
+          {error && (
+            <Text style={[styles.subtitle, { color: "#DC2626" }]}>
+              {error}
             </Text>
           )}
         </View>
         <View style={styles.headerActions}>
-          {stats.unsentReports > 0 && (
-            <Pressable
-              style={styles.sendAllButton}
-              onPress={() => {
-                // TODO: Implement bulk send functionality
-                alert(`Sending ${stats.unsentReports} reports to parents`);
-              }}
-            >
-              <Send size={18} color="#FFFFFF" strokeWidth={2} />
-              <Text style={styles.sendAllButtonText}>Send All</Text>
-            </Pressable>
-          )}
           <Pressable style={styles.downloadButton}>
             <Download size={18} color="#6366F1" strokeWidth={2} />
           </Pressable>
@@ -357,36 +309,72 @@ export default function TeacherReports() {
           style={styles.filterScroll}
         >
           <Pressable
-            style={[styles.filterButton, dateRange !== "week" && styles.filterButtonActive]}
+            style={[
+              styles.filterButton,
+              dateRange !== "week" && styles.filterButtonActive,
+            ]}
             onPress={() => setShowDateModal(true)}
           >
-            <Calendar size={16} color={dateRange !== "week" ? "#FFFFFF" : "#475569"} />
-            <Text style={[styles.filterButtonText, dateRange !== "week" && styles.filterButtonTextActive]}>
+            <Calendar
+              size={16}
+              color={dateRange !== "week" ? "#FFFFFF" : "#475569"}
+            />
+            <Text
+              style={[
+                styles.filterButtonText,
+                dateRange !== "week" && styles.filterButtonTextActive,
+              ]}
+            >
               {getDateRangeText()}
             </Text>
-            <ChevronDown size={16} color={dateRange !== "week" ? "#FFFFFF" : "#475569"} />
+            <ChevronDown
+              size={16}
+              color={dateRange !== "week" ? "#FFFFFF" : "#475569"}
+            />
           </Pressable>
 
           <Pressable
-            style={[styles.filterButton, selectedClass && styles.filterButtonActive]}
+            style={[
+              styles.filterButton,
+              selectedClass && styles.filterButtonActive,
+            ]}
             onPress={() => setShowClassModal(true)}
           >
-            <Text style={[styles.filterButtonText, selectedClass && styles.filterButtonTextActive]}>
+            <Text
+              style={[
+                styles.filterButtonText,
+                selectedClass && styles.filterButtonTextActive,
+              ]}
+            >
               {selectedClass
-                ? mockClasses.find(c => c.id === selectedClass)?.name
+                ? mockClasses.find((c) => c.id === selectedClass)?.name
                 : "All Classes"}
             </Text>
-            <ChevronDown size={16} color={selectedClass ? "#FFFFFF" : "#475569"} />
+            <ChevronDown
+              size={16}
+              color={selectedClass ? "#FFFFFF" : "#475569"}
+            />
           </Pressable>
 
           <Pressable
-            style={[styles.filterButton, selectedType && styles.filterButtonActive]}
+            style={[
+              styles.filterButton,
+              selectedType && styles.filterButtonActive,
+            ]}
             onPress={() => setShowTypeModal(true)}
           >
-            <Text style={[styles.filterButtonText, selectedType && styles.filterButtonTextActive]}>
+            <Text
+              style={[
+                styles.filterButtonText,
+                selectedType && styles.filterButtonTextActive,
+              ]}
+            >
               {selectedType || "All Types"}
             </Text>
-            <ChevronDown size={16} color={selectedType ? "#FFFFFF" : "#475569"} />
+            <ChevronDown
+              size={16}
+              color={selectedType ? "#FFFFFF" : "#475569"}
+            />
           </Pressable>
 
           {hasActiveFilters && (
@@ -402,10 +390,17 @@ export default function TeacherReports() {
         <Text style={styles.headerDate}>Date</Text>
         <Text style={styles.headerChild}>Child</Text>
         <Text style={styles.headerSummary}>Summary</Text>
-        <Text style={styles.headerShare}>Share</Text>
       </View>
     </>
   );
+
+  const renderFlashItem = ({
+    item,
+    index,
+  }: {
+    item: DailyReportDoc;
+    index: number;
+  }) => renderReportRow(item, index);
 
   return (
     <View style={styles.container}>
@@ -414,27 +409,32 @@ export default function TeacherReports() {
         style={styles.gradientBackground}
       />
 
-      <FlashList
-        data={dailyReports}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => renderReport(item, index)}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <FileText size={48} color="#CBD5E1" strokeWidth={1.5} />
-            <Text style={styles.emptyStateTitle}>No reports found</Text>
-            <Text style={styles.emptyStateText}>
-              Try adjusting your filters or date range
-            </Text>
-          </View>
-        )}
-        contentContainerStyle={styles.tableContent}
-        showsVerticalScrollIndicator={false}
-        initialNumToRender={20}
-        maxToRenderPerBatch={10}
-        windowSize={5}
-        removeClippedSubviews={true}
-      />
+      {loading && reports.length === 0 ? (
+        <View style={[styles.emptyState, { paddingTop: insets.top + 40 }]}>
+          <ActivityIndicator size="large" />
+          <Text style={[styles.emptyStateText, { marginTop: 16 }]}>
+            Loading reports...
+          </Text>
+        </View>
+      ) : (
+        <FlashList<DailyReportDoc>
+          data={filteredReports}
+          keyExtractor={(item) => item.id}
+          renderItem={renderFlashItem}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyState}>
+              <FileText size={48} color="#CBD5E1" strokeWidth={1.5} />
+              <Text style={styles.emptyStateTitle}>No reports found</Text>
+              <Text style={styles.emptyStateText}>
+                Try adjusting your filters or date range
+              </Text>
+            </View>
+          )}
+          contentContainerStyle={styles.tableContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* Date Range Modal */}
       <Modal
@@ -449,10 +449,13 @@ export default function TeacherReports() {
         >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Date Range</Text>
-            {(["today", "week", "month"] as DateRange[]).map(range => (
+            {(["today", "week", "month"] as DateRange[]).map((range) => (
               <Pressable
                 key={range}
-                style={[styles.modalOption, dateRange === range && styles.modalOptionSelected]}
+                style={[
+                  styles.modalOption,
+                  dateRange === range && styles.modalOptionSelected,
+                ]}
                 onPress={() => {
                   setDateRange(range);
                   setShowDateModal(false);
@@ -469,7 +472,12 @@ export default function TeacherReports() {
               style={[styles.modalOption, styles.modalOptionDisabled]}
               onPress={() => {}}
             >
-              <Text style={[styles.modalOptionText, styles.modalOptionTextDisabled]}>
+              <Text
+                style={[
+                  styles.modalOptionText,
+                  styles.modalOptionTextDisabled,
+                ]}
+              >
                 Custom Range (Coming Soon)
               </Text>
             </Pressable>
@@ -491,7 +499,10 @@ export default function TeacherReports() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Class</Text>
             <Pressable
-              style={[styles.modalOption, !selectedClass && styles.modalOptionSelected]}
+              style={[
+                styles.modalOption,
+                !selectedClass && styles.modalOptionSelected,
+              ]}
               onPress={() => {
                 setSelectedClass(null);
                 setShowClassModal(false);
@@ -499,10 +510,13 @@ export default function TeacherReports() {
             >
               <Text style={styles.modalOptionText}>All Classes</Text>
             </Pressable>
-            {mockClasses.map(cls => (
+            {mockClasses.map((cls) => (
               <Pressable
                 key={cls.id}
-                style={[styles.modalOption, selectedClass === cls.id && styles.modalOptionSelected]}
+                style={[
+                  styles.modalOption,
+                  selectedClass === cls.id && styles.modalOptionSelected,
+                ]}
                 onPress={() => {
                   setSelectedClass(cls.id);
                   setShowClassModal(false);
@@ -530,7 +544,10 @@ export default function TeacherReports() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Entry Type</Text>
             <Pressable
-              style={[styles.modalOption, !selectedType && styles.modalOptionSelected]}
+              style={[
+                styles.modalOption,
+                !selectedType && styles.modalOptionSelected,
+              ]}
               onPress={() => {
                 setSelectedType(null);
                 setShowTypeModal(false);
@@ -538,20 +555,29 @@ export default function TeacherReports() {
             >
               <Text style={styles.modalOptionText}>All Types</Text>
             </Pressable>
-            {Object.keys(entryTypeConfig).map(type => {
-              const config = entryTypeConfig[type as keyof typeof entryTypeConfig];
+            {Object.keys(entryTypeConfig).map((type) => {
+              const config =
+                entryTypeConfig[type as keyof typeof entryTypeConfig];
               const IconComponent = config.icon;
               return (
                 <Pressable
                   key={type}
-                  style={[styles.modalOption, selectedType === type && styles.modalOptionSelected]}
+                  style={[
+                    styles.modalOption,
+                    selectedType === type && styles.modalOptionSelected,
+                  ]}
                   onPress={() => {
                     setSelectedType(type);
                     setShowTypeModal(false);
                   }}
                 >
                   <View style={styles.modalOptionWithIcon}>
-                    <View style={[styles.modalOptionIcon, { backgroundColor: config.bg }]}>
+                    <View
+                      style={[
+                        styles.modalOptionIcon,
+                        { backgroundColor: config.bg },
+                      ]}
+                    >
                       <IconComponent size={16} color={config.color} />
                     </View>
                     <Text style={styles.modalOptionText}>{type}</Text>
@@ -563,7 +589,7 @@ export default function TeacherReports() {
         </Pressable>
       </Modal>
 
-      {/* Report Detail/Edit Modal */}
+      {/* Report Detail Modal */}
       <Modal
         visible={showReportModal}
         animationType="slide"
@@ -577,7 +603,12 @@ export default function TeacherReports() {
           />
 
           {/* Modal Header */}
-          <View style={[styles.reportModalHeader, { paddingTop: insets.top + 20 }]}>
+          <View
+            style={[
+              styles.reportModalHeader,
+              { paddingTop: insets.top + 20 },
+            ]}
+          >
             <Pressable
               onPress={() => setShowReportModal(false)}
               style={styles.reportModalClose}
@@ -585,17 +616,7 @@ export default function TeacherReports() {
               <Text style={styles.reportModalCloseText}>Cancel</Text>
             </Pressable>
             <Text style={styles.reportModalTitle}>Daily Report</Text>
-            <Pressable
-              onPress={() => {
-                // TODO: Implement share/push functionality
-                alert("Report will be sent to parents");
-                setShowReportModal(false);
-              }}
-              style={styles.reportModalShare}
-            >
-              <Share2 size={20} color="#6366F1" strokeWidth={2} />
-              <Text style={styles.reportModalShareText}>Share</Text>
-            </Pressable>
+            <View style={{ width: 80 }} />
           </View>
 
           {selectedReport && (
@@ -603,59 +624,96 @@ export default function TeacherReports() {
               {/* Report Info */}
               <View style={styles.reportInfoCard}>
                 <Text style={styles.reportInfoDate}>
-                  {selectedReport.date.toLocaleDateString("en-US", {
+                  {new Date(
+                    `${selectedReport.date}T00:00:00`
+                  ).toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "long",
                     day: "numeric",
                     year: "numeric",
                   })}
                 </Text>
-                <Text style={styles.reportInfoChild}>{selectedReport.childName}</Text>
-                <Text style={styles.reportInfoClass}>{selectedReport.className}</Text>
+                <Text style={styles.reportInfoChild}>
+                  {selectedReport.childName || "Unknown child"}
+                </Text>
+                <Text style={styles.reportInfoClass}>
+                  {selectedReport.className || ""}
+                </Text>
               </View>
 
               {/* Activity Summary */}
               <View style={styles.reportSection}>
                 <Text style={styles.reportSectionTitle}>Activity Summary</Text>
                 <Text style={styles.reportSummaryText}>
-                  {selectedReport.totalActivities} {selectedReport.totalActivities === 1 ? "activity" : "activities"} recorded today
+                  {selectedReport.totalActivities}{" "}
+                  {selectedReport.totalActivities === 1
+                    ? "activity"
+                    : "activities"}{" "}
+                  recorded today
                 </Text>
-                <Text style={styles.reportSummaryDetail}>{selectedReport.activitySummary}</Text>
+                <Text style={styles.reportSummaryDetail}>
+                  {selectedReport.activitySummary}
+                </Text>
               </View>
 
               {/* Detailed Activities */}
               <View style={styles.reportSection}>
                 <Text style={styles.reportSectionTitle}>Activities</Text>
-                {selectedReport.entries.map((entry, idx) => {
-                  const config = entryTypeConfig[entry.type as keyof typeof entryTypeConfig];
-                  const IconComponent = config?.icon || Activity;
-                  const time = entry.occurredAt
-                    ? new Date(entry.occurredAt).toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })
-                    : "";
+                {(selectedReport.entries || []).map(
+                  (entry: EntryDoc, idx: number) => {
+                    const config =
+                      entryTypeConfig[
+                        entry.type as keyof typeof entryTypeConfig
+                      ];
+                    const IconComponent = config?.icon || Activity;
+                    const time = entry.occurredAt
+                      ? new Date(entry.occurredAt).toLocaleTimeString(
+                          "en-US",
+                          {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          }
+                        )
+                      : "";
 
-                  return (
-                    <View key={idx} style={styles.reportActivityCard}>
-                      <View style={[styles.reportActivityIcon, { backgroundColor: config?.bg }]}>
-                        <IconComponent size={20} color={config?.color} strokeWidth={2} />
-                      </View>
-                      <View style={styles.reportActivityContent}>
-                        <View style={styles.reportActivityHeader}>
-                          <Text style={styles.reportActivityType}>{entry.type}</Text>
-                          <Text style={styles.reportActivityTime}>{time}</Text>
+                    return (
+                      <View key={idx} style={styles.reportActivityCard}>
+                        <View
+                          style={[
+                            styles.reportActivityIcon,
+                            { backgroundColor: config?.bg },
+                          ]}
+                        >
+                          <IconComponent
+                            size={20}
+                            color={config?.color}
+                            strokeWidth={2}
+                          />
                         </View>
-                        {entry.subtype && (
-                          <Text style={styles.reportActivitySubtype}>{entry.subtype}</Text>
-                        )}
-                        {entry.detail && (
-                          <Text style={styles.reportActivityDetail}>{entry.detail}</Text>
-                        )}
+                        <View style={styles.reportActivityContent}>
+                          <View style={styles.reportActivityHeader}>
+                            <Text style={styles.reportActivityType}>
+                              {entry.type}
+                            </Text>
+                            <Text style={styles.reportActivityTime}>
+                              {time}
+                            </Text>
+                          </View>
+                          {entry.subtype && (
+                            <Text style={styles.reportActivitySubtype}>
+                              {entry.subtype}
+                            </Text>
+                          )}
+                          {entry.detail && (
+                            <Text style={styles.reportActivityDetail}>
+                              {entry.detail}
+                            </Text>
+                          )}
+                        </View>
                       </View>
-                    </View>
-                  );
-                })}
+                    );
+                  }
+                )}
               </View>
 
               {/* Notes Section (placeholder for future editing) */}
@@ -719,26 +777,6 @@ const styles = StyleSheet.create({
   },
   unsentBadge: {
     color: "#F59E0B",
-    fontWeight: "600",
-  },
-  sendAllButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#6366F1",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-    gap: 6,
-    shadowColor: "#6366F1",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  sendAllButtonText: {
-    fontSize: 15,
-    color: "#FFFFFF",
     fontWeight: "600",
   },
   downloadButton: {
@@ -846,14 +884,6 @@ const styles = StyleSheet.create({
     color: "#475569",
     textTransform: "uppercase",
   },
-  headerShare: {
-    width: 60,
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#475569",
-    textTransform: "uppercase",
-    textAlign: "center",
-  },
   tableContent: {
     paddingBottom: 40,
   },
@@ -927,12 +957,6 @@ const styles = StyleSheet.create({
     color: "#64748B",
     lineHeight: 16,
   },
-  shareButton: {
-    width: 60,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 8,
-  },
   emptyState: {
     alignItems: "center",
     paddingVertical: 60,
@@ -1004,7 +1028,6 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 2,
   },
-  // Report Detail Modal Styles
   reportModalContainer: {
     flex: 1,
     backgroundColor: "#FFFFFF",
@@ -1036,18 +1059,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#1E293B",
-  },
-  reportModalShare: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    width: 80,
-    justifyContent: "flex-end",
-  },
-  reportModalShareText: {
-    fontSize: 16,
-    color: "#6366F1",
-    fontWeight: "600",
   },
   reportModalContent: {
     flex: 1,
