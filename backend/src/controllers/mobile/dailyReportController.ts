@@ -1,5 +1,4 @@
 // backend/src/controllers/mobile/dailyReportController.ts
-
 import { Response } from "express";
 import { AuthRequest } from "../../middleware/authMiddleware";
 import {
@@ -18,11 +17,11 @@ function normalizeOptional(v?: string | string[] | null) {
   return s;
 }
 
-/**
- * GET /api/mobile/teacher/daily-reports
- * Role: teacher only
- */
-export const getTeacherDailyReports = async (req: AuthRequest, res: Response) => {
+// GET /api/mobile/teacher/daily-reports
+export const getTeacherDailyReports = async (
+  req: AuthRequest,
+  res: Response
+) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -74,11 +73,11 @@ export const getTeacherDailyReports = async (req: AuthRequest, res: Response) =>
   }
 };
 
-/**
- * GET /api/mobile/parent/daily-reports
- * Role: parent only
- */
-export const getParentDailyReports = async (req: AuthRequest, res: Response) => {
+// GET /api/mobile/parent/daily-reports
+export const getParentDailyReports = async (
+  req: AuthRequest,
+  res: Response
+) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -147,10 +146,7 @@ export const getParentDailyReports = async (req: AuthRequest, res: Response) => 
   }
 };
 
-/**
- * POST /api/mobile/teacher/daily-reports/:id/send
- * Role: teacher only
- */
+// POST /api/mobile/teacher/daily-reports/:id/send
 export const sendDailyReport = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
