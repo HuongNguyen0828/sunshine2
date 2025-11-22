@@ -1,4 +1,5 @@
 // backend/src/services/mobile/dailyReportService.ts
+
 import { admin } from "../../lib/firebase";
 import type {
   EntryDoc,
@@ -11,6 +12,9 @@ const db = admin.firestore();
 const ENTRIES_COLLECTION = "entries";
 const DAILY_REPORTS_COLLECTION = "dailyReports";
 
+/**
+ * Builds ISO datetime range [start, end) for a given "YYYY-MM-DD" date bucket.
+ */
 function buildDayRange(date: string) {
   const start = new Date(`${date}T00:00:00.000Z`);
   const end = new Date(start);
@@ -22,6 +26,9 @@ function buildDayRange(date: string) {
   };
 }
 
+/**
+ * Aggregates entries into a summary string such as "3 Food, 2 Sleep, 1 Activity".
+ */
 function buildActivitySummary(entries: EntryDoc[]): {
   totalActivities: number;
   summary: string;
@@ -46,18 +53,21 @@ function buildActivitySummary(entries: EntryDoc[]): {
   };
 }
 
+/**
+ * Fetches entries for a given child + location + date bucket.
+ * The daycareId parameter is kept for compatibility but not used in the query.
+ */
 async function fetchEntriesForChildAndDate(params: {
   daycareId: string;
   locationId: string;
   childId: string;
-  date: string;
+  date: string; // "YYYY-MM-DD"
 }): Promise<EntryDoc[]> {
-  const { daycareId, locationId, childId, date } = params;
+  const { locationId, childId, date } = params;
   const { startIso, endIso } = buildDayRange(date);
 
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(ENTRIES_COLLECTION)
-    .where("daycareId", "==", daycareId)
     .where("locationId", "==", locationId)
     .where("childId", "==", childId)
     .where("occurredAt", ">=", startIso)
@@ -74,6 +84,10 @@ async function fetchEntriesForChildAndDate(params: {
   return entries;
 }
 
+/**
+ * Upserts a DailyReportDoc for a given child + date by aggregating entries.
+ * If there are no entries for that day, returns null and does not write anything.
+ */
 export async function upsertDailyReportForChildAndDate(params: {
   daycareId: string;
   locationId: string;
@@ -81,7 +95,7 @@ export async function upsertDailyReportForChildAndDate(params: {
   className?: string;
   childId: string;
   childName?: string;
-  date: string;
+  date: string; // "YYYY-MM-DD"
   makeVisibleToParents?: boolean;
 }): Promise<DailyReportDoc | null> {
   const {
@@ -149,6 +163,10 @@ export async function upsertDailyReportForChildAndDate(params: {
   return report;
 }
 
+/**
+ * Given a list of entries, upserts daily reports
+ * for each (childId, date) pair covered by those entries.
+ */
 export async function upsertDailyReportsForEntries(
   entries: EntryDoc[],
   options?: { makeVisibleToParents?: boolean }
@@ -169,18 +187,21 @@ export async function upsertDailyReportsForEntries(
     seen.add(key);
 
     await upsertDailyReportForChildAndDate({
-      daycareId: entry.daycareId,
+      daycareId: (entry as any).daycareId || "",
       locationId: entry.locationId,
       classId: entry.classId ?? null,
-      className: entry.className,
+      className: (entry as any).className,
       childId: entry.childId,
-      childName: entry.childName,
+      childName: (entry as any).childName,
       date,
       makeVisibleToParents: options?.makeVisibleToParents ?? false,
     });
   }
 }
 
+/**
+ * Marks a daily report as sent/visible to parents.
+ */
 export async function markDailyReportAsSent(
   reportId: string
 ): Promise<void> {
@@ -198,16 +219,20 @@ export async function markDailyReportAsSent(
   );
 }
 
+/**
+ * Lists daily reports for a teacher.
+ * Uses locationId (teachers are scoped to a single location).
+ * daycareId is kept in the signature for compatibility but not used in the query.
+ */
 export async function listDailyReportsForTeacher(params: {
   daycareId: string;
   locationId: string;
   filter?: DailyReportFilter;
 }): Promise<DailyReportDoc[]> {
-  const { daycareId, locationId, filter } = params;
+  const { locationId, filter } = params;
 
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(DAILY_REPORTS_COLLECTION)
-    .where("daycareId", "==", daycareId)
     .where("locationId", "==", locationId);
 
   if (filter?.classId) {
@@ -243,6 +268,11 @@ export async function listDailyReportsForTeacher(params: {
   return reports;
 }
 
+/**
+ * Lists daily reports for a parent.
+ * Uses childId list and optional locationId.
+ * daycareId is kept in the signature for compatibility but not used in the query.
+ */
 export async function listDailyReportsForParent(params: {
   daycareId: string;
   locationId?: string;
@@ -250,8 +280,7 @@ export async function listDailyReportsForParent(params: {
   filter?: DailyReportFilter;
   onlyVisibleToParents?: boolean;
 }): Promise<DailyReportDoc[]> {
-  const { daycareId, locationId, parentChildIds, filter, onlyVisibleToParents } =
-    params;
+  const { locationId, parentChildIds, filter, onlyVisibleToParents } = params;
 
   if (parentChildIds.length === 0) {
     return [];
@@ -270,7 +299,6 @@ export async function listDailyReportsForParent(params: {
 
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(DAILY_REPORTS_COLLECTION)
-    .where("daycareId", "==", daycareId)
     .where("childId", "in", allowedChildIds);
 
   if (locationId) {
