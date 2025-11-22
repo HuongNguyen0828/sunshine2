@@ -9,6 +9,7 @@ import type {
   AttendanceSubtype,
   SleepSubtype,
 } from "../../../../shared/types/type";
+import { upsertDailyReportsForEntries } from "./dailyReportService";
 
 /* =========
  * Types
@@ -16,7 +17,7 @@ import type {
 
 type AuthCtx = {
   userDocId: string;
-  daycareId?: string;  // optional now
+  daycareId?: string; // optional now
   locationId?: string;
 };
 
@@ -112,7 +113,7 @@ function buildDocBase(
     detail: (item as any).detail,
     photoUrl: (item as any).photoUrl,
 
-    // parent visibility
+    // parent visibility (parent feed still sees entries immediately)
     visibleToParents: true,
     publishedAt: nowIso,
   };
@@ -144,7 +145,9 @@ function validateItem(item: EntryCreateInput) {
     }
     case "Toilet": {
       const tk = (item as any).toiletKind;
-      if (tk !== "urine" && tk !== "bm") throw new Error("toilet_kind_required");
+      if (tk !== "urine" && tk !== "bm") {
+        throw new Error("toilet_kind_required");
+      }
       break;
     }
     case "Activity": {
@@ -241,6 +244,7 @@ export async function bulkCreateEntriesService(
 ): Promise<BulkEntryCreateResult> {
   const created: { id: string; type: EntryType }[] = [];
   const failed: { index: number; reason: string }[] = [];
+  const createdDocs: EntryDoc[] = [];
 
   // must know who is writing
   if (!auth.userDocId) throw new Error("missing_userDocId");
@@ -282,6 +286,7 @@ export async function bulkCreateEntriesService(
         doc.id = ref.id;
         applyTypeMapping(doc, item);
         writes.push({ index: i, refPath: ref.path, doc });
+        createdDocs.push(doc);
       }
     } catch (e: any) {
       failed.push({ index: i, reason: String(e?.message || "expand_failed") });
@@ -297,6 +302,19 @@ export async function bulkCreateEntriesService(
       created.push({ id: w.doc.id, type: w.doc.type });
     }
     await batch.commit();
+  }
+
+  // 4) upsert daily reports based on created entries
+  if (createdDocs.length > 0) {
+    try {
+      await upsertDailyReportsForEntries(createdDocs, {
+        // If you want parents to see reports immediately on checkout,
+        // you can change this policy later.
+        makeVisibleToParents: false,
+      });
+    } catch (e) {
+      console.error("upsertDailyReportsForEntries error:", e);
+    }
   }
 
   return { created, failed };
