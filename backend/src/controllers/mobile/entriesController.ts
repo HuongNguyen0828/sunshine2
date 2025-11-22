@@ -1,6 +1,5 @@
 // backend/src/controllers/mobile/entriesController.ts
-
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { db } from "../../lib/firebase";
 import { bulkCreateEntriesService } from "../../services/mobile/entriesService";
 import type {
@@ -9,20 +8,29 @@ import type {
   EntryDoc,
   EntryType,
 } from "../../../../shared/types/type";
-import type { AuthRequest } from "../../middleware/authMiddleware";
 
 /* =========
  * Helpers
  * ========= */
 
-// Extract auth info from AuthRequest injected by authMiddleware
-function getAuthCtx(req: AuthRequest) {
-  const u = req.user;
+// Read auth info injected by authMiddleware (supports both user and userToken)
+function getAuthCtx(req: Request) {
+  const raw: any =
+    (req as any).user || (req as any).userToken || {};
+
+  const role = raw.role ? String(raw.role) : "";
+  const userDocId = raw.userDocId ? String(raw.userDocId) : "";
+  const locationId = raw.locationId ? String(raw.locationId) : undefined;
+  const daycareId = raw.daycareId ? String(raw.daycareId) : undefined;
+
+  // Debug log once per request (optional)
+  // console.log("entriesController.getAuthCtx:", { role, userDocId, locationId, daycareId });
+
   return {
-    role: u?.role ? String(u.role) : "",
-    userDocId: u?.userDocId ? String(u.userDocId) : "",
-    locationId: u?.locationId ? String(u.locationId) : undefined,
-    daycareId: u?.daycareId ? String(u.daycareId) : undefined,
+    role,
+    userDocId,
+    locationId,
+    daycareId,
   };
 }
 
@@ -39,14 +47,13 @@ function clampLimit(v: unknown, def = 50, min = 1, max = 100) {
 }
 
 // Normalize UI "All ..." sentinel values to undefined (no filter)
-function normalizeOptional(v?: string | string[] | null) {
-  if (Array.isArray(v)) {
-    v = v[0];
-  }
+function normalizeOptional(v?: string | null) {
   const s = String(v ?? "").trim();
   if (!s) return undefined;
   const t = s.toLowerCase();
-  if (t === "all" || t === "all classes" || t === "all children") return undefined;
+  if (t === "all" || t === "all classes" || t === "all children") {
+    return undefined;
+  }
   return s;
 }
 
@@ -55,13 +62,16 @@ function normalizeOptional(v?: string | string[] | null) {
  * ========= */
 
 /**
- * POST /api/mobile/entries/bulk
+ * POST /api/mobile/v1/entries/bulk
  * Body: BulkEntryCreateRequest
  * Scope: teacher only
  */
-export async function bulkCreateEntries(req: AuthRequest, res: Response) {
+export async function bulkCreateEntries(req: Request, res: Response) {
   try {
     const auth = getAuthCtx(req);
+
+    // Debug
+    console.log("bulkCreateEntries auth:", auth);
 
     if (auth.role !== "teacher") {
       return res.status(403).json({ message: "forbidden_role" });
@@ -95,14 +105,14 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
 }
 
 /**
- * GET /api/mobile/entries
+ * GET /api/mobile/v1/entries
  * Query: childId?, classId?, type?, dateFrom?, dateTo?, limit?
  *
  * Role rules:
  *  - parent: only visibleToParents == true AND must provide childId
  *  - teacher: limited to their locationId; other filters optional
  */
-export async function listEntries(req: AuthRequest, res: Response) {
+export async function listEntries(req: Request, res: Response) {
   try {
     const auth = getAuthCtx(req);
     const role = auth.role;
@@ -114,14 +124,13 @@ export async function listEntries(req: AuthRequest, res: Response) {
       dateFrom,
       dateTo,
       limit: limitQ,
-    } = (req.query || {}) as Partial<EntryFilter> & { limit?: string | string[] };
+    } = (req.query || {}) as Partial<EntryFilter> & { limit?: string };
 
     const childId = normalizeOptional(rawChildId);
     const classId = normalizeOptional(rawClassId);
     const type = normalizeOptional(rawType) as EntryType | undefined;
 
-    let q: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> =
-      db.collection("entries");
+    let q: FirebaseFirestore.Query = db.collection("entries");
 
     // Role-based scoping
     if (role === "parent") {
@@ -156,10 +165,7 @@ export async function listEntries(req: AuthRequest, res: Response) {
     q = q.limit(limitNum);
 
     const snap = await q.get();
-    const items: EntryDoc[] = snap.docs.map((d) => {
-      const data = d.data() as EntryDoc;
-      return { ...data, id: d.id };
-    });
+    const items: EntryDoc[] = snap.docs.map((d) => d.data() as EntryDoc);
 
     return res.json(items);
   } catch (e: any) {
