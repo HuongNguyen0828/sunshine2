@@ -20,11 +20,16 @@ function normalizeOptional(v?: string | string[] | null) {
 
 /**
  * GET /api/mobile/teacher/daily-reports
+ * Role: teacher only
  */
 export const getTeacherDailyReports = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (req.user.role !== "teacher") {
+      return res.status(403).json({ message: "forbidden_role" });
     }
 
     const { daycareId, locationId } = req.user;
@@ -71,11 +76,16 @@ export const getTeacherDailyReports = async (req: AuthRequest, res: Response) =>
 
 /**
  * GET /api/mobile/parent/daily-reports
+ * Role: parent only
  */
 export const getParentDailyReports = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (req.user.role !== "parent") {
+      return res.status(403).json({ message: "forbidden_role" });
     }
 
     const { daycareId, locationId } = req.user;
@@ -139,11 +149,16 @@ export const getParentDailyReports = async (req: AuthRequest, res: Response) => 
 
 /**
  * POST /api/mobile/teacher/daily-reports/:id/send
+ * Role: teacher only
  */
 export const sendDailyReport = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (req.user.role !== "teacher") {
+      return res.status(403).json({ message: "forbidden_role" });
     }
 
     const reportId = req.params.id;
