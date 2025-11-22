@@ -22,7 +22,7 @@ type AuthCtx = {
   daycareId?: string;
 };
 
-// Prefer req.user (added by authMiddleware), fall back to req.userToken
+// Prefer req.user (authMiddleware), fallback to legacy req.userToken if present
 function getAuthCtx(req: AuthRequest): AuthCtx {
   const u = req.user;
   const tok: any = (req as any).userToken || {};
@@ -47,7 +47,7 @@ function clampLimit(v: unknown, def = 50, min = 1, max = 100) {
   return Math.max(min, Math.min(n, max));
 }
 
-// Normalize UI "All ..." values to undefined
+// Normalize UI "All ..." values to undefined (no filter)
 function normalizeOptional(v?: string | null) {
   const s = String(v ?? "").trim();
   if (!s) return undefined;
@@ -86,9 +86,10 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
 
     const result = await bulkCreateEntriesService(
       {
+        role: auth.role,
         userDocId: auth.userDocId,
         locationId: auth.locationId,
-        daycareId: auth.daycareId, // can be undefined, service handles it
+        daycareId: auth.daycareId, // optional
       },
       body
     );
