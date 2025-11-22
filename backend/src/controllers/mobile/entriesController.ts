@@ -1,5 +1,5 @@
 // backend/src/controllers/mobile/entriesController.ts
-import type { Request, Response } from "express";
+import type { Response } from "express";
 import { db } from "../../lib/firebase";
 import { bulkCreateEntriesService } from "../../services/mobile/entriesService";
 import type {
@@ -8,29 +8,19 @@ import type {
   EntryDoc,
   EntryType,
 } from "../../../../shared/types/type";
+import type { AuthRequest } from "../../middleware/authMiddleware";
 
 /* =========
  * Helpers
  * ========= */
 
-// Read auth info injected by authMiddleware (supports both user and userToken)
-function getAuthCtx(req: Request) {
-  const raw: any =
-    (req as any).user || (req as any).userToken || {};
-
-  const role = raw.role ? String(raw.role) : "";
-  const userDocId = raw.userDocId ? String(raw.userDocId) : "";
-  const locationId = raw.locationId ? String(raw.locationId) : undefined;
-  const daycareId = raw.daycareId ? String(raw.daycareId) : undefined;
-
-  // Debug log once per request (optional)
-  // console.log("entriesController.getAuthCtx:", { role, userDocId, locationId, daycareId });
-
+function getAuthCtx(req: AuthRequest) {
+  const u = req.user;
   return {
-    role,
-    userDocId,
-    locationId,
-    daycareId,
+    role: u?.role || "",
+    userDocId: u?.userDocId || "",
+    locationId: u?.locationId,
+    daycareId: u?.daycareId,
   };
 }
 
@@ -46,14 +36,11 @@ function clampLimit(v: unknown, def = 50, min = 1, max = 100) {
   return Math.max(min, Math.min(n, max));
 }
 
-// Normalize UI "All ..." sentinel values to undefined (no filter)
 function normalizeOptional(v?: string | null) {
   const s = String(v ?? "").trim();
   if (!s) return undefined;
   const t = s.toLowerCase();
-  if (t === "all" || t === "all classes" || t === "all children") {
-    return undefined;
-  }
+  if (t === "all" || t === "all classes" || t === "all children") return undefined;
   return s;
 }
 
@@ -61,17 +48,10 @@ function normalizeOptional(v?: string | null) {
  * Controllers
  * ========= */
 
-/**
- * POST /api/mobile/v1/entries/bulk
- * Body: BulkEntryCreateRequest
- * Scope: teacher only
- */
-export async function bulkCreateEntries(req: Request, res: Response) {
+export async function bulkCreateEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);
-
-    // Debug
-    console.log("bulkCreateEntries auth:", auth);
+    console.log("bulkCreateEntries authCtx:", auth);
 
     if (auth.role !== "teacher") {
       return res.status(403).json({ message: "forbidden_role" });
@@ -104,15 +84,7 @@ export async function bulkCreateEntries(req: Request, res: Response) {
   }
 }
 
-/**
- * GET /api/mobile/v1/entries
- * Query: childId?, classId?, type?, dateFrom?, dateTo?, limit?
- *
- * Role rules:
- *  - parent: only visibleToParents == true AND must provide childId
- *  - teacher: limited to their locationId; other filters optional
- */
-export async function listEntries(req: Request, res: Response) {
+export async function listEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);
     const role = auth.role;
@@ -132,7 +104,6 @@ export async function listEntries(req: Request, res: Response) {
 
     let q: FirebaseFirestore.Query = db.collection("entries");
 
-    // Role-based scoping
     if (role === "parent") {
       q = q.where("visibleToParents", "==", true);
       if (!childId) {
@@ -151,15 +122,12 @@ export async function listEntries(req: Request, res: Response) {
       return res.status(403).json({ message: "forbidden_role" });
     }
 
-    // Optional filters
     if (classId) q = q.where("classId", "==", classId);
     if (type) q = q.where("type", "==", type);
 
-    // Date range (by occurredAt)
     if (dateFrom && isIso(dateFrom)) q = q.where("occurredAt", ">=", dateFrom);
     if (dateTo && isIso(dateTo)) q = q.where("occurredAt", "<", dateTo);
 
-    // Ordering & limit
     q = q.orderBy("occurredAt", "desc");
     const limitNum = clampLimit(limitQ, 50, 1, 100);
     q = q.limit(limitNum);
