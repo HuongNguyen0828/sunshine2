@@ -12,11 +12,13 @@ const db = admin.firestore();
 const DAILY_REPORTS_COLLECTION = "dailyReports";
 
 /**
- * Builds ISO date string "YYYY-MM-DD" from an ISO datetime.
+ * Extracts "YYYY-MM-DD" (UTC) from an ISO datetime string.
  */
-function toDateBucket(iso: string): string | null {
+function getDateKeyFromOccurredAt(iso: string): string {
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return null;
+  if (isNaN(d.getTime())) {
+    return iso.slice(0, 10);
+  }
   const year = d.getUTCFullYear();
   const month = String(d.getUTCMonth() + 1).padStart(2, "0");
   const day = String(d.getUTCDate()).padStart(2, "0");
@@ -24,7 +26,7 @@ function toDateBucket(iso: string): string | null {
 }
 
 /**
- * Aggregates entries into a summary string such as "3 Food, 2 Sleep, 1 Activity".
+ * Builds an activity summary like "3 Food, 2 Sleep, 1 Activity".
  */
 function buildActivitySummary(entries: EntryDoc[]): {
   totalActivities: number;
@@ -51,142 +53,135 @@ function buildActivitySummary(entries: EntryDoc[]): {
 }
 
 /**
- * Upserts a DailyReportDoc for a given child + date
- * using the provided entries array (already filtered to that child + date).
- * Does NOT re-query the entries collection.
+ * Upserts a single daily report document for a given child + date
+ * using the provided entries (no extra reads from "entries" collection).
  */
-export async function upsertDailyReportForChildAndDate(params: {
-  daycareId: string;
-  locationId: string;
-  classId?: string | null;
-  className?: string;
+async function upsertSingleDailyReport(params: {
   childId: string;
-  childName?: string;
-  date: string; // "YYYY-MM-DD"
-  entries: EntryDoc[];
-  makeVisibleToParents?: boolean;
-}): Promise<DailyReportDoc | null> {
-  const {
-    daycareId,
-    locationId,
-    classId,
-    className,
-    childId,
-    childName,
-    date,
-    entries,
-    makeVisibleToParents,
-  } = params;
-
-  if (!entries.length) {
-    return null;
-  }
-
-  const { totalActivities, summary } = buildActivitySummary(entries);
-  const nowIso = new Date().toISOString();
+  date: string;
+  newEntries: EntryDoc[];
+  templateEntry: EntryDoc;
+  makeVisibleToParents: boolean;
+}): Promise<void> {
+  const { childId, date, newEntries, templateEntry, makeVisibleToParents } =
+    params;
 
   const reportId = `${childId}-${date}`;
   const docRef = db.collection(DAILY_REPORTS_COLLECTION).doc(reportId);
-  const existingSnap = await docRef.get();
+  const snap = await docRef.get();
 
+  let existingEntries: EntryDoc[] = [];
   let existingCreatedAt: string | undefined;
-  if (existingSnap.exists) {
-    const existingData = existingSnap.data() as DailyReportDoc;
-    existingCreatedAt = existingData.createdAt;
+  let existingVisibleToParents = false;
+  let existingSent = false;
+  let existingSentAt: string | undefined;
+
+  if (snap.exists) {
+    const existing = snap.data() as DailyReportDoc;
+    existingEntries = Array.isArray(existing.entries) ? existing.entries : [];
+    existingCreatedAt = existing.createdAt;
+    existingVisibleToParents = !!existing.visibleToParents;
+    existingSent = !!existing.sent;
+    existingSentAt = existing.sentAt;
   }
 
-  const visibleToParents =
-    makeVisibleToParents !== undefined ? makeVisibleToParents : false;
+  const mergedEntries = [...existingEntries, ...newEntries];
 
-  const sent = visibleToParents;
-  const sentAt = sent ? nowIso : undefined;
+  const { totalActivities, summary } = buildActivitySummary(mergedEntries);
+  const nowIso = new Date().toISOString();
+
+  const visibleToParents =
+    makeVisibleToParents || existingVisibleToParents || false;
+
+  const sent = visibleToParents || existingSent;
+  const sentAt = sent ? existingSentAt || nowIso : undefined;
 
   const report: DailyReportDoc = {
     id: reportId,
-    daycareId,
-    locationId,
-    classId: classId ?? null,
-    className,
-    childId,
-    childName,
+
+    // We keep daycareId for compatibility, but do not rely on it for filtering.
+    daycareId: templateEntry.daycareId ?? "",
+    locationId: templateEntry.locationId ?? "",
+    classId: templateEntry.classId ?? null,
+    className: templateEntry.className,
+
+    childId: templateEntry.childId,
+    childName: templateEntry.childName,
+
     date,
     totalActivities,
     activitySummary: summary,
-    entries,
+    entries: mergedEntries,
+
     visibleToParents,
     sent,
     sentAt,
+
     createdAt: existingCreatedAt || nowIso,
     updatedAt: nowIso,
   };
 
   await docRef.set(report, { merge: true });
-
-  return report;
 }
 
 /**
- * Given a list of entries, group them by (childId, date) and
- * upsert one daily report per group.
- *
- * This function does everything in memory. It does NOT query the entries
- * collection again, so no Firestore composite index is needed.
+ * Given a list of EntryDoc, upsert daily reports for each (childId, date) pair.
+ * This does NOT read from "entries" collection. It only reads/writes dailyReports.
  */
 export async function upsertDailyReportsForEntries(
   entries: EntryDoc[],
   options?: { makeVisibleToParents?: boolean }
 ): Promise<void> {
-  type Group = {
-    daycareId: string;
-    locationId: string;
-    classId?: string | null;
-    className?: string;
-    childId: string;
-    childName?: string;
-    date: string;
-    entries: EntryDoc[];
-  };
+  if (!entries || entries.length === 0) return;
 
-  const groups = new Map<string, Group>();
+  const makeVisibleToParents = options?.makeVisibleToParents ?? false;
+
+  // Group entries by (childId, date)
+  const grouped = new Map<
+    string,
+    { childId: string; date: string; entries: EntryDoc[]; templateEntry: EntryDoc }
+  >();
 
   for (const entry of entries) {
-    if (!entry.childId || !entry.occurredAt || !entry.locationId) continue;
+    if (!entry.childId || !entry.occurredAt) continue;
 
-    const date = toDateBucket(entry.occurredAt);
-    if (!date) continue;
+    const date = getDateKeyFromOccurredAt(entry.occurredAt);
+    const key = `${entry.childId}|${date}`;
 
-    const key = `${entry.childId}-${date}`;
-
-    if (!groups.has(key)) {
-      groups.set(key, {
-        daycareId: (entry as any).daycareId || "",
-        locationId: entry.locationId,
-        classId: entry.classId ?? null,
-        className: (entry as any).className,
+    if (!grouped.has(key)) {
+      grouped.set(key, {
         childId: entry.childId,
-        childName: (entry as any).childName,
         date,
-        entries: [],
+        entries: [entry],
+        templateEntry: entry,
       });
+    } else {
+      const g = grouped.get(key)!;
+      g.entries.push(entry);
     }
-
-    groups.get(key)!.entries.push(entry);
   }
 
-  for (const group of groups.values()) {
-    await upsertDailyReportForChildAndDate({
-      ...group,
-      makeVisibleToParents: options?.makeVisibleToParents ?? false,
-    });
+  const tasks: Promise<void>[] = [];
+
+  for (const { childId, date, entries: groupEntries, templateEntry } of grouped.values()) {
+    tasks.push(
+      upsertSingleDailyReport({
+        childId,
+        date,
+        newEntries: groupEntries,
+        templateEntry,
+        makeVisibleToParents,
+      })
+    );
   }
+
+  await Promise.all(tasks);
 }
 
 /**
  * Marks a daily report as sent/visible to parents.
  */
-export async function markDailyReportAsSent(
-  reportId: string
-): Promise<void> {
+export async function markDailyReportAsSent(reportId: string): Promise<void> {
   const nowIso = new Date().toISOString();
   const docRef = db.collection(DAILY_REPORTS_COLLECTION).doc(reportId);
 
@@ -202,15 +197,19 @@ export async function markDailyReportAsSent(
 }
 
 /**
- * Lists daily reports for a teacher.
- * Uses locationId only (teachers are scoped to a single location).
+ * Lists daily reports for a teacher context.
+ * We scope by locationId (teacher has only one location in your model).
  */
 export async function listDailyReportsForTeacher(params: {
-  daycareId: string;
+  daycareId: string; // kept for signature compatibility, not used for filtering
   locationId: string;
   filter?: DailyReportFilter;
 }): Promise<DailyReportDoc[]> {
   const { locationId, filter } = params;
+
+  if (!locationId) {
+    return [];
+  }
 
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(DAILY_REPORTS_COLLECTION)
@@ -250,11 +249,10 @@ export async function listDailyReportsForTeacher(params: {
 }
 
 /**
- * Lists daily reports for a parent.
- * Uses childId list and optional locationId.
+ * Lists daily reports for a parent context.
  */
 export async function listDailyReportsForParent(params: {
-  daycareId: string;
+  daycareId: string; // kept for signature compatibility, not used for filtering
   locationId?: string;
   parentChildIds: string[];
   filter?: DailyReportFilter;
@@ -262,7 +260,7 @@ export async function listDailyReportsForParent(params: {
 }): Promise<DailyReportDoc[]> {
   const { locationId, parentChildIds, filter, onlyVisibleToParents } = params;
 
-  if (parentChildIds.length === 0) {
+  if (!parentChildIds || parentChildIds.length === 0) {
     return [];
   }
 
