@@ -1,5 +1,5 @@
 // mobile/app/(teacher)/(tabs)/reports.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -26,12 +26,10 @@ import {
   CheckCircle,
   Send,
 } from "lucide-react-native";
+import { useFocusEffect } from "expo-router";
 
 import { mockClasses } from "../../../src/data/mockData";
-import type {
-  EntryDoc,
-  DailyReportDoc,
-} from "../../../../shared/types/type";
+import { EntryDoc, DailyReportDoc } from "../../../../shared/types/type";
 import { fetchTeacherDailyReports } from "@/services/useDailyReportAPI";
 
 const entryTypeConfig = {
@@ -43,7 +41,7 @@ const entryTypeConfig = {
   Photo: { icon: Camera, color: "#EC4899", bg: "#FCE7F3" },
   Note: { icon: FileText, color: "#6B7280", bg: "#F3F4F6" },
   Health: { icon: Heart, color: "#EF4444", bg: "#FEE2E2" },
-} as const;
+};
 
 type DateRange = "today" | "week" | "month" | "custom";
 
@@ -56,9 +54,8 @@ export default function TeacherReports() {
   const [showClassModal, setShowClassModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showDateModal, setShowDateModal] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<DailyReportDoc | null>(
-    null
-  );
+  const [selectedReport, setSelectedReport] =
+    useState<DailyReportDoc | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
 
   const [reports, setReports] = useState<DailyReportDoc[]>([]);
@@ -95,43 +92,42 @@ export default function TeacherReports() {
     return {};
   };
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadReports = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    const loadReports = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+      const { dateFrom, dateTo } = buildDateFilter();
 
-        const { dateFrom, dateTo } = buildDateFilter();
+      const data = await fetchTeacherDailyReports({
+        classId: selectedClass ?? undefined,
+        dateFrom,
+        dateTo,
+      });
 
-        const data = await fetchTeacherDailyReports({
-          classId: selectedClass ?? undefined,
-          dateFrom,
-          dateTo,
-        });
-
-        if (isMounted) {
-          setReports(data || []);
-        }
-      } catch (err: any) {
-        console.error("Failed to load teacher daily reports:", err);
-        if (isMounted) {
-          setError(err?.message || "Failed to load reports");
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadReports();
-
-    return () => {
-      isMounted = false;
-    };
+      setReports(data);
+    } catch (err: any) {
+      console.error("Failed to load teacher daily reports:", err);
+      setError(err?.message || "Failed to load reports");
+    } finally {
+      setLoading(false);
+    }
   }, [dateRange, selectedClass]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      (async () => {
+        if (!active) return;
+        await loadReports();
+      })();
+
+      return () => {
+        active = false;
+      };
+    }, [loadReports])
+  );
 
   const filteredReports = useMemo<DailyReportDoc[]>(() => {
     if (!selectedType) return reports;
@@ -260,9 +256,7 @@ export default function TeacherReports() {
             </Text>
           )}
           {error && (
-            <Text style={[styles.subtitle, { color: "#DC2626" }]}>
-              {error}
-            </Text>
+            <Text style={[styles.subtitle, { color: "#DC2626" }]}>{error}</Text>
           )}
         </View>
         <View style={styles.headerActions}>
@@ -429,6 +423,7 @@ export default function TeacherReports() {
         />
       )}
 
+      {/* Date Range Modal */}
       <Modal
         visible={showDateModal}
         animationType="slide"
@@ -477,6 +472,7 @@ export default function TeacherReports() {
         </Pressable>
       </Modal>
 
+      {/* Class Filter Modal */}
       <Modal
         visible={showClassModal}
         animationType="slide"
@@ -521,6 +517,7 @@ export default function TeacherReports() {
         </Pressable>
       </Modal>
 
+      {/* Type Filter Modal */}
       <Modal
         visible={showTypeModal}
         animationType="slide"
@@ -579,6 +576,7 @@ export default function TeacherReports() {
         </Pressable>
       </Modal>
 
+      {/* Report Detail Modal */}
       <Modal
         visible={showReportModal}
         animationType="slide"
