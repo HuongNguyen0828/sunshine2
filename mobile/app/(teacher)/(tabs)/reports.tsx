@@ -17,7 +17,7 @@ import {
   Calendar,
   Download,
   FileText,
-  Activity,
+  Activity as ActivityIcon,
   Coffee,
   Moon,
   Toilet,
@@ -28,23 +28,22 @@ import {
 } from "lucide-react-native";
 
 import { mockClasses } from "../../../src/data/mockData";
-import {
+import type {
   EntryDoc,
   DailyReportDoc,
 } from "../../../../shared/types/type";
 import { fetchTeacherDailyReports } from "@/services/useDailyReportAPI";
 
-// Entry type icons and colors (matching messages tab)
 const entryTypeConfig = {
   Attendance: { icon: CheckCircle, color: "#10B981", bg: "#D1FAE5" },
   Food: { icon: Coffee, color: "#F59E0B", bg: "#FEF3C7" },
   Sleep: { icon: Moon, color: "#8B5CF6", bg: "#EDE9FE" },
   Toilet: { icon: Toilet, color: "#06B6D4", bg: "#CFFAFE" },
-  Activity: { icon: Activity, color: "#3B82F6", bg: "#DBEAFE" },
+  Activity: { icon: ActivityIcon, color: "#3B82F6", bg: "#DBEAFE" },
   Photo: { icon: Camera, color: "#EC4899", bg: "#FCE7F3" },
   Note: { icon: FileText, color: "#6B7280", bg: "#F3F4F6" },
   Health: { icon: Heart, color: "#EF4444", bg: "#FEE2E2" },
-};
+} as const;
 
 type DateRange = "today" | "week" | "month" | "custom";
 
@@ -57,8 +56,9 @@ export default function TeacherReports() {
   const [showClassModal, setShowClassModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showDateModal, setShowDateModal] = useState(false);
-  const [selectedReport, setSelectedReport] =
-    useState<DailyReportDoc | null>(null);
+  const [selectedReport, setSelectedReport] = useState<DailyReportDoc | null>(
+    null
+  );
   const [showReportModal, setShowReportModal] = useState(false);
 
   const [reports, setReports] = useState<DailyReportDoc[]>([]);
@@ -67,7 +67,7 @@ export default function TeacherReports() {
 
   const buildDateFilter = (): { dateFrom?: string; dateTo?: string } => {
     const today = new Date();
-    const toIsoDate = (d: Date) => d.toISOString().slice(0, 10); // "YYYY-MM-DD"
+    const toIsoDate = (d: Date) => d.toISOString().slice(0, 10);
 
     const end = new Date(
       today.getFullYear(),
@@ -112,7 +112,7 @@ export default function TeacherReports() {
         });
 
         if (isMounted) {
-          setReports(data);
+          setReports(data || []);
         }
       } catch (err: any) {
         console.error("Failed to load teacher daily reports:", err);
@@ -131,10 +131,8 @@ export default function TeacherReports() {
     return () => {
       isMounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange, selectedClass]);
 
-  // Apply type filter on client side
   const filteredReports = useMemo<DailyReportDoc[]>(() => {
     if (!selectedType) return reports;
 
@@ -145,7 +143,6 @@ export default function TeacherReports() {
     );
   }, [reports, selectedType]);
 
-  // Stats based on filtered reports
   const stats = useMemo(() => {
     const typeCount: { [key: string]: number } = {};
     const uniqueChildren = new Set<string>();
@@ -252,7 +249,6 @@ export default function TeacherReports() {
 
   const renderHeader = () => (
     <>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.title}>Reports</Text>
@@ -276,7 +272,6 @@ export default function TeacherReports() {
         </View>
       </View>
 
-      {/* Stats Cards */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -301,7 +296,6 @@ export default function TeacherReports() {
         </View>
       </ScrollView>
 
-      {/* Filters */}
       <View style={styles.filterContainer}>
         <ScrollView
           horizontal
@@ -385,7 +379,6 @@ export default function TeacherReports() {
         </ScrollView>
       </View>
 
-      {/* Table Header */}
       <View style={styles.tableHeader}>
         <Text style={styles.headerDate}>Date</Text>
         <Text style={styles.headerChild}>Child</Text>
@@ -436,7 +429,6 @@ export default function TeacherReports() {
         />
       )}
 
-      {/* Date Range Modal */}
       <Modal
         visible={showDateModal}
         animationType="slide"
@@ -485,7 +477,6 @@ export default function TeacherReports() {
         </Pressable>
       </Modal>
 
-      {/* Class Filter Modal */}
       <Modal
         visible={showClassModal}
         animationType="slide"
@@ -530,7 +521,6 @@ export default function TeacherReports() {
         </Pressable>
       </Modal>
 
-      {/* Type Filter Modal */}
       <Modal
         visible={showTypeModal}
         animationType="slide"
@@ -589,7 +579,6 @@ export default function TeacherReports() {
         </Pressable>
       </Modal>
 
-      {/* Report Detail Modal */}
       <Modal
         visible={showReportModal}
         animationType="slide"
@@ -602,7 +591,6 @@ export default function TeacherReports() {
             style={styles.reportModalGradient}
           />
 
-          {/* Modal Header */}
           <View
             style={[
               styles.reportModalHeader,
@@ -621,7 +609,6 @@ export default function TeacherReports() {
 
           {selectedReport && (
             <ScrollView style={styles.reportModalContent}>
-              {/* Report Info */}
               <View style={styles.reportInfoCard}>
                 <Text style={styles.reportInfoDate}>
                   {new Date(
@@ -641,7 +628,6 @@ export default function TeacherReports() {
                 </Text>
               </View>
 
-              {/* Activity Summary */}
               <View style={styles.reportSection}>
                 <Text style={styles.reportSectionTitle}>Activity Summary</Text>
                 <Text style={styles.reportSummaryText}>
@@ -656,7 +642,6 @@ export default function TeacherReports() {
                 </Text>
               </View>
 
-              {/* Detailed Activities */}
               <View style={styles.reportSection}>
                 <Text style={styles.reportSectionTitle}>Activities</Text>
                 {(selectedReport.entries || []).map(
@@ -665,7 +650,7 @@ export default function TeacherReports() {
                       entryTypeConfig[
                         entry.type as keyof typeof entryTypeConfig
                       ];
-                    const IconComponent = config?.icon || Activity;
+                    const IconComponent = config?.icon || ActivityIcon;
                     const time = entry.occurredAt
                       ? new Date(entry.occurredAt).toLocaleTimeString(
                           "en-US",
@@ -716,7 +701,6 @@ export default function TeacherReports() {
                 )}
               </View>
 
-              {/* Notes Section (placeholder for future editing) */}
               <View style={styles.reportSection}>
                 <Text style={styles.reportSectionTitle}>Teacher Notes</Text>
                 <View style={styles.reportNotesPlaceholder}>
