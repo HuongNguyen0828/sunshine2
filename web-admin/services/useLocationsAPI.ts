@@ -7,6 +7,7 @@ import api from "@/api/client";
 export type LocationLite = {
   id: string;
   name?: string;
+  capacity?: number;
 };
 
 export async function fetchLocationsLite(): Promise<LocationLite[] | null> {
