@@ -5,6 +5,12 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - "5001:5001"
+    volumes:
+      - ./backend:/app/backend
+      - ./shared:/app/shared
+      - /app/backend/node_modules
+    env_file:
+      - ./backend/.env
     command: npm run dev
 
   web-admin:
