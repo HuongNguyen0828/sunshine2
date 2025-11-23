@@ -9,24 +9,26 @@ import type {
 
 const db = admin.firestore();
 
+const ENTRIES_COLLECTION = "entries";
 const DAILY_REPORTS_COLLECTION = "dailyReports";
+const CHILDREN_COLLECTION = "children";
 
 /**
- * Extracts "YYYY-MM-DD" (UTC) from an ISO datetime string.
+ * Build ISO datetime range [start, end) for a given "YYYY-MM-DD" date bucket.
  */
-function getDateKeyFromOccurredAt(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) {
-    return iso.slice(0, 10);
-  }
-  const year = d.getUTCFullYear();
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function buildDayRange(date: string) {
+  const start = new Date(`${date}T00:00:00.000Z`);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+
+  return {
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+  };
 }
 
 /**
- * Builds an activity summary like "3 Food, 2 Sleep, 1 Activity".
+ * Aggregate EntryDoc list into a summary string like "3 Food, 2 Sleep, 1 Activity".
  */
 function buildActivitySummary(entries: EntryDoc[]): {
   totalActivities: number;
@@ -34,10 +36,10 @@ function buildActivitySummary(entries: EntryDoc[]): {
 } {
   const typeCounts: Record<string, number> = {};
 
-  entries.forEach((entry) => {
+  for (const entry of entries) {
     const key = entry.type || "Unknown";
     typeCounts[key] = (typeCounts[key] || 0) + 1;
-  });
+  }
 
   const totalActivities = entries.length;
 
@@ -53,133 +55,181 @@ function buildActivitySummary(entries: EntryDoc[]): {
 }
 
 /**
- * Upserts a single daily report document for a given child + date
- * using the provided entries (no extra reads from "entries" collection).
+ * Resolve child name from the children collection.
+ * Tries: name -> (firstName + lastName) -> undefined.
  */
-async function upsertSingleDailyReport(params: {
+async function resolveChildName(childId: string): Promise<string | undefined> {
+  if (!childId) return undefined;
+
+  const snap = await db.collection(CHILDREN_COLLECTION).doc(childId).get();
+  if (!snap.exists) return undefined;
+
+  const data = snap.data() as any;
+  const fromName: string | undefined = data?.name;
+  const fromFirstLast = [data?.firstName, data?.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  if (fromName && fromName.trim()) return fromName.trim();
+  if (fromFirstLast) return fromFirstLast;
+
+  return undefined;
+}
+
+/**
+ * Fetch all EntryDoc for a given child + location + date bucket.
+ * This is used as the source when generating a DailyReportDoc.
+ */
+async function fetchEntriesForChildAndDate(params: {
+  locationId: string;
   childId: string;
-  date: string;
-  newEntries: EntryDoc[];
-  templateEntry: EntryDoc;
-  makeVisibleToParents: boolean;
-}): Promise<void> {
-  const { childId, date, newEntries, templateEntry, makeVisibleToParents } =
-    params;
+  date: string; // "YYYY-MM-DD"
+}): Promise<EntryDoc[]> {
+  const { locationId, childId, date } = params;
+  const { startIso, endIso } = buildDayRange(date);
+
+  let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
+    .collection(ENTRIES_COLLECTION)
+    .where("locationId", "==", locationId)
+    .where("childId", "==", childId)
+    .where("occurredAt", ">=", startIso)
+    .where("occurredAt", "<", endIso);
+
+  const snapshot = await query.get();
+
+  const entries: EntryDoc[] = [];
+  snapshot.forEach((doc) => {
+    const data = doc.data() as EntryDoc;
+    entries.push({ ...data, id: doc.id });
+  });
+
+  return entries;
+}
+
+/**
+ * Upsert a DailyReportDoc for a given child + date by aggregating EntryDoc records.
+ * If there are no entries for that day, it returns null and does not write anything.
+ */
+export async function upsertDailyReportForChildAndDate(params: {
+  daycareId?: string | null;
+  locationId: string;
+  classId?: string | null;
+  className?: string;
+  childId: string;
+  childName?: string;
+  date: string; // "YYYY-MM-DD"
+  makeVisibleToParents?: boolean;
+}): Promise<DailyReportDoc | null> {
+  const {
+    daycareId,
+    locationId,
+    classId,
+    className,
+    childId,
+    childName,
+    date,
+    makeVisibleToParents,
+  } = params;
+
+  const entries = await fetchEntriesForChildAndDate({
+    locationId,
+    childId,
+    date,
+  });
+
+  if (entries.length === 0) {
+    return null;
+  }
+
+  // Resolve childName if it is missing on the params
+  let resolvedChildName = childName;
+  if (!resolvedChildName) {
+    resolvedChildName = await resolveChildName(childId);
+  }
+
+  const { totalActivities, summary } = buildActivitySummary(entries);
+  const nowIso = new Date().toISOString();
 
   const reportId = `${childId}-${date}`;
   const docRef = db.collection(DAILY_REPORTS_COLLECTION).doc(reportId);
-  const snap = await docRef.get();
+  const existingSnap = await docRef.get();
 
-  let existingEntries: EntryDoc[] = [];
   let existingCreatedAt: string | undefined;
-  let existingVisibleToParents = false;
-  let existingSent = false;
-  let existingSentAt: string | undefined;
-
-  if (snap.exists) {
-    const existing = snap.data() as DailyReportDoc;
-    existingEntries = Array.isArray(existing.entries) ? existing.entries : [];
-    existingCreatedAt = existing.createdAt;
-    existingVisibleToParents = !!existing.visibleToParents;
-    existingSent = !!existing.sent;
-    existingSentAt = existing.sentAt;
+  if (existingSnap.exists) {
+    const existingData = existingSnap.data() as DailyReportDoc;
+    existingCreatedAt = existingData.createdAt;
   }
 
-  const mergedEntries = [...existingEntries, ...newEntries];
-
-  const { totalActivities, summary } = buildActivitySummary(mergedEntries);
-  const nowIso = new Date().toISOString();
-
   const visibleToParents =
-    makeVisibleToParents || existingVisibleToParents || false;
+    makeVisibleToParents !== undefined ? makeVisibleToParents : false;
 
-  const sent = visibleToParents || existingSent;
-  const sentAt = sent ? existingSentAt || nowIso : undefined;
+  const sent = visibleToParents;
+  const sentAt = sent ? nowIso : undefined;
 
   const report: DailyReportDoc = {
     id: reportId,
-
-    // We keep daycareId for compatibility, but do not rely on it for filtering.
-    daycareId: templateEntry.daycareId ?? "",
-    locationId: templateEntry.locationId ?? "",
-    classId: templateEntry.classId ?? null,
-    className: templateEntry.className,
-
-    childId: templateEntry.childId,
-    childName: templateEntry.childName,
-
+    daycareId: daycareId ?? "",          // keep for compatibility, but not required for queries
+    locationId,
+    classId: classId ?? null,
+    className,
+    childId,
+    childName: resolvedChildName,
     date,
     totalActivities,
     activitySummary: summary,
-    entries: mergedEntries,
-
+    entries,
     visibleToParents,
     sent,
     sentAt,
-
     createdAt: existingCreatedAt || nowIso,
     updatedAt: nowIso,
   };
 
   await docRef.set(report, { merge: true });
+
+  return report;
 }
 
 /**
- * Given a list of EntryDoc, upsert daily reports for each (childId, date) pair.
- * This does NOT read from "entries" collection. It only reads/writes dailyReports.
+ * Given a list of EntryDoc, upsert daily reports
+ * for each (childId, date) pair covered by those entries.
+ * This is designed to be called from the entries service after bulk create.
  */
 export async function upsertDailyReportsForEntries(
   entries: EntryDoc[],
   options?: { makeVisibleToParents?: boolean }
 ): Promise<void> {
-  if (!entries || entries.length === 0) return;
-
-  const makeVisibleToParents = options?.makeVisibleToParents ?? false;
-
-  // Group entries by (childId, date)
-  const grouped = new Map<
-    string,
-    { childId: string; date: string; entries: EntryDoc[]; templateEntry: EntryDoc }
-  >();
+  const seen = new Set<string>();
 
   for (const entry of entries) {
-    if (!entry.childId || !entry.occurredAt) continue;
+    if (!entry.childId || !entry.occurredAt || !entry.locationId) continue;
 
-    const date = getDateKeyFromOccurredAt(entry.occurredAt);
-    const key = `${entry.childId}|${date}`;
+    const occurred = new Date(entry.occurredAt);
+    const year = occurred.getUTCFullYear();
+    const month = String(occurred.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(occurred.getUTCDate()).padStart(2, "0");
+    const date = `${year}-${month}-${day}`;
 
-    if (!grouped.has(key)) {
-      grouped.set(key, {
-        childId: entry.childId,
-        date,
-        entries: [entry],
-        templateEntry: entry,
-      });
-    } else {
-      const g = grouped.get(key)!;
-      g.entries.push(entry);
-    }
+    const key = `${entry.childId}-${date}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    await upsertDailyReportForChildAndDate({
+      daycareId: (entry as any).daycareId ?? "",
+      locationId: entry.locationId,
+      classId: entry.classId ?? null,
+      className: (entry as any).className,
+      childId: entry.childId,
+      childName: (entry as any).childName,
+      date,
+      makeVisibleToParents: options?.makeVisibleToParents ?? false,
+    });
   }
-
-  const tasks: Promise<void>[] = [];
-
-  for (const { childId, date, entries: groupEntries, templateEntry } of grouped.values()) {
-    tasks.push(
-      upsertSingleDailyReport({
-        childId,
-        date,
-        newEntries: groupEntries,
-        templateEntry,
-        makeVisibleToParents,
-      })
-    );
-  }
-
-  await Promise.all(tasks);
 }
 
 /**
- * Marks a daily report as sent/visible to parents.
+ * Mark a daily report as sent/visible to parents.
  */
 export async function markDailyReportAsSent(reportId: string): Promise<void> {
   const nowIso = new Date().toISOString();
@@ -197,19 +247,15 @@ export async function markDailyReportAsSent(reportId: string): Promise<void> {
 }
 
 /**
- * Lists daily reports for a teacher context.
- * We scope by locationId (teacher has only one location in your model).
+ * List daily reports for a teacher context.
+ * For now we scope by locationId (teacher can only see one location).
  */
 export async function listDailyReportsForTeacher(params: {
-  daycareId: string; // kept for signature compatibility, not used for filtering
+  daycareId: string;
   locationId: string;
   filter?: DailyReportFilter;
 }): Promise<DailyReportDoc[]> {
   const { locationId, filter } = params;
-
-  if (!locationId) {
-    return [];
-  }
 
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(DAILY_REPORTS_COLLECTION)
@@ -249,18 +295,20 @@ export async function listDailyReportsForTeacher(params: {
 }
 
 /**
- * Lists daily reports for a parent context.
+ * List daily reports for a parent context.
+ * parentChildIds must already be resolved from Parent → Child relationships.
  */
 export async function listDailyReportsForParent(params: {
-  daycareId: string; // kept for signature compatibility, not used for filtering
+  daycareId: string;
   locationId?: string;
   parentChildIds: string[];
   filter?: DailyReportFilter;
   onlyVisibleToParents?: boolean;
 }): Promise<DailyReportDoc[]> {
-  const { locationId, parentChildIds, filter, onlyVisibleToParents } = params;
+  const { daycareId, locationId, parentChildIds, filter, onlyVisibleToParents } =
+    params;
 
-  if (!parentChildIds || parentChildIds.length === 0) {
+  if (parentChildIds.length === 0) {
     return [];
   }
 
@@ -277,6 +325,7 @@ export async function listDailyReportsForParent(params: {
 
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(DAILY_REPORTS_COLLECTION)
+    .where("daycareId", "==", daycareId)
     .where("childId", "in", allowedChildIds);
 
   if (locationId) {
