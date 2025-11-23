@@ -1,0 +1,33 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: builder
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./backend/src:/app/backend/src
+      - ./shared:/app/shared
+    env_file:
+      - ./backend/.env
+    command: npm run dev
+
+  web-admin:
+    build:
+      context: .
+      dockerfile: web-admin/Dockerfile
+      target: builder
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./web-admin/app:/app/app
+      - ./web-admin/components:/app/components
+      - ./web-admin/services:/app/services
+      - ./web-admin/api:/app/api
+      - ./shared:/app/../shared
+    command: npm run dev
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://localhost:5001
