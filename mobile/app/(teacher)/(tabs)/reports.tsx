@@ -63,34 +63,44 @@ export default function TeacherReports() {
   const [error, setError] = useState<string | null>(null);
 
   const buildDateFilter = (): { dateFrom?: string; dateTo?: string } => {
-    const today = new Date();
-    const toIsoDate = (d: Date) => d.toISOString().slice(0, 10);
+    const now = new Date();
 
-    const end = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate()
+    const todayUtc = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
     );
 
+    const toIsoDate = (d: Date) => d.toISOString().slice(0, 10); // "YYYY-MM-DD"
+
+    const daysAgoUtc = (days: number) => {
+      const d = new Date(todayUtc);
+      d.setUTCDate(d.getUTCDate() - days);
+      return d;
+    };
+
     if (dateRange === "today") {
-      const d = toIsoDate(end);
+      const d = toIsoDate(todayUtc);
       return { dateFrom: d, dateTo: d };
     }
 
     if (dateRange === "week") {
-      const start = new Date(end);
-      start.setDate(start.getDate() - 7);
-      return { dateFrom: toIsoDate(start), dateTo: toIsoDate(end) };
+      const start = daysAgoUtc(7);
+      return {
+        dateFrom: toIsoDate(start),
+        dateTo: toIsoDate(todayUtc),
+      };
     }
 
     if (dateRange === "month") {
-      const start = new Date(end);
-      start.setDate(start.getDate() - 30);
-      return { dateFrom: toIsoDate(start), dateTo: toIsoDate(end) };
+      const start = daysAgoUtc(30);
+      return {
+        dateFrom: toIsoDate(start),
+        dateTo: toIsoDate(todayUtc),
+      };
     }
 
     return {};
   };
+
 
   const loadReports = useCallback(async () => {
     try {
