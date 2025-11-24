@@ -148,7 +148,7 @@ export default function TeacherCalendar() {
     useEffect(() => {
         fetchSchedulesData();
         // console.log("Working ok")
-        console.log("SharedClasses: ", sharedData["classes"])
+        // console.log("SharedClasses: ", sharedData["classes"])
     }, [currentMonth]);
 
     const fetchSchedulesData = async () => {
@@ -231,7 +231,7 @@ export default function TeacherCalendar() {
 
         setEventCategories({ all, dailyActivities, otherEvents }); // Save all the event by Type
         // Save DailyActivity to sharedData in Context
-        updateSharedData("dailyActivity", dailyActivities);
+        // updateSharedData("dailyActivity", dailyActivities);
     }, [schedules, sharedData["classes"]]); //  depend on "classes" of Context only, not sharedData (otherwise circular dependency in your useEffect)
 
     const mockDaycareEvents = eventCategories.otherEvents;
