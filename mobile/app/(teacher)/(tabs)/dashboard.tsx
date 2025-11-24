@@ -285,20 +285,25 @@ export default function TeacherDashboard() {
 
   // Show Today Activity
   const showTodayActivity = () => {
+    console.log(selectedClass)
+    if (selectedClass === "all") {
+      alert("Please select a class to view Activity!")
+      return;
+    }
     const dailyActivities = sharedData["dailyActivity"] as EventByMonth;
     const today = new Date().toLocaleDateString('en-CA').split('T')[0]; // Always uses local timezone // "2025-11-19"
     const todayEvents = dailyActivities?.[today as keyof EventByMonth] || [];
+    const onlySelectedClassActivity = todayEvents.find(event => event.classes.includes(selectedClassLabel));
+
     // alert(today);
-    if (todayEvents.length === 0) {
-      alert("No activities for today! 🎉" + dailyActivities[today]);
+    if (!onlySelectedClassActivity) {
+      alert("No activities for today! 🎉");
       return;
     }
 
-    const eventList = todayEvents.map(event =>
-      `• ${event.title} (${event.time})
-      ${event.description}`
-
-    ).join('\n');
+    const eventList =
+      `• ${onlySelectedClassActivity.title} (${onlySelectedClassActivity.time})
+      ${onlySelectedClassActivity.description}`;
 
     alert(`Today's Activities:\n\n${eventList}`);
     sethowDetailActivity(true);

@@ -15,34 +15,34 @@
  */
 
 import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  Pressable,
-  FlatList,
+    View,
+    Text,
+    ScrollView,
+    StyleSheet,
+    Pressable,
+    FlatList,
 } from "react-native";
 import { useAppContext } from "@/contexts/AppContext";
 import { useState, useMemo, useEffect, act } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Calendar as CalendarIcon,
-  Cake,
-  Users,
-  Star,
-  Clock,
-  MapPin,
-  ClipboardCheck,
-  School,
-  AlertCircle,
+    ChevronLeft,
+    ChevronRight,
+    Calendar as CalendarIcon,
+    Cake,
+    Users,
+    Star,
+    Clock,
+    MapPin,
+    ClipboardCheck,
+    School,
+    AlertCircle,
 } from "lucide-react-native";
 import { ClassRow } from "./dashboard";
 
 export type EventByMonth = {
-  [date: string]: Event[];
+    [date: string]: Event[];
 };
 // export const fake: EventByMonth = {
 //   // Current month events
@@ -91,607 +91,607 @@ import { EventType } from "../../../../shared/types/type";
 import { fetchSchedulesForTeacher } from "@/services/useScheduleAPI";
 import { type Schedule } from "../../../../shared/types/type";
 export type ScheduleDate = { // MAtching backend data returned
-  id: string;
-  type: EventType;
-  weekStart: string;
-  dayOfWeek: string;
-  timeSlot: string;
-  activityTitle: string;
-  activityDescription: string;
-  activityMaterials: string;
-  classId: string; // null = applies to all classes
-  locationId: string; // location scope of the schedule if classId is "*"
-  color: string; // hex color code for activity pill
-  order: number; // order within the time slot (0 = first, 1 = second, etc.)
+    id: string;
+    type: EventType;
+    weekStart: string;
+    dayOfWeek: string;
+    timeSlot: string;
+    activityTitle: string;
+    activityDescription: string;
+    activityMaterials: string;
+    classId: string; // null = applies to all classes
+    locationId: string; // location scope of the schedule if classId is "*"
+    color: string; // hex color code for activity pill
+    order: number; // order within the time slot (0 = first, 1 = second, etc.)
 };
 
 type Event = {
-  id: string;
-  title: string;
-  time?: string;
-  location?: string;
-  type: EventType;
-  description?: string;
-  // children?: string[];
-  classes: string[] | any[]; // based on backend matching classId || '*' (event applied to all classes inside context)
-  materialsRequired?: string;
+    id: string;
+    title: string;
+    time?: string;
+    location?: string;
+    type: EventType;
+    description?: string;
+    // children?: string[];
+    classes: string[] | any[]; // based on backend matching classId || '*' (event applied to all classes inside context)
+    materialsRequired?: string;
 };
 
 type DayEvents = {
-  [date: string]: Event[];
+    [date: string]: Event[];
 };
 
 const eventColors = {
-  dailyActivity: { bg: "#DCFCE7", color: "#16A34A", icon: School }, // FROM DASHBOARD, happend every weekdays except holidays
-  childActivity: { bg: "#E0F2FE", color: "#0EA5E9", icon: Star }, // FROM DASHBOARD, special activities for children, happend occasionally
-  meeting: { bg: "#F3E8FF", color: "#9333EA", icon: Users }, // FROM DASHBOARD - teacher and taff meetings. (applied for all classes with details)
+    dailyActivity: { bg: "#DCFCE7", color: "#16A34A", icon: School }, // FROM DASHBOARD, happend every weekdays except holidays
+    childActivity: { bg: "#E0F2FE", color: "#0EA5E9", icon: Star }, // FROM DASHBOARD, special activities for children, happend occasionally
+    meeting: { bg: "#F3E8FF", color: "#9333EA", icon: Users }, // FROM DASHBOARD - teacher and taff meetings. (applied for all classes with details)
 
-  holiday: { bg: "#FEF3C7", color: "#F59E0B", icon: CalendarIcon }, // AUTO-computed based on public holidays
-  birthday: { bg: "#FCE7F3", color: "#EC4899", icon: Cake }, // AUTO- computed based on children's birthdates
+    holiday: { bg: "#FEF3C7", color: "#F59E0B", icon: CalendarIcon }, // AUTO-computed based on public holidays
+    birthday: { bg: "#FCE7F3", color: "#EC4899", icon: Cake }, // AUTO- computed based on children's birthdates
 };
 
 export default function TeacherCalendar() {
-  const insets = useSafeAreaInsets();
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [schedules, setSchedules] = useState<ScheduleDate[]>([]);
-  const [eventCategories, setEventCategories] = useState<{
-    all: EventByMonth; // including birthday
-    dailyActivities: EventByMonth; // only Daily
-    otherEvents: EventByMonth; // fetched from backend
-  }>({ all: {}, dailyActivities: {}, otherEvents: {} });
+    const insets = useSafeAreaInsets();
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [schedules, setSchedules] = useState<ScheduleDate[]>([]);
+    const [eventCategories, setEventCategories] = useState<{
+        all: EventByMonth; // including birthday
+        dailyActivities: EventByMonth; // only Daily
+        otherEvents: EventByMonth; // fetched from backend
+    }>({ all: {}, dailyActivities: {}, otherEvents: {} });
 
-  // Import classes from useAppContext
-  const { sharedData, updateSharedData } = useAppContext();
+    // Import classes from useAppContext
+    const { sharedData, updateSharedData } = useAppContext();
 
-  // Fetch schedules when month changes
-  useEffect(() => {
-    fetchSchedulesData();
-    // console.log("Working ok")
-    console.log("SharedClasses: ", sharedData["classes"])
-  }, [currentMonth]);
+    // Fetch schedules when month changes
+    useEffect(() => {
+        fetchSchedulesData();
+        // console.log("Working ok")
+        console.log("SharedClasses: ", sharedData["classes"])
+    }, [currentMonth]);
 
-  const fetchSchedulesData = async () => {
-    const currentMonthString = currentMonth.toISOString().split('T')[0];
-    // console.log("MONTH" + currentMonthString); // "2025-01-18"
-    try {
-      const results = await fetchSchedulesForTeacher(currentMonthString);
-      setSchedules(results); // GEt schedule for the current month REPLACING mock data
-      // console.log(results);
-    } catch (error) {
-      console.error('Error fetching schedules:', error);
-    }
-  };
+    const fetchSchedulesData = async () => {
+        const currentMonthString = currentMonth.toISOString().split('T')[0];
+        // console.log("MONTH" + currentMonthString); // "2025-01-18"
+        try {
+            const results = await fetchSchedulesForTeacher(currentMonthString);
+            setSchedules(results); // GEt schedule for the current month REPLACING mock data
+            // console.log(results);
+        } catch (error) {
+            console.error('Error fetching schedules:', error);
+        }
+    };
 
-  // Get calendar days for current month
-  const calendarDays = useMemo(() => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    // Get calendar days for current month
+    const calendarDays = useMemo(() => {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
 
-    const days = [];
-    const current = new Date(startDate);
+        const days = [];
+        const current = new Date(startDate);
 
-    for (let i = 0; i < 42; i++) {
-      days.push(new Date(current));
-      current.setDate(current.getDate() + 1);
-      if (i >= 35 && current.getMonth() !== month) break;
-    }
+        for (let i = 0; i < 42; i++) {
+            days.push(new Date(current));
+            current.setDate(current.getDate() + 1);
+            if (i >= 35 && current.getMonth() !== month) break;
+        }
 
-    return days;
-  }, [currentMonth]);
+        return days;
+    }, [currentMonth]);
 
-  // Format date for event lookup
-  const formatDateKey = (date: Date) => {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}-${String(date.getDate()).padStart(2, "0")}`;
-  };
+    // Format date for event lookup
+    const formatDateKey = (date: Date) => {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+            2,
+            "0"
+        )}-${String(date.getDate()).padStart(2, "0")}`;
+    };
 
-  useEffect(() => {
-    const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+    useEffect(() => {
+        const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"];
 
-    const all: EventByMonth = {};
-    const dailyActivities: EventByMonth = {};
-    const otherEvents: EventByMonth = {};
+        const all: EventByMonth = {};
+        const dailyActivities: EventByMonth = {};
+        const otherEvents: EventByMonth = {};
 
-    schedules.forEach((activity) => {
-      const baseDate = new Date(activity.weekStart);
-      const dayIndex = numberInWeek.indexOf(activity.dayOfWeek);
-      baseDate.setDate(baseDate.getDate() + dayIndex);
-      const date = baseDate.toISOString().split('T')[0];
+        schedules.forEach((activity) => {
+            const baseDate = new Date(activity.weekStart);
+            const dayIndex = numberInWeek.indexOf(activity.dayOfWeek);
+            baseDate.setDate(baseDate.getDate() + dayIndex);
+            const date = baseDate.toISOString().split('T')[0];
 
-      const eventOnDate: Event = {
-        id: activity.id,
-        title: activity.activityTitle,
-        time: activity.timeSlot,
-        type: activity.type,
-        description: activity.activityDescription,
-        classes: activity.classId !== "*"
-          ? [(sharedData["classes"] as ClassRow[]).find(cls => cls.id === activity.classId)?.name].filter(Boolean)
-          : (sharedData["classes"] as ClassRow[]).map((cls: any) => cls.name),
-        materialsRequired: activity.activityMaterials,
-      };
+            const eventOnDate: Event = {
+                id: activity.id,
+                title: activity.activityTitle,
+                time: activity.timeSlot,
+                type: activity.type,
+                description: activity.activityDescription,
+                classes: activity.classId !== "*"
+                    ? [(sharedData["classes"] as ClassRow[]).find(cls => cls.id === activity.classId)?.name].filter(Boolean)
+                    : (sharedData["classes"] as ClassRow[]).map((cls: any) => cls.name),
+                materialsRequired: activity.activityMaterials,
+            };
 
-      // Add to all
-      if (!all[date]) all[date] = [];
-      all[date] = [...(all[date] || []), eventOnDate];
+            // Add to all
+            if (!all[date]) all[date] = [];
+            all[date] = [...(all[date] || []), eventOnDate];
 
-      // Categorize
-      if (activity.type === "dailyActivity") {
-        dailyActivities[date] = [...(dailyActivities[date] || []), eventOnDate];
-      } else {
-        otherEvents[date] = [...(otherEvents[date] || []), eventOnDate];
-      }
-    });
+            // Categorize
+            if (activity.type === "dailyActivity") {
+                dailyActivities[date] = [...(dailyActivities[date] || []), eventOnDate];
+            } else {
+                otherEvents[date] = [...(otherEvents[date] || []), eventOnDate];
+            }
+        });
 
-    setEventCategories({ all, dailyActivities, otherEvents }); // Save all the event by Type
-    // Save DailyActivity to sharedData in Context
-    updateSharedData("dailyActivity", dailyActivities);
-  }, [schedules, sharedData["classes"]]); //  depend on "classes" of Context only, not sharedData (otherwise circular dependency in your useEffect)
+        setEventCategories({ all, dailyActivities, otherEvents }); // Save all the event by Type
+        // Save DailyActivity to sharedData in Context
+        updateSharedData("dailyActivity", dailyActivities);
+    }, [schedules, sharedData["classes"]]); //  depend on "classes" of Context only, not sharedData (otherwise circular dependency in your useEffect)
 
-  const mockDaycareEvents = eventCategories.otherEvents;
+    const mockDaycareEvents = eventCategories.otherEvents;
 
-  // Get events for selected date
-  const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
+    // Get events for selected date
+    const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
 
-  // Navigate months
-  const goToPreviousMonth = () => {
-    setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
-    );
-  };
+    // Navigate months
+    const goToPreviousMonth = () => {
+        setCurrentMonth(
+            new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
+        );
+    };
 
-  const goToNextMonth = () => {
-    setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
-    );
-  };
+    const goToNextMonth = () => {
+        setCurrentMonth(
+            new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
+        );
+    };
 
-  const goToToday = () => {
-    const today = new Date();
-    setCurrentMonth(today);
-    setSelectedDate(today);
-  };
+    const goToToday = () => {
+        const today = new Date();
+        setCurrentMonth(today);
+        setSelectedDate(today);
+    };
 
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
+    const monthNames = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
 
-  const dayNames = ["S", "M", "T", "W", "T", "F", "S"];
+    const dayNames = ["S", "M", "T", "W", "T", "F", "S"];
 
-  const renderEvent = (event: Event) => {
-    const config = eventColors[event.type];
-    const IconComponent = config.icon;
+    const renderEvent = (event: Event) => {
+        const config = eventColors[event.type];
+        const IconComponent = config.icon;
+
+        return (
+            <Pressable
+                key={event.id}
+                style={({ pressed }) => [
+                    styles.eventCard,
+                    { transform: [{ scale: pressed ? 0.98 : 1 }] },
+                ]}
+            >
+                <View
+                    style={[styles.eventIconContainer, { backgroundColor: config.bg }]}
+                >
+                    <IconComponent size={20} color={config.color} strokeWidth={2} />
+                </View>
+                <View style={styles.eventContent}>
+                    <Text style={styles.eventTitle}>{event.title}</Text>
+                    {/* <Text style={styles.eventTitle}>{event.type}</Text> */}
+
+                    <View style={styles.eventDetails}>
+                        {event.time && (
+                            <View style={styles.eventDetailRow}>
+                                <Clock size={12} color="#64748B" />
+                                <Text style={styles.eventDetailText}>{event.time}</Text>
+                            </View>
+                        )}
+                        {/* For Classes */}
+                        {event.classes.map((cls, index) => (
+                            <View key={index} style={styles.eventDetailRow}>
+                                <MapPin size={12} color="#64748B" />
+                                <Text style={styles.eventDetailText}>{cls}</Text>
+                            </View>
+                        ))}
+
+                        {event.materialsRequired && (
+                            <View style={styles.eventDetailRow}>
+                                <ClipboardCheck size={12} color="#64748B" />
+                                <Text style={styles.eventDetailText}>
+                                    {event.materialsRequired}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                    {event.description && (
+                        <Text style={styles.eventDescription}>{event.description}</Text>
+                    )}
+                </View>
+            </Pressable>
+        );
+    };
 
     return (
-      <Pressable
-        key={event.id}
-        style={({ pressed }) => [
-          styles.eventCard,
-          { transform: [{ scale: pressed ? 0.98 : 1 }] },
-        ]}
-      >
-        <View
-          style={[styles.eventIconContainer, { backgroundColor: config.bg }]}
-        >
-          <IconComponent size={20} color={config.color} strokeWidth={2} />
-        </View>
-        <View style={styles.eventContent}>
-          <Text style={styles.eventTitle}>{event.title}</Text>
-          {/* <Text style={styles.eventTitle}>{event.type}</Text> */}
+        <View style={styles.container}>
+            {/* Gradient Background */}
+            <LinearGradient
+                colors={["#E0E7FF", "#F0F4FF", "#FFFFFF"]}
+                style={styles.gradientBackground}
+            />
 
-          <View style={styles.eventDetails}>
-            {event.time && (
-              <View style={styles.eventDetailRow}>
-                <Clock size={12} color="#64748B" />
-                <Text style={styles.eventDetailText}>{event.time}</Text>
-              </View>
-            )}
-            {/* For Classes */}
-            {event.classes.map((cls) => (
-              <View key={cls.id} style={styles.eventDetailRow}>
-                <MapPin size={12} color="#64748B" />
-                <Text style={styles.eventDetailText}>{cls}</Text>
-              </View>
-            ))}
+            <ScrollView
+                style={styles.scrollView}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Header */}
+                <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+                    <Text style={styles.title}>Calendar</Text>
+                    <Pressable style={styles.todayButton} onPress={goToToday}>
+                        <Text style={styles.todayButtonText}>Today</Text>
+                    </Pressable>
+                </View>
 
-            {event.materialsRequired && (
-              <View style={styles.eventDetailRow}>
-                <ClipboardCheck size={12} color="#64748B" />
-                <Text style={styles.eventDetailText}>
-                  {event.materialsRequired}
-                </Text>
-              </View>
-            )}
-          </View>
-          {event.description && (
-            <Text style={styles.eventDescription}>{event.description}</Text>
-          )}
-        </View>
-      </Pressable>
-    );
-  };
+                {/* Month Navigation */}
+                <View style={styles.monthNav}>
+                    <Pressable onPress={goToPreviousMonth} style={styles.navButton}>
+                        <ChevronLeft size={24} color="#475569" />
+                    </Pressable>
+                    <Text style={styles.monthTitle}>
+                        {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                    </Text>
+                    <Pressable onPress={goToNextMonth} style={styles.navButton}>
+                        <ChevronRight size={24} color="#475569" />
+                    </Pressable>
+                </View>
 
-  return (
-    <View style={styles.container}>
-      {/* Gradient Background */}
-      <LinearGradient
-        colors={["#E0E7FF", "#F0F4FF", "#FFFFFF"]}
-        style={styles.gradientBackground}
-      />
-
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <Text style={styles.title}>Calendar</Text>
-          <Pressable style={styles.todayButton} onPress={goToToday}>
-            <Text style={styles.todayButtonText}>Today</Text>
-          </Pressable>
-        </View>
-
-        {/* Month Navigation */}
-        <View style={styles.monthNav}>
-          <Pressable onPress={goToPreviousMonth} style={styles.navButton}>
-            <ChevronLeft size={24} color="#475569" />
-          </Pressable>
-          <Text style={styles.monthTitle}>
-            {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-          </Text>
-          <Pressable onPress={goToNextMonth} style={styles.navButton}>
-            <ChevronRight size={24} color="#475569" />
-          </Pressable>
-        </View>
-
-        {/* Calendar Grid */}
-        <View style={styles.calendarContainer}>
-          {/* Day Names */}
-          <View style={styles.dayNamesRow}>
-            {dayNames.map((day, index) => (
-              <View key={index} style={styles.dayNameCell}>
-                <Text style={styles.dayNameText}>{day}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Calendar Days */}
-          <View style={styles.calendarGrid}>
-            {calendarDays.map((date, index) => {
-              const isCurrentMonth =
-                date.getMonth() === currentMonth.getMonth();
-              const isToday =
-                date.toDateString() === new Date().toDateString();
-              const isSelected =
-                date.toDateString() === selectedDate.toDateString();
-              const dateKey = formatDateKey(date);
-              const hasEvents = mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents]?.length > 0; // Does This month has event?
-              // const hasEvents = schedules.length > 0; // Does This month has event?
-              return (
-                <Pressable
-                  key={index}
-                  style={[
-                    styles.dayCell,
-                    isSelected && styles.selectedDayCell,
-                    isToday && styles.todayCell,
-                  ]}
-                  onPress={() => setSelectedDate(date)}
-                >
-                  <Text
-                    style={[
-                      styles.dayText,
-                      !isCurrentMonth && styles.otherMonthText,
-                      isSelected && styles.selectedDayText,
-                      isToday && styles.todayText,
-                    ]}
-                  >
-                    {date.getDate()}
-                  </Text>
-                  {hasEvents && (
-                    <View style={styles.eventDotsContainer}>
-                      {mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents].slice(0, 3).map((event, i) => (
-                        <View
-                          key={i}
-                          style={[
-                            styles.eventDot,
-                            { backgroundColor: eventColors[event.type as keyof typeof eventColors].color },
-                          ]}
-                        />
-                      ))}
+                {/* Calendar Grid */}
+                <View style={styles.calendarContainer}>
+                    {/* Day Names */}
+                    <View style={styles.dayNamesRow}>
+                        {dayNames.map((day, index) => (
+                            <View key={index} style={styles.dayNameCell}>
+                                <Text style={styles.dayNameText}>{day}</Text>
+                            </View>
+                        ))}
                     </View>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
 
-        {/* Selected Date Events */}
-        <View style={styles.eventsSection}>
-          <Text style={styles.eventsSectionTitle}>
-            {selectedDate.toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </Text>
+                    {/* Calendar Days */}
+                    <View style={styles.calendarGrid}>
+                        {calendarDays.map((date, index) => {
+                            const isCurrentMonth =
+                                date.getMonth() === currentMonth.getMonth();
+                            const isToday =
+                                date.toDateString() === new Date().toDateString();
+                            const isSelected =
+                                date.toDateString() === selectedDate.toDateString();
+                            const dateKey = formatDateKey(date);
+                            const hasEvents = mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents]?.length > 0; // Does This month has event?
+                            // const hasEvents = schedules.length > 0; // Does This month has event?
+                            return (
+                                <Pressable
+                                    key={index}
+                                    style={[
+                                        styles.dayCell,
+                                        isSelected && styles.selectedDayCell,
+                                        isToday && styles.todayCell,
+                                    ]}
+                                    onPress={() => setSelectedDate(date)}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.dayText,
+                                            !isCurrentMonth && styles.otherMonthText,
+                                            isSelected && styles.selectedDayText,
+                                            isToday && styles.todayText,
+                                        ]}
+                                    >
+                                        {date.getDate()}
+                                    </Text>
+                                    {hasEvents && (
+                                        <View style={styles.eventDotsContainer}>
+                                            {mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents].slice(0, 3).map((event, i) => (
+                                                <View
+                                                    key={i}
+                                                    style={[
+                                                        styles.eventDot,
+                                                        { backgroundColor: eventColors[event.type as keyof typeof eventColors].color },
+                                                    ]}
+                                                />
+                                            ))}
+                                        </View>
+                                    )}
+                                </Pressable>
+                            );
+                        })}
+                    </View>
+                </View>
 
-          {selectedDateEvents.length > 0 ? (
-            <View style={styles.eventsList}>
-              {selectedDateEvents.map(renderEvent as any)}
-            </View>
-          ) : (
-            <View style={styles.noEventsContainer}>
-              <CalendarIcon size={48} color="#CBD5E1" strokeWidth={1.5} />
-              <Text style={styles.noEventsText}>No events scheduled</Text>
-              <Text style={styles.noEventsSubtext}>
-                Tap + to add an event for this day
-              </Text>
-            </View>
-          )}
-        </View>
+                {/* Selected Date Events */}
+                <View style={styles.eventsSection}>
+                    <Text style={styles.eventsSectionTitle}>
+                        {selectedDate.toLocaleDateString("en-US", {
+                            weekday: "long",
+                            month: "long",
+                            day: "numeric",
+                        })}
+                    </Text>
 
-        {/* Quick Stats */}
-        <View style={styles.statsContainer}>
-          <Text style={styles.statsTitle}>This Week</Text>
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: "#F0F9FF" }]}>
-              <Text style={styles.statNumber}>3</Text>
-              <Text style={styles.statLabel}>Activities</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: "#FFF0F6" }]}>
-              <Text style={styles.statNumber}>2</Text>
-              <Text style={styles.statLabel}>Birthdays</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: "#F5F3FF" }]}>
-              <Text style={styles.statNumber}>1</Text>
-              <Text style={styles.statLabel}>Meeting</Text>
-            </View>
-          </View>
+                    {selectedDateEvents.length > 0 ? (
+                        <View style={styles.eventsList}>
+                            {selectedDateEvents.map(renderEvent as any)}
+                        </View>
+                    ) : (
+                        <View style={styles.noEventsContainer}>
+                            <CalendarIcon size={48} color="#CBD5E1" strokeWidth={1.5} />
+                            <Text style={styles.noEventsText}>No events scheduled</Text>
+                            <Text style={styles.noEventsSubtext}>
+                                Tap + to add an event for this day
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* Quick Stats */}
+                <View style={styles.statsContainer}>
+                    <Text style={styles.statsTitle}>This Week</Text>
+                    <View style={styles.statsGrid}>
+                        <View style={[styles.statCard, { backgroundColor: "#F0F9FF" }]}>
+                            <Text style={styles.statNumber}>3</Text>
+                            <Text style={styles.statLabel}>Activities</Text>
+                        </View>
+                        <View style={[styles.statCard, { backgroundColor: "#FFF0F6" }]}>
+                            <Text style={styles.statNumber}>2</Text>
+                            <Text style={styles.statLabel}>Birthdays</Text>
+                        </View>
+                        <View style={[styles.statCard, { backgroundColor: "#F5F3FF" }]}>
+                            <Text style={styles.statNumber}>1</Text>
+                            <Text style={styles.statLabel}>Meeting</Text>
+                        </View>
+                    </View>
+                </View>
+            </ScrollView>
         </View>
-      </ScrollView>
-    </View>
-  );
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  gradientBackground: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 400,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#1E293B",
-    letterSpacing: -0.5,
-  },
-  todayButton: {
-    backgroundColor: "#6366F1",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  todayButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  monthNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  navButton: {
-    padding: 8,
-  },
-  monthTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#1E293B",
-  },
-  calendarContainer: {
-    marginHorizontal: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    marginBottom: 24,
-  },
-  dayNamesRow: {
-    flexDirection: "row",
-    marginBottom: 8,
-  },
-  dayNameCell: {
-    flex: 1,
-    alignItems: "center",
-  },
-  dayNameText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#64748B",
-  },
-  calendarGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  dayCell: {
-    width: "14.28%",
-    aspectRatio: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 4,
-  },
-  selectedDayCell: {
-    backgroundColor: "#6366F1",
-    borderRadius: 12,
-  },
-  todayCell: {
-    backgroundColor: "#E0E7FF",
-    borderRadius: 12,
-  },
-  dayText: {
-    fontSize: 15,
-    color: "#1E293B",
-  },
-  otherMonthText: {
-    color: "#CBD5E1",
-  },
-  selectedDayText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
-  todayText: {
-    fontWeight: "600",
-  },
-  eventDotsContainer: {
-    flexDirection: "row",
-    position: "absolute",
-    bottom: 2,
-    gap: 2,
-  },
-  eventDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-  },
-  eventsSection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  eventsSectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1E293B",
-    marginBottom: 16,
-  },
-  eventsList: {
-    gap: 12,
-  },
-  eventCard: {
-    flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    marginBottom: 12,
-  },
-  eventIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  eventContent: {
-    flex: 1,
-  },
-  eventTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1E293B",
-    marginBottom: 4,
-  },
-  eventDetails: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 4,
-  },
-  eventDetailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  eventDetailText: {
-    fontSize: 12,
-    color: "#64748B",
-  },
-  eventDescription: {
-    fontSize: 13,
-    color: "#64748B",
-    marginTop: 6,
-    fontStyle: "italic",
-  },
-  noEventsContainer: {
-    alignItems: "center",
-    paddingVertical: 40,
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-    borderRadius: 16,
-  },
-  noEventsText: {
-    fontSize: 16,
-    color: "#64748B",
-    marginTop: 12,
-    fontWeight: "500",
-  },
-  noEventsSubtext: {
-    fontSize: 14,
-    color: "#94A3B8",
-    marginTop: 4,
-  },
-  statsContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 40,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1E293B",
-    marginBottom: 12,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#64748B",
-    marginTop: 4,
-  },
+    container: {
+        flex: 1,
+        backgroundColor: "#FFFFFF",
+    },
+    gradientBackground: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 400,
+    },
+    scrollView: {
+        flex: 1,
+    },
+    header: {
+        paddingHorizontal: 20,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+    },
+    title: {
+        fontSize: 32,
+        fontWeight: "bold",
+        color: "#1E293B",
+        letterSpacing: -0.5,
+    },
+    todayButton: {
+        backgroundColor: "#6366F1",
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+    },
+    todayButtonText: {
+        color: "#FFFFFF",
+        fontSize: 14,
+        fontWeight: "600",
+    },
+    monthNav: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 20,
+        marginBottom: 20,
+    },
+    navButton: {
+        padding: 8,
+    },
+    monthTitle: {
+        fontSize: 20,
+        fontWeight: "600",
+        color: "#1E293B",
+    },
+    calendarContainer: {
+        marginHorizontal: 20,
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        borderRadius: 20,
+        padding: 16,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+        marginBottom: 24,
+    },
+    dayNamesRow: {
+        flexDirection: "row",
+        marginBottom: 8,
+    },
+    dayNameCell: {
+        flex: 1,
+        alignItems: "center",
+    },
+    dayNameText: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: "#64748B",
+    },
+    calendarGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+    },
+    dayCell: {
+        width: "14.28%",
+        aspectRatio: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 4,
+    },
+    selectedDayCell: {
+        backgroundColor: "#6366F1",
+        borderRadius: 12,
+    },
+    todayCell: {
+        backgroundColor: "#E0E7FF",
+        borderRadius: 12,
+    },
+    dayText: {
+        fontSize: 15,
+        color: "#1E293B",
+    },
+    otherMonthText: {
+        color: "#CBD5E1",
+    },
+    selectedDayText: {
+        color: "#FFFFFF",
+        fontWeight: "600",
+    },
+    todayText: {
+        fontWeight: "600",
+    },
+    eventDotsContainer: {
+        flexDirection: "row",
+        position: "absolute",
+        bottom: 2,
+        gap: 2,
+    },
+    eventDot: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+    },
+    eventsSection: {
+        paddingHorizontal: 20,
+        marginBottom: 24,
+    },
+    eventsSectionTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: "#1E293B",
+        marginBottom: 16,
+    },
+    eventsList: {
+        gap: 12,
+    },
+    eventCard: {
+        flexDirection: "row",
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        borderRadius: 16,
+        padding: 16,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+        marginBottom: 12,
+    },
+    eventIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 12,
+    },
+    eventContent: {
+        flex: 1,
+    },
+    eventTitle: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#1E293B",
+        marginBottom: 4,
+    },
+    eventDetails: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 12,
+        marginTop: 4,
+    },
+    eventDetailRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+    },
+    eventDetailText: {
+        fontSize: 12,
+        color: "#64748B",
+    },
+    eventDescription: {
+        fontSize: 13,
+        color: "#64748B",
+        marginTop: 6,
+        fontStyle: "italic",
+    },
+    noEventsContainer: {
+        alignItems: "center",
+        paddingVertical: 40,
+        backgroundColor: "rgba(255, 255, 255, 0.7)",
+        borderRadius: 16,
+    },
+    noEventsText: {
+        fontSize: 16,
+        color: "#64748B",
+        marginTop: 12,
+        fontWeight: "500",
+    },
+    noEventsSubtext: {
+        fontSize: 14,
+        color: "#94A3B8",
+        marginTop: 4,
+    },
+    statsContainer: {
+        paddingHorizontal: 20,
+        marginBottom: 40,
+    },
+    statsTitle: {
+        fontSize: 18,
+        fontWeight: "600",
+        color: "#1E293B",
+        marginBottom: 12,
+    },
+    statsGrid: {
+        flexDirection: "row",
+        gap: 12,
+    },
+    statCard: {
+        flex: 1,
+        padding: 16,
+        borderRadius: 16,
+        alignItems: "center",
+    },
+    statNumber: {
+        fontSize: 24,
+        fontWeight: "700",
+        color: "#1E293B",
+    },
+    statLabel: {
+        fontSize: 12,
+        color: "#64748B",
+        marginTop: 4,
+    },
 });
