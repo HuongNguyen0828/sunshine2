@@ -395,7 +395,7 @@ export function WeeklyCalendar({
                       whileHover={{ scale: 1.02, borderColor: 'rgb(163, 163, 163)' }}
                       whileTap={{ scale: 0.98 }}
                       transition={{ type: "spring", damping: 15, stiffness: 300 }}
-                      className="flex items-center justify-center gap-1 px-3 py-2 text-xs text-neutral-500 border-2 border-dashed border-neutral-200 rounded-lg hover:text-neutral-700 hover:bg-white transition-colors"
+                      className="flex items-center justify-center gap-1 px-3 py-2 text-xs text-neutral-500 border-2 border-dashed border-neutral-200 hover:text-neutral-700 hover:bg-white transition-colors"
                     >
                       <span className="text-base">+</span>
                       <span>Add activity</span>
