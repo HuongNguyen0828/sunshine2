@@ -46,7 +46,7 @@ export function ActivityLibrary({ activities, onClose, onActivityDeleted }: Acti
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden">
+      <div className="bg-white max-w-2xl w-full max-h-[80vh] overflow-hidden">
         <div className="p-6 border-b border-neutral-200">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-neutral-900">
