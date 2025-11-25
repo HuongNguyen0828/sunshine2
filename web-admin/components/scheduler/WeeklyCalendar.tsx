@@ -208,7 +208,7 @@ export function WeeklyCalendar({
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm relative">
+    <div className="bg-white border border-neutral-200 overflow-hidden relative">
       {/* Invisible backdrop when any menu is open - renders at calendar level */}
       {openMenuId && (
         <div
