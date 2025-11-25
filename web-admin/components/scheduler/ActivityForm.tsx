@@ -151,10 +151,10 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
                   onClick={() => setColor(c.value)}
                   disabled={isSubmitting}
                   className={`
-                    relative h-12 rounded-lg transition-all
+                    relative h-12 transition-all
                     ${c.bg}
                     ${color === c.value
-                      ? 'ring-2 ring-offset-2 ring-gray-900 scale-105'
+                      ? 'ring-2 ring-offset-2 ring-neutral-900 scale-105'
                       : 'hover:scale-105 opacity-80 hover:opacity-100'
                     }
                   `}
