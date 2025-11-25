@@ -91,7 +91,7 @@ export function ActivityLibrary({ activities, onClose, onActivityDeleted }: Acti
               {filteredActivities.map(activity => (
                 <div
                   key={activity.id}
-                  className="p-4 border border-neutral-200 rounded-lg hover:border-neutral-300 transition-colors"
+                  className="p-4 border border-neutral-200 hover:border-neutral-300 transition-colors"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
