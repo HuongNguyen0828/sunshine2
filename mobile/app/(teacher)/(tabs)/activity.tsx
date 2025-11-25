@@ -91,11 +91,11 @@ export default function TeacherMessages() {
   const [searchText, setSearchText] = useState("");
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
-  const [selectedChild, setSelectedChild] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
+  // const [selectedChild, setSelectedChild] = useState<string | null>(null);
+  // const [selectedType, setSelectedType] = useState<string | null>(null);
   const [showClassModal, setShowClassModal] = useState(false);
-  const [showChildModal, setShowChildModal] = useState(false);
-  const [showTypeModal, setShowTypeModal] = useState(false);
+  // const [showChildModal, setShowChildModal] = useState(false);
+  // const [showTypeModal, setShowTypeModal] = useState(false);
 
   // Debounce search text with 300ms delay
   useEffect(() => {
@@ -126,9 +126,9 @@ export default function TeacherMessages() {
     // Filter by search text (using debounced value)
     if (debouncedSearchText) {
       filtered = filtered.filter(entry =>
-        entry.childName?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
-        entry.detail?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
-        entry.type?.toLowerCase().includes(debouncedSearchText.toLowerCase())
+        // entry.childName?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
+        entry.detail?.toLowerCase().includes(debouncedSearchText.toLowerCase())
+        // entry.type?.toLowerCase().includes(debouncedSearchText.toLowerCase())
       );
     }
 
@@ -137,18 +137,18 @@ export default function TeacherMessages() {
       filtered = filtered.filter(entry => entry.classId === selectedClass);
     }
 
-    // Filter by child
-    if (selectedChild) {
-      filtered = filtered.filter(entry => entry.childId === selectedChild);
-    }
+    // // Filter by child
+    // if (selectedChild) {
+    //   filtered = filtered.filter(entry => entry.childId === selectedChild);
+    // }
 
-    // Filter by type
-    if (selectedType) {
-      filtered = filtered.filter(entry => entry.type === selectedType);
-    }
+    // // Filter by type
+    // if (selectedType) {
+    //   filtered = filtered.filter(entry => entry.type === selectedType);
+    // }
 
     return filtered;
-  }, [entries, debouncedSearchText, selectedClass, selectedChild, selectedType]);
+  }, [entries, debouncedSearchText, selectedClass]);
 
   // Group entries by date for SectionList
   const sections = useMemo(() => {
@@ -188,12 +188,11 @@ export default function TeacherMessages() {
 
   const clearFilters = () => {
     setSelectedClass(null);
-    setSelectedChild(null);
-    setSelectedType(null);
+
     setSearchText("");
   };
 
-  const hasActiveFilters = selectedClass || selectedChild || selectedType || debouncedSearchText;
+  const hasActiveFilters = selectedClass || debouncedSearchText;
 
   // Memoize the header component to prevent re-renders and focus loss
   const ListHeader = useMemo(() => {
@@ -241,33 +240,11 @@ export default function TeacherMessages() {
               </Text>
               <ChevronDown size={16} color={selectedClass ? "#FFFFFF" : "#475569"} />
             </Pressable>
-
-            <Pressable
-              style={[styles.filterButton, selectedChild && styles.filterButtonActive]}
-              onPress={() => setShowChildModal(true)}
-            >
-              <Text style={[styles.filterButtonText, selectedChild && styles.filterButtonTextActive]}>
-                {selectedChild
-                  ? mockChildren.find(c => c.id === selectedChild)?.firstName
-                  : "All Children"}
-              </Text>
-              <ChevronDown size={16} color={selectedChild ? "#FFFFFF" : "#475569"} />
-            </Pressable>
-
-            <Pressable
-              style={[styles.filterButton, selectedType && styles.filterButtonActive]}
-              onPress={() => setShowTypeModal(true)}
-            >
-              <Text style={[styles.filterButtonText, selectedType && styles.filterButtonTextActive]}>
-                {selectedType || "All Types"}
-              </Text>
-              <ChevronDown size={16} color={selectedType ? "#FFFFFF" : "#475569"} />
-            </Pressable>
           </View>
         </View>
       </>
     );
-  }, [insets.top, filteredEntries.length, searchText, handleSearchChange, handleClearSearch, selectedClass, selectedChild, selectedType]);
+  }, [insets.top, filteredEntries.length, searchText, handleSearchChange, handleClearSearch, selectedClass]);
 
   return (
     <View style={styles.container}>
@@ -315,7 +292,6 @@ export default function TeacherMessages() {
               style={[styles.modalOption, !selectedClass && styles.modalOptionSelected]}
               onPress={() => {
                 setSelectedClass(null);
-                setSelectedChild(null); // Reset child when class changes
                 setShowClassModal(false);
               }}
             >
@@ -327,7 +303,6 @@ export default function TeacherMessages() {
                 style={[styles.modalOption, selectedClass === cls.id && styles.modalOptionSelected]}
                 onPress={() => {
                   setSelectedClass(cls.id);
-                  setSelectedChild(null); // Reset child when class changes
                   setShowClassModal(false);
                 }}
               >
@@ -335,98 +310,6 @@ export default function TeacherMessages() {
                 <Text style={styles.modalOptionSubtext}>{cls.ageRange}</Text>
               </Pressable>
             ))}
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Child Filter Modal */}
-      <Modal
-        visible={showChildModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowChildModal(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowChildModal(false)}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Child</Text>
-            <ScrollView style={styles.modalScroll}>
-              <Pressable
-                style={[styles.modalOption, !selectedChild && styles.modalOptionSelected]}
-                onPress={() => {
-                  setSelectedChild(null);
-                  setShowChildModal(false);
-                }}
-              >
-                <Text style={styles.modalOptionText}>All Children</Text>
-              </Pressable>
-              {availableChildren.map(child => (
-                <Pressable
-                  key={child.id}
-                  style={[styles.modalOption, selectedChild === child.id && styles.modalOptionSelected]}
-                  onPress={() => {
-                    setSelectedChild(child.id);
-                    setShowChildModal(false);
-                  }}
-                >
-                  <Text style={styles.modalOptionText}>
-                    {child.firstName} {child.lastName}
-                  </Text>
-                  <Text style={styles.modalOptionSubtext}>
-                    {mockClasses.find(c => c.id === child.classId)?.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Type Filter Modal */}
-      <Modal
-        visible={showTypeModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowTypeModal(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowTypeModal(false)}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Entry Type</Text>
-            <Pressable
-              style={[styles.modalOption, !selectedType && styles.modalOptionSelected]}
-              onPress={() => {
-                setSelectedType(null);
-                setShowTypeModal(false);
-              }}
-            >
-              <Text style={styles.modalOptionText}>All Types</Text>
-            </Pressable>
-            {Object.keys(entryTypeConfig).map(type => {
-              const config = entryTypeConfig[type as keyof typeof entryTypeConfig];
-              const IconComponent = config.icon;
-              return (
-                <Pressable
-                  key={type}
-                  style={[styles.modalOption, selectedType === type && styles.modalOptionSelected]}
-                  onPress={() => {
-                    setSelectedType(type);
-                    setShowTypeModal(false);
-                  }}
-                >
-                  <View style={styles.modalOptionWithIcon}>
-                    <View style={[styles.modalOptionIcon, { backgroundColor: config.bg }]}>
-                      <IconComponent size={16} color={config.color} />
-                    </View>
-                    <Text style={styles.modalOptionText}>{type}</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
           </View>
         </Pressable>
       </Modal>
