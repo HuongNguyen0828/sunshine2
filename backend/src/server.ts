@@ -18,6 +18,7 @@ import mobileRegistrationRoutes from "./routes/mobile/registrationRoutes";
 import mobileEntriesRoutes from "./routes/mobile/entriesRoutes";
 import mobileParentFeedRoutes from "./routes/mobile/parentFeedRoutes";
 import scheduleRoutes from "./routes/mobile/scheduleRoutes";
+import mobileDailyReportRoutes from "./routes/mobile/dailyReportRoutes";
 
 const app = express();
 
@@ -78,13 +79,14 @@ app.use("/api/locations", locationRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/children", childRoutes);
 app.use("/api/schedules", schedulerRoutes);
-app.use("/api/parents", parentRoutes)
+app.use("/api/parents", parentRoutes);
 
 // mobile routes
 app.use("/api/mobile", mobileRegistrationRoutes);
 app.use("/api/mobile", mobileEntriesRoutes);
 app.use("/api/mobile", mobileParentFeedRoutes);
 app.use("/api/mobile", scheduleRoutes); // /api/mobile/schedules (GET only)
+app.use("/api/mobile", mobileDailyReportRoutes); // /api/mobile/teacher|parent/daily-reports
 
 // 404
 app.use((req, res) => {
