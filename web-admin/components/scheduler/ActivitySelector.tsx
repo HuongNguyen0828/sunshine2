@@ -32,19 +32,19 @@ export function ActivitySelector({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-neutral-200">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-neutral-900">
               Select Activity
             </h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-xl"
+              className="text-neutral-400 hover:text-neutral-600 text-xl"
             >
               ×
             </button>
           </div>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-neutral-600 mt-1">
             {slotInfo.day.charAt(0).toUpperCase() + slotInfo.day.slice(1)} - {slotInfo.timeSlot}
           </p>
         </div>
