@@ -280,69 +280,56 @@ export function WeeklyScheduler() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-6">
-      {/* Consciousness Note: This header preserves the navigation feel but exists in new context */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Scheduler Labs
-            </h2>
-            <p className="text-gray-600 text-sm">
-              Experimental scheduler interface - decoupled from original backend for design exploration
-            </p>
-          </div>
+    <div className="space-y-6">
+      {/* Controls Row */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigateWeek('prev')}
+            className="p-2 rounded-md border border-neutral-200 hover:bg-neutral-50 transition-colors text-neutral-600"
+            aria-label="Previous week"
+          >
+            ←
+          </button>
+          <h3 className="text-lg font-medium text-neutral-900">
+            Week of {formatWeekRange(currentWeek)}
+          </h3>
+          <button
+            onClick={() => navigateWeek('next')}
+            className="p-2 rounded-md border border-neutral-200 hover:bg-neutral-50 transition-colors text-neutral-600"
+            aria-label="Next week"
+          >
+            →
+          </button>
+
+          {/* Class Filter Dropdown */}
+          <select
+            value={selectedClassId}
+            onChange={(e) => setSelectedClassId(e.target.value)}
+            className="px-4 py-2 border border-neutral-200 rounded-md focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none bg-white text-neutral-700"
+          >
+            <option value="all">All Classes</option>
+            {classes.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.name}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigateWeek('prev')}
-              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-              aria-label="Previous week"
-            >
-              ←
-            </button>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Week of {formatWeekRange(currentWeek)}
-            </h3>
-            <button
-              onClick={() => navigateWeek('next')}
-              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-              aria-label="Next week"
-            >
-              →
-            </button>
-
-            {/* Class Filter Dropdown */}
-            <select
-              value={selectedClassId}
-              onChange={(e) => setSelectedClassId(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-            >
-              <option value="all">All Classes</option>
-              {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowActivityLibrary(true)}
-              className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              My Activities ({activities.length})
-            </button>
-            <button
-              onClick={() => setShowActivityForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              + New Activity
-            </button>
-          </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowActivityLibrary(true)}
+            className="px-4 py-2 text-neutral-700 border border-neutral-200 rounded-md hover:bg-neutral-50 transition-colors"
+          >
+            My Activities ({activities.length})
+          </button>
+          <button
+            onClick={() => setShowActivityForm(true)}
+            className="px-4 py-2 bg-neutral-900 text-white rounded-md hover:bg-neutral-800 transition-colors"
+          >
+            + New Activity
+          </button>
         </div>
       </div>
 
