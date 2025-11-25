@@ -350,7 +350,7 @@ export function WeeklyCalendar({
                             {/* Dropdown menu - backdrop is at calendar root level */}
                             {openMenuId === schedule.id && (
                               <div
-                                className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-[110] min-w-[120px]"
+                                className="absolute right-0 top-full mt-1 bg-white shadow-lg border border-neutral-200 py-1 z-[110] min-w-[120px]"
                                 onMouseEnter={() => setDraggedSchedule(null)}
                                 onMouseOver={(e) => e.stopPropagation()}
                               >
