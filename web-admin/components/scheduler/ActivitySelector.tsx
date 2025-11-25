@@ -51,7 +51,7 @@ export function ActivitySelector({
 
         <div className="p-6 overflow-y-auto max-h-96">
           {currentActivity && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200">
               <div className="flex justify-between items-start">
                 <div>
                   <h4 className="font-medium text-red-900">Current Activity</h4>
