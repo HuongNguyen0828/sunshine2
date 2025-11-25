@@ -256,7 +256,7 @@ export function WeeklyCalendar({
               return (
                 <div
                   key={`${day}-${timeSlot.key}`}
-                  className="min-h-[140px] p-2 border-t border-gray-200 hover:bg-gray-50 transition-colors"
+                  className="min-h-[140px] p-2 border-t border-neutral-200 hover:bg-neutral-50 transition-colors"
                 >
                   <div className="h-full flex flex-col gap-2">
                     {/* Activity pills - stacked vertically with Framer Motion */}
