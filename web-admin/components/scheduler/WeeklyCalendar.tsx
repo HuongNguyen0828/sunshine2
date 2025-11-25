@@ -203,7 +203,7 @@ export function WeeklyCalendar({
               damping: 15,
               stiffness: 200,
             }}
-            className="rounded-lg px-3 py-2 shadow-2xl border-2"
+            className="px-3 py-2 shadow-2xl border-2"
             style={{
               backgroundColor: draggedSchedule.activity?.color,
               borderColor: draggedSchedule.activity?.color,
