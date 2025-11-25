@@ -124,7 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // router.replace("/");   // MAke it pure updating state of Firebase Auth, the speparete routing async
     });
     return () => unsubscribe();
-  }, [auth, bypassAuth]);
+  }, [auth]);
 
   /**
    * Sign up flow:
