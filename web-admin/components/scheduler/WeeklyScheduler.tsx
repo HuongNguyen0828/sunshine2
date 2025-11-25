@@ -468,7 +468,7 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
                 activities={activities}
                 targetClassIdWithLocation={{ classId: cls.id, locationId: locationView }} // pass classId or locationId as fallback for shared activities applied to all classes of that location
                 targetClassName={cls.name}
-                targetLocationName={locationView === defaultLocationView ? "All Locations" : locations.find(loc => loc.id === locationView)?.name}
+                targetLocationName={locationView === defaultLocationView ? "All Locations" : locations.find(loc => loc.id === locationView)?.name || "Unknown"}
                 onActivityAssigned={handleActivityAssigned}
                 setSelectedClassOrAllClasses={setSelectedClassOrAllClasses} // boolean setter indicating class or location used in handle Activity Assigned
                 selectedClassOrAllClasses={selectedClassOrAllClasses} // boolean indicating class or location used in handle Activity Assigned
