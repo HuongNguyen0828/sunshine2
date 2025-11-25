@@ -47,14 +47,14 @@ export function ActivityLibrary({ activities, onClose, onActivityDeleted }: Acti
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-neutral-200">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-neutral-900">
               My Activities ({activities.length})
             </h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-xl"
+              className="text-neutral-400 hover:text-neutral-600 text-xl"
             >
               ×
             </button>
@@ -66,9 +66,9 @@ export function ActivityLibrary({ activities, onClose, onActivityDeleted }: Acti
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search activities..."
-              className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-4 py-2 pl-10 border border-neutral-200 rounded-md focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none"
             />
-            <div className="absolute left-3 top-2.5 text-gray-400">
+            <div className="absolute left-3 top-2.5 text-neutral-400">
               🔍
             </div>
           </div>
