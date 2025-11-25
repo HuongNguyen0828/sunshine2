@@ -39,7 +39,7 @@ import {
     School,
     AlertCircle,
 } from "lucide-react-native";
-import { ClassRow } from "./dashboard";
+import { ClassRow, ChildRow } from "./dashboard";
 
 export type EventByMonth = {
     [date: string]: Event[];
@@ -115,6 +115,14 @@ type Event = {
     // children?: string[];
     classes: string[] | any[]; // based on backend matching classId || '*' (event applied to all classes inside context)
     materialsRequired?: string;
+} | {
+    id: string;
+    type: "birthday";
+    title: "Birthday";
+    time: "afternoon";
+    classes: string[]; // based on backend matching classId || '*' (event applied to all classes inside context)
+    materialsRequired: "presents";
+    children: string[];
 };
 
 type DayEvents = {
@@ -227,12 +235,28 @@ export default function TeacherCalendar() {
             } else {
                 otherEvents[date] = [...(otherEvents[date] || []), eventOnDate];
             }
-        });
+        }); // done fetching schedule:
 
         setEventCategories({ all, dailyActivities, otherEvents }); // Save all the event by Type
         // Save DailyActivity to sharedData in Context
         // updateSharedData("dailyActivity", dailyActivities);
     }, [schedules, sharedData["classes"]]); //  depend on "classes" of Context only, not sharedData (otherwise circular dependency in your useEffect)
+
+    // Fetching children's birthday
+
+    // useEffect(() => {
+    //     const children = sharedData['children'] as ChildRow[];
+    //     const childrenBirthdayEachMonth = children.reduce((acc, child) => {
+    //         const birthday = child;
+    //         return child;
+    //     }, {})
+    // }, [currentMonth]);
+
+
+
+    useEffect(() => {
+
+    }, [sharedData['children']])
 
     const mockDaycareEvents = eventCategories.otherEvents;
 

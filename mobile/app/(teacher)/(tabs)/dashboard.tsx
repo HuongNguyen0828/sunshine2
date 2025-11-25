@@ -34,7 +34,7 @@ import {
   Activity as ActivityIcon,
 } from "lucide-react-native";
 
-type ChildRow = {
+export type ChildRow = {
   id: string;
   name: string;
   classId?: string;
@@ -207,6 +207,7 @@ export default function TeacherDashboard() {
               });
               rows.sort((a, b) => a.name.localeCompare(b.name));
               setChildren(rows);
+              updateSharedData("children", rows); // Sharing children for their calendar birthday show
               setLoading(false);
             },
             () => {
