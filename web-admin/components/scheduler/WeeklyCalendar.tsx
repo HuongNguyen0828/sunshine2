@@ -223,20 +223,20 @@ export function WeeklyCalendar({
         </div>
       )}
 
-      {/* Calendar Grid - preserving the exact visual structure from original */}
-      <div className="grid grid-cols-6 divide-x divide-gray-200">
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-6 divide-x divide-neutral-200">
         {/* Time column header */}
-        <div className="bg-gray-50 p-4 font-medium text-gray-700">
+        <div className="bg-neutral-50 p-4 font-medium text-neutral-700">
           Time
         </div>
-        
+
         {/* Day headers */}
         {WEEKDAYS.map(day => {
           const { name, date } = formatDayHeader(day);
           return (
-            <div key={day} className="bg-gray-50 p-4 text-center">
-              <div className="font-medium text-gray-900">{name}</div>
-              <div className="text-sm text-gray-500">{date}</div>
+            <div key={day} className="bg-neutral-50 p-4 text-center">
+              <div className="font-medium text-neutral-900">{name}</div>
+              <div className="text-sm text-neutral-500">{date}</div>
             </div>
           );
         })}
