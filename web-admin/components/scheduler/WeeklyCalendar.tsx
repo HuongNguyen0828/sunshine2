@@ -332,7 +332,7 @@ export function WeeklyCalendar({
                               {schedule.activity?.title}
                             </h4>
                             {schedule.activity?.description && (
-                              <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">
+                              <p className="text-xs text-neutral-600 line-clamp-1 mt-0.5">
                                 {schedule.activity.description}
                               </p>
                             )}
@@ -342,7 +342,7 @@ export function WeeklyCalendar({
                           <div className="relative">
                             <button
                               onClick={(e) => handleMenuToggle(e, schedule.id)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 text-xs p-1 hover:bg-white rounded cursor-pointer z-[110]"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-neutral-400 hover:text-neutral-600 text-xs p-1 hover:bg-white rounded cursor-pointer z-[110]"
                             >
                               ⋮⋮
                             </button>
@@ -350,7 +350,7 @@ export function WeeklyCalendar({
                             {/* Dropdown menu - backdrop is at calendar root level */}
                             {openMenuId === schedule.id && (
                               <div
-                                className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[110] min-w-[120px]"
+                                className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-neutral-200 py-1 z-[110] min-w-[120px]"
                                 onMouseEnter={() => setDraggedSchedule(null)}
                                 onMouseOver={(e) => e.stopPropagation()}
                               >
