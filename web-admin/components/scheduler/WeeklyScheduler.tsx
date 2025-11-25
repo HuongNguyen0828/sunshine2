@@ -358,135 +358,110 @@ export function WeeklyScheduler({ showClasses, locations }: { showClasses: Class
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-6">
-      {/* Consciousness Note: This header preserves the navigation feel but exists in new context */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div>
-            <div className="flex items-center gap-4 mb-1">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Scheduler Labs
-              </h2>
-              <select
-                className="px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                value={locationView}
-                onChange={(e) => {
-                  setLocationView(e.target.value);
-                }}
-                required
-              >
-                <option value="" disabled>
-                  Select a view location
-                </option>
-                {(locations ?? []).map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.name}
-                  </option>
-                ))}
-                {/* Default all locations: all ids */}
-                {locations.length > 1 && <option value={defaultLocationView}>All locations</option>}
-              </select>
-            </div>
-            <p className="text-gray-600 text-sm">
-              Experimental scheduler interface - choose a location before managing classes and activities.
-            </p>
-            <p className="text-gray-600 text-sm">
-              To add activity applied to all classes of that location: filter the location first, then add it from any class of that location with select "All Classes" in the form.
-            </p>
-          </div>
+    <div className="space-y-6">
+      {/* Controls Row */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigateWeek('prev')}
+            className="p-2 border border-neutral-200 hover:bg-neutral-50 transition-colors text-neutral-600"
+            aria-label="Previous week"
+          >
+            ←
+          </button>
+          <h3 className="text-lg font-medium text-neutral-900">
+            Week of {formatWeekRange(currentWeek)}
+          </h3>
+          <button
+            onClick={() => navigateWeek('next')}
+            className="p-2 border border-neutral-200 hover:bg-neutral-50 transition-colors text-neutral-600"
+            aria-label="Next week"
+          >
+            →
+          </button>
+
+          {/* Location Filter */}
+          <select
+            className="px-4 py-2 border border-neutral-200 focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none bg-white text-neutral-700"
+            value={locationView}
+            onChange={(e) => {
+              setLocationView(e.target.value);
+            }}
+            required
+          >
+            <option value="" disabled>
+              Select a view location
+            </option>
+            {(locations ?? []).map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.name}
+              </option>
+            ))}
+            {locations.length > 1 && <option value={defaultLocationView}>All locations</option>}
+          </select>
+
+          {/* Class Filter Dropdown */}
+          <select
+            value={selectedClassId}
+            onChange={(e) => setSelectedClassId(e.target.value)}
+            className="px-4 py-2 border border-neutral-200 focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none bg-white text-neutral-700"
+          >
+            <option value="all">All Classes</option>
+            {classes.filter(cls => cls.locationId === locationView || locationView === "all").map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.name}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigateWeek('prev')}
-              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-              aria-label="Previous week"
-            >
-              ←
-            </button>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Week of {formatWeekRange(currentWeek)}
-            </h3>
-            <button
-              onClick={() => navigateWeek('next')}
-              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-              aria-label="Next week"
-            >
-              →
-            </button>
-
-            {/* Class Filter Dropdown */}
-            <select
-              value={selectedClassId}
-              onChange={(e) => setSelectedClassId(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-            >
-              <option value="all">All Classes</option>
-              {/*  Filter out classes by location */}
-              {classes.filter(cls => cls.locationId === locationView || locationView === "all").map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowActivityLibrary(true)}
-              className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              My Activities ({activities.length})
-            </button>
-            <button
-              onClick={() => setShowActivityForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              + New Activity
-            </button>
-          </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowActivityLibrary(true)}
+            className="px-4 py-2 text-neutral-700 border border-neutral-200 hover:bg-neutral-50 transition-colors"
+          >
+            My Activities ({activities.length})
+          </button>
+          <button
+            onClick={() => setShowActivityForm(true)}
+            className="px-4 py-2 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
+          >
+            + New Activity
+          </button>
         </div>
       </div>
 
-      {/* Weekly Calendar - the heart of the transplanted UI */}
-
-      {/* // Show one calendar per class when "All Classes" is selected, But by location filter */}
+      {/* Weekly Calendar */}
       <div className="space-y-8">
         {classes.filter(cls => {
           if (locationView !== defaultLocationView) {
-            if (cls.locationId != locationView) { // matching location filter
+            if (cls.locationId != locationView) {
               return false;
             }
           }
           if (selectedClassId != "all") {
-            return cls.id === selectedClassId; // matching selected class only
+            return cls.id === selectedClassId;
           }
-          return true; // all otherwise is true
+          return true;
         }).map((cls) => {
-          // Filter schedules for this specific class OR shared activities (classId = null)
           const classSchedules = schedules.filter(s => {
-            // Raw scehedule from backend fetching to match id
             const rawSchedule = schedulesData.find(rs => rs.id === s.id);
-            // Matching exact classId with raw schedule data
             if (rawSchedule.classId !== "*") {
-              // Return raw schedule if classId of schhedule matches class id
               return rawSchedule && (rawSchedule.classId === cls.id);
             } else {
-              // Matching shared activities applied to all classes of that location
               return rawSchedule && (rawSchedule.locationId === cls.locationId);
             }
           });
 
           return (
-            <div key={cls.id} className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">{cls.name}</h3>
+            <div key={cls.id}>
+              <h3 className="text-lg font-medium text-neutral-900 mb-4">{cls.name}</h3>
               <WeeklyCalendar
                 weekStart={currentWeek}
                 schedules={classSchedules}
