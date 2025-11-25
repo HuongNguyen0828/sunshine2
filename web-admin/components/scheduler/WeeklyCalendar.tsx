@@ -245,9 +245,9 @@ export function WeeklyCalendar({
         {TIME_SLOTS.map(timeSlot => (
           <div key={timeSlot.key} className="contents">
             {/* Time label */}
-            <div className="bg-gray-50 p-4 text-sm font-medium text-gray-700 border-t border-gray-200">
+            <div className="bg-neutral-50 p-4 text-sm font-medium text-neutral-700 border-t border-neutral-200">
               <div>{timeSlot.label}</div>
-              <div className="text-xs text-gray-500">{timeSlot.time}</div>
+              <div className="text-xs text-neutral-500">{timeSlot.time}</div>
             </div>
             
             {/* Day slots - Stacked activity pills UI */}
