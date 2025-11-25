@@ -3,11 +3,17 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import RoleGate from "@/navigation/RootNavigator";
 import { colors } from "@/constants/color";
 import HeaderWithLogo from "@/components/headers/HeaderWithLogo";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { fetchSchedulesForTeacher } from "@/services/useScheduleAPI";
 import { useAppContext } from "@/contexts/AppContext"
 import { EventByMonth, } from "./calendar";
-import { ClassRow } from "./dashboard";
+import { ClassRow, ChildRow } from "./dashboard";
+import { ScheduleDate } from "./calendar";
+import { auth, db } from "@/lib/firebase";
+import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
+
+
+
 
 
 
@@ -18,11 +24,114 @@ import { ClassRow } from "./dashboard";
  * - RoleGate only allows 'teacher' users.
  */
 export default function TeacherTabs() {
+  const [loading, setLoading] = useState(true);
+  const [classes, setClasses] = useState<ClassRow[]>([]);
+  const [children, setChildren] = useState<ChildRow[]>([]);
+  const [userDocId, setUserDocId] = useState<string | null>(null);
+
+
   const { sharedData, updateSharedData } = useAppContext();
+
+
+  // read custom claims to get users/{id}
+  async function getUserDocId(): Promise<string | null> {
+    const u = auth.currentUser;
+    if (!u) return null;
+    const tok = await u.getIdTokenResult(true);
+    const userDocId = (tok.claims as any)?.userDocId as string | undefined;
+    return userDocId || null;
+  };
+
+
+  // load teacher scope
+  useEffect(() => {
+    let unsubChildren: (() => void) | null = null;
+
+    (async () => {
+      try {
+        setLoading(true);
+
+        const uidDocId = await getUserDocId();
+        setUserDocId(uidDocId);
+        if (!uidDocId) throw new Error("Missing userDocId in token");
+
+        // load user doc to get classIds
+        const userSnap = await getDoc(doc(db, "users", uidDocId));
+        const userData = userSnap.exists() ? (userSnap.data() as any) : {};
+        const teacherClassIds: string[] = Array.isArray(userData?.classIds)
+          ? userData.classIds.map(String)
+          : [];
+
+        // load classes
+        if (teacherClassIds.length > 0) {
+          const loaded: ClassRow[] = [];
+          for (const cid of teacherClassIds) {
+            const cSnap = await getDoc(doc(db, "classes", cid));
+            if (cSnap.exists()) {
+              const cd = cSnap.data() as any;
+              loaded.push({ id: cSnap.id, name: cd?.name || cSnap.id });
+            }
+          }
+          loaded.sort((a, b) => a.name.localeCompare(b.name));
+          setClasses(loaded);
+
+          updateSharedData("classes", loaded); // Add Classed into the context
+        } else {
+          setClasses([]);
+        }
+
+        // subscribe children only if we actually have classIds
+        if (teacherClassIds.length > 0) {
+          // we guard here so we never call where("in", []) 👇
+          const qy = query(
+            collection(db, "children"),
+            where("classId", "in", teacherClassIds)
+          );
+          unsubChildren = onSnapshot(
+            qy,
+            (snap) => {
+              const rows: ChildRow[] = snap.docs.map((d) => {
+                const x = d.data() as any;
+                return {
+                  id: d.id,
+                  name: `${x.firstName ?? ""} ${x.lastName ?? ""}`.trim() || "(no name)",
+                  classId: x.classId,
+                  status: x.enrollmentStatus,
+                };
+              });
+              rows.sort((a, b) => a.name.localeCompare(b.name));
+              setChildren(rows);
+              updateSharedData("children", rows); // Sharing children for their calendar birthday show
+              setLoading(false);
+            },
+            () => {
+              setChildren([]);
+              setLoading(false);
+            }
+          );
+        } else {
+          // no classes → no children
+          setChildren([]);
+          setLoading(false);
+        }
+      } catch (err) {
+        setChildren([]);
+        setClasses([]);
+        setLoading(false);
+      }
+    })();
+
+    return () => {
+      if (unsubChildren) unsubChildren();
+    };
+  }, []);
+
+
 
 
   // Pre-fetch and split calendar data when the tab layout mounts
   useEffect(() => {
+    if (loading) return;
     const preloadAndSplitCalendarData = async () => {
       try {
         console.log("📅 Pre-fetching and splitting calendar data...");
@@ -46,7 +155,7 @@ export default function TeacherTabs() {
   }, []);
 
   // Helper function to process and split schedules
-  function processAndSplitSchedules(schedules: any[]) {
+  function processAndSplitSchedules(schedules: ScheduleDate[]) {
     const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"];
     const todayEvents: EventByMonth = {};; // Array for dashboard
     const allCalendarEvents: EventByMonth = {}; // Object for calendar

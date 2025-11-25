@@ -244,13 +244,13 @@ export default function TeacherCalendar() {
 
     // Fetching children's birthday
 
-    // useEffect(() => {
-    //     const children = sharedData['children'] as ChildRow[];
-    //     const childrenBirthdayEachMonth = children.reduce((acc, child) => {
-    //         const birthday = child;
-    //         return child;
-    //     }, {})
-    // }, [currentMonth]);
+    useEffect(() => {
+        const children = sharedData['children'] as ChildRow[];
+        const childrenBirthdayEachMonth = children.reduce((acc, child) => {
+            const birthday = child;
+            return child;
+        }, {})
+    }, [currentMonth]);
 
 
 
