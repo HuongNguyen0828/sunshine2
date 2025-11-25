@@ -333,7 +333,7 @@ export function WeeklyScheduler() {
         </div>
       </div>
 
-      {/* Weekly Calendar - the heart of the transplanted UI */}
+      {/* Weekly Calendar */}
       {selectedClassId === "all" ? (
         // Show one calendar per class when "All Classes" is selected
         <div className="space-y-8">
@@ -345,8 +345,8 @@ export function WeeklyScheduler() {
             });
 
             return (
-              <div key={cls.id} className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">{cls.name}</h3>
+              <div key={cls.id}>
+                <h3 className="text-lg font-medium text-neutral-900 mb-4">{cls.name}</h3>
                 <WeeklyCalendar
                   weekStart={currentWeek}
                   schedules={classSchedules}
