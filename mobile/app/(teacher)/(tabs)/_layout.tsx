@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { View, Text } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import RoleGate from "@/navigation/RootNavigator";
 import { colors } from "@/constants/color";
@@ -152,7 +153,7 @@ export default function TeacherTabs() {
     };
 
     preloadAndSplitCalendarData();
-  }, []);
+  }, [loading]);
 
   // Helper function to process and split schedules
   function processAndSplitSchedules(schedules: ScheduleDate[]) {
@@ -193,9 +194,17 @@ export default function TeacherTabs() {
       }
     });
 
-    return { todayEvents, allCalendarEvents };
-  }
+    // console.log("DEBUG: Check other from layout", allCalendarEvents);
 
+    return { todayEvents, allCalendarEvents };
+  };
+
+
+  if (loading) return (
+    <View>
+      <Text> Loading....</Text>
+    </View>
+  );  // Make sure render layout only after loading done
   return (
     <RoleGate allow={["teacher"]}>
       <Tabs

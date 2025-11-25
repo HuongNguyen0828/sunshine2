@@ -151,7 +151,7 @@ export default function TeacherCalendar() {
     }>({ all: {}, dailyActivities: {}, otherEvents: {} });
 
     // Import classes from useAppContext
-    const { sharedData, updateSharedData } = useAppContext();
+    const { sharedData } = useAppContext();
 
     // Fetch schedules when month changes
     useEffect(() => {
@@ -255,12 +255,17 @@ export default function TeacherCalendar() {
 
 
 
-    useEffect(() => {
+    // useEffect(() => {
 
-    }, [sharedData['children']])
+    // }, [sharedData['children']])
 
-    const mockDaycareEvents = eventCategories.otherEvents;
 
+    // Either from layout pre-load (if currentMonth(**Extract month Only) = this month) OR from useEffect(Fetch schedule)
+    const isCurrentMonthMatchNow = new Date().getMonth() === currentMonth.getMonth();
+    // console.log("isCurrent", isCurrentMonthMatchNow);
+    // console.log("OtherActivity", sharedData["otherActivity"]);
+    // console.log("Today", sharedData["todayEvents"]);
+    const mockDaycareEvents = isCurrentMonthMatchNow ? sharedData["otherActivity"] : eventCategories.otherEvents;
     // Get events for selected date
     const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
 

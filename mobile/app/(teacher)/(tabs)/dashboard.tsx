@@ -130,7 +130,7 @@ async function getUserDocId(): Promise<string | null> {
 export default function TeacherDashboard() {
 
   // Sharing classes in the context
-  const { sharedData, updateSharedData } = useAppContext(); // sharing classes data
+  const { sharedData } = useAppContext(); // sharing classes data
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -181,7 +181,7 @@ export default function TeacherDashboard() {
           loaded.sort((a, b) => a.name.localeCompare(b.name));
           setClasses(loaded);
 
-          updateSharedData("classes", loaded); // Add Classed into the context
+          // updateSharedData("classes", loaded); // Add Classed into the context
         } else {
           setClasses([]);
         }
@@ -207,7 +207,7 @@ export default function TeacherDashboard() {
               });
               rows.sort((a, b) => a.name.localeCompare(b.name));
               setChildren(rows);
-              updateSharedData("children", rows); // Sharing children for their calendar birthday show
+              // updateSharedData("children", rows); // Sharing children for their calendar birthday show
               setLoading(false);
             },
             () => {
