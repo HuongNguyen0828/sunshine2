@@ -291,8 +291,9 @@ export default function TeacherDashboard() {
       alert("Please select a class to view Activity!")
       return;
     }
-    const dailyActivities = sharedData["todayEvents"] as EventByMonth;
+    const dailyActivities = sharedData["dailyActivity"] as EventByMonth;
     const today = new Date().toLocaleDateString('en-CA').split('T')[0]; // Always uses local timezone // "2025-11-19"
+    // Just take today activity
     const todayEvents = dailyActivities?.[today as keyof EventByMonth] || [];
     console.log(todayEvents);
     const onlySelectedClassActivity = todayEvents.find(event => event.classes.includes(selectedClassLabel));

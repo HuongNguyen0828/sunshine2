@@ -141,10 +141,10 @@ export default function TeacherTabs() {
         // alert(schedules);
 
         // Split data: today's events vs all events
-        const { todayEvents, allCalendarEvents } = processAndSplitSchedules(schedules);
+        const { dailyActivities, allCalendarEvents } = processAndSplitSchedules(schedules);
 
         // Store in context for different tabs to use
-        updateSharedData("todayEvents", todayEvents); // For Dashboard
+        updateSharedData("dailyActivity", dailyActivities); // For Dashboard
         updateSharedData("otherActivity", allCalendarEvents); // For Calendar
         // console.log("✅ Data split successfully - Today:", Object.keys(todayEvents).length, "All:", Object.keys(allCalendarEvents).length);
       } catch (error) {
@@ -158,7 +158,7 @@ export default function TeacherTabs() {
   // Helper function to process and split schedules
   function processAndSplitSchedules(schedules: ScheduleDate[]) {
     const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"];
-    const todayEvents: EventByMonth = {};; // Array for dashboard
+    const dailyActivities: EventByMonth = {};; // Array for dashboard
     const allCalendarEvents: EventByMonth = {}; // Object for calendar
 
     const today = new Date();
@@ -184,10 +184,8 @@ export default function TeacherTabs() {
       };
 
       if (activity.type === "dailyActivity") {
-        // Add to today's events if it's today (for dashboard tab)
-        if (date === today.toLocaleDateString('en-CA').split('T')[0]) {
-          todayEvents[date] = [...(todayEvents[date] || []), event];
-        }
+        dailyActivities[date] = [...(dailyActivities[date] || []), event];
+
       } else {
         // Add to all calendar events (for calendar tab)
         allCalendarEvents[date] = [...(allCalendarEvents[date] || []), event];
@@ -196,13 +194,13 @@ export default function TeacherTabs() {
 
     // console.log("DEBUG: Check other from layout", allCalendarEvents);
 
-    return { todayEvents, allCalendarEvents };
+    return { dailyActivities, allCalendarEvents };
   };
 
 
   if (loading) return (
     <View>
-      <Text> Loading....</Text>
+      <Text> Loading layout....</Text>
     </View>
   );  // Make sure render layout only after loading done
   return (
@@ -233,9 +231,9 @@ export default function TeacherTabs() {
           }}
         />
         <Tabs.Screen
-          name="messages"
+          name="activity"
           options={{
-            title: "Messages",
+            title: "Activity",
             headerShown: false,
             tabBarIcon: (p) => (
               <Ionicons name="chatbubble-ellipses-outline" {...p} />

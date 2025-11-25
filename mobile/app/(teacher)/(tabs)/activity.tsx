@@ -5,6 +5,10 @@
  * Allows teachers to see all activities across classes and children.
  */
 
+/**
+ * Modified by Helen: Activities are shown by classes and by date. From today
+ */
+
 import {
   View,
   Text,
@@ -54,9 +58,9 @@ const EntryCard = memo(({ entry }: { entry: Partial<EntryDoc> }) => {
   const IconComponent = config?.icon || Activity;
   const time = entry.occurredAt
     ? new Date(entry.occurredAt).toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      })
+      hour: "numeric",
+      minute: "2-digit",
+    })
     : "";
 
   return (
