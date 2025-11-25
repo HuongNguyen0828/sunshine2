@@ -551,6 +551,7 @@ export interface Activity {
 export type Schedule = {
   id: string;
   type: EventTypeForm; // limited to dailyActivity, childActivity, meeting
+  activityTitle: string;
   userId?: string;
   weekStart: string; // ISO date string for Monday of the week
   dayOfWeek: string; // "monday", "tuesday", etc.

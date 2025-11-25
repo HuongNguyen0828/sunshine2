@@ -9,13 +9,15 @@ import {
   Modal,
   Alert,
 } from "react-native";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useAppContext } from "@/contexts/AppContext"; // useAppContext 
+import { useEffect, useMemo, useState, useCallback, useContext } from "react";
 import { colors } from "@/constants/color";
 import { useRouter } from "expo-router";
 import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EventByMonth } from "./calendar";
 import {
   Moon,
   Apple,
@@ -32,14 +34,14 @@ import {
   Activity as ActivityIcon,
 } from "lucide-react-native";
 
-type ChildRow = {
+export type ChildRow = {
   id: string;
   name: string;
   classId?: string;
   status?: string;
 };
 
-type ClassRow = {
+export type ClassRow = {
   id: string;
   name: string;
 };
@@ -126,6 +128,10 @@ async function getUserDocId(): Promise<string | null> {
 }
 
 export default function TeacherDashboard() {
+
+  // Sharing classes in the context
+  const { sharedData, updateSharedData } = useAppContext(); // sharing classes data
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -140,6 +146,8 @@ export default function TeacherDashboard() {
 
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
   const [showChildPicker, setShowChildPicker] = useState(false);
+
+  const [showDetailActivity, sethowDetailActivity] = useState<boolean>(false);
 
   // load teacher scope
   useEffect(() => {
@@ -172,6 +180,8 @@ export default function TeacherDashboard() {
           }
           loaded.sort((a, b) => a.name.localeCompare(b.name));
           setClasses(loaded);
+
+          updateSharedData("classes", loaded); // Add Classed into the context
         } else {
           setClasses([]);
         }
@@ -197,6 +207,7 @@ export default function TeacherDashboard() {
               });
               rows.sort((a, b) => a.name.localeCompare(b.name));
               setChildren(rows);
+              updateSharedData("children", rows); // Sharing children for their calendar birthday show
               setLoading(false);
             },
             () => {
@@ -272,6 +283,34 @@ export default function TeacherDashboard() {
       },
     });
   };
+
+  // Show Today Activity
+  const showTodayActivity = () => {
+    console.log(selectedClass)
+    if (selectedClass === "all") {
+      alert("Please select a class to view Activity!")
+      return;
+    }
+    const dailyActivities = sharedData["todayEvents"] as EventByMonth;
+    const today = new Date().toLocaleDateString('en-CA').split('T')[0]; // Always uses local timezone // "2025-11-19"
+    const todayEvents = dailyActivities?.[today as keyof EventByMonth] || [];
+    console.log(todayEvents);
+    const onlySelectedClassActivity = todayEvents.find(event => event.classes.includes(selectedClassLabel));
+
+    // alert(today);
+    if (!onlySelectedClassActivity) {
+      alert("No activities for today! 🎉");
+      return;
+    }
+
+    const eventList =
+      `• ${onlySelectedClassActivity.title} (${onlySelectedClassActivity.time})
+      ${onlySelectedClassActivity.description}`;
+
+    alert(`Today's Activities:\n\n${eventList}`);
+    sethowDetailActivity(true);
+  };
+
 
   if (loading) {
     return (
@@ -366,7 +405,7 @@ export default function TeacherDashboard() {
                   styles.entryCard,
                   { transform: [{ scale: pressed ? 0.95 : 1 }] },
                 ]}
-                onPress={() => toEntryForm(card)}
+                onPress={card.id !== "activity" ? (() => toEntryForm(card)) : (showTodayActivity)}
               >
                 <View
                   style={[
