@@ -77,7 +77,7 @@ export function ActivitySelector({
               {activities.map(activity => (
                 <div
                   key={activity.id}
-                  className="p-4 border border-neutral-200 rounded-lg hover:border-neutral-400 cursor-pointer transition-colors"
+                  className="p-4 border border-neutral-200 hover:border-neutral-400 cursor-pointer transition-colors"
                   onClick={() => onSelect(activity.id)}
                 >
                   <h4 className="font-medium text-neutral-900 text-sm mb-1">
