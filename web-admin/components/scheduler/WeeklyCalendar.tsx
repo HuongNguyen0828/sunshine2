@@ -259,10 +259,10 @@ export function WeeklyCalendar({
         </div>
       )}
 
-      {/* Calendar Grid - preserving the exact visual structure from original */}
-      <div className="grid grid-cols-6 divide-x divide-gray-200">
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-6 divide-x divide-neutral-200">
         {/* Time column header */}
-        <div className="bg-gray-50 p-4 font-medium text-gray-700">
+        <div className="bg-neutral-50 p-4 font-medium text-neutral-700">
           Time
         </div>
 
@@ -270,9 +270,9 @@ export function WeeklyCalendar({
         {WEEKDAYS.map(day => {
           const { name, date } = formatDayHeader(day);
           return (
-            <div key={day} className="bg-gray-50 p-4 text-center">
-              <div className="font-medium text-gray-900">{name}</div>
-              <div className="text-sm text-gray-500">{date}</div>
+            <div key={day} className="bg-neutral-50 p-4 text-center">
+              <div className="font-medium text-neutral-900">{name}</div>
+              <div className="text-sm text-neutral-500">{date}</div>
             </div>
           );
         })}
@@ -281,9 +281,9 @@ export function WeeklyCalendar({
         {TIME_SLOTS.map(timeSlot => (
           <div key={timeSlot.key} className="contents">
             {/* Time label */}
-            <div className="bg-gray-50 p-4 text-sm font-medium text-gray-700 border-t border-gray-200">
+            <div className="bg-neutral-50 p-4 text-sm font-medium text-neutral-700 border-t border-neutral-200">
               <div>{timeSlot.label}</div>
-              <div className="text-xs text-gray-500">{timeSlot.time}</div>
+              <div className="text-xs text-neutral-500">{timeSlot.time}</div>
             </div>
 
             {/* Day slots - Stacked activity pills UI */}
@@ -292,7 +292,7 @@ export function WeeklyCalendar({
               return (
                 <div
                   key={`${day}-${timeSlot.key}`}
-                  className="min-h-[140px] p-2 border-t border-gray-200 hover:bg-gray-50 transition-colors"
+                  className="min-h-[140px] p-2 border-t border-neutral-200 hover:bg-neutral-50 transition-colors"
                 >
                   <div className="h-full flex flex-col gap-2">
                     {/* Activity pills - stacked vertically with Framer Motion */}
