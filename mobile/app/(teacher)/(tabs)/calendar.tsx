@@ -115,14 +115,15 @@ type Event = {
     // children?: string[];
     classes: string[] | any[]; // based on backend matching classId || '*' (event applied to all classes inside context)
     materialsRequired?: string;
-} | {
-    id: string;
-    type: "birthday";
-    title: "Birthday";
-    time: "afternoon";
-    classes: string[]; // based on backend matching classId || '*' (event applied to all classes inside context)
-    materialsRequired: "presents";
-    children: string[];
+
+    // } | {
+    //     id: string;
+    //     type: "birthday";
+    //     title: "Birthday";
+    //     time: "afternoon";
+    //     classes: string[]; // based on backend matching classId || '*' (event applied to all classes inside context)
+    //     materialsRequired: "presents";
+    //     children: string[];
 };
 
 type DayEvents = {
