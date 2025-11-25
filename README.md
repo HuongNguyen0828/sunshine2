@@ -1,3 +1,186 @@
+# Sunshine Daycare Management System
+
+## System Architecture
+
+```mermaid
+flowchart TB
+    subgraph Clients["📱 Client Applications"]
+        WA["🖥️ web-admin<br/>(Next.js 15)<br/>Admin Dashboard"]
+        MA["📱 mobile<br/>(React Native/Expo)<br/>Parents & Teachers"]
+    end
+
+    subgraph Backend["⚙️ Backend Services"]
+        API["🔧 backend<br/>(Express + TypeScript)<br/>Port 5001"]
+
+        subgraph Routes["API Routes"]
+            WR["/api/*<br/>Web Admin Routes"]
+            MR["/api/mobile/*<br/>Mobile Routes"]
+        end
+    end
+
+    subgraph Firebase["☁️ Firebase"]
+        FA["🔐 Firebase Auth"]
+        FS["🗄️ Firestore<br/>Database"]
+        FCM["📨 Cloud Messaging<br/>Push Notifications"]
+    end
+
+    subgraph Shared["📦 shared/"]
+        Types["types/type.ts<br/>TypeScript Interfaces"]
+        Utils["utils/helper.ts<br/>Common Utilities"]
+    end
+
+    WA -->|"HTTP + JWT"| WR
+    MA -->|"HTTP + JWT"| MR
+    WR --> API
+    MR --> API
+    API -->|"Firebase Admin SDK"| FS
+    API -->|"Verify Tokens"| FA
+
+    WA -.->|"Direct Auth"| FA
+    MA -.->|"Direct Auth"| FA
+    MA -.->|"Notifications"| FCM
+
+    Shared -.->|"imported by"| WA
+    Shared -.->|"imported by"| MA
+    Shared -.->|"imported by"| API
+
+    style Clients fill:#e1f5fe
+    style Backend fill:#fff3e0
+    style Firebase fill:#fce4ec
+    style Shared fill:#e8f5e9
+```
+
+## Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant App as Frontend<br/>(Web/Mobile)
+    participant FA as Firebase Auth
+    participant BE as Backend
+    participant FS as Firestore
+
+    U->>App: Login (email/password)
+    App->>FA: signInWithEmailAndPassword()
+    FA-->>App: JWT Token
+    App->>BE: API Request + Bearer Token
+    BE->>FA: Verify Token (Admin SDK)
+    FA-->>BE: Token Valid + UID
+    BE->>FS: Check user role in collections
+    FS-->>BE: Role (admin/teacher/parent)
+    BE->>FS: Perform business logic
+    FS-->>BE: Data
+    BE-->>App: Response
+    App-->>U: Display Data
+```
+
+## Data Model
+
+```mermaid
+erDiagram
+    LOCATION ||--o{ CLASS : contains
+    CLASS ||--o{ TEACHER : "assigned to"
+    CLASS ||--o{ CHILD : enrolled
+    PARENT ||--o{ CHILD : "has"
+    CHILD ||--o{ SCHEDULE : "has"
+    CLASS ||--o{ SCHEDULE : "defines"
+    CHILD ||--o{ ENTRY : "check-in/out"
+
+    LOCATION {
+        string id PK
+        string name
+        string address
+    }
+
+    CLASS {
+        string id PK
+        string name
+        string locationId FK
+        string[] teacherIds
+    }
+
+    TEACHER {
+        string id PK
+        string email
+        string name
+        string[] classIds
+    }
+
+    PARENT {
+        string id PK
+        string email
+        string name
+        string[] childIds
+    }
+
+    CHILD {
+        string id PK
+        string name
+        string[] parentIds
+        string classId FK
+    }
+
+    SCHEDULE {
+        string id PK
+        string childId FK
+        string classId FK
+        string dayOfWeek
+        time startTime
+        time endTime
+    }
+
+    ENTRY {
+        string id PK
+        string childId FK
+        timestamp checkIn
+        timestamp checkOut
+    }
+```
+
+## Role-Based Access
+
+```mermaid
+flowchart LR
+    subgraph Roles["👥 User Roles"]
+        Admin["🔑 Admin"]
+        Teacher["👩‍🏫 Teacher"]
+        Parent["👨‍👩‍👧 Parent"]
+    end
+
+    subgraph AdminPerms["Admin Permissions"]
+        A1["Manage Locations"]
+        A2["Manage Classes"]
+        A3["Manage Teachers"]
+        A4["Manage Parents"]
+        A5["Manage Children"]
+        A6["View All Reports"]
+    end
+
+    subgraph TeacherPerms["Teacher Permissions"]
+        T1["View Assigned Classes"]
+        T2["Check-in/out Children"]
+        T3["View Class Roster"]
+        T4["Record Activities"]
+    end
+
+    subgraph ParentPerms["Parent Permissions"]
+        P1["View Own Children"]
+        P2["View Schedule"]
+        P3["View Activities"]
+        P4["Receive Notifications"]
+    end
+
+    Admin --> AdminPerms
+    Teacher --> TeacherPerms
+    Parent --> ParentPerms
+
+    style Admin fill:#ff6b6b
+    style Teacher fill:#4ecdc4
+    style Parent fill:#45b7d1
+```
+
+---
+
 # Set up the app
 
 ## Backend: (Firebase) Node.js / Express / Nest.js backend
