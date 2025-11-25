@@ -275,9 +275,9 @@ export function WeeklyCalendar({
                                 damping: 20,
                                 stiffness: 300,
                               }}
-                              className="absolute -top-1 left-0 right-0 h-[3px] bg-blue-500 rounded-full z-10"
+                              className="absolute -top-1 left-0 right-0 h-[3px] bg-neutral-900 rounded-full z-10"
                               style={{
-                                boxShadow: '0 0 12px rgba(59, 130, 246, 0.8)',
+                                boxShadow: '0 0 12px rgba(23, 23, 23, 0.5)',
                               }}
                             />
                           )}
