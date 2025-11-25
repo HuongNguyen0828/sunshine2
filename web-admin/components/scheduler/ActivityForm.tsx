@@ -72,17 +72,17 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-white max-w-md w-full">
+        <div className="p-6 border-b border-neutral-200">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-neutral-900">
                 Create New Activity
               </h3>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-xl"
+              className="text-neutral-400 hover:text-neutral-600 text-xl"
               disabled={isSubmitting}
             >
               ×
@@ -92,31 +92,29 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="p-3 bg-red-50 border border-red-200">
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="title" className="block text-sm font-medium text-neutral-700 mb-1">
               Activity Type *
             </label>
             <select
               id="activityType"
               value={activityType as string}
               onChange={(e) => setActivityType(e.target.value as EventType)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2 border border-neutral-200 focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none"
               disabled={isSubmitting}
             >
               <option value="dailyActivity">Daily Activity</option>
               <option value="childActivity">Child Activity</option>
-              {/* <option value="birthday">Birthday</option> */}
               <option value="meeting">Meeting</option>
-              {/* <option value="holiday">Holiday</option> */}
             </select>
           </div>
 
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="title" className="block text-sm font-medium text-neutral-700 mb-1">
               Activity Title *
             </label>
             <input
@@ -124,7 +122,7 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2 border border-neutral-200 focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none"
               placeholder="e.g., Story Time, Art & Crafts"
               required
               disabled={isSubmitting}
@@ -132,7 +130,7 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="description" className="block text-sm font-medium text-neutral-700 mb-1">
               Description
             </label>
             <textarea
@@ -140,14 +138,14 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+              className="w-full px-3 py-2 border border-neutral-200 focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none resize-none"
               placeholder="Describe the activity and learning objectives..."
               disabled={isSubmitting}
             />
           </div>
 
           <div>
-            <label htmlFor="materials" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="materials" className="block text-sm font-medium text-neutral-700 mb-1">
               Materials Needed
             </label>
             <input
@@ -155,14 +153,14 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
               id="materials"
               value={materials}
               onChange={(e) => setMaterials(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2 border border-neutral-200 focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 outline-none"
               placeholder="e.g., Crayons, paper, glue sticks"
               disabled={isSubmitting}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               Activity Color
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -173,10 +171,10 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
                   onClick={() => setColor(c.value)}
                   disabled={isSubmitting}
                   className={`
-                    relative h-12 rounded-lg transition-all
+                    relative h-12 transition-all
                     ${c.bg}
                     ${color === c.value
-                      ? 'ring-2 ring-offset-2 ring-gray-900 scale-105'
+                      ? 'ring-2 ring-offset-2 ring-neutral-900 scale-105'
                       : 'hover:scale-105 opacity-80 hover:opacity-100'
                     }
                   `}
@@ -196,14 +194,14 @@ export function ActivityForm({ onClose, onActivityCreated, classes }: ActivityFo
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2 text-neutral-700 border border-neutral-200 hover:bg-neutral-50 transition-colors"
               disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Creating..." : "Create Activity"}

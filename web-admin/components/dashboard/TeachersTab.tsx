@@ -424,7 +424,7 @@ export default function TeachersTab({
                     <span>___</span>
                   ) : (
                     teacher.classIds.map((classId) => {
-                      const cls = classesLite.find((c) => c.id === classId);
+                      const cls = classesLite?.find((c) => c.id === classId);
                       return (
                         <span key={classId} >
                           {cls ? cls.name : 'Unknown class'}

@@ -208,7 +208,7 @@ export function WeeklyCalendar({
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm relative">
+    <div className="bg-white border border-neutral-200 overflow-hidden relative">
       {/* Invisible backdrop when any menu is open - renders at calendar level */}
       {openMenuId && (
         <div
@@ -239,7 +239,7 @@ export function WeeklyCalendar({
               damping: 15,
               stiffness: 200,
             }}
-            className="rounded-lg px-3 py-2 shadow-2xl border-2"
+            className="px-3 py-2 shadow-2xl border-2"
             style={{
               backgroundColor: draggedSchedule.activity?.color,
               borderColor: draggedSchedule.activity?.color,
@@ -259,10 +259,10 @@ export function WeeklyCalendar({
         </div>
       )}
 
-      {/* Calendar Grid - preserving the exact visual structure from original */}
-      <div className="grid grid-cols-6 divide-x divide-gray-200">
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-6 divide-x divide-neutral-200">
         {/* Time column header */}
-        <div className="bg-gray-50 p-4 font-medium text-gray-700">
+        <div className="bg-neutral-50 p-4 font-medium text-neutral-700">
           Time
         </div>
 
@@ -270,9 +270,9 @@ export function WeeklyCalendar({
         {WEEKDAYS.map(day => {
           const { name, date } = formatDayHeader(day);
           return (
-            <div key={day} className="bg-gray-50 p-4 text-center">
-              <div className="font-medium text-gray-900">{name}</div>
-              <div className="text-sm text-gray-500">{date}</div>
+            <div key={day} className="bg-neutral-50 p-4 text-center">
+              <div className="font-medium text-neutral-900">{name}</div>
+              <div className="text-sm text-neutral-500">{date}</div>
             </div>
           );
         })}
@@ -281,9 +281,9 @@ export function WeeklyCalendar({
         {TIME_SLOTS.map(timeSlot => (
           <div key={timeSlot.key} className="contents">
             {/* Time label */}
-            <div className="bg-gray-50 p-4 text-sm font-medium text-gray-700 border-t border-gray-200">
+            <div className="bg-neutral-50 p-4 text-sm font-medium text-neutral-700 border-t border-neutral-200">
               <div>{timeSlot.label}</div>
-              <div className="text-xs text-gray-500">{timeSlot.time}</div>
+              <div className="text-xs text-neutral-500">{timeSlot.time}</div>
             </div>
 
             {/* Day slots - Stacked activity pills UI */}
@@ -292,7 +292,7 @@ export function WeeklyCalendar({
               return (
                 <div
                   key={`${day}-${timeSlot.key}`}
-                  className="min-h-[140px] p-2 border-t border-gray-200 hover:bg-gray-50 transition-colors"
+                  className="min-h-[140px] p-2 border-t border-neutral-200 hover:bg-neutral-50 transition-colors"
                 >
                   <div className="h-full flex flex-col gap-2">
                     {/* Activity pills - stacked vertically with Framer Motion */}
@@ -311,9 +311,9 @@ export function WeeklyCalendar({
                                   damping: 20,
                                   stiffness: 300,
                                 }}
-                                className="absolute -top-1 left-0 right-0 h-[3px] bg-blue-500 rounded-full z-10"
+                                className="absolute -top-1 left-0 right-0 h-[3px] bg-neutral-900 z-10"
                                 style={{
-                                  boxShadow: '0 0 12px rgba(59, 130, 246, 0.8)',
+                                  boxShadow: '0 0 12px rgba(23, 23, 23, 0.5)',
                                 }}
                               />
                             )}
@@ -344,7 +344,7 @@ export function WeeklyCalendar({
                             }}
                             onDragOver={(e) => handleDragOver(e, schedule)}
                             onDrop={(e) => handleDrop(e, schedule)}
-                            className={`group relative rounded-lg px-3 py-2 ${openMenuId === schedule.id || draggedSchedule?.id === schedule.id ? '' : 'shadow-sm'
+                            className={`group relative px-3 py-2 ${openMenuId === schedule.id || draggedSchedule?.id === schedule.id ? '' : ''
                               }`}
                             style={{
                               backgroundColor: schedule.activity?.color + '20',
@@ -370,7 +370,7 @@ export function WeeklyCalendar({
                                   {" (" + formatActivityType[schedule.activity?.type as keyof typeof formatActivityType] + ")"}
                                 </h6>
                                 {schedule.activity?.description && (
-                                  <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">
+                                  <p className="text-xs text-neutral-600 line-clamp-1 mt-0.5">
                                     {schedule.activity.description}
                                   </p>
                                 )}
@@ -380,7 +380,7 @@ export function WeeklyCalendar({
                               <div className="relative">
                                 <button
                                   onClick={(e) => handleMenuToggle(e, schedule.id)}
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 text-xs p-1 hover:bg-white rounded cursor-pointer z-[110]"
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-neutral-400 hover:text-neutral-600 text-xs p-1 hover:bg-white cursor-pointer z-[110]"
                                 >
                                   ⋮⋮
                                 </button>
@@ -388,7 +388,7 @@ export function WeeklyCalendar({
                                 {/* Dropdown menu - backdrop is at calendar root level */}
                                 {openMenuId === schedule.id && (
                                   <div
-                                    className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[110] min-w-[120px]"
+                                    className="absolute right-0 top-full mt-1 bg-white shadow-lg border border-neutral-200 py-1 z-[110] min-w-[120px]"
                                     onMouseEnter={() => setDraggedSchedule(null)}
                                     onMouseOver={(e) => e.stopPropagation()}
                                   >
@@ -417,9 +417,9 @@ export function WeeklyCalendar({
                                   damping: 20,
                                   stiffness: 300,
                                 }}
-                                className="absolute -bottom-1 left-0 right-0 h-[3px] bg-blue-500 rounded-full z-10"
+                                className="absolute -bottom-1 left-0 right-0 h-[3px] bg-neutral-900 z-10"
                                 style={{
-                                  boxShadow: '0 0 12px rgba(59, 130, 246, 0.8)',
+                                  boxShadow: '0 0 12px rgba(23, 23, 23, 0.5)',
                                 }}
                               />
                             )}
@@ -430,10 +430,10 @@ export function WeeklyCalendar({
                     {/* Add activity button */}
                     <motion.button
                       onClick={() => handleSlotClick(day, timeSlot.key)}
-                      whileHover={{ scale: 1.02, borderColor: 'rgb(156, 163, 175)' }}
+                      whileHover={{ scale: 1.02, borderColor: 'rgb(163, 163, 163)' }}
                       whileTap={{ scale: 0.98 }}
                       transition={{ type: "spring", damping: 15, stiffness: 300 }}
-                      className="flex items-center justify-center gap-1 px-3 py-2 text-xs text-gray-500 border-2 border-dashed border-gray-200 rounded-lg hover:text-gray-700 hover:bg-white transition-colors"
+                      className="flex items-center justify-center gap-1 px-3 py-2 text-xs text-neutral-500 border-2 border-dashed border-neutral-200 hover:text-neutral-700 hover:bg-white transition-colors"
                     >
                       <span className="text-base">+</span>
                       <span>Add activity</span>
