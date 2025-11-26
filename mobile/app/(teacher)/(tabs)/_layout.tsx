@@ -94,6 +94,7 @@ export default function TeacherTabs() {
                   name: `${x.firstName ?? ""} ${x.lastName ?? ""}`.trim() || "(no name)",
                   classId: x.classId,
                   status: x.enrollmentStatus,
+                  birthday: x.birthDate,
                 };
               });
               rows.sort((a, b) => a.name.localeCompare(b.name));

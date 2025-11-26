@@ -38,6 +38,7 @@ import {
     ClipboardCheck,
     School,
     AlertCircle,
+    Baby,
 } from "lucide-react-native";
 import { ClassRow, ChildRow } from "./dashboard";
 
@@ -112,22 +113,13 @@ export type Event = {
     location?: string;
     type: EventType;
     description?: string;
-    // children?: string[];
+    children?: string[];
     classes: string[] | any[]; // based on backend matching classId || '*' (event applied to all classes inside context)
     materialsRequired?: string;
     date: string;
-
-    // } | {
-    //     id: string;
-    //     type: "birthday";
-    //     title: "Birthday";
-    //     time: "afternoon";
-    //     classes: string[]; // based on backend matching classId || '*' (event applied to all classes inside context)
-    //     materialsRequired: "presents";
-    //     children: string[];
 };
 
-type DayEvents = {
+type BirthdayEvents = {
     [date: string]: Event[];
 };
 
@@ -217,19 +209,32 @@ export default function TeacherCalendar() {
 
     // Fetching children's birthday
 
-    useEffect(() => {
-        const children = childrenContext as ChildRow[];
-        const childrenBirthdayEachMonth = children.reduce((acc, child) => {
-            const birthday = child;
-            return child;
-        }, {})
-    }, [currentMonth]);
+    const childrenBirthdayEachMonth = useMemo(() => childrenContext.reduce((acc, child) => {
+        const birthday = child.birthday; // "2024-02-14"
+        const event: Event = {
+            id: child.id, // is unique for each child and for the event
+            type: "birthday",
+            title: "Birthday Celebration",
+            description: "Happy Birthday",
+            classes: [classesContext.filter(cls => cls.id === child.classId)[0].name],
+            date: child.birthday,
+            children: [child.name],
+            materialsRequired: "🎁 Presents"
+        }
 
-
-
-    // useEffect(() => {
-
-    // }, [sharedData['children']])
+        // JUST extract the month and date if Match this month,
+        const birthdayDate = new Date(birthday);
+        const whichMonth = birthdayDate.getMonth();
+        console.log(whichMonth, birthday)
+        console.log(currentMonth.getMonth())
+        if (whichMonth === currentMonth.getMonth()) {
+            // THEN,  remove the YYYY with current year
+            const birthdayThisMonth = currentMonth.getFullYear() + birthday.slice(4); // 2025 + -02-14
+            acc[birthdayThisMonth] = [...(acc[birthdayThisMonth] || []), event];
+        }
+        console.log("Birthday: ", acc);
+        return acc;
+    }, {} as Record<string, Event[]>), [currentMonth, childrenContext]);
 
 
     // Either from layout pre-load (if currentMonth(**Extract month Only) = this month) OR from useEffect(Fetch schedule)
@@ -237,7 +242,7 @@ export default function TeacherCalendar() {
     // console.log("isCurrent", isCurrentMonthMatchNow);
     // console.log("OtherActivity", sharedData["otherActivity"]);
     // console.log("Today", sharedData["todayEvents"]);
-    const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitallyFromContext : eventCategories.allCalendarEvents;
+    const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitallyFromContext : { ...eventCategories.allCalendarEvents, ...childrenBirthdayEachMonth };
     // Get events for selected date
     const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
 
@@ -300,6 +305,14 @@ export default function TeacherCalendar() {
                             <View key={index} style={styles.eventDetailRow}>
                                 <MapPin size={12} color="#64748B" />
                                 <Text style={styles.eventDetailText}>{cls}</Text>
+                            </View>
+                        ))}
+
+                        {/* For Children */}
+                        {event.children?.map((child, index) => (
+                            <View key={index} style={styles.eventDetailRow}>
+                                <Baby size={12} color="#64748B" />
+                                <Text style={styles.eventDetailText}>{child}</Text>
                             </View>
                         ))}
 
@@ -442,14 +455,15 @@ export default function TeacherCalendar() {
 
                 {/* Quick Stats */}
                 <View style={styles.statsContainer}>
-                    <Text style={styles.statsTitle}>This Week</Text>
+                    <Text style={styles.statsTitle}>This Month</Text>
                     <View style={styles.statsGrid}>
                         <View style={[styles.statCard, { backgroundColor: "#F0F9FF" }]}>
-                            <Text style={styles.statNumber}>3</Text>
+                            {/* Length of the Child Actitivy */}
+                            <Text style={styles.statNumber}>{Object.values(eventCategories.allCalendarEvents).length}</Text>
                             <Text style={styles.statLabel}>Activities</Text>
                         </View>
                         <View style={[styles.statCard, { backgroundColor: "#FFF0F6" }]}>
-                            <Text style={styles.statNumber}>2</Text>
+                            <Text style={styles.statNumber}>{Object.values(childrenBirthdayEachMonth).flat().length}</Text>
                             <Text style={styles.statLabel}>Birthdays</Text>
                         </View>
                         <View style={[styles.statCard, { backgroundColor: "#F5F3FF" }]}>
