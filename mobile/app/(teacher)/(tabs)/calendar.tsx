@@ -89,7 +89,7 @@ export type EventByMonth = {
 //   // ],
 // };
 import { EventType } from "../../../../shared/types/type";
-import { fetchSchedulesForTeacher, processAndSplitSchedules } from "@/services/useScheduleAPI";
+import { fetchSchedulesForTeacher, processAndSplitSchedules, fetchingPublicHolidayAlberta } from "@/services/useScheduleAPI";
 import { type Schedule } from "../../../../shared/types/type";
 export type ScheduleDate = { // MAtching backend data returned
     id: string;
@@ -137,6 +137,7 @@ export default function TeacherCalendar() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [schedules, setSchedules] = useState<ScheduleDate[]>([]);
+    const [holidays, setHolidays] = useState<EventByMonth>({});
     const [eventCategories, setEventCategories] = useState<{
         // all: EventByMonth; // including birthday
         dailyActivities: EventByMonth; // only Daily
@@ -225,16 +226,33 @@ export default function TeacherCalendar() {
         // JUST extract the month and date if Match this month,
         const birthdayDate = new Date(birthday);
         const whichMonth = birthdayDate.getMonth();
-        console.log(whichMonth, birthday)
-        console.log(currentMonth.getMonth())
+        // console.log(whichMonth, birthday)
+        // console.log(currentMonth.getMonth())
         if (whichMonth === currentMonth.getMonth()) {
             // THEN,  remove the YYYY with current year
             const birthdayThisMonth = currentMonth.getFullYear() + birthday.slice(4); // 2025 + -02-14
             acc[birthdayThisMonth] = [...(acc[birthdayThisMonth] || []), event];
         }
-        console.log("Birthday: ", acc);
+        // console.log("Birthday: ", acc);
         return acc;
     }, {} as Record<string, Event[]>), [currentMonth, childrenContext]);
+
+    const getPublicHolidays = async () => {
+        try {
+            const publicHoliday = await fetchingPublicHolidayAlberta(classesContext);
+            // console.log("DEBUG: Holiday: ", publicHoliday);
+            setHolidays(publicHoliday);
+        } catch (error: any) {
+            console.error("Calendar", error);
+            setHolidays({}); // Set empty object on error
+        }
+    };
+
+    useEffect(() => {
+        getPublicHolidays();
+    }, []) // depend on the YEAR
+
+
 
 
     // Either from layout pre-load (if currentMonth(**Extract month Only) = this month) OR from useEffect(Fetch schedule)
@@ -242,7 +260,8 @@ export default function TeacherCalendar() {
     // console.log("isCurrent", isCurrentMonthMatchNow);
     // console.log("OtherActivity", sharedData["otherActivity"]);
     // console.log("Today", sharedData["todayEvents"]);
-    const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitallyFromContext : { ...eventCategories.allCalendarEvents, ...childrenBirthdayEachMonth };
+    const combineAllEventCalendar = { ...eventCategories.allCalendarEvents, ...childrenBirthdayEachMonth, ...holidays };
+    const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitallyFromContext : combineAllEventCalendar;
     // Get events for selected date
     const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
 
@@ -271,6 +290,17 @@ export default function TeacherCalendar() {
     ];
 
     const dayNames = ["S", "M", "T", "W", "T", "F", "S"];
+
+
+    /// Count holidays each Month
+    const currentMonthHolidayCount = Object.entries(holidays)
+        .filter(([date, events]) => {
+            const eventDate = new Date(date);
+            return eventDate.getMonth() === currentMonth.getMonth() &&
+                eventDate.getFullYear() === currentMonth.getFullYear();
+        })
+        .reduce((total, [date, events]) =>
+            total + events.length, 0);
 
     const renderEvent = (event: Event) => {
         const config = eventColors[event.type];
@@ -301,7 +331,7 @@ export default function TeacherCalendar() {
                             </View>
                         )}
                         {/* For Classes */}
-                        {event.classes.map((cls, index) => (
+                        {event.classes?.map((cls, index) => (
                             <View key={index} style={styles.eventDetailRow}>
                                 <MapPin size={12} color="#64748B" />
                                 <Text style={styles.eventDetailText}>{cls}</Text>
@@ -467,8 +497,8 @@ export default function TeacherCalendar() {
                             <Text style={styles.statLabel}>Birthdays</Text>
                         </View>
                         <View style={[styles.statCard, { backgroundColor: "#F5F3FF" }]}>
-                            <Text style={styles.statNumber}>1</Text>
-                            <Text style={styles.statLabel}>Meeting</Text>
+                            <Text style={styles.statNumber}>{currentMonthHolidayCount}  </Text>
+                            <Text style={styles.statLabel}>Holidays</Text>
                         </View>
                     </View>
                 </View>

@@ -2,7 +2,7 @@
 import { BASE_URL } from "./useEntriesAPI";
 import { auth } from "../lib/firebase"
 import { ScheduleDate } from "@/app/(teacher)/(tabs)/calendar";
-import { EventByMonth,  } from "@/app/(teacher)/(tabs)/calendar";
+import { EventByMonth, Event } from "@/app/(teacher)/(tabs)/calendar";
 import { ClassRow } from "@/app/(teacher)/(tabs)/dashboard";
 
 
@@ -76,3 +76,49 @@ export function processAndSplitSchedules(schedules: ScheduleDate[], classes:Clas
     // console.log("DEBUG: Check other from layout", allCalendarEvents);
     return { dailyActivities, allCalendarEvents };
   };
+
+
+// Helper function fetching holiday
+export async function fetchingPublicHolidayAlberta(classes: ClassRow[]): Promise<EventByMonth> {
+ try {
+  const response = await fetch("https://canada-holidays.ca/api/v1/holidays");
+   
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  const data = await response.json();
+
+  /*
+   * Example 1 element inside holidays: {"id":1,"date":"2025-01-01","nameEn":"New Year’s Day","nameFr":"Jour de l’An","federal":1,"observedDate":"2025-01-01","provinces":[{"id":"AB","nameEn":"Alberta","nameFr":"Alberta","sourceLink":"https://www.alberta.ca/alberta-general-holidays.aspx#jumplinks-1","sourceEn":"General holidays in Alberta"},{"id":"BC","nameEn":"British Columbia","nameFr":"Colombie-Britannique","sourceLink":"https://www2.gov.bc.ca/gov/content/employment-business/employment-standards-advice/employment-standards/statutory-holidays#body","sourceEn":"Statutory Holidays in British Columbia"}
+   */
+  const holidays = data.holidays; /// holidays: [{id, date, nameEn, provinces:[]}]
+
+  // Filter for Alberta-specific holidays
+  // const isAlbertaHoliday = holidays.provinces?.some((prov: any) => prov.id === "AB");
+  const holidaysCleaned = holidays.map((holiday: any )=> ({
+    id: holiday.id,
+    date: holiday.date,
+    title: holiday.nameEn,
+  }));
+  
+  const holidayEventsByMonth = holidaysCleaned.reduce((acc: EventByMonth, holiday: any) => {
+    const date = holiday.date;
+    const event: Event = {
+      id: holiday.id,
+      type: "holiday",
+      description: "Daycare closed",
+      title: holiday.title,
+      classes: classes.map(cls => cls.name), // Get class name
+      date: holiday.date
+    }
+
+    acc[date] = [event];
+    return acc;
+  }, {} as Record<string, Event[]>);
+
+   return holidayEventsByMonth;
+ } catch(error: any) {
+  throw new Error("Failed to fetch public holiday!") 
+ }
+
+}
