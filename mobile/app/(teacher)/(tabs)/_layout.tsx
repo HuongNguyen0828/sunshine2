@@ -12,11 +12,7 @@ import { ClassRow, ChildRow } from "./dashboard";
 import { ScheduleDate } from "./calendar";
 import { auth, db } from "@/lib/firebase";
 import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
-
-
-
-
-
+import { processAndSplitSchedules } from "@/services/useScheduleAPI";
 
 /**
  * Teacher tabs layout.
@@ -128,8 +124,6 @@ export default function TeacherTabs() {
   }, []);
 
 
-
-
   // Pre-fetch and split calendar data when the tab layout mounts
   useEffect(() => {
     if (loading) return;
@@ -141,7 +135,7 @@ export default function TeacherTabs() {
         // alert(schedules);
 
         // Split data: today's events vs all events
-        const { dailyActivities, allCalendarEvents } = processAndSplitSchedules(schedules);
+        const { dailyActivities, allCalendarEvents } = processAndSplitSchedules(schedules, sharedData["classes"]);
 
         // Store in context for different tabs to use
         updateSharedData("dailyActivity", dailyActivities); // For Dashboard
@@ -154,48 +148,6 @@ export default function TeacherTabs() {
 
     preloadAndSplitCalendarData();
   }, [loading]);
-
-  // Helper function to process and split schedules
-  function processAndSplitSchedules(schedules: ScheduleDate[]) {
-    const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"];
-    const dailyActivities: EventByMonth = {};; // Array for dashboard
-    const allCalendarEvents: EventByMonth = {}; // Object for calendar
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    schedules.forEach((activity) => {
-      const baseDate = new Date(activity.weekStart);
-      const dayIndex = numberInWeek.indexOf(activity.dayOfWeek);
-      baseDate.setDate(baseDate.getDate() + dayIndex);
-      const date = baseDate.toISOString().split('T')[0];
-
-      // Create event object
-      const event = {
-        id: activity.id,
-        title: activity.activityTitle,
-        time: activity.timeSlot,
-        classes: activity.classId !== "*"
-          ? [(sharedData["classes"] as ClassRow[]).find(cls => cls.id === activity.classId)?.name].filter(Boolean)
-          : (sharedData["classes"] as ClassRow[]).map((cls: any) => cls.name),
-        type: activity.type,
-        description: activity.activityDescription,
-        materialsRequired: activity.activityMaterials,
-      };
-
-      if (activity.type === "dailyActivity") {
-        dailyActivities[date] = [...(dailyActivities[date] || []), event];
-
-      } else {
-        // Add to all calendar events (for calendar tab)
-        allCalendarEvents[date] = [...(allCalendarEvents[date] || []), event];
-      }
-    });
-
-    // console.log("DEBUG: Check other from layout", allCalendarEvents);
-
-    return { dailyActivities, allCalendarEvents };
-  };
 
 
   if (loading) return (

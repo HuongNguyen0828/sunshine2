@@ -18,8 +18,9 @@ import {
   Modal,
   SectionList,
   ScrollView,
+  FlatList,
 } from "react-native";
-import { useState, useMemo, memo, useCallback, useEffect } from "react";
+import { useState, useMemo, memo, useCallback, useEffect, useContext } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -37,65 +38,57 @@ import {
   Clock,
   X,
 } from "lucide-react-native";
-import { generateMockEntries, mockClasses, mockChildren } from "../../../src/data/mockData";
-import { EntryDoc } from "@sunshine/src/types/type";
+// import { generateMockEntries, mockClasses, mockChildren } from "../../../src/data/mockData";
+// import { EntryDoc } from "@sunshine/src/types/type";
+import { useAppContext } from "@/contexts/AppContext";
+import { EventByMonth, Event } from "./calendar";
+import { ClassRow } from "./dashboard";
 
-// Entry type icons and colors
-const entryTypeConfig = {
-  Attendance: { icon: CheckCircle, color: "#10B981", bg: "#D1FAE5" },
-  Food: { icon: Coffee, color: "#F59E0B", bg: "#FEF3C7" },
-  Sleep: { icon: Moon, color: "#8B5CF6", bg: "#EDE9FE" },
-  Toilet: { icon: Toilet, color: "#06B6D4", bg: "#CFFAFE" },
-  Activity: { icon: Activity, color: "#3B82F6", bg: "#DBEAFE" },
-  Photo: { icon: Camera, color: "#EC4899", bg: "#FCE7F3" },
-  Note: { icon: FileText, color: "#6B7280", bg: "#F3F4F6" },
-  Health: { icon: Heart, color: "#EF4444", bg: "#FEE2E2" },
-};
+
 
 // Memoized Entry Card Component for better performance
-const EntryCard = memo(({ entry }: { entry: Partial<EntryDoc> }) => {
-  const config = entryTypeConfig[entry.type as keyof typeof entryTypeConfig];
-  const IconComponent = config?.icon || Activity;
-  const time = entry.occurredAt
-    ? new Date(entry.occurredAt).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    })
-    : "";
+const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
+  const todayString = new Date().toLocaleDateString('en-CA').split('T')[0];
+  const date = activity.date;
 
   return (
-    <View style={styles.entryCard}>
-      <View style={[styles.entryIconContainer, { backgroundColor: config?.bg }]}>
-        <IconComponent size={20} color={config?.color} strokeWidth={2} />
+    <Pressable
+      style={styles.entryCard}
+      onPress={() => alert(activity.description)}
+    >
+      <View style={[styles.entryIconContainer, { backgroundColor: "#EDE9FE" }]}>
+        <Activity size={20} strokeWidth={2} />
       </View>
       <View style={styles.entryContent}>
         <View style={styles.entryHeader}>
-          <Text style={styles.entryTitle}>{entry.childName}</Text>
-          <Text style={styles.entryTime}>{time}</Text>
+          <Text style={styles.entryTitle}>{activity.title}</Text>
+          <Text style={styles.entryTime}>{activity.classes?.[0]}</Text>
         </View>
         <Text style={styles.entryType}>
-          {entry.type}
-          {entry.subtype && ` - ${entry.subtype}`}
+          {/* {entry.type} */}
+          {/* {entry.subtype && ` - ${entry.subtype}`} */}
+          {date === todayString ? "Today" : date}
         </Text>
-        {entry.detail && <Text style={styles.entryDetail}>{entry.detail}</Text>}
-        <Text style={styles.entryClass}>{entry.className}</Text>
+        {activity.description && <Text style={styles.entryDetail}>{activity.description.trim().slice(0, 50)}</Text>}
+        {/* <Text style={styles.entryClass}>{entry.className}</Text> */}
       </View>
-    </View>
+    </Pressable>
   );
 });
 
-EntryCard.displayName = "EntryCard";
+// EntryCard.displayName = "EntryCard";
 
 export default function TeacherMessages() {
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
-  // const [selectedChild, setSelectedChild] = useState<string | null>(null);
-  // const [selectedType, setSelectedType] = useState<string | null>(null);
   const [showClassModal, setShowClassModal] = useState(false);
-  // const [showChildModal, setShowChildModal] = useState(false);
-  // const [showTypeModal, setShowTypeModal] = useState(false);
+  const [showMore, setShowMore] = useState<boolean>(false); // for user scrolling more Activity
+
+  const { sharedData } = useAppContext();
+  const classesContext = sharedData['classes'] as ClassRow[];
+
 
   // Debounce search text with 300ms delay
   useEffect(() => {
@@ -116,79 +109,49 @@ export default function TeacherMessages() {
     setDebouncedSearchText("");
   }, []);
 
-  // Generate entries once and memoize
-  const entries = useMemo(() => generateMockEntries(), []);
+  // Activities is pre-load from sharedData context
+  const activities = sharedData['dailyActivity'] as EventByMonth;
 
   // Filter entries based on selections
-  const filteredEntries = useMemo(() => {
-    let filtered = [...entries];
-
+  const filteredActivities = useMemo(() => {
+    // console.log("All Daily: ", entries);
+    let listAfterRemoveDate = Object.values(activities); // Make a list of all [Event[], Event[], ...]
+    let filtered = listAfterRemoveDate.reduce((acc, eventList) => { //Un-pack filtered into just Event[]
+      return [...acc, ...eventList];
+    }, []);
+    console.log("DEBUG: filtered: ", filtered);
     // Filter by search text (using debounced value)
     if (debouncedSearchText) {
-      filtered = filtered.filter(entry =>
-        // entry.childName?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
-        entry.detail?.toLowerCase().includes(debouncedSearchText.toLowerCase())
-        // entry.type?.toLowerCase().includes(debouncedSearchText.toLowerCase())
+      filtered = filtered.filter(actitivy =>
+        actitivy.description?.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
+        actitivy.title.toLowerCase().includes(debouncedSearchText.toLowerCase())
       );
     }
 
     // Filter by class
     if (selectedClass) {
-      filtered = filtered.filter(entry => entry.classId === selectedClass);
+      const selectedClassName = classesContext.find(cls => cls.id === selectedClass)?.name;
+      if (!selectedClassName) return filtered;
+      filtered = filtered.filter(entry => entry.classes.includes(selectedClassName));
     }
+    console.log(filtered.length);
+    console.log(selectedClass);
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateA.getTime() - dateB.getTime();
+    })
 
-    // // Filter by child
-    // if (selectedChild) {
-    //   filtered = filtered.filter(entry => entry.childId === selectedChild);
-    // }
-
-    // // Filter by type
-    // if (selectedType) {
-    //   filtered = filtered.filter(entry => entry.type === selectedType);
-    // }
-
-    return filtered;
-  }, [entries, debouncedSearchText, selectedClass]);
+  }, [activities, debouncedSearchText, selectedClass]);
 
   // Group entries by date for SectionList
   const sections = useMemo(() => {
-    const groups: { [key: string]: Partial<EntryDoc>[] } = {};
-
-    filteredEntries.forEach(entry => {
-      if (entry.occurredAt) {
-        const date = new Date(entry.occurredAt);
-        const dateKey = date.toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        });
-
-        if (!groups[dateKey]) {
-          groups[dateKey] = [];
-        }
-        groups[dateKey].push(entry);
-      }
-    });
-
-    return Object.entries(groups)
-      .sort((a, b) => {
-        const dateA = a[1][0].occurredAt ? new Date(a[1][0].occurredAt).getTime() : 0;
-        const dateB = b[1][0].occurredAt ? new Date(b[1][0].occurredAt).getTime() : 0;
-        return dateB - dateA;
-      })
-      .map(([title, data]) => ({ title, data }));
-  }, [filteredEntries]);
-
-  // Get filtered children based on selected class
-  const availableChildren = useMemo(() => {
-    if (!selectedClass) return mockChildren;
-    return mockChildren.filter(child => child.classId === selectedClass);
-  }, [selectedClass]);
+    // If showMore: running funtion fetching more from backend
+    return filteredActivities;
+  }, [filteredActivities]);
 
   const clearFilters = () => {
     setSelectedClass(null);
-
     setSearchText("");
   };
 
@@ -202,7 +165,7 @@ export default function TeacherMessages() {
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <Text style={styles.title}>Activity Log</Text>
           <Text style={styles.subtitle}>
-            {filteredEntries.length} {filteredEntries.length === 1 ? "entry" : "entries"}
+            {filteredActivities.length} {filteredActivities.length === 1 ? "Activity" : "Actitivities"}
           </Text>
         </View>
 
@@ -235,7 +198,7 @@ export default function TeacherMessages() {
             >
               <Text style={[styles.filterButtonText, selectedClass && styles.filterButtonTextActive]}>
                 {selectedClass
-                  ? mockClasses.find(c => c.id === selectedClass)?.name
+                  ? classesContext.find(c => c.id === selectedClass)?.name
                   : "All Classes"}
               </Text>
               <ChevronDown size={16} color={selectedClass ? "#FFFFFF" : "#475569"} />
@@ -244,7 +207,7 @@ export default function TeacherMessages() {
         </View>
       </>
     );
-  }, [insets.top, filteredEntries.length, searchText, handleSearchChange, handleClearSearch, selectedClass]);
+  }, [insets.top, filteredActivities.length, searchText, handleSearchChange, handleClearSearch, selectedClass]);
 
   return (
     <View style={styles.container}>
@@ -252,26 +215,22 @@ export default function TeacherMessages() {
         colors={["#E0E7FF", "#F0F4FF", "#FFFFFF"]}
         style={styles.gradientBackground}
       />
-
-      <SectionList
-        sections={sections}
-        keyExtractor={(item, index) => item.id || `entry-${index}`}
-        renderItem={({ item }) => <EntryCard entry={item} />}
-        renderSectionHeader={({ section: { title } }) => (
-          <Text style={styles.dateHeader}>{title}</Text>
-        )}
+      <FlatList
+        data={sections}
+        renderItem={({ item }) => <ActivityCard activity={item} />} // the activity
+        keyExtractor={item => item.date} // the date
         ListHeaderComponent={ListHeader}
-        ListEmptyComponent={() => (
+        initialNumToRender={10} // Items to render in the initial batch
+        ListEmptyComponent={() => ( // when return list is empty
           <View style={styles.emptyState}>
             <Filter size={48} color="#CBD5E1" strokeWidth={1.5} />
-            <Text style={styles.emptyStateTitle}>No entries found</Text>
+            <Text style={styles.emptyStateTitle}>No Activity found</Text>
             <Text style={styles.emptyStateText}>
               Try adjusting your filters or search terms
             </Text>
           </View>
         )}
         contentContainerStyle={styles.listContent}
-        stickySectionHeadersEnabled={false}
         showsVerticalScrollIndicator={false}
       />
 
@@ -297,7 +256,7 @@ export default function TeacherMessages() {
             >
               <Text style={styles.modalOptionText}>All Classes</Text>
             </Pressable>
-            {mockClasses.map(cls => (
+            {classesContext.map(cls => (
               <Pressable
                 key={cls.id}
                 style={[styles.modalOption, selectedClass === cls.id && styles.modalOptionSelected]}
@@ -307,7 +266,7 @@ export default function TeacherMessages() {
                 }}
               >
                 <Text style={styles.modalOptionText}>{cls.name}</Text>
-                <Text style={styles.modalOptionSubtext}>{cls.ageRange}</Text>
+                {/* <Text style={styles.modalOptionSubtext}>{cls.ageRange}</Text> */}
               </Pressable>
             ))}
           </View>
@@ -335,6 +294,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     marginBottom: 20,
+    position: "fixed"
   },
   title: {
     fontSize: 32,

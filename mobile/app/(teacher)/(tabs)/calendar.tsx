@@ -88,7 +88,7 @@ export type EventByMonth = {
 //   // ],
 // };
 import { EventType } from "../../../../shared/types/type";
-import { fetchSchedulesForTeacher } from "@/services/useScheduleAPI";
+import { fetchSchedulesForTeacher, processAndSplitSchedules } from "@/services/useScheduleAPI";
 import { type Schedule } from "../../../../shared/types/type";
 export type ScheduleDate = { // MAtching backend data returned
     id: string;
@@ -105,7 +105,7 @@ export type ScheduleDate = { // MAtching backend data returned
     order: number; // order within the time slot (0 = first, 1 = second, etc.)
 };
 
-type Event = {
+export type Event = {
     id: string;
     title: string;
     time?: string;
@@ -115,6 +115,7 @@ type Event = {
     // children?: string[];
     classes: string[] | any[]; // based on backend matching classId || '*' (event applied to all classes inside context)
     materialsRequired?: string;
+    date: string;
 
     // } | {
     //     id: string;
@@ -145,13 +146,17 @@ export default function TeacherCalendar() {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [schedules, setSchedules] = useState<ScheduleDate[]>([]);
     const [eventCategories, setEventCategories] = useState<{
-        all: EventByMonth; // including birthday
+        // all: EventByMonth; // including birthday
         dailyActivities: EventByMonth; // only Daily
-        otherEvents: EventByMonth; // fetched from backend
-    }>({ all: {}, dailyActivities: {}, otherEvents: {} });
+        allCalendarEvents: EventByMonth; // fetched from backend
+    }>({ dailyActivities: {}, allCalendarEvents: {} });
 
     // Import classes from useAppContext
     const { sharedData } = useAppContext();
+    const classesContext = sharedData['classes'] as ClassRow[];
+    const childrenContext = sharedData['children'] as ChildRow[];
+    const allCalendarEventsInitallyFromContext = sharedData["otherActivity"] as EventByMonth;
+
 
     // Fetch schedules when month changes
     useEffect(() => {
@@ -202,51 +207,18 @@ export default function TeacherCalendar() {
     };
 
     useEffect(() => {
-        const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+        // Process and split schedule by type
+        const { dailyActivities, allCalendarEvents } = processAndSplitSchedules(schedules, classesContext)
 
-        const all: EventByMonth = {};
-        const dailyActivities: EventByMonth = {};
-        const otherEvents: EventByMonth = {};
-
-        schedules.forEach((activity) => {
-            const baseDate = new Date(activity.weekStart);
-            const dayIndex = numberInWeek.indexOf(activity.dayOfWeek);
-            baseDate.setDate(baseDate.getDate() + dayIndex);
-            const date = baseDate.toISOString().split('T')[0];
-
-            const eventOnDate: Event = {
-                id: activity.id,
-                title: activity.activityTitle,
-                time: activity.timeSlot,
-                type: activity.type,
-                description: activity.activityDescription,
-                classes: activity.classId !== "*"
-                    ? [(sharedData["classes"] as ClassRow[]).find(cls => cls.id === activity.classId)?.name].filter(Boolean)
-                    : (sharedData["classes"] as ClassRow[]).map((cls: any) => cls.name),
-                materialsRequired: activity.activityMaterials,
-            };
-
-            // Add to all
-            if (!all[date]) all[date] = [];
-            all[date] = [...(all[date] || []), eventOnDate];
-
-            // Categorize
-            if (activity.type === "dailyActivity") {
-                dailyActivities[date] = [...(dailyActivities[date] || []), eventOnDate];
-            } else {
-                otherEvents[date] = [...(otherEvents[date] || []), eventOnDate];
-            }
-        }); // done fetching schedule:
-
-        setEventCategories({ all, dailyActivities, otherEvents }); // Save all the event by Type
+        setEventCategories({ dailyActivities, allCalendarEvents }); // Save all the event by Type
         // Save DailyActivity to sharedData in Context
         // updateSharedData("dailyActivity", dailyActivities);
-    }, [schedules, sharedData["classes"]]); //  depend on "classes" of Context only, not sharedData (otherwise circular dependency in your useEffect)
+    }, [schedules, classesContext]); //  depend on "classes" of Context only, not sharedData (otherwise circular dependency in your useEffect)
 
     // Fetching children's birthday
 
     useEffect(() => {
-        const children = sharedData['children'] as ChildRow[];
+        const children = childrenContext as ChildRow[];
         const childrenBirthdayEachMonth = children.reduce((acc, child) => {
             const birthday = child;
             return child;
@@ -265,7 +237,7 @@ export default function TeacherCalendar() {
     // console.log("isCurrent", isCurrentMonthMatchNow);
     // console.log("OtherActivity", sharedData["otherActivity"]);
     // console.log("Today", sharedData["todayEvents"]);
-    const mockDaycareEvents = isCurrentMonthMatchNow ? sharedData["otherActivity"] : eventCategories.otherEvents;
+    const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitallyFromContext : eventCategories.allCalendarEvents;
     // Get events for selected date
     const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
 
@@ -426,7 +398,7 @@ export default function TeacherCalendar() {
                                     </Text>
                                     {hasEvents && (
                                         <View style={styles.eventDotsContainer}>
-                                            {mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents].slice(0, 3).map((event, i) => (
+                                            {mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents].slice(0, 3).map((event: Event, i: number) => (
                                                 <View
                                                     key={i}
                                                     style={[
