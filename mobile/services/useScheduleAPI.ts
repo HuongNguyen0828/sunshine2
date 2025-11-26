@@ -61,7 +61,12 @@ export function processAndSplitSchedules(schedules: ScheduleDate[], classes:Clas
       };
 
       if (activity.type === "dailyActivity") {
-        dailyActivities[date] = [...(dailyActivities[date] || []), event];
+        // I want just take Acitive from Today forward => furture (NOT IN THE PAST)
+        const todayString = today.toISOString().split('T')[0];
+        if (date >= todayString) {
+          dailyActivities[date] = [...(dailyActivities[date] || []), event];
+        }
+          
       } else {
         // Add to all calendar events (for calendar tab)
         allCalendarEvents[date] = [...(allCalendarEvents[date] || []), event];

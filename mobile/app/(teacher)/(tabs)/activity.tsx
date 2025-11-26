@@ -28,21 +28,16 @@ import {
   Filter,
   ChevronDown,
   Activity,
-  Coffee,
-  Moon,
-  Toilet,
-  Camera,
-  FileText,
-  Heart,
+  Loader,
   CheckCircle,
-  Clock,
   X,
 } from "lucide-react-native";
 // import { generateMockEntries, mockClasses, mockChildren } from "../../../src/data/mockData";
 // import { EntryDoc } from "@sunshine/src/types/type";
 import { useAppContext } from "@/contexts/AppContext";
-import { EventByMonth, Event } from "./calendar";
+import { EventByMonth, Event, ScheduleDate } from "./calendar";
 import { ClassRow } from "./dashboard";
+import { fetchSchedulesForTeacher, processAndSplitSchedules } from "@/services/useScheduleAPI";
 
 
 
@@ -50,6 +45,9 @@ import { ClassRow } from "./dashboard";
 const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
   const todayString = new Date().toLocaleDateString('en-CA').split('T')[0];
   const date = activity.date;
+  let tommorow = new Date();
+  tommorow.setDate(tommorow.getDate() + 1);
+  const tommorowString = tommorow.toISOString().split('T')[0];
 
   return (
     <Pressable
@@ -67,7 +65,7 @@ const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
         <Text style={styles.entryType}>
           {/* {entry.type} */}
           {/* {entry.subtype && ` - ${entry.subtype}`} */}
-          {date === todayString ? "Today" : date}
+          {date === todayString ? "Today" : date === tommorowString ? "Tommorow" : date}
         </Text>
         {activity.description && <Text style={styles.entryDetail}>{activity.description.trim().slice(0, 50)}</Text>}
         {/* <Text style={styles.entryClass}>{entry.className}</Text> */}
@@ -84,11 +82,51 @@ export default function TeacherMessages() {
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [showClassModal, setShowClassModal] = useState(false);
-  const [showMore, setShowMore] = useState<boolean>(false); // for user scrolling more Activity
+  const [currentDate, setDate] = useState<Date>(new Date()) // 2025-12-18
+
+  const [showMore, setShowMore] = useState<boolean>(true); // for user scrolling more Activity
+  const [isLoadingShowMore, setIsLoadingShowMore] = useState<boolean>(true); // for WHILE await fetching data when user scrolling more Activity
 
   const { sharedData } = useAppContext();
   const classesContext = sharedData['classes'] as ClassRow[];
+  // Activities is pre-load from sharedData context
+  const initialActivities = sharedData['dailyActivity'] as EventByMonth;
+  const [activities, setActivities] = useState<EventByMonth>(initialActivities);
+  const [isEndReached, setIsEndReached] = useState<boolean>(false);
 
+
+  // Loading Activity for scrolling down: go month
+  useEffect(() => {
+    if (!showMore) return;
+
+    const fetchSchedulesData = async () => {
+      const targetDate = currentDate;
+      // Increasing month if still showMore (as length < 10 (full Screen))
+      if (showMore) targetDate.setMonth(targetDate.getMonth() + 1);
+      let monthString = targetDate.toISOString().split('T')[0];
+      // console.log("MONTH" + currentMonthString); // "2025-01-18"
+
+      // 1. Fetching 
+      try {
+        if (showMore) setIsLoadingShowMore(true);
+        const schedules = await fetchSchedulesForTeacher(monthString);
+        // Split data: today's events vs all events
+        const { dailyActivities, allCalendarEvents } = processAndSplitSchedules(schedules, classesContext);
+        // Merge pre-load (initial) activities with newly loaded
+        setActivities((prev) => ({ ...dailyActivities, ...prev }));
+        // console.log(results);
+
+        // Check if DATA REACHED the end: schedules =[];
+        if (schedules.length === 0) setIsEndReached(true);
+        else setIsEndReached(false);
+      } catch (error) {
+        console.error('Error fetching schedules:', error);
+      } finally {
+        setIsLoadingShowMore(false);
+      }
+    }
+    fetchSchedulesData();
+  }, [currentDate, showMore]); // Only depend on the month itself, not the current day
 
   // Debounce search text with 300ms delay
   useEffect(() => {
@@ -109,8 +147,6 @@ export default function TeacherMessages() {
     setDebouncedSearchText("");
   }, []);
 
-  // Activities is pre-load from sharedData context
-  const activities = sharedData['dailyActivity'] as EventByMonth;
 
   // Filter entries based on selections
   const filteredActivities = useMemo(() => {
@@ -136,6 +172,9 @@ export default function TeacherMessages() {
     }
     console.log(filtered.length);
     console.log(selectedClass);
+
+    // At the end, if still not full screen, load and show more.......
+    (filtered.length < 10) ? setShowMore(true) : setShowMore(false);
     return filtered.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
@@ -209,6 +248,7 @@ export default function TeacherMessages() {
     );
   }, [insets.top, filteredActivities.length, searchText, handleSearchChange, handleClearSearch, selectedClass]);
 
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -218,7 +258,7 @@ export default function TeacherMessages() {
       <FlatList
         data={sections}
         renderItem={({ item }) => <ActivityCard activity={item} />} // the activity
-        keyExtractor={item => item.date} // the date
+        keyExtractor={item => item.date + item.classes[0]} // the date + class (Unique) AS only could be duplicate with other class
         ListHeaderComponent={ListHeader}
         initialNumToRender={10} // Items to render in the initial batch
         ListEmptyComponent={() => ( // when return list is empty
@@ -231,8 +271,31 @@ export default function TeacherMessages() {
           </View>
         )}
         contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
+        scrollEnabled={true}
+        onEndReached={() => { setShowMore(true) }} // Triggers when user scrolls near the end
+        onEndReachedThreshold={0.1} // How close to the end before onEndReached is called
+        // stickyHeaderIndices={[0]} // Make the first item (header) sticky
+        ListFooterComponent={ // When still load more OR reach the End
+          isEndReached ? (
+            <View style={styles.endOfList}>
+              {/* End Reached  */}
+              <CheckCircle size={24} color="#10B981" />
+              <Text style={styles.endOfListText}>You've reached the end</Text>
+            </View>
+          ) : ( // Loading more
+            <View style={{ margin: "auto" }}>
+              <Loader size={20} strokeWidth={2} />
+            </View>
+          )
+        }
       />
+
+      {/* {isLoadingShowMore &&
+        <View style={{ margin: "auto" }}>
+          <Loader size={20} strokeWidth={2} />
+        </View>
+      } */}
 
       {/* Class Filter Modal */}
       <Modal
@@ -489,4 +552,13 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 2,
   },
+  endOfList: {
+    margin: "auto",
+    display: "flex",
+    flexDirection: "row",
+    gap: 2
+  },
+  endOfListText: {
+
+  }
 });
