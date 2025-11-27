@@ -142,7 +142,6 @@ export async function upsertDailyReportForChildAndDate(params: {
     return null;
   }
 
-  // Resolve childName if it is missing on the params
   let resolvedChildName = childName;
   if (!resolvedChildName) {
     resolvedChildName = await resolveChildName(childId);
@@ -169,7 +168,7 @@ export async function upsertDailyReportForChildAndDate(params: {
 
   const report: DailyReportDoc = {
     id: reportId,
-    daycareId: daycareId ?? "",          // keep for compatibility, but not required for queries
+    daycareId: daycareId ?? "",
     locationId,
     classId: classId ?? null,
     className,
@@ -189,6 +188,25 @@ export async function upsertDailyReportForChildAndDate(params: {
   await docRef.set(report, { merge: true });
 
   return report;
+}
+
+/**
+ * Helper: upsert a daily report and automatically mark it visible to parents.
+ * Intended for use on checkout so parents receive the report automatically.
+ */
+export async function upsertAndSendDailyReportForChildAndDate(params: {
+  daycareId: string;
+  locationId: string;
+  classId?: string | null;
+  className?: string;
+  childId: string;
+  childName?: string;
+  date: string; // "YYYY-MM-DD"
+}): Promise<DailyReportDoc | null> {
+  return upsertDailyReportForChildAndDate({
+    ...params,
+    makeVisibleToParents: true,
+  });
 }
 
 /**
