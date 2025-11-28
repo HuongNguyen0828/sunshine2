@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { View, Text } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import RoleGate from "@/navigation/RootNavigator";
 import { colors } from "@/constants/color";
@@ -11,11 +12,7 @@ import { ClassRow, ChildRow } from "./dashboard";
 import { ScheduleDate } from "./calendar";
 import { auth, db } from "@/lib/firebase";
 import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
-
-
-
-
-
+import { processAndSplitSchedules } from "@/services/useScheduleAPI";
 
 /**
  * Teacher tabs layout.
@@ -97,6 +94,7 @@ export default function TeacherTabs() {
                   name: `${x.firstName ?? ""} ${x.lastName ?? ""}`.trim() || "(no name)",
                   classId: x.classId,
                   status: x.enrollmentStatus,
+                  birthday: x.birthDate,
                 };
               });
               rows.sort((a, b) => a.name.localeCompare(b.name));
@@ -127,8 +125,6 @@ export default function TeacherTabs() {
   }, []);
 
 
-
-
   // Pre-fetch and split calendar data when the tab layout mounts
   useEffect(() => {
     if (loading) return;
@@ -137,13 +133,14 @@ export default function TeacherTabs() {
         console.log("📅 Pre-fetching and splitting calendar data...");
         const currentMonthString = new Date().toISOString().split('T')[0];
         const schedules = await fetchSchedulesForTeacher(currentMonthString);
+        console.log("Is this here")
         // alert(schedules);
 
         // Split data: today's events vs all events
-        const { todayEvents, allCalendarEvents } = processAndSplitSchedules(schedules);
+        const { dailyActivities, allCalendarEvents } = processAndSplitSchedules(schedules, sharedData["classes"]);
 
         // Store in context for different tabs to use
-        updateSharedData("todayEvents", todayEvents); // For Dashboard
+        updateSharedData("dailyActivity", dailyActivities); // For Dashboard
         updateSharedData("otherActivity", allCalendarEvents); // For Calendar
         // console.log("✅ Data split successfully - Today:", Object.keys(todayEvents).length, "All:", Object.keys(allCalendarEvents).length);
       } catch (error) {
@@ -152,50 +149,14 @@ export default function TeacherTabs() {
     };
 
     preloadAndSplitCalendarData();
-  }, []);
+  }, [loading]);
 
-  // Helper function to process and split schedules
-  function processAndSplitSchedules(schedules: ScheduleDate[]) {
-    const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"];
-    const todayEvents: EventByMonth = {};; // Array for dashboard
-    const allCalendarEvents: EventByMonth = {}; // Object for calendar
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    schedules.forEach((activity) => {
-      const baseDate = new Date(activity.weekStart);
-      const dayIndex = numberInWeek.indexOf(activity.dayOfWeek);
-      baseDate.setDate(baseDate.getDate() + dayIndex);
-      const date = baseDate.toISOString().split('T')[0];
-
-      // Create event object
-      const event = {
-        id: activity.id,
-        title: activity.activityTitle,
-        time: activity.timeSlot,
-        classes: activity.classId !== "*"
-          ? [(sharedData["classes"] as ClassRow[]).find(cls => cls.id === activity.classId)?.name].filter(Boolean)
-          : (sharedData["classes"] as ClassRow[]).map((cls: any) => cls.name),
-        type: activity.type,
-        description: activity.activityDescription,
-        materialsRequired: activity.activityMaterials,
-      };
-
-      if (activity.type === "dailyActivity") {
-        // Add to today's events if it's today (for dashboard tab)
-        if (date === today.toLocaleDateString('en-CA').split('T')[0]) {
-          todayEvents[date] = [...(todayEvents[date] || []), event];
-        }
-      } else {
-        // Add to all calendar events (for calendar tab)
-        allCalendarEvents[date] = [...(allCalendarEvents[date] || []), event];
-      }
-    });
-
-    return { todayEvents, allCalendarEvents };
-  }
-
+  if (loading) return (
+    <View>
+      <Text> Loading layout....</Text>
+    </View>
+  );  // Make sure render layout only after loading done
   return (
     <RoleGate allow={["teacher"]}>
       <Tabs
@@ -224,9 +185,9 @@ export default function TeacherTabs() {
           }}
         />
         <Tabs.Screen
-          name="messages"
+          name="activity"
           options={{
-            title: "Messages",
+            title: "Activity",
             headerShown: false,
             tabBarIcon: (p) => (
               <Ionicons name="chatbubble-ellipses-outline" {...p} />

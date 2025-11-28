@@ -38,58 +38,16 @@ import {
     ClipboardCheck,
     School,
     AlertCircle,
+    Baby,
 } from "lucide-react-native";
 import { ClassRow, ChildRow } from "./dashboard";
 
 export type EventByMonth = {
     [date: string]: Event[];
 };
-// export const fake: EventByMonth = {
-//   // Current month events
-//   '2025-11-05': [
-//     { id: 'event-1', type: 'meeting', title: 'Staff Meeting', time: '6:10 PM', description: 'Monthly staff meeting' },
-//   ],
-//   '2025-11-08': [
-//     { id: 'event-2', type: 'childActivity', title: 'Picture Day', time: 'All Day', description: 'Professional photos for all classes' },
-//   ],
-//   '2025-11-11': [
-//     { id: 'event-3', type: 'holiday', title: 'Veterans Day', time: 'All Day', description: 'Daycare closed' },
-//   ],
-//   '2025-11-15': [
-//     { id: 'event-4', type: 'childActivity', title: 'Parent-Teacher Conferences', time: '3:00-6:00 PM', description: 'Schedule your time slot with your teacher' },
-//   ],
-//   '2025-11-20': [
-//     { id: 'event-5', type: 'birthday', title: 'Thanksgiving Feast', time: '11:30 AM', description: 'Parents invited to join us for lunch' },
-//   ],
-//   '2025-11-22': [
-//     { id: 'event-6', type: 'childActivity', title: 'Fall Festival', time: '10:00 AM', description: 'Outdoor activities and games' },
-//   ],
-//   '2025-11-27': [
-//     { id: 'event-7', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
-//   ],
-//   '2025-11-28': [
-//     { id: 'event-8', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
-//   ],
-//   '2025-11-29': [
-//     { id: 'event-9', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
-//   ],
-//   // Next month preview
-//   // '2025-12-06': [
-//   //   { id: 'event-10', type: 'childActivity', title: 'Holiday Concert', time: '6:00 PM', description: 'All classes perform holiday songs' },
-//   // ],
-//   // '2025-12-13': [
-//   //   { id: 'event-11', type: 'childActivity', title: 'Cookie Decorating', time: '2:00 PM', description: 'Parents welcome to join' },
-//   // ],
-//   // '2025-12-20': [
-//   //   { id: 'event-12', type: 'childActivity', title: 'Holiday Party', time: '10:00 AM', description: 'Class parties and gift exchange' },
-//   // ],
-//   // '2025-12-24': [
-//   //   { id: 'event-13', type: 'holiday', title: 'Winter Break Begins', time: 'All Day', description: 'Daycare closed Dec 24 - Jan 1' },
-//   // ],
-// };
+
 import { EventType } from "../../../../shared/types/type";
-import { fetchSchedulesForTeacher } from "@/services/useScheduleAPI";
-import { type Schedule } from "../../../../shared/types/type";
+import { fetchSchedulesForTeacher, processAndSplitSchedules, fetchingPublicHolidayAlberta } from "@/services/useScheduleAPI";
 export type ScheduleDate = { // MAtching backend data returned
     id: string;
     type: EventType;
@@ -105,30 +63,19 @@ export type ScheduleDate = { // MAtching backend data returned
     order: number; // order within the time slot (0 = first, 1 = second, etc.)
 };
 
-type Event = {
+export type Event = {
     id: string;
     title: string;
     time?: string;
     location?: string;
     type: EventType;
     description?: string;
-    // children?: string[];
+    children?: string[];
     classes: string[] | any[]; // based on backend matching classId || '*' (event applied to all classes inside context)
     materialsRequired?: string;
-
-    // } | {
-    //     id: string;
-    //     type: "birthday";
-    //     title: "Birthday";
-    //     time: "afternoon";
-    //     classes: string[]; // based on backend matching classId || '*' (event applied to all classes inside context)
-    //     materialsRequired: "presents";
-    //     children: string[];
+    date: string;
 };
 
-type DayEvents = {
-    [date: string]: Event[];
-};
 
 const eventColors = {
     dailyActivity: { bg: "#DCFCE7", color: "#16A34A", icon: School }, // FROM DASHBOARD, happend every weekdays except holidays
@@ -141,17 +88,22 @@ const eventColors = {
 
 export default function TeacherCalendar() {
     const insets = useSafeAreaInsets();
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date()); // Today || manual select day
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [schedules, setSchedules] = useState<ScheduleDate[]>([]);
+    const [holidays, setHolidays] = useState<EventByMonth>({});
     const [eventCategories, setEventCategories] = useState<{
-        all: EventByMonth; // including birthday
+        // all: EventByMonth; // including birthday
         dailyActivities: EventByMonth; // only Daily
-        otherEvents: EventByMonth; // fetched from backend
-    }>({ all: {}, dailyActivities: {}, otherEvents: {} });
+        allCalendarEvents: EventByMonth; // fetched from backend
+    }>({ dailyActivities: {}, allCalendarEvents: {} });
 
     // Import classes from useAppContext
-    const { sharedData, updateSharedData } = useAppContext();
+    const { sharedData } = useAppContext();
+    const classesContext = sharedData['classes'] as ClassRow[];
+    const childrenContext = sharedData['children'] as ChildRow[];
+    const allCalendarEventsInitallyFromContext = sharedData["otherActivity"] as EventByMonth;
+
 
     // Fetch schedules when month changes
     useEffect(() => {
@@ -202,65 +154,70 @@ export default function TeacherCalendar() {
     };
 
     useEffect(() => {
-        const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+        // Process and split schedule by type
+        const { dailyActivities, allCalendarEvents } = processAndSplitSchedules(schedules, classesContext)
 
-        const all: EventByMonth = {};
-        const dailyActivities: EventByMonth = {};
-        const otherEvents: EventByMonth = {};
-
-        schedules.forEach((activity) => {
-            const baseDate = new Date(activity.weekStart);
-            const dayIndex = numberInWeek.indexOf(activity.dayOfWeek);
-            baseDate.setDate(baseDate.getDate() + dayIndex);
-            const date = baseDate.toISOString().split('T')[0];
-
-            const eventOnDate: Event = {
-                id: activity.id,
-                title: activity.activityTitle,
-                time: activity.timeSlot,
-                type: activity.type,
-                description: activity.activityDescription,
-                classes: activity.classId !== "*"
-                    ? [(sharedData["classes"] as ClassRow[]).find(cls => cls.id === activity.classId)?.name].filter(Boolean)
-                    : (sharedData["classes"] as ClassRow[]).map((cls: any) => cls.name),
-                materialsRequired: activity.activityMaterials,
-            };
-
-            // Add to all
-            if (!all[date]) all[date] = [];
-            all[date] = [...(all[date] || []), eventOnDate];
-
-            // Categorize
-            if (activity.type === "dailyActivity") {
-                dailyActivities[date] = [...(dailyActivities[date] || []), eventOnDate];
-            } else {
-                otherEvents[date] = [...(otherEvents[date] || []), eventOnDate];
-            }
-        }); // done fetching schedule:
-
-        setEventCategories({ all, dailyActivities, otherEvents }); // Save all the event by Type
+        setEventCategories({ dailyActivities, allCalendarEvents }); // Save all the event by Type
         // Save DailyActivity to sharedData in Context
         // updateSharedData("dailyActivity", dailyActivities);
-    }, [schedules, sharedData["classes"]]); //  depend on "classes" of Context only, not sharedData (otherwise circular dependency in your useEffect)
+    }, [schedules, classesContext]); //  depend on "classes" of Context only, not sharedData (otherwise circular dependency in your useEffect)
 
     // Fetching children's birthday
 
+    const childrenBirthdayEachMonth = useMemo(() => childrenContext.reduce((acc, child) => {
+        const birthday = child.birthday; // "2024-02-14"
+        const event: Event = {
+            id: child.id, // is unique for each child and for the event
+            type: "birthday",
+            title: "Birthday Celebration",
+            description: "Happy Birthday",
+            classes: [classesContext.filter(cls => cls.id === child.classId)[0].name],
+            date: child.birthday,
+            children: [child.name],
+            materialsRequired: "🎁 Presents"
+        }
+
+        // JUST extract the month and date if Match this month,
+        const birthdayDate = new Date(birthday);
+        const whichMonth = birthdayDate.getMonth();
+        // console.log(whichMonth, birthday)
+        // console.log(currentMonth.getMonth())
+        if (whichMonth === currentMonth.getMonth()) {
+            // THEN,  remove the YYYY with current year
+            const birthdayThisMonth = currentMonth.getFullYear() + birthday.slice(4); // 2025 + -02-14
+            acc[birthdayThisMonth] = [...(acc[birthdayThisMonth] || []), event];
+        }
+        // console.log("Birthday: ", acc);
+        return acc;
+    }, {} as Record<string, Event[]>), [currentMonth, childrenContext]);
+
+    const getPublicHolidays = async () => {
+        try {
+            const publicHoliday = await fetchingPublicHolidayAlberta(classesContext);
+            console.log("DEBUG: Holiday: ", publicHoliday["2025-11-11"]);
+            setHolidays(publicHoliday);
+        } catch (error: any) {
+            console.error("Calendar", error);
+            setHolidays({}); // Set empty object on error
+        }
+    };
+
     useEffect(() => {
-        const children = sharedData['children'] as ChildRow[];
-        const childrenBirthdayEachMonth = children.reduce((acc, child) => {
-            const birthday = child;
-            return child;
-        }, {})
-    }, [currentMonth]);
+        getPublicHolidays();
+        goToToday();
+    }, []) // depend on the YEAR
 
 
 
-    useEffect(() => {
 
-    }, [sharedData['children']])
-
-    const mockDaycareEvents = eventCategories.otherEvents;
-
+    // Either from layout pre-load (if currentMonth(**Extract month Only) = this month) OR from useEffect(Fetch schedule)
+    const isCurrentMonthMatchNow = new Date().getMonth() === currentMonth.getMonth();
+    // console.log("isCurrent", isCurrentMonthMatchNow);
+    // console.log("OtherActivity", sharedData["otherActivity"]);
+    // console.log("Today", sharedData["todayEvents"]);
+    const combineAllEventCalendar = { ...eventCategories.allCalendarEvents, ...childrenBirthdayEachMonth, ...holidays };
+    const allCalendarEventsInitally = { ...allCalendarEventsInitallyFromContext, ...holidays }
+    const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitally : combineAllEventCalendar;
     // Get events for selected date
     const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
 
@@ -289,6 +246,17 @@ export default function TeacherCalendar() {
     ];
 
     const dayNames = ["S", "M", "T", "W", "T", "F", "S"];
+
+
+    /// Count holidays each Month
+    const currentMonthHolidayCount = Object.entries(holidays)
+        .filter(([date, events]) => {
+            const eventDate = new Date(date);
+            return eventDate.getMonth() === currentMonth.getMonth() &&
+                eventDate.getFullYear() === currentMonth.getFullYear();
+        })
+        .reduce((total, [date, events]) =>
+            total + events.length, 0);
 
     const renderEvent = (event: Event) => {
         const config = eventColors[event.type];
@@ -319,10 +287,18 @@ export default function TeacherCalendar() {
                             </View>
                         )}
                         {/* For Classes */}
-                        {event.classes.map((cls, index) => (
+                        {event.classes?.map((cls, index) => (
                             <View key={index} style={styles.eventDetailRow}>
                                 <MapPin size={12} color="#64748B" />
                                 <Text style={styles.eventDetailText}>{cls}</Text>
+                            </View>
+                        ))}
+
+                        {/* For Children */}
+                        {event.children?.map((child, index) => (
+                            <View key={index} style={styles.eventDetailRow}>
+                                <Baby size={12} color="#64748B" />
+                                <Text style={styles.eventDetailText}>{child}</Text>
                             </View>
                         ))}
 
@@ -421,7 +397,7 @@ export default function TeacherCalendar() {
                                     </Text>
                                     {hasEvents && (
                                         <View style={styles.eventDotsContainer}>
-                                            {mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents].slice(0, 3).map((event, i) => (
+                                            {mockDaycareEvents[dateKey as keyof typeof mockDaycareEvents].slice(0, 3).map((event: Event, i: number) => (
                                                 <View
                                                     key={i}
                                                     style={[
@@ -465,19 +441,20 @@ export default function TeacherCalendar() {
 
                 {/* Quick Stats */}
                 <View style={styles.statsContainer}>
-                    <Text style={styles.statsTitle}>This Week</Text>
+                    <Text style={styles.statsTitle}>This Month</Text>
                     <View style={styles.statsGrid}>
                         <View style={[styles.statCard, { backgroundColor: "#F0F9FF" }]}>
-                            <Text style={styles.statNumber}>3</Text>
+                            {/* Length of the Child Actitivy */}
+                            <Text style={styles.statNumber}>{Object.values(eventCategories.allCalendarEvents).length}</Text>
                             <Text style={styles.statLabel}>Activities</Text>
                         </View>
                         <View style={[styles.statCard, { backgroundColor: "#FFF0F6" }]}>
-                            <Text style={styles.statNumber}>2</Text>
+                            <Text style={styles.statNumber}>{Object.values(childrenBirthdayEachMonth).flat().length}</Text>
                             <Text style={styles.statLabel}>Birthdays</Text>
                         </View>
                         <View style={[styles.statCard, { backgroundColor: "#F5F3FF" }]}>
-                            <Text style={styles.statNumber}>1</Text>
-                            <Text style={styles.statLabel}>Meeting</Text>
+                            <Text style={styles.statNumber}>{currentMonthHolidayCount}  </Text>
+                            <Text style={styles.statLabel}>Holidays</Text>
                         </View>
                     </View>
                 </View>
