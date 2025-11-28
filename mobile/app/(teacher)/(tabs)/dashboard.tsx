@@ -39,6 +39,7 @@ export type ChildRow = {
   name: string;
   classId?: string;
   status?: string;
+  birthday: string;
 };
 
 export type ClassRow = {
@@ -130,7 +131,7 @@ async function getUserDocId(): Promise<string | null> {
 export default function TeacherDashboard() {
 
   // Sharing classes in the context
-  const { sharedData, updateSharedData } = useAppContext(); // sharing classes data
+  const { sharedData } = useAppContext(); // sharing classes data
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -181,7 +182,7 @@ export default function TeacherDashboard() {
           loaded.sort((a, b) => a.name.localeCompare(b.name));
           setClasses(loaded);
 
-          updateSharedData("classes", loaded); // Add Classed into the context
+          // updateSharedData("classes", loaded); // Add Classed into the context
         } else {
           setClasses([]);
         }
@@ -203,11 +204,12 @@ export default function TeacherDashboard() {
                   name: `${x.firstName ?? ""} ${x.lastName ?? ""}`.trim() || "(no name)",
                   classId: x.classId,
                   status: x.enrollmentStatus,
+                  birthday: x.birthDate,
                 };
               });
               rows.sort((a, b) => a.name.localeCompare(b.name));
               setChildren(rows);
-              updateSharedData("children", rows); // Sharing children for their calendar birthday show
+              // updateSharedData("children", rows); // Sharing children for their calendar birthday show
               setLoading(false);
             },
             () => {
@@ -286,15 +288,16 @@ export default function TeacherDashboard() {
 
   // Show Today Activity
   const showTodayActivity = () => {
-    console.log(selectedClass)
+    // console.log(selectedClass)
     if (selectedClass === "all") {
       alert("Please select a class to view Activity!")
       return;
     }
-    const dailyActivities = sharedData["todayEvents"] as EventByMonth;
+    const dailyActivities = sharedData["dailyActivity"] as EventByMonth;
     const today = new Date().toLocaleDateString('en-CA').split('T')[0]; // Always uses local timezone // "2025-11-19"
+    // Just take today activity
     const todayEvents = dailyActivities?.[today as keyof EventByMonth] || [];
-    console.log(todayEvents);
+    // console.log(todayEvents);
     const onlySelectedClassActivity = todayEvents.find(event => event.classes.includes(selectedClassLabel));
 
     // alert(today);
