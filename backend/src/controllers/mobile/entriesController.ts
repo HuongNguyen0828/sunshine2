@@ -9,6 +9,7 @@ import type {
   EntryFilter,
   EntryDoc,
   EntryType,
+  EntryCreateInput,
 } from "../../../../shared/types/type";
 
 type AuthCtx = {
@@ -52,7 +53,6 @@ function normalizeOptional(v?: string | null) {
   return s;
 }
 
-// POST /api/mobile/v1/entries/bulk
 export async function bulkCreateEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);
@@ -81,37 +81,21 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
       body
     );
 
-    // Auto-generate and send daily reports on checkout
     try {
-      const attendanceCheckoutItems = body.items.filter((item: any) => {
-        return (
-          item.type === "Attendance" &&
-          item.attendanceKind === "checkout" // adjust field/value if your schema is different
-        );
-      });
+      const attendanceCheckoutItems = body.items.filter(
+        (item: EntryCreateInput) =>
+          item.type === "Attendance" && item.subtype === "Check out"
+      );
 
-      for (const item of attendanceCheckoutItems as any[]) {
-        const classId: string | null = item.classId ?? null;
-        const className: string | undefined = item.className;
-
-        const rawChildIds =
-          Array.isArray(item.childIds)
-            ? item.childIds
-            : item.childId
-            ? [item.childId]
-            : [];
-
-        const childIds: string[] = rawChildIds ?? [];
+      for (const item of attendanceCheckoutItems) {
+        const classId = item.classId ?? null;
+        const className = undefined;
+        const childIds: string[] = item.childIds ?? [];
+        const occurredAtIso = item.occurredAt;
+        const date = occurredAtIso.slice(0, 10);
 
         for (const childId of childIds) {
           if (!childId) continue;
-
-          const occurredAtIso: string =
-            typeof item.occurredAt === "string"
-              ? item.occurredAt
-              : new Date().toISOString();
-          const occurred = new Date(occurredAtIso);
-          const date = occurred.toISOString().slice(0, 10); // "YYYY-MM-DD"
 
           await upsertAndSendDailyReportForChildAndDate({
             daycareId: auth.daycareId ?? "",
@@ -136,7 +120,6 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
   }
 }
 
-// GET /api/mobile/v1/entries
 export async function listEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);
@@ -187,9 +170,7 @@ export async function listEntries(req: AuthRequest, res: Response) {
     q = q.limit(limitNum);
 
     const snap = await q.get();
-    const items: EntryDoc[] = snap.docs.map(
-      (d) => d.data() as EntryDoc
-    );
+    const items: EntryDoc[] = snap.docs.map((d) => d.data() as EntryDoc);
 
     return res.json(items);
   } catch (e: any) {
