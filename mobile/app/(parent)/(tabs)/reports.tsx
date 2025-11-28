@@ -24,8 +24,13 @@ import {
   Heart,
 } from "lucide-react-native";
 
-import { fetchParentReports } from "../../../services/useDailyReportAPI"
-import type { DailyReportDoc, EntryDoc } from "../../../../shared/types/type";
+import {
+  fetchParentDailyReports,
+} from "../../../services/useDailyReportAPI";
+import type {
+  DailyReportDoc,
+  EntryDoc,
+} from "../../../../shared/types/type";
 
 const entryTypeConfig = {
   Attendance: { icon: ActivityIcon, color: "#10B981", bg: "#D1FAE5" },
@@ -106,9 +111,9 @@ export default function ParentReports() {
 
       const { dateFrom, dateTo } = buildDateFilter();
 
-      const data = await fetchParentReports({
-        dateFrom,
-        dateTo,
+      const data = await fetchParentDailyReports({
+        childIds: selectedChildId ? [selectedChildId] : undefined,
+        filter: { dateFrom, dateTo },
       });
 
       setReports(data);
@@ -118,7 +123,7 @@ export default function ParentReports() {
     } finally {
       setLoading(false);
     }
-  }, [dateRange]);
+  }, [dateRange, selectedChildId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -149,10 +154,6 @@ export default function ParentReports() {
   const filteredReports = useMemo(() => {
     let data = reports;
 
-    if (selectedChildId) {
-      data = data.filter((r) => r.childId === selectedChildId);
-    }
-
     if (selectedType) {
       data = data.filter((report) =>
         (report.entries || []).some(
@@ -162,7 +163,7 @@ export default function ParentReports() {
     }
 
     return data;
-  }, [reports, selectedChildId, selectedType]);
+  }, [reports, selectedType]);
 
   const stats = useMemo(() => {
     const typeCount: { [key: string]: number } = {};
@@ -409,6 +410,7 @@ export default function ParentReports() {
         />
       )}
 
+      {/* Date modal */}
       <Modal
         visible={showDateModal}
         animationType="slide"
@@ -444,6 +446,7 @@ export default function ParentReports() {
         </Pressable>
       </Modal>
 
+      {/* Child modal */}
       <Modal
         visible={showChildModal}
         animationType="slide"
@@ -487,6 +490,7 @@ export default function ParentReports() {
         </Pressable>
       </Modal>
 
+      {/* Type modal */}
       <Modal
         visible={showTypeModal}
         animationType="slide"
@@ -545,6 +549,7 @@ export default function ParentReports() {
         </Pressable>
       </Modal>
 
+      {/* Report detail modal */}
       <Modal
         visible={showReportModal}
         animationType="slide"
