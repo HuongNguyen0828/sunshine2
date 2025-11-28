@@ -24,7 +24,7 @@ import {
   Heart,
 } from "lucide-react-native";
 
-import { fetchParentReports } from "@/services/useParentReportsAPI";
+import { fetchParentReports } from "../../../services/useDailyReportAPI"
 import type { DailyReportDoc, EntryDoc } from "../../../../shared/types/type";
 
 const entryTypeConfig = {
