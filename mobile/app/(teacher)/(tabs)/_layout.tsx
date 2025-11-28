@@ -133,6 +133,7 @@ export default function TeacherTabs() {
         console.log("📅 Pre-fetching and splitting calendar data...");
         const currentMonthString = new Date().toISOString().split('T')[0];
         const schedules = await fetchSchedulesForTeacher(currentMonthString);
+        console.log("Is this here")
         // alert(schedules);
 
         // Split data: today's events vs all events

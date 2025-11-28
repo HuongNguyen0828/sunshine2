@@ -45,52 +45,9 @@ import { ClassRow, ChildRow } from "./dashboard";
 export type EventByMonth = {
     [date: string]: Event[];
 };
-// export const fake: EventByMonth = {
-//   // Current month events
-//   '2025-11-05': [
-//     { id: 'event-1', type: 'meeting', title: 'Staff Meeting', time: '6:10 PM', description: 'Monthly staff meeting' },
-//   ],
-//   '2025-11-08': [
-//     { id: 'event-2', type: 'childActivity', title: 'Picture Day', time: 'All Day', description: 'Professional photos for all classes' },
-//   ],
-//   '2025-11-11': [
-//     { id: 'event-3', type: 'holiday', title: 'Veterans Day', time: 'All Day', description: 'Daycare closed' },
-//   ],
-//   '2025-11-15': [
-//     { id: 'event-4', type: 'childActivity', title: 'Parent-Teacher Conferences', time: '3:00-6:00 PM', description: 'Schedule your time slot with your teacher' },
-//   ],
-//   '2025-11-20': [
-//     { id: 'event-5', type: 'birthday', title: 'Thanksgiving Feast', time: '11:30 AM', description: 'Parents invited to join us for lunch' },
-//   ],
-//   '2025-11-22': [
-//     { id: 'event-6', type: 'childActivity', title: 'Fall Festival', time: '10:00 AM', description: 'Outdoor activities and games' },
-//   ],
-//   '2025-11-27': [
-//     { id: 'event-7', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
-//   ],
-//   '2025-11-28': [
-//     { id: 'event-8', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
-//   ],
-//   '2025-11-29': [
-//     { id: 'event-9', type: 'holiday', title: 'Thanksgiving Break', time: 'All Day', description: 'Daycare closed' },
-//   ],
-//   // Next month preview
-//   // '2025-12-06': [
-//   //   { id: 'event-10', type: 'childActivity', title: 'Holiday Concert', time: '6:00 PM', description: 'All classes perform holiday songs' },
-//   // ],
-//   // '2025-12-13': [
-//   //   { id: 'event-11', type: 'childActivity', title: 'Cookie Decorating', time: '2:00 PM', description: 'Parents welcome to join' },
-//   // ],
-//   // '2025-12-20': [
-//   //   { id: 'event-12', type: 'childActivity', title: 'Holiday Party', time: '10:00 AM', description: 'Class parties and gift exchange' },
-//   // ],
-//   // '2025-12-24': [
-//   //   { id: 'event-13', type: 'holiday', title: 'Winter Break Begins', time: 'All Day', description: 'Daycare closed Dec 24 - Jan 1' },
-//   // ],
-// };
+
 import { EventType } from "../../../../shared/types/type";
 import { fetchSchedulesForTeacher, processAndSplitSchedules, fetchingPublicHolidayAlberta } from "@/services/useScheduleAPI";
-import { type Schedule } from "../../../../shared/types/type";
 export type ScheduleDate = { // MAtching backend data returned
     id: string;
     type: EventType;
@@ -119,9 +76,6 @@ export type Event = {
     date: string;
 };
 
-type BirthdayEvents = {
-    [date: string]: Event[];
-};
 
 const eventColors = {
     dailyActivity: { bg: "#DCFCE7", color: "#16A34A", icon: School }, // FROM DASHBOARD, happend every weekdays except holidays
@@ -134,7 +88,7 @@ const eventColors = {
 
 export default function TeacherCalendar() {
     const insets = useSafeAreaInsets();
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date()); // Today || manual select day
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [schedules, setSchedules] = useState<ScheduleDate[]>([]);
     const [holidays, setHolidays] = useState<EventByMonth>({});
@@ -240,7 +194,7 @@ export default function TeacherCalendar() {
     const getPublicHolidays = async () => {
         try {
             const publicHoliday = await fetchingPublicHolidayAlberta(classesContext);
-            // console.log("DEBUG: Holiday: ", publicHoliday);
+            console.log("DEBUG: Holiday: ", publicHoliday["2025-11-11"]);
             setHolidays(publicHoliday);
         } catch (error: any) {
             console.error("Calendar", error);
@@ -250,6 +204,7 @@ export default function TeacherCalendar() {
 
     useEffect(() => {
         getPublicHolidays();
+        goToToday();
     }, []) // depend on the YEAR
 
 
@@ -261,7 +216,8 @@ export default function TeacherCalendar() {
     // console.log("OtherActivity", sharedData["otherActivity"]);
     // console.log("Today", sharedData["todayEvents"]);
     const combineAllEventCalendar = { ...eventCategories.allCalendarEvents, ...childrenBirthdayEachMonth, ...holidays };
-    const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitallyFromContext : combineAllEventCalendar;
+    const allCalendarEventsInitally = { ...allCalendarEventsInitallyFromContext, ...holidays }
+    const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitally : combineAllEventCalendar;
     // Get events for selected date
     const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
 

@@ -288,7 +288,7 @@ export default function TeacherDashboard() {
 
   // Show Today Activity
   const showTodayActivity = () => {
-    console.log(selectedClass)
+    // console.log(selectedClass)
     if (selectedClass === "all") {
       alert("Please select a class to view Activity!")
       return;
@@ -297,7 +297,7 @@ export default function TeacherDashboard() {
     const today = new Date().toLocaleDateString('en-CA').split('T')[0]; // Always uses local timezone // "2025-11-19"
     // Just take today activity
     const todayEvents = dailyActivities?.[today as keyof EventByMonth] || [];
-    console.log(todayEvents);
+    // console.log(todayEvents);
     const onlySelectedClassActivity = todayEvents.find(event => event.classes.includes(selectedClassLabel));
 
     // alert(today);
