@@ -31,6 +31,29 @@ export async function fetchSchedulesForTeacher(month: string): Promise<ScheduleD
   }
 };
 
+/**
+ * Get schedule for parent; 
+ * @param month /schedulesParent?
+ * @returns 
+ */
+export async function fetchSchedulesForParent(month: string): Promise<ScheduleDate[]> {
+    try {
+        const result = await fetch(`${BASE_URL}/schedulesParent?month=${month}`, {
+            method: "GET",
+            headers: {
+            "Content-Type": "application/json",
+            ...(await authHeader()),
+          }
+        });
+
+        const  json = await result.json();
+        const data = json.data;
+        return data;
+  } catch (e: any) {
+    throw e;
+  }
+};
+
 // Helper function to process and split schedules; REUSABLE inside of layout, canlendar and Activity tabs for loading Events
 export function processAndSplitSchedules(schedules: ScheduleDate[], classes:ClassRow[] ) {
     const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"];
