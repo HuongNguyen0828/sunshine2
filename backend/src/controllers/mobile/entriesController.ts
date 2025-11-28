@@ -3,6 +3,7 @@ import type { Response } from "express";
 import type { AuthRequest } from "../../middleware/authMiddleware";
 import { db } from "../../lib/firebase";
 import { bulkCreateEntriesService } from "../../services/mobile/entriesService";
+import { upsertAndSendDailyReportForChildAndDate } from "../../services/mobile/dailyReportService";
 import type {
   BulkEntryCreateRequest,
   EntryFilter,
@@ -45,7 +46,9 @@ function normalizeOptional(v?: string | null) {
   const s = String(v ?? "").trim();
   if (!s) return undefined;
   const t = s.toLowerCase();
-  if (t === "all" || t === "all classes" || t === "all children") return undefined;
+  if (t === "all" || t === "all classes" || t === "all children") {
+    return undefined;
+  }
   return s;
 }
 
@@ -77,6 +80,52 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
       },
       body
     );
+
+    // Auto-generate and send daily reports on checkout
+    try {
+      const attendanceCheckoutItems = body.items.filter((item: any) => {
+        return (
+          item.type === "Attendance" &&
+          item.attendanceKind === "checkout" // adjust field/value if your schema is different
+        );
+      });
+
+      for (const item of attendanceCheckoutItems as any[]) {
+        const classId: string | null = item.classId ?? null;
+        const className: string | undefined = item.className;
+
+        const rawChildIds =
+          Array.isArray(item.childIds)
+            ? item.childIds
+            : item.childId
+            ? [item.childId]
+            : [];
+
+        const childIds: string[] = rawChildIds ?? [];
+
+        for (const childId of childIds) {
+          if (!childId) continue;
+
+          const occurredAtIso: string =
+            typeof item.occurredAt === "string"
+              ? item.occurredAt
+              : new Date().toISOString();
+          const occurred = new Date(occurredAtIso);
+          const date = occurred.toISOString().slice(0, 10); // "YYYY-MM-DD"
+
+          await upsertAndSendDailyReportForChildAndDate({
+            daycareId: auth.daycareId ?? "",
+            locationId: auth.locationId!,
+            classId,
+            className,
+            childId,
+            date,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("auto daily report on checkout failed:", err);
+    }
 
     return res.json(result);
   } catch (e: any) {
@@ -138,7 +187,9 @@ export async function listEntries(req: AuthRequest, res: Response) {
     q = q.limit(limitNum);
 
     const snap = await q.get();
-    const items: EntryDoc[] = snap.docs.map((d) => d.data() as EntryDoc);
+    const items: EntryDoc[] = snap.docs.map(
+      (d) => d.data() as EntryDoc
+    );
 
     return res.json(items);
   } catch (e: any) {
