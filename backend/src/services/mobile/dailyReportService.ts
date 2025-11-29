@@ -1,5 +1,3 @@
-// backend/src/services/mobile/dailyReportService.ts
-
 import { admin } from "../../lib/firebase";
 import type {
   EntryDoc,
@@ -55,8 +53,7 @@ function buildActivitySummary(entries: EntryDoc[]): {
 }
 
 /**
- * Resolve child name from the children collection.
- * Tries: name -> (firstName + lastName) -> undefined.
+ * Resolve child name from children collection.
  */
 async function resolveChildName(childId: string): Promise<string | undefined> {
   if (!childId) return undefined;
@@ -79,12 +76,11 @@ async function resolveChildName(childId: string): Promise<string | undefined> {
 
 /**
  * Fetch all EntryDoc for a given child + location + date bucket.
- * This is used as the source when generating a DailyReportDoc.
  */
 async function fetchEntriesForChildAndDate(params: {
   locationId: string;
   childId: string;
-  date: string;
+  date: string; // "YYYY-MM-DD"
 }): Promise<EntryDoc[]> {
   const { locationId, childId, date } = params;
   const { startIso, endIso } = buildDayRange(date);
@@ -118,7 +114,7 @@ export async function upsertDailyReportForChildAndDate(params: {
   className?: string;
   childId: string;
   childName?: string;
-  date: string;
+  date: string; // "YYYY-MM-DD"
   makeVisibleToParents?: boolean;
 }): Promise<DailyReportDoc | null> {
   const {
@@ -191,34 +187,12 @@ export async function upsertDailyReportForChildAndDate(params: {
 }
 
 /**
- * Helper: upsert a daily report and automatically mark it visible to parents.
- * Intended for use on checkout so parents receive the report automatically.
- */
-export async function upsertAndSendDailyReportForChildAndDate(params: {
-  daycareId: string;
-  locationId: string;
-  classId?: string | null;
-  className?: string;
-  childId: string;
-  childName?: string;
-  date: string;
-}): Promise<DailyReportDoc | null> {
-  return upsertDailyReportForChildAndDate({
-    ...params,
-    makeVisibleToParents: true,
-  });
-}
-
-/**
- * Given a list of EntryDoc, upsert daily reports for each (childId, date) pair.
- * This is designed to be called from the entries service after bulk create.
+ * Given a list of EntryDoc, upsert daily reports for each entry.
+ * If the entry is an Attendance "Check out", the report is made visible to parents.
  */
 export async function upsertDailyReportsForEntries(
-  entries: EntryDoc[],
-  options?: { makeVisibleToParents?: boolean }
+  entries: EntryDoc[]
 ): Promise<void> {
-  const seen = new Set<string>();
-
   for (const entry of entries) {
     if (!entry.childId || !entry.occurredAt || !entry.locationId) continue;
 
@@ -228,9 +202,8 @@ export async function upsertDailyReportsForEntries(
     const day = String(occurred.getUTCDate()).padStart(2, "0");
     const date = `${year}-${month}-${day}`;
 
-    const key = `${entry.childId}-${date}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const makeVisible =
+      entry.type === "Attendance" && entry.subtype === "Check out";
 
     await upsertDailyReportForChildAndDate({
       daycareId: (entry as any).daycareId ?? "",
@@ -240,7 +213,7 @@ export async function upsertDailyReportsForEntries(
       childId: entry.childId,
       childName: (entry as any).childName,
       date,
-      makeVisibleToParents: options?.makeVisibleToParents ?? false,
+      makeVisibleToParents: makeVisible,
     });
   }
 }
@@ -265,7 +238,6 @@ export async function markDailyReportAsSent(reportId: string): Promise<void> {
 
 /**
  * List daily reports for a teacher context.
- * For now we scope by locationId (teacher can only see one location).
  */
 export async function listDailyReportsForTeacher(params: {
   daycareId: string;
@@ -316,7 +288,7 @@ export async function listDailyReportsForTeacher(params: {
  * parentChildIds must already be resolved from Parent → Child relationships.
  */
 export async function listDailyReportsForParent(params: {
-  daycareId?: string;
+  daycareId: string;
   locationId?: string;
   parentChildIds: string[];
   filter?: DailyReportFilter;
@@ -342,11 +314,8 @@ export async function listDailyReportsForParent(params: {
 
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(DAILY_REPORTS_COLLECTION)
+    .where("daycareId", "==", daycareId)
     .where("childId", "in", allowedChildIds);
-
-  if (daycareId) {
-    query = query.where("daycareId", "==", daycareId);
-  }
 
   if (locationId) {
     query = query.where("locationId", "==", locationId);
