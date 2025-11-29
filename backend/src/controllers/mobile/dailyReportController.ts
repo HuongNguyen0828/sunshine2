@@ -1,4 +1,5 @@
 // backend/src/controllers/mobile/dailyReportController.ts
+
 import { Response } from "express";
 import { AuthRequest } from "../../middleware/authMiddleware";
 import {
@@ -32,6 +33,7 @@ export const getTeacherDailyReports = async (
     }
 
     const { daycareId, locationId } = req.user;
+
     if (!daycareId || !locationId) {
       return res
         .status(400)
@@ -87,27 +89,17 @@ export const getParentDailyReports = async (
       return res.status(403).json({ message: "forbidden_role" });
     }
 
-    const { daycareId, locationId } = req.user;
-    if (!daycareId) {
-      return res
-        .status(400)
-        .json({ message: "Missing daycare scope for user" });
-    }
+    const daycareId = req.user.daycareId || undefined;
+    const locationId = req.user.locationId || undefined;
 
     const childIdsParam =
       typeof req.query.childIds === "string" ? req.query.childIds : "";
 
-    const parentChildIds = childIdsParam
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean);
-
-    if (parentChildIds.length === 0) {
-      return res.status(400).json({
-        message:
-          "Missing childIds query parameter. Expected comma-separated child ids.",
-      });
-    }
+    const parentChildIds =
+      childIdsParam
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean) || [];
 
     const filter: DailyReportFilter = {};
 
