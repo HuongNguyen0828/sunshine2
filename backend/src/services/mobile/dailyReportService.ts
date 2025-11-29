@@ -84,7 +84,7 @@ async function resolveChildName(childId: string): Promise<string | undefined> {
 async function fetchEntriesForChildAndDate(params: {
   locationId: string;
   childId: string;
-  date: string; // "YYYY-MM-DD"
+  date: string;
 }): Promise<EntryDoc[]> {
   const { locationId, childId, date } = params;
   const { startIso, endIso } = buildDayRange(date);
@@ -118,7 +118,7 @@ export async function upsertDailyReportForChildAndDate(params: {
   className?: string;
   childId: string;
   childName?: string;
-  date: string; // "YYYY-MM-DD"
+  date: string;
   makeVisibleToParents?: boolean;
 }): Promise<DailyReportDoc | null> {
   const {
@@ -201,7 +201,7 @@ export async function upsertAndSendDailyReportForChildAndDate(params: {
   className?: string;
   childId: string;
   childName?: string;
-  date: string; // "YYYY-MM-DD"
+  date: string;
 }): Promise<DailyReportDoc | null> {
   return upsertDailyReportForChildAndDate({
     ...params,
@@ -210,8 +210,7 @@ export async function upsertAndSendDailyReportForChildAndDate(params: {
 }
 
 /**
- * Given a list of EntryDoc, upsert daily reports
- * for each (childId, date) pair covered by those entries.
+ * Given a list of EntryDoc, upsert daily reports for each (childId, date) pair.
  * This is designed to be called from the entries service after bulk create.
  */
 export async function upsertDailyReportsForEntries(
@@ -317,7 +316,7 @@ export async function listDailyReportsForTeacher(params: {
  * parentChildIds must already be resolved from Parent → Child relationships.
  */
 export async function listDailyReportsForParent(params: {
-  daycareId: string;
+  daycareId?: string;
   locationId?: string;
   parentChildIds: string[];
   filter?: DailyReportFilter;
@@ -343,8 +342,11 @@ export async function listDailyReportsForParent(params: {
 
   let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db
     .collection(DAILY_REPORTS_COLLECTION)
-    .where("daycareId", "==", daycareId)
     .where("childId", "in", allowedChildIds);
+
+  if (daycareId) {
+    query = query.where("daycareId", "==", daycareId);
+  }
 
   if (locationId) {
     query = query.where("locationId", "==", locationId);
