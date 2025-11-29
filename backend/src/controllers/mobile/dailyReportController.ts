@@ -1,5 +1,3 @@
-// backend/src/controllers/mobile/dailyReportController.ts
-
 import { Response } from "express";
 import { AuthRequest } from "../../middleware/authMiddleware";
 import {
@@ -32,12 +30,13 @@ export const getTeacherDailyReports = async (
       return res.status(403).json({ message: "forbidden_role" });
     }
 
-    const { daycareId, locationId } = req.user;
+    const daycareId: string = req.user.daycareId ?? "";
+    const locationId = req.user.locationId;
 
-    if (!daycareId || !locationId) {
+    if (!locationId) {
       return res
         .status(400)
-        .json({ message: "Missing daycare or location scope for user" });
+        .json({ message: "Missing location scope for user" });
     }
 
     const filter: DailyReportFilter = {};
@@ -89,8 +88,8 @@ export const getParentDailyReports = async (
       return res.status(403).json({ message: "forbidden_role" });
     }
 
-    const daycareId = req.user.daycareId || undefined;
-    const locationId = req.user.locationId || undefined;
+    const daycareId: string = req.user.daycareId ?? "";
+    const locationId = req.user.locationId ?? undefined;
 
     const childIdsParam =
       typeof req.query.childIds === "string" ? req.query.childIds : "";
