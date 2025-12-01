@@ -3,11 +3,13 @@ import type { Response } from "express";
 import type { AuthRequest } from "../../middleware/authMiddleware";
 import { db } from "../../lib/firebase";
 import { bulkCreateEntriesService } from "../../services/mobile/entriesService";
+import { upsertAndSendDailyReportForChildAndDate } from "../../services/mobile/dailyReportService";
 import type {
   BulkEntryCreateRequest,
   EntryFilter,
   EntryDoc,
   EntryType,
+  EntryCreateInput,
 } from "../../../../shared/types/type";
 
 type AuthCtx = {
@@ -45,11 +47,12 @@ function normalizeOptional(v?: string | null) {
   const s = String(v ?? "").trim();
   if (!s) return undefined;
   const t = s.toLowerCase();
-  if (t === "all" || t === "all classes" || t === "all children") return undefined;
+  if (t === "all" || t === "all classes" || t === "all children") {
+    return undefined;
+  }
   return s;
 }
 
-// POST /api/mobile/v1/entries/bulk
 export async function bulkCreateEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);
@@ -78,6 +81,36 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
       body
     );
 
+    try {
+      const attendanceCheckoutItems = body.items.filter(
+        (item: EntryCreateInput) =>
+          item.type === "Attendance" && item.subtype === "Check out"
+      );
+
+      for (const item of attendanceCheckoutItems) {
+        const classId = item.classId ?? null;
+        const className = undefined;
+        const childIds: string[] = item.childIds ?? [];
+        const occurredAtIso = item.occurredAt;
+        const date = occurredAtIso.slice(0, 10);
+
+        for (const childId of childIds) {
+          if (!childId) continue;
+
+          await upsertAndSendDailyReportForChildAndDate({
+            daycareId: auth.daycareId ?? "",
+            locationId: auth.locationId!,
+            classId,
+            className,
+            childId,
+            date,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("auto daily report on checkout failed:", err);
+    }
+
     return res.json(result);
   } catch (e: any) {
     console.error("bulkCreateEntries error:", e);
@@ -87,7 +120,6 @@ export async function bulkCreateEntries(req: AuthRequest, res: Response) {
   }
 }
 
-// GET /api/mobile/v1/entries
 export async function listEntries(req: AuthRequest, res: Response) {
   try {
     const auth = getAuthCtx(req);

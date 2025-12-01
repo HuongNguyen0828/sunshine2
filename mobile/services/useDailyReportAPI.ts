@@ -1,19 +1,18 @@
 // mobile/services/useDailyReportAPI.ts
 
 import { auth } from "@/lib/firebase";
-import type { DailyReportDoc, DailyReportFilter } from "../../shared/types/type";
+import type {
+  DailyReportDoc,
+  DailyReportFilter,
+} from "../../shared/types/type";
 
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || "http://10.0.2.2:5001/api";
 
 type TeacherDailyReportFilter = DailyReportFilter;
-
 type ParentDailyReportFilter = DailyReportFilter;
 
-/**
- * Helper to build query string from an object.
- */
-function buildQueryString(params: Record<string, any>): string {
+function buildQueryString(params: Record<string, unknown>): string {
   const searchParams = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
@@ -21,8 +20,10 @@ function buildQueryString(params: Record<string, any>): string {
 
     if (Array.isArray(value)) {
       if (key === "childIds") {
-        // for parent endpoint we pass as comma separated child ids
-        searchParams.append(key, value.join(","));
+        const arr = value.map((v) => String(v)).filter(Boolean);
+        if (arr.length > 0) {
+          searchParams.append(key, arr.join(","));
+        }
       } else {
         value.forEach((v) => searchParams.append(key, String(v)));
       }
@@ -35,9 +36,6 @@ function buildQueryString(params: Record<string, any>): string {
   return qs ? `?${qs}` : "";
 }
 
-/**
- * Low-level authenticated fetch wrapper for mobile → backend calls.
- */
 async function authFetch<T>(
   path: string,
   options: RequestInit = {}
@@ -66,7 +64,6 @@ async function authFetch<T>(
     );
   }
 
-  // 204 No Content
   if (res.status === 204) {
     // @ts-expect-error
     return null;
@@ -75,11 +72,6 @@ async function authFetch<T>(
   return (await res.json()) as T;
 }
 
-/**
- * Fetch teacher daily reports with optional filters.
- *
- * GET /api/mobile/teacher/daily-reports
- */
 export async function fetchTeacherDailyReports(
   filter?: TeacherDailyReportFilter
 ): Promise<DailyReportDoc[]> {
@@ -97,25 +89,18 @@ export async function fetchTeacherDailyReports(
   );
 }
 
-/**
- * Fetch parent daily reports for one or more children.
- *
- * Required:
- * - childIds: string[] (child ids belonging to the parent)
- *
- * Optional filters (same as teacher):
- * - classId, childId, dateFrom, dateTo, sent
- *
- * GET /api/mobile/parent/daily-reports
- */
-export async function fetchParentDailyReports(params: {
-  childIds: string[];
+export type FetchParentDailyReportsParams = {
+  childIds?: string[];
   filter?: ParentDailyReportFilter;
-}): Promise<DailyReportDoc[]> {
+};
+
+export async function fetchParentDailyReports(
+  params: FetchParentDailyReportsParams
+): Promise<DailyReportDoc[]> {
   const { childIds, filter } = params;
 
   const qs = buildQueryString({
-    childIds,
+    childIds: childIds && childIds.length > 0 ? childIds : undefined,
     classId: filter?.classId,
     childId: filter?.childId,
     dateFrom: filter?.dateFrom,
@@ -129,16 +114,8 @@ export async function fetchParentDailyReports(params: {
   );
 }
 
-/**
- * Optional: manually mark a report as sent / visible to parents.
- *
- * POST /api/mobile/teacher/daily-reports/:id/send
- */
 export async function sendDailyReport(reportId: string): Promise<void> {
-  await authFetch<null>(
-    `/mobile/teacher/daily-reports/${reportId}/send`,
-    {
-      method: "POST",
-    }
-  );
+  await authFetch<null>(`/mobile/teacher/daily-reports/${reportId}/send`, {
+    method: "POST",
+  });
 }
