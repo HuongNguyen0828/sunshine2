@@ -5,7 +5,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import RoleGate from "@/navigation/RootNavigator";
 import { colors } from "@/constants/color";
 import HeaderWithLogo from "@/components/headers/HeaderWithLogo";
-import { registerForPushNotificationsAsync } from "@/lib/registerPushNotifications";
+import { registerForPushNotificationsAsync } from "../../../lib/registerPushNotifications";
 
 /**
  * Parent tabs layout.
