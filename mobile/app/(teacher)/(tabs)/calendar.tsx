@@ -195,7 +195,16 @@ export default function TeacherCalendar() {
         try {
             const publicHoliday = await fetchingPublicHolidayAlberta(classesContext);
             console.log("DEBUG: Holiday: ", publicHoliday["2025-09-01"]);
-            setHolidays(publicHoliday);
+
+            // To match with currentYear
+            const holidayMatchYear = Object.fromEntries(
+                Object.entries(holidays).map(([date, events]) => {
+                    const currentYear = currentMonth.getFullYear();
+                    const dateConverted = currentYear + date.slice(4); // replace only the year
+                    return [dateConverted, events];
+                })
+            );
+            setHolidays(holidayMatchYear);
         } catch (error: any) {
             console.error("Calendar", error);
             setHolidays({}); // Set empty object on error
@@ -258,7 +267,7 @@ export default function TeacherCalendar() {
             const [y, m, d] = date.split('-').map(Number);
 
             // month is 0-indexed for Date(year, monthIndex, day)
-            if (m - 1 === month && y === year) {
+            if (m - 1 === month) {
                 console.log("Event", m - 1);
                 console.log("Current Month", month);
                 console.log(events)
