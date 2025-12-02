@@ -101,7 +101,7 @@ export default function ParentCalendar() {
   // Import classes from useAppContext
   const { sharedData } = useAppContext();
   const childrenContext = sharedData['children'] as ChildRef[];
-  const classesContext = sharedData["classes"];
+  const classesContext = sharedData["classes"] as string[];
   const allCalendarEventsInitallyFromContext = sharedData["otherActivity"] as EventByMonth;
 
 
@@ -310,18 +310,18 @@ export default function ParentCalendar() {
               </View>
             )}
             {/* For Classes */}
-            {event.classes?.map((cls, index) => (
+            {/* {event.classes?.map((cls, index) => (
               <View key={index} style={styles.eventDetailRow}>
                 <MapPin size={12} color="#64748B" />
-                <Text style={styles.eventDetailText}>{cls}</Text>
+                <Text style={styles.eventDetailText}>{classesContext.find((classId: string) => classId === cls.id)}</Text>
               </View>
-            ))}
+            ))} */}
 
             {/* For Children */}
-            {childrenContext.filter(child => child.classId && event.classes.includes(child.classId)).map((child, index) => (
+            {childrenContext.filter(child => child.classId && event.classes.includes(child.classId)).map((ch, index) => (
               <View key={index} style={styles.eventDetailRow}>
                 <Baby size={12} color="#64748B" />
-                <Text style={styles.eventDetailText}>{child.name}</Text>
+                <Text style={styles.eventDetailText}>{ch.name}</Text>
               </View>
             ))}
 
