@@ -8,6 +8,7 @@ const config: ExpoConfig = {
   slug: "sunshine",
   scheme: "sunshine",
   plugins: ["expo-router"],
+  owner: "huongexpo", // <-- Add this line
   experiments: { typedRoutes: true },
   android: {
     package: "com.huongexpo.sunshine",
@@ -22,9 +23,12 @@ const config: ExpoConfig = {
       messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
       appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
       measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID, 
-      baseUrl: process.env.EXPO_PUBLIC_EXPO_PUBLIC_API_URL
-    }
-  }
+      baseUrl: process.env.EXPO_PUBLIC_API_URL
+    },
+    eas: {
+        projectId: "fa9800b2-2029-4bdb-8a56-ec9de2437e04" // manually set
+      },  
+  }, 
 };
 
 export default config;
