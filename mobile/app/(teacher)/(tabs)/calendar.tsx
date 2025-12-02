@@ -194,9 +194,7 @@ export default function TeacherCalendar() {
     const getPublicHolidays = async () => {
         try {
             const publicHoliday = await fetchingPublicHolidayAlberta(classesContext);
-            console.log("DEBUG: Holiday: ", publicHoliday["2025-09-01"]);
-
-
+            // console.log("DEBUG: Holiday: ", publicHoliday["2025-09-01"]);
             setHolidays(publicHoliday);
         } catch (error: any) {
             console.error("Calendar", error);

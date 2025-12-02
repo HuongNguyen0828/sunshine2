@@ -1,4 +1,6 @@
 import { ExpoConfig } from "expo/config";
+import "dotenv/config";
+
 
 const config: ExpoConfig = {
   name: "Sunshine",
