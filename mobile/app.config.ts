@@ -8,6 +8,10 @@ const config: ExpoConfig = {
   scheme: "sunshine",
   plugins: ["expo-router"],
   experiments: { typedRoutes: true },
+  android: {
+    package: "com.huongexpo.sunshine",
+    googleServicesFile: "./google-services.json" // optional, but needed for Firebase notifications
+  },
   extra: {
     firebase: {
       apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
