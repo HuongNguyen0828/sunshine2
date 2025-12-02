@@ -197,22 +197,34 @@ export default function ParentCalendar() {
     try {
       const publicHoliday = await fetchingPublicHolidayAlberta(classesContext);
       console.log("DEBUG: Holiday: ", publicHoliday["2025-12-26"]);
-
-      // To match with currentYear
-      const holidayMatchYear = Object.fromEntries(
-        Object.entries(publicHoliday).map(([date, events]) => {
-          const currentYear = currentMonth.getFullYear();
-          const dateConverted = currentYear + date.slice(4); // replace only the year
-          return [dateConverted, events];
-        })
-      );
-      console.log("Holiday", holidayMatchYear)
-      setHolidays(holidayMatchYear);
+      console.log("Holiday", publicHoliday)
+      setHolidays(publicHoliday);
     } catch (error: any) {
       console.error("Calendar", error);
       setHolidays({}); // Set empty object on error
     }
   };
+
+
+  // To match with currentYear
+  const holidayMatchYear = useMemo(() => Object.fromEntries(
+    Object.entries(holidays).map(([date, events]) => {
+
+      // Update Key
+      const currentYear = currentMonth.getFullYear();
+      const dateConverted = currentYear + date.slice(4); // replace only the year
+      console.log(currentYear)
+      console.log("DEBUG", dateConverted)
+
+      // Update date on Event[]
+      const eventsConverted = events.map(event => ({
+        ...event,
+        date: dateConverted,
+      }));
+      // return updated object
+      return [dateConverted, eventsConverted];
+    })
+  ), [currentMonth, holidays]);
 
   useEffect(() => {
     getPublicHolidays();
@@ -227,8 +239,8 @@ export default function ParentCalendar() {
   // console.log("isCurrent", isCurrentMonthMatchNow);
   // console.log("OtherActivity", sharedData["otherActivity"]);
   // console.log("Today", sharedData["todayEvents"]);
-  const combineAllEventCalendar = { ...eventCategories.allCalendarEvents, ...childrenBirthdayEachMonth, ...holidays };
-  const allCalendarEventsInitally = { ...allCalendarEventsInitallyFromContext, ...childrenBirthdayEachMonth, ...holidays }
+  const combineAllEventCalendar = { ...eventCategories.allCalendarEvents, ...childrenBirthdayEachMonth, ...holidayMatchYear };
+  const allCalendarEventsInitally = { ...allCalendarEventsInitallyFromContext, ...childrenBirthdayEachMonth, ...holidayMatchYear }
   const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitally : combineAllEventCalendar;
   // Get events for selected date
   const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
