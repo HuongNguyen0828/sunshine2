@@ -11,10 +11,13 @@ import { auth } from "./firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
-const BASE_URL =
-  Platform.OS === "android"
-    ? "http://10.0.2.2:5001/api/mobile"
-    : "http://localhost:5001/api/mobile";
+// const BASE_URL =
+  // Platform.OS === "android"
+  //   ? "http://10.0.2.2:5001/api/mobile"
+  //   : "http://localhost:5001/api/mobile";
+  const BASE_URL = Platform.OS === "android" || Platform.OS === "ios"
+  ? `${process.env.EXPO_PUBLIC_API_URL}/api/mobile` //replace with your computer LAN IP
+  : "http://localhost:5001/api/mobile"; // fallback for web
 
 const norm = (v: string) => v.trim().toLowerCase();
 const isAllowedRole = (r?: unknown) => r === "teacher" || r === "parent";

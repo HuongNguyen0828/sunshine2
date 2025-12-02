@@ -140,6 +140,7 @@ export default function TeacherTabs() {
         const { dailyActivities, allCalendarEvents } = processAndSplitSchedules(schedules, sharedData["classes"]);
 
         // Store in context for different tabs to use
+        console.log("Daily Activity", dailyActivities);
         updateSharedData("dailyActivity", dailyActivities); // For Dashboard
         updateSharedData("otherActivity", allCalendarEvents); // For Calendar
         // console.log("✅ Data split successfully - Today:", Object.keys(todayEvents).length, "All:", Object.keys(allCalendarEvents).length);

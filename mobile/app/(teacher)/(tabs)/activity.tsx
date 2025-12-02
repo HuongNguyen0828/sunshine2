@@ -151,7 +151,7 @@ export default function TeacherMessages() {
   // Filter entries based on selections
   const filteredActivities = useMemo(() => {
     // console.log("All Daily: ", entries);
-    let listAfterRemoveDate = Object.values(activities); // Make a list of all [Event[], Event[], ...]
+    let listAfterRemoveDate = Object.values(activities ?? {}); //DEFAULT to empty object// Make a list of all [Event[], Event[], ...]
     let filtered = listAfterRemoveDate.reduce((acc, eventList) => { //Un-pack filtered into just Event[]
       return [...acc, ...eventList];
     }, []);
