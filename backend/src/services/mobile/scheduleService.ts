@@ -96,10 +96,10 @@ export async function listSchedules(monthStart: string, teacherId: string, locat
  * List schedules for a given weekStart, teacherId (in proven of classId and locationId)
  * 
  *  */ 
-export async function listSchedulesForParent(monthStart: string, parentId: string, locationId: string) {
+export async function listSchedulesForParent(monthStart: string, parentId: string) {
 
       // 1. First, get classes for the teacher at the specified location
-    const classIds = await getClassesForParentId(parentId, locationId);
+    const classIds = await getClassesForParentId(parentId);
 
     /* ================
     Example of weekStart(2025-11-10) included in monthStart(2025-11-01): matching year and month 2025-11
@@ -119,7 +119,7 @@ export async function listSchedulesForParent(monthStart: string, parentId: strin
     const rangeEnd = `${monthStart.slice(0, 7)}-32`; // better approach
 
     // 2. Build the query to fetch schedules for those classes
-    if (classIds.size > 0) {
+    if (classIds.length > 0) {
         // Checking if inside Schedules, classId === "*", then we need to fetch those schedules as well
         // 2.1. Case when exactly match classId on Schedules
         console.log("ClassIds: ", classIds);
@@ -146,7 +146,7 @@ export async function listSchedulesForParent(monthStart: string, parentId: strin
         const query = db.collection("schedules")
         .where("weekStart", ">=", rangeStart) // >= rangeStart
         .where("weekStart", "<=", rangeEnd) // <= rangeEnd
-        .where("locationId", "==", locationId)
+        // .where("locationId", "==", locationId)
         .where("classId", "in", combinedClassIds); // it's safe as 1 teacher won't have more than 2 classes + '*' = 3
 
           // 3. Execute the query 
@@ -166,7 +166,7 @@ export async function listSchedulesForParent(monthStart: string, parentId: strin
 
 // Helper function to get classes for a given parentId and locationId: also based on the children parent have inside the class
 
-async function getClassesForParentId(parentId: string, locationId: string) {
+async function getClassesForParentId(parentId: string) {
     // 1. First, need to get Parent docId from parentID (authUid)
     const parentSnapshot = await db.collection("users")
         .where("role", "==", "parent")
@@ -176,22 +176,26 @@ async function getClassesForParentId(parentId: string, locationId: string) {
     if (parentSnapshot.empty) {
         throw new Error("Cannot match user with parent doc")
     }
-    const parentRef = parentSnapshot.docs[0].ref;
-    const parentDocId = parentRef.id;
+    const parentDoc = parentSnapshot.docs[0];
 
     // 2. Find childIds from parentDoc
-    const parentData = parentSnapshot.docs[0].data();
-    const chilrenIds = parentData.childIds;
+    const parentData = parentDoc.data();
+    const childRelationships = Array.isArray(parentData.childRelationships) 
+        ? parentData.childRelationships
+        : [] 
+    ;
+    const childrenIds: string[] = childRelationships.map(rel => rel.childId);
     // 3. From each childId, find their class.
-    const classIds = chilrenIds.map(async(id: string) => {
-        const childDocRef = db.collection("children").doc(id);
-        const childSnap = await childDocRef.get();
-        const childData = childSnap.data();
-        
-        const classId = childData?.classId;
-        return classId;
-    })
+    const childRefs = childrenIds.map(id => db.collection('children').doc(id));
+    const childSnaps = await db.getAll(...childRefs);
+
+
+    // Extract classId strings and filter undefined/null
+    const classIdsRaw = childSnaps
+        .map(snap => (snap.exists ? snap.data()?.classId : undefined))
+        .filter((cid): cid is string => typeof cid === "string" && cid.length > 0)
+    ;
 
     // Combine if same classId
-    return new Set(classIds);
+    return Array.from(new Set(classIdsRaw));
 }

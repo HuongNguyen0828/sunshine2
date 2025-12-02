@@ -40,6 +40,7 @@ import {
   // type NewChildInput as APIChildInput,
 } from "@/services/useChildrenAPI";
 import TeachersTab from "@/components/dashboard/TeachersTab";
+import MessagesTab from "@/components/dashboard/MessagesTab";
 import { fetchParents } from "@/services/useParentsAPI";
 import { type CustomParentInput } from "@/components/dashboard/ChildrenTab"
 import { a } from "framer-motion/client";
@@ -539,6 +540,8 @@ export default function AdminDashboard() {
           locations={filteredLocations}
           showClasses={classes}
         />}
+
+      {activeTab === "messages" && <MessagesTab />}
     </Shell>
   );
 }

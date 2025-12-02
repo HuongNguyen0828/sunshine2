@@ -63,6 +63,14 @@ const SchedulerIcon = () => (
   </svg>
 );
 
+const MessagesIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M3 4h12a1 1 0 011 1v8a1 1 0 01-1 1H5l-3 3V5a1 1 0 011-1z" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M6 8h6" strokeLinecap="round" />
+    <path d="M6 11h4" strokeLinecap="round" />
+  </svg>
+);
+
 const ToggleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
     <path d="M2 6h5" strokeLinecap="round" />
@@ -82,11 +90,13 @@ export default function SidebarNav({
 
   const navItems: { id: Tab; label: string; icon: JSX.Element }[] = [
     { id: 'overview', label: 'Overview', icon: <OverviewIcon /> },
+    { id: 'overview', label: 'Overview', icon: <OverviewIcon /> },
     { id: 'classes', label: 'Classes', icon: <ClassesIcon /> },
     { id: 'children', label: 'Children', icon: <ChildrenIcon /> },
     { id: 'teachers', label: 'Teachers', icon: <TeachersIcon /> },
     { id: 'parents', label: 'Parents', icon: <ParentsIcon /> },
     { id: 'scheduler-labs', label: 'Scheduler', icon: <SchedulerIcon /> },
+    { id: 'messages', label: 'Messages', icon: <MessagesIcon /> },
   ];
 
   return (

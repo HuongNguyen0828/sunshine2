@@ -55,7 +55,7 @@ export async function fetchSchedulesForParent(month: string): Promise<ScheduleDa
 };
 
 // Helper function to process and split schedules; REUSABLE inside of layout, canlendar and Activity tabs for loading Events
-export function processAndSplitSchedules(schedules: ScheduleDate[], classes:ClassRow[] ) {
+export function processAndSplitSchedules(schedules: ScheduleDate[], classes:ClassRow[] | string[] ) {
     const numberInWeek = ["monday", "tuesday", "wednesday", "thursday", "friday"];
     const dailyActivities: EventByMonth = {};; // Array for dashboard
     const allCalendarEvents: EventByMonth = {}; // Object for calendar
@@ -74,7 +74,7 @@ export function processAndSplitSchedules(schedules: ScheduleDate[], classes:Clas
         id: activity.id,
         title: activity.activityTitle,
         time: activity.timeSlot,
-        classes: activity.classId !== "*"
+        classes: activity.classId !== "*" 
           ? [(classes as ClassRow[]).find(cls => cls.id === activity.classId)?.name].filter(Boolean)
           : (classes as ClassRow[]).map((cls: any) => cls.name),
         type: activity.type,
@@ -102,7 +102,7 @@ export function processAndSplitSchedules(schedules: ScheduleDate[], classes:Clas
 
 
 // Helper function fetching holiday
-export async function fetchingPublicHolidayAlberta(classes: ClassRow[]): Promise<EventByMonth> {
+export async function fetchingPublicHolidayAlberta(classes: ClassRow[] | string[]): Promise<EventByMonth> {
  try {
   const response = await fetch("https://canada-holidays.ca/api/v1/holidays");
    
@@ -131,7 +131,9 @@ export async function fetchingPublicHolidayAlberta(classes: ClassRow[]): Promise
       type: "holiday",
       description: "Daycare closed",
       title: holiday.title,
-      classes: classes.map(cls => cls.name), // Get class name
+      classes: classes.map(cls =>
+        typeof cls === "string" ? cls : cls.name
+      ),      // Get className in Teacher, else just classId in parent
       date: holiday.date
     }
 

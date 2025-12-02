@@ -13,6 +13,7 @@ import {
   Home,
   UserCircle,
   FlaskConical,
+  Megaphone,
 } from "lucide-react";
 import { useState } from "react";
 import type { Tab } from "@/types/forms";
@@ -53,6 +54,11 @@ const navigation = [
     id: "scheduler-labs" as Tab,
     name: "Scheduler",
     icon: Calendar,
+  },
+  {
+    id: "messages" as Tab,
+    name: "Announcements",
+    icon: Megaphone,
   },
 ];
 

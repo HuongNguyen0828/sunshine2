@@ -38,24 +38,24 @@ export const getSchedulesForParent = async (req: AuthRequest, res: Response) => 
     try {
         // Extract teacherId and locationId from authenticated user
         const parentId  = req.user?.uid; // is matching with Firebase Auth UID
-        const locationId = req.user?.locationId;
+        const locationIds = req.user?.locationIds;
 
         // Extract weekStart from query parameters
         const monthStart  = req.query.month as string;
 
          console.log('🔍 Received parameters:', {
             parentId,
-            locationId,
+            locationIds,
             monthStart,
             query: req.query, // Log all query parameters
             params: req.params // Log all route parameters
         });
 
-        if (!parentId || !locationId) {
+        if (!parentId ) {
             return res.status(400).json({ ok: false, message: "Invalid parent or location ID" });
         }
         // Matching parentId from Auth with docId in users collection
-        const schedules = await listSchedulesForParent(monthStart, parentId, locationId);
+        const schedules = await listSchedulesForParent(monthStart, parentId);
         res.status(200).json({ ok: true, data: schedules });
     } catch (error) {
         console.error("Error in getSchedulesForParent:", error);

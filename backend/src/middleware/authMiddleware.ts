@@ -77,7 +77,7 @@ export const authMiddleware = async (
       daycareId = "";
       locationId = "";
       daycareIds = [];
-      locationIds = [];
+      locationIds = []; // Not locationId
     } else {
       // teacher / admin / other staff roles:
       // still reuse existing helper; if later admin supports multiple,

@@ -194,8 +194,17 @@ export default function TeacherCalendar() {
     const getPublicHolidays = async () => {
         try {
             const publicHoliday = await fetchingPublicHolidayAlberta(classesContext);
-            console.log("DEBUG: Holiday: ", publicHoliday["2025-11-11"]);
-            setHolidays(publicHoliday);
+            console.log("DEBUG: Holiday: ", publicHoliday["2025-09-01"]);
+
+            // To match with currentYear
+            const holidayMatchYear = Object.fromEntries(
+                Object.entries(publicHoliday).map(([date, events]) => {
+                    const currentYear = currentMonth.getFullYear();
+                    const dateConverted = currentYear + date.slice(4); // replace only the year
+                    return [dateConverted, events];
+                })
+            );
+            setHolidays(holidayMatchYear);
         } catch (error: any) {
             console.error("Calendar", error);
             setHolidays({}); // Set empty object on error
@@ -216,7 +225,7 @@ export default function TeacherCalendar() {
     // console.log("OtherActivity", sharedData["otherActivity"]);
     // console.log("Today", sharedData["todayEvents"]);
     const combineAllEventCalendar = { ...eventCategories.allCalendarEvents, ...childrenBirthdayEachMonth, ...holidays };
-    const allCalendarEventsInitally = { ...allCalendarEventsInitallyFromContext, ...holidays }
+    const allCalendarEventsInitally = { ...allCalendarEventsInitallyFromContext, ...childrenBirthdayEachMonth, ...holidays }
     const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitally : combineAllEventCalendar;
     // Get events for selected date
     const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
@@ -248,15 +257,26 @@ export default function TeacherCalendar() {
     const dayNames = ["S", "M", "T", "W", "T", "F", "S"];
 
 
-    /// Count holidays each Month
-    const currentMonthHolidayCount = Object.entries(holidays)
-        .filter(([date, events]) => {
-            const eventDate = new Date(date);
-            return eventDate.getMonth() === currentMonth.getMonth() &&
-                eventDate.getFullYear() === currentMonth.getFullYear();
-        })
-        .reduce((total, [date, events]) =>
-            total + events.length, 0);
+    // Count holidays each Month
+    const currentMonthHolidayCount = useMemo(() => {
+        const month = currentMonth.getMonth();
+        const year = currentMonth.getFullYear();
+        console.log("Debuf Month", month, year)
+
+        return Object.entries(holidays).reduce((total, [date, events]) => {
+            const [y, m, d] = date.split('-').map(Number);
+
+            // month is 0-indexed for Date(year, monthIndex, day)
+            if (m - 1 === month) {
+                console.log("Event", m - 1);
+                console.log("Current Month", month);
+                console.log(events)
+                return total + events.length;
+            }
+            return total;
+        }, 0);
+    }, [holidays, currentMonth]);
+
 
     const renderEvent = (event: Event) => {
         const config = eventColors[event.type];
