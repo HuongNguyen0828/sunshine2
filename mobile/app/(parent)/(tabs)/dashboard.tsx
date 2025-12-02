@@ -14,13 +14,15 @@ import { fontSize } from "@/constants/typography";
 import { fetchParentFeed } from "@/services/useParentFeedAPI";
 import { ParentFeedEntry } from "../../../../shared/types/type";
 
-type ChildRef = {
+export type ChildRef = {
   id: string;
+  classId?: string; // Adding class Scope for API call 
   name: string;
   relationship?: string;
+  birthday: string;
 };
 
-type ChildRelationship = {
+export type ChildRelationship = {
   childId: string;
   relationship?: string;
 };
@@ -100,12 +102,14 @@ export default function ParentDashboard() {
               id: rel.childId,
               name: fullName,
               relationship: rel.relationship,
+              birthday: c.birthDate
             });
           } else {
             childDocs.push({
               id: rel.childId,
               name: rel.childId,
               relationship: rel.relationship,
+              birthday: "",
             });
           }
         }

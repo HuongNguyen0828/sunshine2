@@ -198,7 +198,7 @@ export default function TeacherCalendar() {
 
             // To match with currentYear
             const holidayMatchYear = Object.fromEntries(
-                Object.entries(holidays).map(([date, events]) => {
+                Object.entries(publicHoliday).map(([date, events]) => {
                     const currentYear = currentMonth.getFullYear();
                     const dateConverted = currentYear + date.slice(4); // replace only the year
                     return [dateConverted, events];
@@ -225,7 +225,7 @@ export default function TeacherCalendar() {
     // console.log("OtherActivity", sharedData["otherActivity"]);
     // console.log("Today", sharedData["todayEvents"]);
     const combineAllEventCalendar = { ...eventCategories.allCalendarEvents, ...childrenBirthdayEachMonth, ...holidays };
-    const allCalendarEventsInitally = { ...allCalendarEventsInitallyFromContext, ...holidays }
+    const allCalendarEventsInitally = { ...allCalendarEventsInitallyFromContext, ...childrenBirthdayEachMonth, ...holidays }
     const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitally : combineAllEventCalendar;
     // Get events for selected date
     const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
