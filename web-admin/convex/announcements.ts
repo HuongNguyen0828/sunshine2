@@ -1,6 +1,21 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+// Generate upload URL for images
+export const generateUploadUrl = mutation({
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// Get URL for a stored file
+export const getImageUrl = query({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, args) => {
+    return await ctx.storage.getUrl(args.storageId);
+  },
+});
+
 // List all announcements (newest first)
 export const list = query({
   args: {
@@ -59,6 +74,7 @@ export const send = mutation({
     senderRole: v.union(v.literal("admin"), v.literal("teacher")),
     text: v.string(),
     imageUrl: v.optional(v.string()),
+    imageStorageId: v.optional(v.id("_storage")),
     targetAudience: v.optional(v.union(
       v.literal("all"),
       v.literal("parents"),
@@ -68,12 +84,19 @@ export const send = mutation({
     classId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // If we have a storageId, get the URL
+    let imageUrl = args.imageUrl;
+    if (args.imageStorageId) {
+      imageUrl = await ctx.storage.getUrl(args.imageStorageId) ?? undefined;
+    }
+
     return await ctx.db.insert("announcements", {
       senderName: args.senderName,
       senderEmail: args.senderEmail,
       senderRole: args.senderRole,
       text: args.text,
-      imageUrl: args.imageUrl,
+      imageUrl,
+      imageStorageId: args.imageStorageId,
       targetAudience: args.targetAudience ?? "all",
       locationId: args.locationId,
       classId: args.classId,

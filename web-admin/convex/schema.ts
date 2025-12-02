@@ -12,6 +12,7 @@ export default defineSchema({
     // Content
     text: v.string(),
     imageUrl: v.optional(v.string()),
+    imageStorageId: v.optional(v.id("_storage")),
 
     // Targeting (optional - for future filtering)
     targetAudience: v.optional(v.union(
