@@ -11,6 +11,9 @@ import { auth } from "./firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
+// Register Push notification Indie (Group notification for parent)
+import { registerIndieID, unregisterIndieDevice } from 'native-notify';
+
 // const BASE_URL =
   // Platform.OS === "android"
   //   ? "http://10.0.2.2:5001/api/mobile"
@@ -140,6 +143,16 @@ export async function signIn(email: string, password: string) {
     }
 
     await AsyncStorage.setItem("userRole", role!);
+
+    // Native Notify Indie Push Registration Code
+    // registerIndieID('put your unique user ID here as a string', 32817, 'BS7xPMJTUeP2i57MJ2uGl8');
+    if (role === "parent") {
+      registerIndieID(email, 32817, 'BS7xPMJTUeP2i57MJ2uGl8');
+    }
+
+    // End of Native Notify Code
+
+
     return cred.user; // return User so callers can route by claims
   } catch (e: any) {
     throw new Error(fbErr(e?.code, e?.message));
@@ -148,7 +161,13 @@ export async function signIn(email: string, password: string) {
 
 export async function signOutUser() {
   await signOut(auth);
-  await AsyncStorage.removeItem("userRole");
+  // Native Notify Indie Push Registration Code
+  // unregisterIndieDevice('put your unique user ID here as a string', 32817, 'BS7xPMJTUeP2i57MJ2uGl8');
+  const role = await AsyncStorage.getItem("userRole");
+  if (role === "parent") unregisterIndieDevice(auth.currentUser?.email, 32817, 'BS7xPMJTUeP2i57MJ2uGl8');
+  // End of Native Notify Code
+    await AsyncStorage.removeItem("userRole");
+
 }
 
 export function onUserChanged(cb: (user: User | null) => void) {
