@@ -7,7 +7,8 @@ import type {
 } from "../../shared/types/type";
 
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://10.0.2.2:5001/api";
+  (process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") ||
+    "http://10.0.2.2:5001/api/mobile");
 
 type TeacherDailyReportFilter = DailyReportFilter;
 type ParentDailyReportFilter = DailyReportFilter;
@@ -85,7 +86,7 @@ export async function fetchTeacherDailyReports(
   });
 
   return await authFetch<DailyReportDoc[]>(
-    `/mobile/teacher/daily-reports${qs}`
+    `/teacher/daily-reports${qs}`
   );
 }
 
@@ -110,12 +111,13 @@ export async function fetchParentDailyReports(
   });
 
   return await authFetch<DailyReportDoc[]>(
-    `/mobile/parent/daily-reports${qs}`
+    `/parent/daily-reports${qs}`
   );
 }
 
 export async function sendDailyReport(reportId: string): Promise<void> {
-  await authFetch<null>(`/mobile/teacher/daily-reports/${reportId}/send`, {
-    method: "POST",
-  });
+  await authFetch<null>(
+    `/teacher/daily-reports/${reportId}/send`,
+    { method: "POST" }
+  );
 }
