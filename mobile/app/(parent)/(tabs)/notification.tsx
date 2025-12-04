@@ -1,7 +1,7 @@
 import registerNNPushToken from 'native-notify';
 import * as Notifications from 'expo-notifications';
 import * as Permissions from 'expo-permissions';
-import { collection, query, getDocs, orderBy } from "firebase/firestore";
+import { collection, query, getDocs, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import {
@@ -34,14 +34,30 @@ import { EventByMonth, Event, ScheduleDate } from "./calendar";
 import { fetchSchedulesForParent, processAndSplitSchedules } from "@/services/useScheduleAPI";
 import { ChildRef } from './dashboard';
 
+function extractTimeFromISO(isoString: string): string {
+  // isoString example: "2025-12-04T13:14:00.000Z"
+  // slice from "T" to get time part, then take hours:minutes
+  const timePart = isoString.split("T")[1]; // "13:14:00.000Z"
+  if (!timePart) return "";
+  return timePart.slice(0, 5); // "13:14"
+}
+
 // Memoized Entry Card Component for better performance
 const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
   const todayString = new Date().toLocaleDateString('en-CA').split('T')[0];
   const date = activity.date;
+
+
+  if (!date) return "";
+  const eventDate = date.split('T')[0];
+
   let tommorow = new Date();
   tommorow.setDate(tommorow.getDate() + 1);
   const tommorowString = tommorow.toISOString().split('T')[0];
 
+  // Extract time
+
+  const timestamp = extractTimeFromISO(date); //"2025-12-04T13:14:00.000Z";
   return (
     <Pressable
       style={styles.entryCard}
@@ -53,6 +69,8 @@ const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
       <View style={styles.entryContent}>
         <View style={styles.entryHeader}>
           <Text style={styles.entryTitle}>{activity.title}</Text>
+          <Text style={styles.entryTime}>{timestamp}</Text>
+
           {/* {activity.children && activity.children.map(c => (
             <Text style={styles.entryTime}>c{c}</Text>
           ))} */}
@@ -60,7 +78,7 @@ const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
         <Text style={styles.entryType}>
           {/* {entry.type} */}
           {/* {entry.subtype && ` - ${entry.subtype}`} */}
-          {date === todayString ? "Today" : date === tommorowString ? "Tommorow" : date}
+          {eventDate === todayString ? "Today" : date === tommorowString ? "Tommorow" : date}
         </Text>
         {activity.description && <Text style={styles.entryDetail}>{activity.description.trim().slice(0, 50)}</Text>}
         {/* <Text style={styles.entryClass}>{entry.className}</Text> */}
@@ -71,37 +89,7 @@ const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
 
 // EntryCard.displayName = "EntryCard";
 
-export default function ParentActivity() {
-
-  // Register appId and appToken: Source: https://app.nativenotify.com/in-app
-  registerNNPushToken(32829, 'yZd8BljhFJZ6TXUxUWJPfq');
-
-  // For testing a sigle notification
-  useEffect(() => {
-    const registerForPushNotificationsAsync = async () => {
-      // Asking permission in Iphone
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-
-      if (finalStatus !== 'granted') {
-        alert('Failed to get push token for push notifications!');
-        return;
-      }
-
-      const tokenData = await Notifications.getExpoPushTokenAsync();
-      console.log('Push token:', tokenData.data);
-      // You can send tokenData.data to your backend to save it. No we have it already as the data itself
-    };
-
-    registerForPushNotificationsAsync();
-  }, []);
-
-
+export default function ParentNotifications() {
 
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
@@ -126,25 +114,32 @@ export default function ParentActivity() {
   const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log("REACHED")
-    const fetchParentNotifications = async () => {
-      if (!email) return; // or parent ID
-      try {
-        const q = query(
-          collection(db, "notifications", email, "logs"),
-          orderBy("date", "desc")
-        );
-        const snapshot = await getDocs(q);
+    if (!email) return; // or parent ID
+
+    console.log("REACHED");
+
+    const q = query(
+      collection(db, "notifications", email, "logs"),
+      orderBy("date", "desc")
+    );
+
+    // Subscribe to real-time updates
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log("Notification data: ", data)
+        console.log("Notification data: ", data);
         setNotifications(data);
-      } catch (err) {
+      },
+      (err) => {
         console.error("Failed to fetch notifications", err);
       }
-    };
+    );
 
-    fetchParentNotifications();
+    // Cleanup listener on unmount
+    return () => unsubscribe();
   }, [email]);
+
 
   // Loading Activity for scrolling down: go month
   useEffect(() => {
@@ -273,16 +268,6 @@ export default function ParentActivity() {
               </Pressable>
             )}
           </View>
-
-          {/* Filter Buttons */}
-          <View style={styles.filterScroll}>
-            <Pressable
-              style={[styles.filterButton, selectedClass && styles.filterButtonActive]}
-              onPress={() => setShowClassModal(true)}
-            >
-              <ChevronDown size={16} color={selectedClass ? "#FFFFFF" : "#475569"} />
-            </Pressable>
-          </View>
         </View>
       </>
     );
@@ -302,7 +287,7 @@ export default function ParentActivity() {
           <ActivityCard activity={{
             title: item.title,
             description: item.detail,
-            date: new Date(item.date).toLocaleDateString("en-CA"),
+            date: item.date, // "2025-12-04T13:14:00.000Z"
             // children: childrenContex.filter(c => item.classes.includes(c.classId)).map(c => c.name)
           }} />
         )}

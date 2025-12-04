@@ -176,8 +176,8 @@ export default function EntryForm() {
       console.log("Reached entry");
       // inside onSubmit after bulkCreateEntries and only when type === "Attendance"
       // if (type === "Attendance") {
-      const title = needsSubtype ? (subtype as AttendanceSubtype) : type;
-      const detail = needsDetail ? payload.detail : "";
+      const title = type;
+      const detail = payload.detail ?? subtype; // Either details or subtype is detail
       const childrenContext = sharedData["children"] as ChildRow[];
 
       // 1) collect parentIds (unique)
@@ -205,13 +205,12 @@ export default function EntryForm() {
         }
       }
 
-      // 3) send Indie push — one request per subID
-      sendNotificationsToTheirParents(title, detail, parentSubIDs);
-      // }
+      if (parentSubIDs.length > 0) {
+        // 3) send Indie push — one request per subID
+        sendNotificationsToTheirParents(title, detail, parentSubIDs);
+        // }
 
-      // Save notifications in Firestore per parent
-      if (type === "Activity" || type === "Note") {       // CURRENTLY: ONLY support: Check-in, check-out, note
-
+        // 4) Save notifications in Firestore per parent
         for (const subID of parentSubIDs) {
           try {
             await setDoc(doc(db, "notifications", subID, "logs", occurredAt), {

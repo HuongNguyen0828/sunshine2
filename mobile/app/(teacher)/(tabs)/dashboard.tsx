@@ -329,7 +329,7 @@ export default function TeacherDashboard() {
     parentSubIDs: string[]
   ) => {
     // fixed time, e.g., 12:36 PM
-    const [hours, minutes] = [13, 36];
+    const [hours, minutes] = [14, 41];
 
     const now = new Date();
     const sendTime = new Date(
