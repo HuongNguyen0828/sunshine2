@@ -1,14 +1,6 @@
-/**
- * Teacher Messages/Activity Log Tab
- *
- * Displays all daycare entries as an activity feed with filtering capabilities.
- * Allows teachers to see all activities across classes and children.
- */
-
-/**
- * Modified by Helen: Activities are shown by classes and by date. From today
- */
-
+import registerNNPushToken from 'native-notify';
+import * as Notifications from 'expo-notifications';
+import * as Permissions from 'expo-permissions';
 import {
   View,
   Text,
@@ -36,10 +28,7 @@ import {
 // import { EntryDoc } from "@sunshine/src/types/type";
 import { useAppContext } from "@/contexts/AppContext";
 import { EventByMonth, Event, ScheduleDate } from "./calendar";
-import { ClassRow } from "./dashboard";
-import { fetchSchedulesForTeacher, processAndSplitSchedules } from "@/services/useScheduleAPI";
-
-
+import { fetchSchedulesForParent, processAndSplitSchedules } from "@/services/useScheduleAPI";
 
 // Memoized Entry Card Component for better performance
 const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
@@ -76,7 +65,38 @@ const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
 
 // EntryCard.displayName = "EntryCard";
 
-export default function TeacherMessages() {
+export default function ParentActivity() {
+
+  // Register appId and appToken: Source: https://app.nativenotify.com/in-app
+  registerNNPushToken(32829, 'yZd8BljhFJZ6TXUxUWJPfq');
+
+  // For testing a sigle notification
+  useEffect(() => {
+    const registerForPushNotificationsAsync = async () => {
+      // Asking permission in Iphone
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        alert('Failed to get push token for push notifications!');
+        return;
+      }
+
+      const tokenData = await Notifications.getExpoPushTokenAsync();
+      console.log('Push token:', tokenData.data);
+      // You can send tokenData.data to your backend to save it. No we have it already as the data itself
+    };
+
+    registerForPushNotificationsAsync();
+  }, []);
+
+
+
   const insets = useSafeAreaInsets();
   const [searchText, setSearchText] = useState("");
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
@@ -88,11 +108,12 @@ export default function TeacherMessages() {
   const [isLoadingShowMore, setIsLoadingShowMore] = useState<boolean>(true); // for WHILE await fetching data when user scrolling more Activity
 
   const { sharedData } = useAppContext();
-  const classesContext = sharedData['classes'] as ClassRow[];
+  const classesContext = sharedData['classes'] as string[];
   // Activities is pre-load from sharedData context
   const initialActivities = sharedData['dailyActivity'] as EventByMonth;
   const [activities, setActivities] = useState<EventByMonth>(initialActivities);
   const [isEndReached, setIsEndReached] = useState<boolean>(false);
+  const email = sharedData["email"] as string;
 
 
   // Loading Activity for scrolling down: go month
@@ -109,7 +130,7 @@ export default function TeacherMessages() {
       // 1. Fetching 
       try {
         if (showMore) setIsLoadingShowMore(true);
-        const schedules = await fetchSchedulesForTeacher(monthString);
+        const schedules = await fetchSchedulesForParent(monthString);
         // Split data: today's events vs all events
         const { dailyActivities, allCalendarEvents } = processAndSplitSchedules(schedules, classesContext);
         // Merge pre-load (initial) activities with newly loaded
@@ -155,7 +176,7 @@ export default function TeacherMessages() {
     let filtered = listAfterRemoveDate.reduce((acc, eventList) => { //Un-pack filtered into just Event[]
       return [...acc, ...eventList];
     }, []);
-    console.log("DEBUG: filtered: ", filtered);
+    // console.log("DEBUG: filtered: ", filtered);
     // Filter by search text (using debounced value)
     if (debouncedSearchText) {
       filtered = filtered.filter(actitivy =>
@@ -166,12 +187,12 @@ export default function TeacherMessages() {
 
     // Filter by class
     if (selectedClass) {
-      const selectedClassName = classesContext.find(cls => cls.id === selectedClass)?.name;
+      const selectedClassName = classesContext.find(cls => cls === selectedClass);
       if (!selectedClassName) return filtered;
       filtered = filtered.filter(entry => entry.classes.includes(selectedClassName));
     }
-    console.log(filtered.length);
-    console.log(selectedClass);
+    // console.log(filtered.length);
+    // console.log(selectedClass);
 
     // At the end, if still not full screen, load and show more.......
     (filtered.length < 10) ? setShowMore(true) : setShowMore(false);
@@ -189,12 +210,8 @@ export default function TeacherMessages() {
     return filteredActivities;
   }, [filteredActivities]);
 
-  const clearFilters = () => {
-    setSelectedClass(null);
-    setSearchText("");
-  };
 
-  const hasActiveFilters = selectedClass || debouncedSearchText;
+
 
   // Memoize the header component to prevent re-renders and focus loss
   const ListHeader = useMemo(() => {
@@ -202,10 +219,8 @@ export default function TeacherMessages() {
       <>
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <Text style={styles.title}>Activity Log</Text>
-          <Text style={styles.subtitle}>
-            {filteredActivities.length} {filteredActivities.length === 1 ? "Activity" : "Actitivities"}
-          </Text>
+          <Text style={styles.title}>Notifications</Text>
+          <Text style={styles.new}>{3}</Text>
         </View>
 
         {/* Search and Filters */}
@@ -235,18 +250,13 @@ export default function TeacherMessages() {
               style={[styles.filterButton, selectedClass && styles.filterButtonActive]}
               onPress={() => setShowClassModal(true)}
             >
-              <Text style={[styles.filterButtonText, selectedClass && styles.filterButtonTextActive]}>
-                {selectedClass
-                  ? classesContext.find(c => c.id === selectedClass)?.name
-                  : "All Classes"}
-              </Text>
               <ChevronDown size={16} color={selectedClass ? "#FFFFFF" : "#475569"} />
             </Pressable>
           </View>
         </View>
       </>
     );
-  }, [insets.top, filteredActivities.length, searchText, handleSearchChange, handleClearSearch, selectedClass]);
+  }, [insets.top, filteredActivities.length, searchText, handleSearchChange, handleClearSearch]);
 
 
   return (
@@ -297,44 +307,7 @@ export default function TeacherMessages() {
         </View>
       } */}
 
-      {/* Class Filter Modal */}
-      <Modal
-        visible={showClassModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowClassModal(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowClassModal(false)}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Class</Text>
-            <Pressable
-              style={[styles.modalOption, !selectedClass && styles.modalOptionSelected]}
-              onPress={() => {
-                setSelectedClass(null);
-                setShowClassModal(false);
-              }}
-            >
-              <Text style={styles.modalOptionText}>All Classes</Text>
-            </Pressable>
-            {classesContext.map(cls => (
-              <Pressable
-                key={cls.id}
-                style={[styles.modalOption, selectedClass === cls.id && styles.modalOptionSelected]}
-                onPress={() => {
-                  setSelectedClass(cls.id);
-                  setShowClassModal(false);
-                }}
-              >
-                <Text style={styles.modalOptionText}>{cls.name}</Text>
-                {/* <Text style={styles.modalOptionSubtext}>{cls.ageRange}</Text> */}
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
+
     </View>
   );
 }
@@ -357,13 +330,29 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     marginBottom: 20,
-    position: "fixed"
+    position: "fixed",
+    flexDirection: "row",
   },
   title: {
     fontSize: 32,
     fontWeight: "bold",
     color: "#1E293B",
     letterSpacing: -0.5,
+  },
+  new: {
+    backgroundColor: "#EF4444", // red badge
+    color: "white",
+    fontSize: 20,
+    fontWeight: "700",
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    minWidth: 20,
+    textAlign: "center",
+    justifyContent: "center",
+    borderRadius: 60, // makes it round
+    overflow: "hidden",
+    marginLeft: 6,
+    marginBottom: 10
   },
   subtitle: {
     fontSize: 14,

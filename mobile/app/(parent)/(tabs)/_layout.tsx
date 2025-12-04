@@ -160,15 +160,15 @@ export default function ParentTabs() {
         console.log("📅 Pre-fetching and splitting calendar data...");
         const currentMonthString = new Date().toISOString().split('T')[0];
         const schedules = await fetchSchedulesForParent(currentMonthString);
-        console.log("Is this here", schedules)
+        // console.log("Is this here", schedules)
         // alert(schedules);
 
         // Split data: today's events vs all events
         const { dailyActivities, allCalendarEvents } = processAndSplitSchedules(schedules, sharedData["classes"]);
 
         // Store in context for different tabs to use
-        updateSharedData("dailyActivity", dailyActivities); // For Dashboard
-        updateSharedData("otherActivity", allCalendarEvents); // For Calendar
+        updateSharedData("dailyActivity", dailyActivities ?? {}); // For Dashboard
+        updateSharedData("otherActivity", allCalendarEvents ?? {}); // For Calendar
         // console.log("✅ Data split successfully - Today:", Object.keys(todayEvents).length, "All:", Object.keys(allCalendarEvents).length);
       } catch (error) {
         console.error("❌ Failed to pre-load calendar data:", error);
@@ -212,7 +212,7 @@ export default function ParentTabs() {
           }}
         />
         <Tabs.Screen
-          name="activity"
+          name="notification"
           options={{
             title: "Activity",
             tabBarIcon: (props) => (
