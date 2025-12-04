@@ -1,6 +1,9 @@
 import registerNNPushToken from 'native-notify';
 import * as Notifications from 'expo-notifications';
 import * as Permissions from 'expo-permissions';
+import { collection, query, getDocs, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 import {
   View,
   Text,
@@ -29,6 +32,7 @@ import {
 import { useAppContext } from "@/contexts/AppContext";
 import { EventByMonth, Event, ScheduleDate } from "./calendar";
 import { fetchSchedulesForParent, processAndSplitSchedules } from "@/services/useScheduleAPI";
+import { ChildRef } from './dashboard';
 
 // Memoized Entry Card Component for better performance
 const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
@@ -49,7 +53,9 @@ const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
       <View style={styles.entryContent}>
         <View style={styles.entryHeader}>
           <Text style={styles.entryTitle}>{activity.title}</Text>
-          <Text style={styles.entryTime}>{activity.classes?.[0]}</Text>
+          {/* {activity.children && activity.children.map(c => (
+            <Text style={styles.entryTime}>c{c}</Text>
+          ))} */}
         </View>
         <Text style={styles.entryType}>
           {/* {entry.type} */}
@@ -114,7 +120,31 @@ export default function ParentActivity() {
   const [activities, setActivities] = useState<EventByMonth>(initialActivities);
   const [isEndReached, setIsEndReached] = useState<boolean>(false);
   const email = sharedData["email"] as string;
+  const childrenContex = sharedData["children"] as ChildRef[];
 
+
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    console.log("REACHED")
+    const fetchParentNotifications = async () => {
+      if (!email) return; // or parent ID
+      try {
+        const q = query(
+          collection(db, "notifications", email, "logs"),
+          orderBy("date", "desc")
+        );
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log("Notification data: ", data)
+        setNotifications(data);
+      } catch (err) {
+        console.error("Failed to fetch notifications", err);
+      }
+    };
+
+    fetchParentNotifications();
+  }, [email]);
 
   // Loading Activity for scrolling down: go month
   useEffect(() => {
@@ -266,9 +296,16 @@ export default function ParentActivity() {
         style={styles.gradientBackground}
       />
       <FlatList
-        data={sections}
-        renderItem={({ item }) => <ActivityCard activity={item} />} // the activity
-        keyExtractor={item => item.date + item.classes[0]} // the date + class (Unique) AS only could be duplicate with other class
+        data={notifications}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
+          <ActivityCard activity={{
+            title: item.title,
+            description: item.detail,
+            date: new Date(item.date).toLocaleDateString("en-CA"),
+            // children: childrenContex.filter(c => item.classes.includes(c.classId)).map(c => c.name)
+          }} />
+        )}
         ListHeaderComponent={ListHeader}
         initialNumToRender={10} // Items to render in the initial batch
         ListEmptyComponent={() => ( // when return list is empty

@@ -329,7 +329,7 @@ export default function TeacherDashboard() {
     parentSubIDs: string[]
   ) => {
     // fixed time, e.g., 12:36 PM
-    const [hours, minutes] = [13, 14];
+    const [hours, minutes] = [13, 36];
 
     const now = new Date();
     const sendTime = new Date(
@@ -389,9 +389,28 @@ export default function TeacherDashboard() {
           }
         }
 
-        if (parentSubIDs.length > 0 && event.description) {
-          scheduleTodayNotification(event.title, event.description, parentSubIDs);
-          console.log(`Notifications sent for class ${classLabel}`);
+        if (parentSubIDs.length === 0 || !event.description) continue;
+
+        // Send notifications
+        scheduleTodayNotification(event.title, event.description, parentSubIDs);
+
+        // Save to Firestore per parent
+        const now = new Date().toISOString();
+        for (const subID of parentSubIDs) {
+          try {
+            await setDoc(
+              doc(db, "notifications", subID, "logs", now),
+              {
+                title: event.title,
+                detail: event.description,
+                date: now,
+                read: false,
+              }
+            );
+          } catch (err) {
+            console.warn(`Failed to save notification for ${subID}`, err);
+          }
+          console.log(`Notifications sent for class ${classLabel} to ${parentSubIDs.length} parents`);
         }
       }
     });

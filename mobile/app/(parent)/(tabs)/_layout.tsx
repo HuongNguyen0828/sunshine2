@@ -73,6 +73,7 @@ export default function ParentTabs() {
 
         const userSnap = await getDoc(doc(db, "users", userDocId));
         const userData = userSnap.exists() ? (userSnap.data() as any) : {};
+        updateSharedData("email", userData.email); // Sharing Indie ID when fetching notification
 
         let rels: ChildRelationship[] = [];
 
