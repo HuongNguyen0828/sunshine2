@@ -145,9 +145,9 @@ export async function signIn(email: string, password: string) {
     await AsyncStorage.setItem("userRole", role!);
 
     // Native Notify Indie Push Registration Code
-    // registerIndieID('put your unique user ID here as a string', 32817, 'BS7xPMJTUeP2i57MJ2uGl8');
+    // registerIndieID('put your unique user ID here as a string', 32829, 'yZd8BljhFJZ6TXUxUWJPfq');
     if (role === "parent") {
-      registerIndieID(email, 32817, 'BS7xPMJTUeP2i57MJ2uGl8');
+      registerIndieID(email, 32829, 'yZd8BljhFJZ6TXUxUWJPfq');
     }
 
     // End of Native Notify Code
@@ -160,14 +160,14 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOutUser() {
-  await signOut(auth);
-  // Native Notify Indie Push Registration Code
-  // unregisterIndieDevice('put your unique user ID here as a string', 32817, 'BS7xPMJTUeP2i57MJ2uGl8');
-  const role = await AsyncStorage.getItem("userRole");
-  if (role === "parent") unregisterIndieDevice(auth.currentUser?.email, 32817, 'BS7xPMJTUeP2i57MJ2uGl8');
-  // End of Native Notify Code
-    await AsyncStorage.removeItem("userRole");
 
+  // Native Notify Indie Push Registration Code
+    // unregisterIndieDevice('put your unique user ID here as a string', 32829, 'yZd8BljhFJZ6TXUxUWJPfq');
+  const role = await AsyncStorage.getItem("userRole");
+  if (role === "parent") unregisterIndieDevice(auth.currentUser?.email, 32829, 'yZd8BljhFJZ6TXUxUWJPfq');
+  // End of Native Notify Code
+  await AsyncStorage.removeItem("userRole");
+  await signOut(auth);
 }
 
 export function onUserChanged(cb: (user: User | null) => void) {

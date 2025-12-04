@@ -196,8 +196,8 @@ export default function ParentCalendar() {
   const getPublicHolidays = async () => {
     try {
       const publicHoliday = await fetchingPublicHolidayAlberta(classesContext);
-      console.log("DEBUG: Holiday: ", publicHoliday["2025-12-26"]);
-      console.log("Holiday", publicHoliday)
+      // console.log("DEBUG: Holiday: ", publicHoliday["2025-12-26"]);
+      // console.log("Holiday", publicHoliday)
       setHolidays(publicHoliday);
     } catch (error: any) {
       console.error("Calendar", error);
@@ -213,8 +213,8 @@ export default function ParentCalendar() {
       // Update Key
       const currentYear = currentMonth.getFullYear();
       const dateConverted = currentYear + date.slice(4); // replace only the year
-      console.log(currentYear)
-      console.log("DEBUG", dateConverted)
+      // console.log(currentYear)
+      // console.log("DEBUG", dateConverted)
 
       // Update date on Event[]
       const eventsConverted = events.map(event => ({
@@ -276,16 +276,16 @@ export default function ParentCalendar() {
   const currentMonthHolidayCount = useMemo(() => {
     const month = currentMonth.getMonth();
     const year = currentMonth.getFullYear();
-    console.log("Debuf Month", month, year)
+    // console.log("Debuf Month", month, year)
 
     return Object.entries(holidays).reduce((total, [date, events]) => {
       const [y, m, d] = date.split('-').map(Number);
 
       // month is 0-indexed for Date(year, monthIndex, day)
       if (m - 1 === month) {
-        console.log("Event", m - 1);
-        console.log("Current Month", month);
-        console.log(events)
+        // console.log("Event", m - 1);
+        // console.log("Current Month", month);
+        // console.log(events)
         return total + events.length;
       }
       return total;
