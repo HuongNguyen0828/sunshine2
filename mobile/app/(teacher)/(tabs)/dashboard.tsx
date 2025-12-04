@@ -40,6 +40,7 @@ export type ChildRow = {
   classId?: string;
   status?: string;
   birthday: string;
+  parentIds: string[];
 };
 
 export type ClassRow = {
@@ -205,6 +206,7 @@ export default function TeacherDashboard() {
                   classId: x.classId,
                   status: x.enrollmentStatus,
                   birthday: x.birthDate,
+                  parentIds: x.parentId
                 };
               });
               rows.sort((a, b) => a.name.localeCompare(b.name));

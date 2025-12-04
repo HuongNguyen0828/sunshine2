@@ -276,6 +276,27 @@ export default function TeacherCalendar() {
     }, [holidays, currentMonth]);
 
 
+    // const sendNotification = async () => {
+    //     const today = new Date();
+    //     console.log(today);
+    //     await fetch(`https://app.nativenotify.com/api/indie/notification`, {
+    //       method: "POST",
+    //       body: JSON.stringify({
+    //         subIDs: email,
+    //         appId: 32829,
+    //         appToken: 'yZd8BljhFJZ6TXUxUWJPfq',
+    //         title: 'put your push notification title here as a string',
+    //         message: 'put your push notification message here as a string'
+    //       })
+    //     })
+    //   };
+
+    //   useEffect(() => {
+    //     sendNotification();
+    //   }, [])
+
+
+
     const renderEvent = (event: Event) => {
         const config = eventColors[event.type];
         const IconComponent = config.icon;

@@ -212,25 +212,6 @@ export default function ParentActivity() {
 
 
 
-  const sendNotification = async () => {
-    const today = new Date();
-    console.log(today);
-    await fetch(`https://app.nativenotify.com/api/indie/notification`, {
-      method: "POST",
-      body: JSON.stringify({
-        subID: email,
-        appId: 32829,
-        appToken: 'yZd8BljhFJZ6TXUxUWJPfq',
-        title: 'put your push notification title here as a string',
-        message: 'put your push notification message here as a string'
-      })
-    })
-  };
-
-  useEffect(() => {
-    sendNotification();
-  }, [])
-
 
   // Memoize the header component to prevent re-renders and focus loss
   const ListHeader = useMemo(() => {

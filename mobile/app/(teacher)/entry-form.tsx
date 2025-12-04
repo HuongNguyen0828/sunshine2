@@ -1,5 +1,10 @@
 // mobile/app/(teacher)/entry-form.tsx
 import React, { useMemo, useState } from "react";
+import { db } from "../../lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { ChildRow } from "./(tabs)/dashboard";
+
+
 import {
   View,
   Text,
@@ -21,6 +26,7 @@ import type {
   FoodSubtype,
   SleepSubtype,
 } from "../../../shared/types/type";
+import { useAppContext } from "@/contexts/AppContext";
 
 type ToiletKind = "urine" | "bm";
 
@@ -31,8 +37,11 @@ const SLEEP_SUBTYPES: SleepSubtype[] = ["Started", "Woke up"];
 const nowIso = () => new Date().toISOString();
 
 export default function EntryForm() {
+
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { sharedData } = useAppContext();
 
   // params: type, classId?, childIds(JSON)
   const params = useLocalSearchParams<{ type: EntryType; classId?: string; childIds: string }>();
@@ -150,6 +159,66 @@ export default function EntryForm() {
     try {
       setSaving(true);
       const res = await bulkCreateEntries([payload]);
+
+      // inside onSubmit after bulkCreateEntries and only when type === "Attendance"
+      if (type === "Attendance") {
+        const childrenContext = sharedData["children"] as ChildRow[];
+
+        // 1) collect parentIds (unique)
+        const parentIds = childIds.flatMap(childId => {
+          const child = childrenContext.find((c: ChildRow) => c.id === childId);
+          return child?.parentIds ?? [];
+        });
+        const uniqueParentIds = Array.from(new Set(parentIds));
+
+        // 2) resolve parent subIDs (emails or specific subID field)
+        const parentSubIDs: string[] = [];
+        for (const parentId of uniqueParentIds) {
+          try {
+            const parentRef = doc(db, "users", parentId);
+            const snapshot = await getDoc(parentRef);
+            if (snapshot.exists()) {
+              const data = snapshot.data() as any;
+              // choose the field you used when you registered the parent with native-notify:
+              // likely data.email OR data.userId (whatever you used as subID)
+              const subID = data.email ?? data.userId ?? null;
+              if (subID) parentSubIDs.push(String(subID));
+            }
+          } catch (err) {
+            console.warn("Failed to fetch parent doc", parentId, err);
+          }
+        }
+
+        // 3) send Indie push — one request per subID
+        const sendPromises = parentSubIDs.map(async (subID) => {
+          try {
+            const resp = await fetch("https://app.nativenotify.com/api/indie/notification", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                subID,
+                appId: 32829,
+                appToken: "yZd8BljhFJZ6TXUxUWJPfq",
+                title: "Check-in",
+                message: `Your child Sam has been checked in.`
+              }),
+            });
+            if (!resp.ok) {
+              const txt = await resp.text();
+              console.warn("NativeNotify response not ok", resp.status, txt);
+            } else {
+              console.log("Notification sent to", subID);
+            }
+          } catch (err) {
+            console.error("Failed to send notification to", subID, err);
+          }
+        });
+
+        // Call all at once
+        await Promise.all(sendPromises);
+      }
+
+
       if (!res.ok) throw new Error(res.reason || "Failed to save");
       router.back();
     } catch (e: any) {
@@ -227,16 +296,16 @@ export default function EntryForm() {
                 {type === "Food"
                   ? "Menu / Description"
                   : type === "Photo"
-                  ? "Caption (optional)"
-                  : "Note"}
+                    ? "Caption (optional)"
+                    : "Note"}
               </Text>
               <TextInput
                 placeholder={
                   type === "Food"
                     ? "e.g. Chicken soup, apple slices…"
                     : type === "Photo"
-                    ? "Add a caption..."
-                    : "Add a note..."
+                      ? "Add a caption..."
+                      : "Add a note..."
                 }
                 value={detail}
                 onChangeText={setDetail}

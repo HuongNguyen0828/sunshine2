@@ -95,6 +95,7 @@ export default function TeacherTabs() {
                   classId: x.classId,
                   status: x.enrollmentStatus,
                   birthday: x.birthDate,
+                  parentIds: x.parentId,
                 };
               });
               rows.sort((a, b) => a.name.localeCompare(b.name));
