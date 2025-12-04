@@ -6,8 +6,11 @@ import type {
   DailyReportFilter,
 } from "../../shared/types/type";
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://10.0.2.2:5001/api";
+const API_HOST = (
+  process.env.EXPO_PUBLIC_API_URL || "http://10.0.2.2:5001"
+).replace(/\/$/, "");
+
+const API_BASE_PATH = "/api/mobile";
 
 type TeacherDailyReportFilter = DailyReportFilter;
 type ParentDailyReportFilter = DailyReportFilter;
@@ -47,7 +50,10 @@ async function authFetch<T>(
 
   const token = await user.getIdToken();
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const url = `${API_HOST}${API_BASE_PATH}${path}`;
+  console.log("DailyReport fetch URL:", url);
+
+  const res = await fetch(url, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -85,7 +91,7 @@ export async function fetchTeacherDailyReports(
   });
 
   return await authFetch<DailyReportDoc[]>(
-    `/mobile/teacher/daily-reports${qs}`
+    `/teacher/daily-reports${qs}`
   );
 }
 
@@ -110,12 +116,13 @@ export async function fetchParentDailyReports(
   });
 
   return await authFetch<DailyReportDoc[]>(
-    `/mobile/parent/daily-reports${qs}`
+    `/parent/daily-reports${qs}`
   );
 }
 
 export async function sendDailyReport(reportId: string): Promise<void> {
-  await authFetch<null>(`/mobile/teacher/daily-reports/${reportId}/send`, {
-    method: "POST",
-  });
+  await authFetch<null>(
+    `/teacher/daily-reports/${reportId}/send`,
+    { method: "POST" }
+  );
 }
