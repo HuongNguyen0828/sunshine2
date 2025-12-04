@@ -214,7 +214,7 @@ export default function ParentTabs() {
         <Tabs.Screen
           name="notification"
           options={{
-            title: "Activity",
+            title: "Notification",
             tabBarIcon: (props) => (
               <Ionicons name="chatbubble-ellipses-outline" {...props} />
             ),
