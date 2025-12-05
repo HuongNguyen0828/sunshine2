@@ -101,7 +101,7 @@ export default function ParentCalendar() {
   // Import classes from useAppContext
   const { sharedData } = useAppContext();
   const childrenContext = sharedData['children'] as ChildRef[];
-  const classesContext = sharedData["classes"];
+  const classesContext = sharedData["classes"] as string[];
   const allCalendarEventsInitallyFromContext = sharedData["otherActivity"] as EventByMonth;
 
 
@@ -196,23 +196,35 @@ export default function ParentCalendar() {
   const getPublicHolidays = async () => {
     try {
       const publicHoliday = await fetchingPublicHolidayAlberta(classesContext);
-      console.log("DEBUG: Holiday: ", publicHoliday["2025-12-26"]);
-
-      // To match with currentYear
-      const holidayMatchYear = Object.fromEntries(
-        Object.entries(publicHoliday).map(([date, events]) => {
-          const currentYear = currentMonth.getFullYear();
-          const dateConverted = currentYear + date.slice(4); // replace only the year
-          return [dateConverted, events];
-        })
-      );
-      console.log("Holiday", holidayMatchYear)
-      setHolidays(holidayMatchYear);
+      // console.log("DEBUG: Holiday: ", publicHoliday["2025-12-26"]);
+      // console.log("Holiday", publicHoliday)
+      setHolidays(publicHoliday);
     } catch (error: any) {
       console.error("Calendar", error);
       setHolidays({}); // Set empty object on error
     }
   };
+
+
+  // To match with currentYear
+  const holidayMatchYear = useMemo(() => Object.fromEntries(
+    Object.entries(holidays).map(([date, events]) => {
+
+      // Update Key
+      const currentYear = currentMonth.getFullYear();
+      const dateConverted = currentYear + date.slice(4); // replace only the year
+      // console.log(currentYear)
+      // console.log("DEBUG", dateConverted)
+
+      // Update date on Event[]
+      const eventsConverted = events.map(event => ({
+        ...event,
+        date: dateConverted,
+      }));
+      // return updated object
+      return [dateConverted, eventsConverted];
+    })
+  ), [currentMonth, holidays]);
 
   useEffect(() => {
     getPublicHolidays();
@@ -227,8 +239,8 @@ export default function ParentCalendar() {
   // console.log("isCurrent", isCurrentMonthMatchNow);
   // console.log("OtherActivity", sharedData["otherActivity"]);
   // console.log("Today", sharedData["todayEvents"]);
-  const combineAllEventCalendar = { ...eventCategories.allCalendarEvents, ...childrenBirthdayEachMonth, ...holidays };
-  const allCalendarEventsInitally = { ...allCalendarEventsInitallyFromContext, ...childrenBirthdayEachMonth, ...holidays }
+  const combineAllEventCalendar = { ...eventCategories.allCalendarEvents, ...childrenBirthdayEachMonth, ...holidayMatchYear };
+  const allCalendarEventsInitally = { ...allCalendarEventsInitallyFromContext, ...childrenBirthdayEachMonth, ...holidayMatchYear }
   const mockDaycareEvents = isCurrentMonthMatchNow ? allCalendarEventsInitally : combineAllEventCalendar;
   // Get events for selected date
   const selectedDateEvents = mockDaycareEvents[formatDateKey(selectedDate) as keyof typeof mockDaycareEvents] || [];
@@ -264,16 +276,16 @@ export default function ParentCalendar() {
   const currentMonthHolidayCount = useMemo(() => {
     const month = currentMonth.getMonth();
     const year = currentMonth.getFullYear();
-    console.log("Debuf Month", month, year)
+    // console.log("Debuf Month", month, year)
 
     return Object.entries(holidays).reduce((total, [date, events]) => {
       const [y, m, d] = date.split('-').map(Number);
 
       // month is 0-indexed for Date(year, monthIndex, day)
       if (m - 1 === month) {
-        console.log("Event", m - 1);
-        console.log("Current Month", month);
-        console.log(events)
+        // console.log("Event", m - 1);
+        // console.log("Current Month", month);
+        // console.log(events)
         return total + events.length;
       }
       return total;
@@ -310,18 +322,18 @@ export default function ParentCalendar() {
               </View>
             )}
             {/* For Classes */}
-            {event.classes?.map((cls, index) => (
+            {/* {event.classes?.map((cls, index) => (
               <View key={index} style={styles.eventDetailRow}>
                 <MapPin size={12} color="#64748B" />
-                <Text style={styles.eventDetailText}>{cls}</Text>
+                <Text style={styles.eventDetailText}>{classesContext.find((classId: string) => classId === cls.id)}</Text>
               </View>
-            ))}
+            ))} */}
 
             {/* For Children */}
-            {childrenContext.filter(child => child.classId && event.classes.includes(child.classId)).map((child, index) => (
+            {childrenContext.filter(child => child.classId && event.classes.includes(child.classId)).map((ch, index) => (
               <View key={index} style={styles.eventDetailRow}>
                 <Baby size={12} color="#64748B" />
-                <Text style={styles.eventDetailText}>{child.name}</Text>
+                <Text style={styles.eventDetailText}>{ch.name}</Text>
               </View>
             ))}
 

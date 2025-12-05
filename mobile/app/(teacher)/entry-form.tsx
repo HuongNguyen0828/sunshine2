@@ -1,5 +1,10 @@
 // mobile/app/(teacher)/entry-form.tsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { db } from "../../lib/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { ChildRow } from "./(tabs)/dashboard";
+import { sendNotificationsToTheirParents } from "@/services/sendNotficationService";
+
 import {
   View,
   Text,
@@ -11,7 +16,10 @@ import {
   Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useSafeAreaInsets, SafeAreaView } from "react-native-safe-area-context";
+import {
+  useSafeAreaInsets,
+  SafeAreaView,
+} from "react-native-safe-area-context";
 import { bulkCreateEntries } from "@/services/useEntriesAPI";
 import { pickAndUploadImage } from "@/lib/uploadImage";
 import type {
@@ -22,22 +30,32 @@ import type {
   SleepSubtype,
 } from "../../../shared/types/type";
 
+import { useAppContext } from "@/contexts/AppContext";
+
 type ToiletKind = "urine" | "bm";
 
-const ATTENDANCE_SUBTYPES: AttendanceSubtype[] = ["Check in", "Check out"];
-const FOOD_SUBTYPES: FoodSubtype[] = ["Breakfast", "Lunch", "Snack"];
-const SLEEP_SUBTYPES: SleepSubtype[] = ["Started", "Woke up"];
+import {
+  ATTENDANCE_SUBTYPES,
+  FOOD_SUBTYPES,
+  SLEEP_SUBTYPES,
+} from "@/services/sendNotficationService";
 
 const nowIso = () => new Date().toISOString();
 
 export default function EntryForm() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { sharedData } = useAppContext();
 
   // params: type, classId?, childIds(JSON)
-  const params = useLocalSearchParams<{ type: EntryType; classId?: string; childIds: string }>();
+  const params = useLocalSearchParams<{
+    type: EntryType;
+    classId?: string;
+    childIds: string;
+  }>();
   const type = params.type as EntryType;
-  const classId = params.classId && params.classId.trim() ? params.classId.trim() : null;
+  const classId =
+    params.classId && params.classId.trim() ? params.classId.trim() : null;
   const childIds = useMemo(
     () => JSON.parse(String(params.childIds || "[]")) as string[],
     [params.childIds]
@@ -83,10 +101,14 @@ export default function EntryForm() {
 
   async function onSubmit() {
     if (!childIds.length) return Alert.alert("Please select children first.");
-    if (needsSubtype && !subtype) return Alert.alert("Please choose a subtype.");
-    if (needsToiletKind && !toiletKind) return Alert.alert("Please select urine or bm.");
-    if (isPhoto && !photoUrl.trim()) return Alert.alert("Please upload a photo.");
-    if (needsDetail && !detail.trim()) return Alert.alert("Detail is required.");
+    if (needsSubtype && !subtype)
+      return Alert.alert("Please choose a subtype.");
+    if (needsToiletKind && !toiletKind)
+      return Alert.alert("Please select urine or bm.");
+    if (isPhoto && !photoUrl.trim())
+      return Alert.alert("Please upload a photo.");
+    if (needsDetail && !detail.trim())
+      return Alert.alert("Detail is required.");
 
     const occurredAt = nowIso();
     let payload: EntryCreateInput;
@@ -145,11 +167,64 @@ export default function EntryForm() {
         detail,
         occurredAt,
       };
+      console.log("Payload", payload);
     }
 
     try {
       setSaving(true);
       const res = await bulkCreateEntries([payload]);
+      console.log("Reached entry");
+      // inside onSubmit after bulkCreateEntries and only when type === "Attendance"
+      // if (type === "Attendance") {
+      const title = type;
+      const detail = payload.detail ?? subtype; // Either details or subtype is detail
+      const childrenContext = sharedData["children"] as ChildRow[];
+
+      // 1) collect parentIds (unique)
+      const parentIds = childIds.flatMap((childId) => {
+        const child = childrenContext.find((c: ChildRow) => c.id === childId);
+        return child?.parentIds ?? [];
+      });
+      const uniqueParentIds = Array.from(new Set(parentIds));
+
+      // 2) resolve parent subIDs (emails or specific subID field)
+      const parentSubIDs: string[] = [];
+      for (const parentId of uniqueParentIds) {
+        try {
+          const parentRef = doc(db, "users", parentId);
+          const snapshot = await getDoc(parentRef);
+          if (snapshot.exists()) {
+            const data = snapshot.data() as any;
+            // choose the field you used when you registered the parent with native-notify:
+            // likely data.email OR data.userId (whatever you used as subID)
+            const subID = data.email ?? data.userId ?? null;
+            if (subID) parentSubIDs.push(String(subID));
+          }
+        } catch (err) {
+          console.warn("Failed to fetch parent doc", parentId, err);
+        }
+      }
+
+      if (parentSubIDs.length > 0) {
+        // 3) send Indie push — one request per subID
+        sendNotificationsToTheirParents(title, detail, parentSubIDs);
+        // }
+
+        // 4) Save notifications in Firestore per parent
+        for (const subID of parentSubIDs) {
+          try {
+            await setDoc(doc(db, "notifications", subID, "logs", occurredAt), {
+              title,
+              detail,
+              date: occurredAt,
+              read: false,
+            });
+          } catch (err) {
+            console.warn(`Failed to save notification for ${subID}`, err);
+          }
+        }
+      }
+
       if (!res.ok) throw new Error(res.reason || "Failed to save");
       router.back();
     } catch (e: any) {
@@ -172,7 +247,9 @@ export default function EntryForm() {
         >
           <Text style={{ fontSize: 22, fontWeight: "700" }}>{type}</Text>
           <Text style={{ color: "#64748B" }}>
-            {childIds.length === 1 ? "1 child selected" : `${childIds.length} children selected`}
+            {childIds.length === 1
+              ? "1 child selected"
+              : `${childIds.length} children selected`}
           </Text>
 
           {needsSubtype && (
@@ -190,7 +267,11 @@ export default function EntryForm() {
                       backgroundColor: subtype === opt ? "#6366F1" : "#E5E7EB",
                     }}
                   >
-                    <Text style={{ color: subtype === opt ? "white" : "#111827" }}>{opt}</Text>
+                    <Text
+                      style={{ color: subtype === opt ? "white" : "#111827" }}
+                    >
+                      {opt}
+                    </Text>
                   </Pressable>
                 ))}
               </View>
@@ -212,7 +293,9 @@ export default function EntryForm() {
                       backgroundColor: toiletKind === k ? "#6366F1" : "#E5E7EB",
                     }}
                   >
-                    <Text style={{ color: toiletKind === k ? "white" : "#111827" }}>
+                    <Text
+                      style={{ color: toiletKind === k ? "white" : "#111827" }}
+                    >
                       {k === "urine" ? "Urine" : "BM"}
                     </Text>
                   </Pressable>
@@ -227,16 +310,16 @@ export default function EntryForm() {
                 {type === "Food"
                   ? "Menu / Description"
                   : type === "Photo"
-                  ? "Caption (optional)"
-                  : "Note"}
+                    ? "Caption (optional)"
+                    : "Note"}
               </Text>
               <TextInput
                 placeholder={
                   type === "Food"
                     ? "e.g. Chicken soup, apple slices…"
                     : type === "Photo"
-                    ? "Add a caption..."
-                    : "Add a note..."
+                      ? "Add a caption..."
+                      : "Add a note..."
                 }
                 value={detail}
                 onChangeText={setDetail}
@@ -267,7 +350,9 @@ export default function EntryForm() {
                 {uploadingPhoto ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={{ color: "#fff", fontWeight: "600" }}>Pick from gallery</Text>
+                  <Text style={{ color: "#fff", fontWeight: "600" }}>
+                    Pick from gallery
+                  </Text>
                 )}
               </Pressable>
 
@@ -280,8 +365,14 @@ export default function EntryForm() {
                     overflow: "hidden",
                   }}
                 >
-                  <Image source={{ uri: photoUrl }} style={{ width: "100%", height: 180 }} />
-                  <Text style={{ padding: 8, fontSize: 12, color: "#475569" }} numberOfLines={1}>
+                  <Image
+                    source={{ uri: photoUrl }}
+                    style={{ width: "100%", height: 180 }}
+                  />
+                  <Text
+                    style={{ padding: 8, fontSize: 12, color: "#475569" }}
+                    numberOfLines={1}
+                  >
                     {photoUrl}
                   </Text>
                 </View>

@@ -11,10 +11,16 @@ import { auth } from "./firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
-const BASE_URL =
-  Platform.OS === "android"
-    ? "http://10.0.2.2:5001/api/mobile"
-    : "http://localhost:5001/api/mobile";
+// Register Push notification Indie (Group notification for parent)
+import { registerIndieID, unregisterIndieDevice } from 'native-notify';
+
+// const BASE_URL =
+  // Platform.OS === "android"
+  //   ? "http://10.0.2.2:5001/api/mobile"
+  //   : "http://localhost:5001/api/mobile";
+  const BASE_URL = Platform.OS === "android" || Platform.OS === "ios"
+  ? `${process.env.EXPO_PUBLIC_API_URL}/api/mobile` //replace with your computer LAN IP
+  : "http://localhost:5001/api/mobile"; // fallback for web
 
 const norm = (v: string) => v.trim().toLowerCase();
 const isAllowedRole = (r?: unknown) => r === "teacher" || r === "parent";
@@ -137,6 +143,16 @@ export async function signIn(email: string, password: string) {
     }
 
     await AsyncStorage.setItem("userRole", role!);
+
+    // Native Notify Indie Push Registration Code
+    // registerIndieID('put your unique user ID here as a string', 32829, 'yZd8BljhFJZ6TXUxUWJPfq');
+    if (role === "parent") {
+      registerIndieID(email, 32829, 'yZd8BljhFJZ6TXUxUWJPfq');
+    }
+
+    // End of Native Notify Code
+
+
     return cred.user; // return User so callers can route by claims
   } catch (e: any) {
     throw new Error(fbErr(e?.code, e?.message));
@@ -144,8 +160,14 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOutUser() {
-  await signOut(auth);
+
+  // Native Notify Indie Push Registration Code
+    // unregisterIndieDevice('put your unique user ID here as a string', 32829, 'yZd8BljhFJZ6TXUxUWJPfq');
+  const role = await AsyncStorage.getItem("userRole");
+  if (role === "parent") unregisterIndieDevice(auth.currentUser?.email, 32829, 'yZd8BljhFJZ6TXUxUWJPfq');
+  // End of Native Notify Code
   await AsyncStorage.removeItem("userRole");
+  await signOut(auth);
 }
 
 export function onUserChanged(cb: (user: User | null) => void) {

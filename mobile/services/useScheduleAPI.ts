@@ -4,6 +4,7 @@ import { auth } from "../lib/firebase"
 import { ScheduleDate } from "@/app/(teacher)/(tabs)/calendar";
 import { EventByMonth, Event } from "@/app/(teacher)/(tabs)/calendar";
 import { ClassRow } from "@/app/(teacher)/(tabs)/dashboard";
+import { Children } from "react";
 
 
 async function authHeader() {
@@ -75,8 +76,8 @@ export function processAndSplitSchedules(schedules: ScheduleDate[], classes:Clas
         title: activity.activityTitle,
         time: activity.timeSlot,
         classes: activity.classId !== "*" 
-          ? [(classes as ClassRow[]).find(cls => cls.id === activity.classId)?.name].filter(Boolean)
-          : (classes as ClassRow[]).map((cls: any) => cls.name),
+          ? typeof classes[0] === "string" ? [(classes as string[]).find(cls => cls === activity.classId)].filter(Boolean) : [(classes as ClassRow[]).find(cls => cls.id === activity.classId)?.name].filter(Boolean)
+          : typeof classes[0] === "string" ? classes as string[] : (classes as ClassRow[]).map((cls: any) => cls.name),
         type: activity.type,
         description: activity.activityDescription,
         materialsRequired: activity.activityMaterials,
@@ -135,6 +136,7 @@ export async function fetchingPublicHolidayAlberta(classes: ClassRow[] | string[
         typeof cls === "string" ? cls : cls.name
       ),      // Get className in Teacher, else just classId in parent
       date: holiday.date
+      
     }
 
     acc[date] = [event];

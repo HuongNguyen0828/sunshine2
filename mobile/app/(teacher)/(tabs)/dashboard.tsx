@@ -13,7 +13,7 @@ import { useAppContext } from "@/contexts/AppContext"; // useAppContext
 import { useEffect, useMemo, useState, useCallback, useContext } from "react";
 import { colors } from "@/constants/color";
 import { useRouter } from "expo-router";
-import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, query, where, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -33,6 +33,7 @@ import {
   Heart,
   Activity as ActivityIcon,
 } from "lucide-react-native";
+import { sendNotificationsToTheirParents } from "@/services/sendNotficationService";
 
 export type ChildRow = {
   id: string;
@@ -40,6 +41,7 @@ export type ChildRow = {
   classId?: string;
   status?: string;
   birthday: string;
+  parentIds: string[];
 };
 
 export type ClassRow = {
@@ -149,6 +151,8 @@ export default function TeacherDashboard() {
   const [showChildPicker, setShowChildPicker] = useState(false);
 
   const [showDetailActivity, sethowDetailActivity] = useState<boolean>(false);
+  const childrenContext = sharedData["children"] as ChildRow[]; // From App Context
+  const classesContext = sharedData["classes"] as ClassRow[];
 
   // load teacher scope
   useEffect(() => {
@@ -205,6 +209,7 @@ export default function TeacherDashboard() {
                   classId: x.classId,
                   status: x.enrollmentStatus,
                   birthday: x.birthDate,
+                  parentIds: x.parentId
                 };
               });
               rows.sort((a, b) => a.name.localeCompare(b.name));
@@ -286,6 +291,13 @@ export default function TeacherDashboard() {
     });
   };
 
+  const dailyActivities = sharedData["dailyActivity"] as EventByMonth;
+  const today = new Date().toLocaleDateString('en-CA').split('T')[0]; // Always uses local timezone // "2025-11-19"
+  // Just take today activity
+  const todayEvents = dailyActivities?.[today as keyof EventByMonth] || [];
+  // console.log(todayEvents);
+  const onlySelectedClassActivity = todayEvents.find(event => event.classes.includes(selectedClassLabel));
+
   // Show Today Activity
   const showTodayActivity = () => {
     // console.log(selectedClass)
@@ -293,26 +305,117 @@ export default function TeacherDashboard() {
       alert("Please select a class to view Activity!")
       return;
     }
-    const dailyActivities = sharedData["dailyActivity"] as EventByMonth;
-    const today = new Date().toLocaleDateString('en-CA').split('T')[0]; // Always uses local timezone // "2025-11-19"
-    // Just take today activity
-    const todayEvents = dailyActivities?.[today as keyof EventByMonth] || [];
-    // console.log(todayEvents);
-    const onlySelectedClassActivity = todayEvents.find(event => event.classes.includes(selectedClassLabel));
-
     // alert(today);
     if (!onlySelectedClassActivity) {
       alert("No activities for today! 🎉");
       return;
     }
+    const title = onlySelectedClassActivity.title;
+    const time = onlySelectedClassActivity.time;
+    const detail = onlySelectedClassActivity.description;
+
 
     const eventList =
-      `• ${onlySelectedClassActivity.title} (${onlySelectedClassActivity.time})
-      ${onlySelectedClassActivity.description}`;
+      `• ${title} (${time})
+      ${detail}`;
 
     alert(`Today's Activities:\n\n${eventList}`);
     sethowDetailActivity(true);
   };
+
+  const scheduleTodayNotification = (
+    title: string,
+    detail: string,
+    parentSubIDs: string[]
+  ) => {
+    // fixed time, e.g., 12:36 PM
+    const [hours, minutes] = [14, 41];
+
+    const now = new Date();
+    const sendTime = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      hours,
+      minutes,
+      0
+    );
+
+    const delay = sendTime.getTime() - now.getTime();
+
+    if (delay <= 0) {
+      // if time has already passed today, send immediately
+      sendNotificationsToTheirParents(title, detail, parentSubIDs);
+    } else {
+      setTimeout(() => {
+        sendNotificationsToTheirParents(title, detail, parentSubIDs);
+      }, delay);
+    }
+  };
+
+  useEffect(() => {
+    if (!todayEvents.length) return; // No activity at all
+
+    const childrenByClass = childrenContext.reduce((acc, child) => {
+      if (!acc[child.classId || ""]) acc[child.classId || ""] = [];
+      acc[child.classId || ""].push(child);
+      return acc;
+    }, {} as Record<string, ChildRow[]>);
+
+    todayEvents.forEach(async (event) => {
+      for (const classLabel of event.classes) {
+        const classRow = classes.find((c) => c.name === classLabel);
+        if (!classRow) continue; // skip if class not found
+
+        const childrenInClass = childrenByClass[classRow.id];
+        if (!childrenInClass || childrenInClass.length === 0) continue; // skip classes with no children
+
+        // collect parent subIDs
+        const parentIds = childrenInClass.flatMap(c => c.parentIds);
+        const uniqueParentIds = Array.from(new Set(parentIds));
+        const parentSubIDs: string[] = [];
+
+        for (const parentId of uniqueParentIds) {
+          try {
+            const parentRef = doc(db, "users", parentId);
+            const snapshot = await getDoc(parentRef);
+            if (snapshot.exists()) {
+              const data = snapshot.data() as any;
+              const subID = data.email ?? data.userId ?? null;
+              if (subID) parentSubIDs.push(String(subID));
+            }
+          } catch (err) {
+            console.warn("Failed to fetch parent doc", parentId, err);
+          }
+        }
+
+        if (parentSubIDs.length === 0 || !event.description) continue;
+
+        // Send notifications
+        scheduleTodayNotification(event.title, event.description, parentSubIDs);
+
+        // Save to Firestore per parent
+        const now = new Date().toISOString();
+        for (const subID of parentSubIDs) {
+          try {
+            await setDoc(
+              doc(db, "notifications", subID, "logs", now),
+              {
+                title: event.title,
+                detail: event.description,
+                date: now,
+                read: false,
+              }
+            );
+          } catch (err) {
+            console.warn(`Failed to save notification for ${subID}`, err);
+          }
+          console.log(`Notifications sent for class ${classLabel} to ${parentSubIDs.length} parents`);
+        }
+      }
+    });
+  }, [todayEvents, childrenContext]);
+
 
 
   if (loading) {
