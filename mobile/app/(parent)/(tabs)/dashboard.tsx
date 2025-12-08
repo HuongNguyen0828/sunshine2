@@ -13,6 +13,8 @@ import { colors } from "@/constants/color";
 import { fontSize } from "@/constants/typography";
 import { fetchParentFeed } from "@/services/useParentFeedAPI";
 import { ParentFeedEntry } from "../../../../shared/types/type";
+import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type ChildRef = {
   id: string;
