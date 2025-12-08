@@ -6,6 +6,8 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
+  StyleSheet,
+  Pressable,
 } from "react-native";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
@@ -15,6 +17,8 @@ import { fetchParentFeed } from "@/services/useParentFeedAPI";
 import { ParentFeedEntry } from "../../../../shared/types/type";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { User, ChevronRight } from "lucide-react-native";
 
 export type ChildRef = {
   id: string;
@@ -44,6 +48,8 @@ async function getUserDocId(): Promise<string | null> {
 }
 
 export default function ParentDashboard() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [children, setChildren] = useState<ChildRef[]>([]);
   const [entries, setEntries] = useState<ParentFeedEntry[]>([]);
@@ -143,159 +149,157 @@ export default function ParentDashboard() {
     return groupEntriesByDate(entries);
   }, [entries]);
 
+  // Calculate activity stats for the summary card (must be before loading check for hooks order)
+  const activityStats = useMemo(() => {
+    const today = new Date();
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - (6 - i));
+      return d.toISOString().split("T")[0];
+    });
+
+    const countsByDay = last7Days.map((dateKey) => {
+      return entries.filter((e) => {
+        const entryDate = getDateKey(e.occurredAt || e.createdAt);
+        return entryDate === dateKey;
+      }).length;
+    });
+
+    const todayCount = countsByDay[6] || 0;
+    const maxCount = Math.max(...countsByDay, 1);
+
+    return { last7Days, countsByDay, todayCount, maxCount };
+  }, [entries]);
+
   if (loading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.background,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <ActivityIndicator size="large" color={colors.activityIndicator} />
-        <Text
-          style={{
-            marginTop: 8,
-            color: colors.textDim,
-            fontSize: fontSize.md,
-          }}
-        >
-          Loading...
-        </Text>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.tint} />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={["#E0E7FF", "#F0F4FF", "#FFFFFF"]}
+        style={styles.gradientBackground}
+      />
       <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingBottom: 120, gap: 14 }}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text
-          style={{
-            fontSize: 26,
-            fontWeight: "700",
-            color: colors.text,
-            marginBottom: 6,
-          }}
-        >
-          Activity Feed
-        </Text>
-
-        {children.length === 0 ? (
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: 14,
-              padding: 18,
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ color: colors.textDim, fontSize: 15 }}>
-              No children linked
-            </Text>
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+          <View style={styles.headerRow}>
+            <Text style={styles.title}>Summary</Text>
+            <Pressable
+              style={styles.profileButton}
+              onPress={() => router.push("/(parent)/(tabs)/more")}
+            >
+              <User size={22} color="#FFFFFF" />
+            </Pressable>
           </View>
-        ) : entries.length === 0 ? (
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: 14,
-              padding: 18,
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ color: colors.textDim, fontSize: 15 }}>
-              No entries yet
-            </Text>
-          </View>
-        ) : (
-          sections.map((section) => (
-            <View key={section.dateKey} style={{ gap: 10 }}>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "600",
-                  color: colors.textDim,
-                  marginBottom: 4,
-                }}
-              >
-                {section.label}
-              </Text>
+        </View>
 
-              {section.items.map((e) => {
-                const info = childInfoById[e.childId] || {
-                  name: e.childName || e.childId,
-                };
-                const emoji = iconFor(e);
-                const title = titleFor(e);
-                const detail = detailFor(e);
-                const time = toHM(e.occurredAt || e.createdAt);
-
-                return (
-                  <View
-                    key={e.id}
-                    style={{
-                      backgroundColor: "#fff",
-                      borderRadius: 16,
-                      padding: 14,
-                      flexDirection: "row",
-                      gap: 12,
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 12,
-                        backgroundColor: "#EEF2FF",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text style={{ fontSize: 20 }}>{emoji}</Text>
-                    </View>
-
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Text style={{ fontWeight: "600", fontSize: 15 }}>
-                        {title}
-                      </Text>
-
-                      <Text style={{ color: colors.textDim, fontSize: 13 }}>
-                        {info.name}
-                        {info.relationship ? ` (${info.relationship})` : ""}
-                        {time ? ` • ${time}` : ""}
-                      </Text>
-
-                      {!!detail && (
-                        <Text style={{ color: colors.text, fontSize: 14 }}>
-                          {detail}
-                        </Text>
-                      )}
-
-                      {e.photoUrl ? (
-                        <Image
-                          source={{ uri: e.photoUrl }}
-                          style={{
-                            width: "100%",
-                            height: 160,
-                            borderRadius: 12,
-                            marginTop: 6,
-                            backgroundColor: "#E2E8F0",
-                          }}
-                          resizeMode="cover"
-                        />
-                      ) : null}
-                    </View>
-                  </View>
-                );
-              })}
+        {/* Summary Card */}
+        <View style={styles.summarySection}>
+          <Pressable style={styles.summaryCard}>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryLabel}>Activities</Text>
+              <View style={styles.summaryDateRow}>
+                <Text style={styles.summaryDate}>This Week</Text>
+                <ChevronRight size={16} color="#64748B" />
+              </View>
             </View>
-          ))
-        )}
+            <View style={styles.summaryContent}>
+              <View style={styles.summaryStats}>
+                <Text style={styles.summaryNumber}>{activityStats.todayCount}</Text>
+                <Text style={styles.summaryUnit}>today</Text>
+              </View>
+              <View style={styles.barChart}>
+                {activityStats.countsByDay.map((count, index) => (
+                  <View key={index} style={styles.barContainer}>
+                    <View
+                      style={[
+                        styles.bar,
+                        {
+                          height: Math.max((count / activityStats.maxCount) * 60, 4),
+                          backgroundColor: index === 6 ? "#F97316" : "#E2E8F0",
+                        },
+                      ]}
+                    />
+                  </View>
+                ))}
+              </View>
+            </View>
+          </Pressable>
+        </View>
+
+        {/* Activity Feed Section */}
+        <View style={styles.feedSection}>
+          <Text style={styles.feedTitle}>Recent Activity</Text>
+        </View>
+
+        {/* Content */}
+        <View style={styles.contentContainer}>
+          {children.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>No children linked</Text>
+            </View>
+          ) : entries.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>No entries yet</Text>
+            </View>
+          ) : (
+            sections.map((section) => (
+              <View key={section.dateKey} style={styles.section}>
+                <Text style={styles.sectionLabel}>{section.label}</Text>
+
+                {section.items.map((e) => {
+                  const info = childInfoById[e.childId] || {
+                    name: e.childName || e.childId,
+                  };
+                  const emoji = iconFor(e);
+                  const title = titleFor(e);
+                  const detail = detailFor(e);
+                  const time = toHM(e.occurredAt || e.createdAt);
+
+                  return (
+                    <View key={e.id} style={styles.entryCard}>
+                      <View style={styles.entryIconContainer}>
+                        <Text style={styles.entryEmoji}>{emoji}</Text>
+                      </View>
+
+                      <View style={styles.entryContent}>
+                        <Text style={styles.entryTitle}>{title}</Text>
+
+                        <Text style={styles.entryMeta}>
+                          {info.name}
+                          {info.relationship ? ` (${info.relationship})` : ""}
+                          {time ? ` • ${time}` : ""}
+                        </Text>
+
+                        {!!detail && (
+                          <Text style={styles.entryDetail}>{detail}</Text>
+                        )}
+
+                        {e.photoUrl ? (
+                          <Image
+                            source={{ uri: e.photoUrl }}
+                            style={styles.entryImage}
+                            resizeMode="cover"
+                          />
+                        ) : null}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ))
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -480,3 +484,207 @@ function groupEntriesByDate(entries: ParentFeedEntry[]): EntrySection[] {
     };
   });
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  gradientBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 280,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 120,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  header: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: "bold",
+    color: "#1E293B",
+    letterSpacing: -0.5,
+  },
+  profileButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  summarySection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  summaryCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  summaryHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  summaryLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#F97316",
+  },
+  summaryDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  summaryDate: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  summaryContent: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  summaryStats: {
+    flexDirection: "row",
+    alignItems: "baseline",
+  },
+  summaryNumber: {
+    fontSize: 42,
+    fontWeight: "bold",
+    color: "#1E293B",
+    letterSpacing: -1,
+  },
+  summaryUnit: {
+    fontSize: 18,
+    color: "#64748B",
+    marginLeft: 6,
+    marginBottom: 4,
+  },
+  barChart: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 6,
+    height: 60,
+  },
+  barContainer: {
+    width: 12,
+    height: 60,
+    justifyContent: "flex-end",
+  },
+  bar: {
+    width: 12,
+    borderRadius: 4,
+    minHeight: 4,
+  },
+  feedSection: {
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  feedTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#1E293B",
+  },
+  contentContainer: {
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  emptyCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 18,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  emptyText: {
+    color: "#64748B",
+    fontSize: 15,
+  },
+  section: {
+    gap: 10,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#64748B",
+    marginBottom: 4,
+  },
+  entryCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "flex-start",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  entryIconContainer: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  entryEmoji: {
+    fontSize: 20,
+  },
+  entryContent: {
+    flex: 1,
+    gap: 4,
+  },
+  entryTitle: {
+    fontWeight: "600",
+    fontSize: 15,
+    color: "#1E293B",
+  },
+  entryMeta: {
+    color: "#64748B",
+    fontSize: 13,
+  },
+  entryDetail: {
+    color: "#1E293B",
+    fontSize: 14,
+  },
+  entryImage: {
+    width: "100%",
+    height: 160,
+    borderRadius: 12,
+    marginTop: 6,
+    backgroundColor: "#E2E8F0",
+  },
+});

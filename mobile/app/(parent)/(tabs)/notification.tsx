@@ -276,7 +276,7 @@ export default function ParentNotifications() {
             <Search size={20} color="#64748B" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search by child, activity, or details..."
+              placeholder="Search notifications..."
               value={searchText}
               onChangeText={handleSearchChange}
               placeholderTextColor="#94A3B8"
@@ -372,9 +372,12 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    marginBottom: 20,
-    position: "fixed",
-    flexDirection: "row",
+    marginBottom: 24,
+  },
+  greeting: {
+    fontSize: 16,
+    color: "#64748B",
+    marginBottom: 4,
   },
   title: {
     fontSize: 32,
@@ -382,24 +385,9 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     letterSpacing: -0.5,
   },
-  new: {
-    backgroundColor: "#EF4444", // red badge
-    color: "white",
-    fontSize: 20,
-    fontWeight: "700",
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    minWidth: 20,
-    textAlign: "center",
-    justifyContent: "center",
-    borderRadius: 60, // makes it round
-    overflow: "hidden",
-    marginLeft: 6,
-    marginBottom: 10
-  },
   subtitle: {
     fontSize: 14,
-    color: "#64748B",
+    color: "#94A3B8",
     marginTop: 4,
   },
   searchContainer: {

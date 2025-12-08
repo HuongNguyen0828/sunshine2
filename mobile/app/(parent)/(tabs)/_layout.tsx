@@ -4,7 +4,6 @@ import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import RoleGate from "@/navigation/RootNavigator";
 import { colors } from "@/constants/color";
-import HeaderWithLogo from "@/components/headers/HeaderWithLogo";
 import { View, Text } from "react-native";
 import { ChildRef, ChildRelationship } from "./dashboard";
 import { auth, db } from "@/lib/firebase";
@@ -193,16 +192,7 @@ export default function ParentTabs() {
         screenOptions={{
           tabBarActiveTintColor: colors.tint,
           tabBarStyle: { backgroundColor: colors.palette.neutral100 },
-          headerShadowVisible: false,
-          // header: ({ route, options }) => (
-          //   <HeaderWithLogo
-          //     title={(options.title as string) ?? route.name}
-          //     logoWidth={100}
-          //     logoHeight={60}
-          //     edgeOffset={-10}
-          //     contentOffsetY={50}
-          //   />
-          // ),
+          headerShown: false,
         }}
       >
         <Tabs.Screen
