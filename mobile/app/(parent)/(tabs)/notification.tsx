@@ -3,6 +3,9 @@ import * as Notifications from 'expo-notifications';
 import * as Permissions from 'expo-permissions';
 import { collection, query, getDocs, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { Alert } from 'react-native';
+
+
 
 import {
   View,
@@ -34,6 +37,19 @@ import { EventByMonth, Event, ScheduleDate } from "./calendar";
 import { fetchSchedulesForParent, processAndSplitSchedules } from "@/services/useScheduleAPI";
 import { ChildRef } from './dashboard';
 
+
+function iconFor(e: Partial<Event>): string {
+  const t = e.title;
+  if (t === "Attendance") return "✅";
+  if (t === "Food") return "🍽️";
+  if (t === "Sleep") return "😴";
+  if (t === "Toilet") return "🚽";
+  if (t === "Photo") return "📷";
+  if (t === "Activity") return "🎨";
+  if (t === "Health") return "❤️";
+  return "📝";
+}
+
 function extractTimeFromISO(isoString: string): string {
   // isoString example: "2025-12-04T13:14:00.000Z"
   // slice from "T" to get time part, then take hours:minutes
@@ -61,10 +77,16 @@ const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
   return (
     <Pressable
       style={styles.entryCard}
-      onPress={() => alert(activity.description)}
+      onPress={() =>
+        Alert.alert(
+          activity.title || "No Title",
+          `${eventDate}  ${timestamp}\n\n${activity.description || ""}`, [{ text: "OK" }],
+          { cancelable: true }
+        )
+      }
     >
       <View style={[styles.entryIconContainer, { backgroundColor: "#EDE9FE" }]}>
-        <Activity size={20} strokeWidth={2} />
+        <Text style={{ fontSize: 20 }}>{iconFor(activity)}</Text>
       </View>
       <View style={styles.entryContent}>
         <View style={styles.entryHeader}>
@@ -78,9 +100,9 @@ const ActivityCard = memo(({ activity }: { activity: Partial<Event> }) => {
         <Text style={styles.entryType}>
           {/* {entry.type} */}
           {/* {entry.subtype && ` - ${entry.subtype}`} */}
-          {eventDate === todayString ? "Today" : date === tommorowString ? "Tommorow" : date}
+          {eventDate === todayString ? "Today" : eventDate === tommorowString ? "Tommorow" : eventDate}
         </Text>
-        {activity.description && <Text style={styles.entryDetail}>{activity.description.trim().slice(0, 50)}</Text>}
+        {activity.description && <Text style={styles.entryDetail}> {activity.description.length > 50 ? `${activity.description.trim().slice(0, 50)}...` : activity.description.trim()}</Text>}
         {/* <Text style={styles.entryClass}>{entry.className}</Text> */}
       </View>
     </Pressable>
@@ -245,7 +267,6 @@ export default function ParentNotifications() {
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <Text style={styles.title}>Notifications</Text>
-          <Text style={styles.new}>{3}</Text>
         </View>
 
         {/* Search and Filters */}
@@ -255,7 +276,7 @@ export default function ParentNotifications() {
             <Search size={20} color="#64748B" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search by child, activity, or details..."
+              placeholder="Search notifications..."
               value={searchText}
               onChangeText={handleSearchChange}
               placeholderTextColor="#94A3B8"
@@ -351,9 +372,12 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    marginBottom: 20,
-    position: "fixed",
-    flexDirection: "row",
+    marginBottom: 24,
+  },
+  greeting: {
+    fontSize: 16,
+    color: "#64748B",
+    marginBottom: 4,
   },
   title: {
     fontSize: 32,
@@ -361,24 +385,9 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     letterSpacing: -0.5,
   },
-  new: {
-    backgroundColor: "#EF4444", // red badge
-    color: "white",
-    fontSize: 20,
-    fontWeight: "700",
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    minWidth: 20,
-    textAlign: "center",
-    justifyContent: "center",
-    borderRadius: 60, // makes it round
-    overflow: "hidden",
-    marginLeft: 6,
-    marginBottom: 10
-  },
   subtitle: {
     fontSize: 14,
-    color: "#64748B",
+    color: "#94A3B8",
     marginTop: 4,
   },
   searchContainer: {

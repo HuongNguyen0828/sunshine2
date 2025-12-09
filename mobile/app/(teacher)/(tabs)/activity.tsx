@@ -283,11 +283,11 @@ export default function TeacherMessages() {
               <CheckCircle size={24} color="#10B981" />
               <Text style={styles.endOfListText}>You've reached the end</Text>
             </View>
-          ) : ( // Loading more
+          ) : isLoadingShowMore ? ( // Loading more
             <View style={{ margin: "auto" }}>
               <Loader size={20} strokeWidth={2} />
             </View>
-          )
+          ) : null
         }
       />
 
