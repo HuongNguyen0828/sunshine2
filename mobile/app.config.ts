@@ -14,6 +14,9 @@ const config: ExpoConfig = {
     package: "com.huongexpo.sunshine",
     googleServicesFile: "./google-services.json" // optional, but needed for Firebase notifications
   },
+  ios: {
+    bundleIdentifier: "com.huongexpo.sunshine",
+  },
   extra: {
     firebase: {
       apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
