@@ -539,7 +539,10 @@ export default function TeacherDashboard() {
         {/* quick actions (placeholder) */}
         <View style={styles.quickActionsContainer}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <Pressable style={styles.quickAction}>
+          <Pressable
+            style={styles.quickAction}
+            onPress={() => alert("Feature coming soon!")}
+          >
             <View style={styles.quickActionIcon}>
               <Calendar size={20} color="#10B981" />
             </View>
@@ -550,7 +553,10 @@ export default function TeacherDashboard() {
               style={{ transform: [{ rotate: "-90deg" }] }}
             />
           </Pressable>
-          <Pressable style={styles.quickAction}>
+          <Pressable 
+            style={styles.quickAction}
+            onPress={() => alert("Feature coming soon!")} 
+>
             <View style={styles.quickActionIcon}>
               <FileText size={20} color="#F59E0B" />
             </View>
