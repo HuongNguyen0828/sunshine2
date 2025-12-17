@@ -541,7 +541,7 @@ export default function AdminDashboard() {
           showClasses={classes}
         />}
 
-      {activeTab === "messages" && <MessagesTab />}
+      {/* {activeTab === "messages" && <MessagesTab />} */}
     </Shell>
   );
 }

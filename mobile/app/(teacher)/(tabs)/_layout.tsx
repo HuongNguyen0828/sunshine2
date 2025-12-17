@@ -171,7 +171,7 @@ export default function TeacherTabs() {
         <Tabs.Screen
           name="dashboard"
           options={{
-            title: "Teacher Dashboard",
+            title: "Dashboard",
             headerShown: false,
             tabBarIcon: (p) => <Ionicons name="home-outline" {...p} />,
           }}

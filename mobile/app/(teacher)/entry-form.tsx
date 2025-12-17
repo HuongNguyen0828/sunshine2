@@ -252,7 +252,7 @@ export default function EntryForm() {
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingBottom: 16,
-            paddingTop: 56, // space for floating back button
+            paddingTop: insets.top + 40,
             gap: 12,
           }}
         >
@@ -413,7 +413,7 @@ export default function EntryForm() {
           pointerEvents="box-none"
           style={{
             position: "absolute",
-            top: insets.top + 8,
+            top: insets.top,
             left: 12,
             zIndex: 100,
           }}
@@ -422,12 +422,11 @@ export default function EntryForm() {
             onPress={() => router.back()}
             style={{
               paddingHorizontal: 12,
-              paddingVertical: 6,
               borderRadius: 999,
               backgroundColor: "#E2E8F0",
             }}
           >
-            <Text style={{ color: "#0F172A", fontWeight: "500" }}>← Back</Text>
+            <Text style={{ color: "#0F172A", fontWeight: "500", fontSize: 16 }}>← Back</Text>
           </Pressable>
         </View>
       </View>

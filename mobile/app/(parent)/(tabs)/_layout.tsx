@@ -198,7 +198,7 @@ export default function ParentTabs() {
         <Tabs.Screen
           name="dashboard"
           options={{
-            title: "Parent Dashboard",
+            title: "Dashboard",
             tabBarIcon: (props) => <Ionicons name="home-outline" {...props} />,
           }}
         />

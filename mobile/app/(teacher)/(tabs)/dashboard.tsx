@@ -140,6 +140,7 @@ export default function TeacherDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [userDocId, setUserDocId] = useState<string | null>(null);
+  const [teacherName, setTeacherName] = useState<string>("");
 
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [children, setChildren] = useState<ChildRow[]>([]);
@@ -169,6 +170,9 @@ export default function TeacherDashboard() {
         // load user doc to get classIds
         const userSnap = await getDoc(doc(db, "users", uidDocId));
         const userData = userSnap.exists() ? (userSnap.data() as any) : {};
+
+        // Get teacher name
+        setTeacherName(userData?.firstName ? String(userData.firstName) : "");
         const teacherClassIds: string[] = Array.isArray(userData?.classIds)
           ? userData.classIds.map(String)
           : [];
@@ -329,7 +333,7 @@ export default function TeacherDashboard() {
     parentSubIDs: string[]
   ) => {
     // fixed time, e.g., 12:36 PM
-    const [hours, minutes] = [12, 36];
+    const [hours, minutes] = [12, 52];
 
     const now = new Date();
     const sendTime = new Date(
@@ -438,7 +442,7 @@ export default function TeacherDashboard() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <Text style={styles.greeting}>Good Morning! 👋</Text>
+          <Text style={styles.greeting}>Hi {teacherName}! 👋</Text>
           <Text style={styles.title}>Create Entry</Text>
           <Text style={styles.subtitle}> Select class before creating entries</Text>
         </View>
